@@ -577,9 +577,9 @@ private struct VerifiedLicense {
 
     func state(at now: Date) -> GLLicenseState {
         switch stateCode {
-        case 1: .expired(type: type)
-        case 2: .revoked
-        case 3: .perpetual(id: id, secondaries: secondaries)
+        case 1: return .expired(type: type)
+        case 2: return .revoked
+        case 3: return .perpetual(id: id, secondaries: secondaries)
         default:
             if type == .perpetual { return .perpetual(id: id, secondaries: secondaries) }
             guard let expiresAt else { return .unavailable }
