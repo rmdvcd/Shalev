@@ -360,7 +360,7 @@ struct HomeView: View {
     }
 
     private func accordion<Content: View>(title: String, value: String, key: String,
-                                           @ViewBuilder content: () -> Content) -> some View {
+                                           @ViewBuilder content: @escaping () -> Content) -> some View {
         DisclosureGroup(isExpanded: binding(for: key)) {
             content().padding(.top, 12)
         } label: {
