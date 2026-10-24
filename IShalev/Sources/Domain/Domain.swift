@@ -348,6 +348,13 @@ struct LocalEmployee: Codable, Identifiable, Equatable {
     var name: String
     var permissions: Set<EmployeePermission>
     var createdAt: Date = Date()
+    /// Verificador PBKDF2-HMAC-SHA256; nunca se persiste el PIN en claro.
+    var pinSalt: Data? = nil
+    var pinVerifier: Data? = nil
+    var pinFailedAttempts: Int? = 0
+    var pinLockedUntil: Date? = nil
+
+    var hasPIN: Bool { pinSalt?.count == EmployeePIN.saltLength && pinVerifier?.count == EmployeePIN.keyLength }
 }
 
 struct AppSettings: Codable, Equatable {
@@ -420,6 +427,9 @@ enum BusinessError: LocalizedError {
     case backupPassword
     case backupInvalid
     case unsupportedBackup
+    case employeePINRequired
+    case invalidEmployeePIN
+    case employeePINSetupFailed
 
     var errorDescription: String? {
         switch self {
@@ -440,7 +450,81 @@ enum BusinessError: LocalizedError {
         case .backupPassword: "La contraseña debe tener al menos 8 caracteres."
         case .backupInvalid: "No se pudo abrir el respaldo. Comprueba la contraseña y que el archivo sea válido."
         case .unsupportedBackup: "Este respaldo pertenece a una versión no compatible de Shalev para iOS."
+        case .employeePINRequired: "Cada perfil de empleado necesita un PIN propio de 6 a 12 dígitos."
+        case .invalidEmployeePIN: "El PIN debe tener entre 6 y 12 dígitos numéricos."
+        case .employeePINSetupFailed: "No se pudo configurar el PIN seguro. Inténtalo de nuevo."
         }
+    }
+}
+
+enum EmployeePINVerification: Equatable {
+    case accepted
+    case rejected(attemptsRemaining: Int)
+    case locked(until: Date)
+    case notConfigured
+}
+
+/// PIN local de empleado. El valor en claro solo vive en el campo de entrada; se almacena un verificador derivado.
+enum EmployeePIN {
+    static let minimumDigits = 6
+    static let maximumDigits = 12
+    static let saltLength = 16
+    static let keyLength = 32
+    static let rounds: UInt32 = 310_000
+    static let maximumAttempts = 5
+    static let lockDuration: TimeInterval = 15 * 60
+
+    static func isValid(_ pin: String) -> Bool {
+        let bytes = Array(pin.utf8)
+        return (minimumDigits...maximumDigits).contains(bytes.count) && bytes.allSatisfy { (48...57).contains($0) }
+    }
+
+    static func credentials(for pin: String) throws -> (salt: Data, verifier: Data) {
+        guard isValid(pin) else { throw BusinessError.invalidEmployeePIN }
+        var salt = Data(count: saltLength)
+        let count = saltLength
+        let randomStatus = salt.withUnsafeMutableBytes { buffer in
+            SecRandomCopyBytes(kSecRandomDefault, count, buffer.baseAddress!)
+        }
+        guard randomStatus == errSecSuccess else { throw BusinessError.employeePINSetupFailed }
+        return (salt, try derive(pin: pin, salt: salt))
+    }
+
+    static func matches(_ pin: String, salt: Data, verifier: Data) throws -> Bool {
+        guard isValid(pin), salt.count == saltLength, verifier.count == keyLength else { return false }
+        return constantTimeEqual(try derive(pin: pin, salt: salt), verifier)
+    }
+
+    private static func derive(pin: String, salt: Data) throws -> Data {
+        let password = Array(pin.utf8)
+        var output = Data(count: keyLength)
+        let outputCount = keyLength
+        let status = password.withUnsafeBytes { passwordBuffer in
+            salt.withUnsafeBytes { saltBuffer in
+                output.withUnsafeMutableBytes { outputBuffer in
+                    CCKeyDerivationPBKDF(
+                        CCPBKDFAlgorithm(kCCPBKDF2),
+                        passwordBuffer.bindMemory(to: Int8.self).baseAddress!,
+                        password.count,
+                        saltBuffer.bindMemory(to: UInt8.self).baseAddress!,
+                        salt.count,
+                        CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
+                        rounds,
+                        outputBuffer.bindMemory(to: UInt8.self).baseAddress!,
+                        outputCount
+                    )
+                }
+            }
+        }
+        guard status == kCCSuccess else { throw BusinessError.employeePINSetupFailed }
+        return output
+    }
+
+    private static func constantTimeEqual(_ lhs: Data, _ rhs: Data) -> Bool {
+        guard lhs.count == rhs.count else { return false }
+        var difference: UInt8 = 0
+        for (left, right) in zip(lhs, rhs) { difference |= left ^ right }
+        return difference == 0
     }
 }
 
@@ -475,7 +559,7 @@ final class ShalevStore: ObservableObject {
     var employees: [LocalEmployee] { data.employees ?? [] }
     var openShift: Shift? { data.shifts.first(where: { $0.closedAt == nil }) }
 
-    func saveEmployee(_ incoming: LocalEmployee) throws {
+    func saveEmployee(_ incoming: LocalEmployee, pin: String? = nil) throws {
         let name = incoming.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard (2...40).contains(name.count),
               !employees.contains(where: { $0.id != incoming.id && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) else {
@@ -484,11 +568,48 @@ final class ShalevStore: ObservableObject {
         var next = data
         var employee = incoming
         employee.name = name
+        if let pin, !pin.isEmpty {
+            let credentials = try EmployeePIN.credentials(for: pin)
+            employee.pinSalt = credentials.salt
+            employee.pinVerifier = credentials.verifier
+            employee.pinFailedAttempts = 0
+            employee.pinLockedUntil = nil
+        } else if !employee.hasPIN {
+            throw BusinessError.employeePINRequired
+        }
         var list = next.employees ?? []
         if let index = list.firstIndex(where: { $0.id == employee.id }) { list[index] = employee }
         else { list.append(employee) }
         next.employees = list
         try commit(next)
+    }
+
+    func verifyEmployeePIN(_ pin: String, employeeID: UUID, now: Date = Date()) throws -> EmployeePINVerification {
+        guard var employee = employees.first(where: { $0.id == employeeID }),
+              let salt = employee.pinSalt, let verifier = employee.pinVerifier,
+              employee.hasPIN else { return .notConfigured }
+        if let lockedUntil = employee.pinLockedUntil {
+            if lockedUntil > now { return .locked(until: lockedUntil) }
+            employee.pinLockedUntil = nil
+            employee.pinFailedAttempts = 0
+        }
+        if try EmployeePIN.matches(pin, salt: salt, verifier: verifier) {
+            employee.pinFailedAttempts = 0
+            employee.pinLockedUntil = nil
+            try saveEmployee(employee)
+            return .accepted
+        }
+        employee.pinFailedAttempts = (employee.pinFailedAttempts ?? 0) + 1
+        if (employee.pinFailedAttempts ?? 0) >= EmployeePIN.maximumAttempts {
+            let lockedUntil = now.addingTimeInterval(EmployeePIN.lockDuration)
+            employee.pinFailedAttempts = 0
+            employee.pinLockedUntil = lockedUntil
+            try saveEmployee(employee)
+            return .locked(until: lockedUntil)
+        }
+        let remaining = EmployeePIN.maximumAttempts - (employee.pinFailedAttempts ?? 0)
+        try saveEmployee(employee)
+        return .rejected(attemptsRemaining: remaining)
     }
 
     func deleteEmployee(_ id: UUID) throws {

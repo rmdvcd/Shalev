@@ -52,6 +52,7 @@ struct ShalevRootView: View {
     @AppStorage("shalev.module.inventory") private var inventoryEnabled = true
     @AppStorage("shalev.module.services") private var servicesEnabled = true
     @AppStorage("shalev.operator.active") private var selectedOperatorID = ""
+    @State private var authenticatedOperatorID = ""
     @State private var selectedSection: MainSection = .home
     @State private var saleMode: SaleMode?
     @State private var showStorageAlert = false
@@ -94,11 +95,16 @@ struct ShalevRootView: View {
                 OnboardingView(store: store) { onboardingCompleted = true }
             } else if appLockEnabled && !appUnlocked {
                 DeviceLockView { appUnlocked = true }
+            } else if let employee = activeEmployee, authenticatedOperatorID != employee.id.uuidString {
+                EmployeeSessionLockView(store: store, employee: employee,
+                                        onUnlock: { authenticatedOperatorID = employee.id.uuidString },
+                                        onSwitchToOwner: switchToOwner)
             } else {
                 appShell
             }
         }
         .task {
+            repairSelection()
             if salesEnabled && !inventoryEnabled { inventoryEnabled = true }
             ensureOneModule()
             await licenseManager.refresh()
@@ -107,6 +113,7 @@ struct ShalevRootView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .background || phase == .inactive {
                 if appLockEnabled { appUnlocked = false }
+                if !selectedOperatorID.isEmpty { authenticatedOperatorID = "" }
             } else if phase == .active {
                 Task {
                     await licenseManager.refresh()
@@ -125,7 +132,10 @@ struct ShalevRootView: View {
             repairSelection()
         }
         .onChange(of: servicesEnabled) { _, _ in ensureOneModule(); repairSelection() }
-        .onChange(of: selectedOperatorID) { _, _ in repairSelection() }
+        .onChange(of: selectedOperatorID) { oldID, newID in
+            if oldID != newID { authenticatedOperatorID = "" }
+            repairSelection()
+        }
         .onChange(of: store.data.employees) { _, _ in repairSelection() }
         .alert("No se pudo cambiar de operador", isPresented: Binding(get: { operatorAuthError != nil }, set: { if !$0 { operatorAuthError = nil } })) {
             Button("Entendido", role: .cancel) { operatorAuthError = nil }
@@ -193,7 +203,11 @@ struct ShalevRootView: View {
     }
 
     private func repairSelection() {
-        if !selectedOperatorID.isEmpty && activeEmployee == nil { selectedOperatorID = "" }
+        if !selectedOperatorID.isEmpty && activeEmployee == nil {
+            selectedOperatorID = ""
+            authenticatedOperatorID = ""
+        }
+        if selectedOperatorID.isEmpty { authenticatedOperatorID = "" }
         if !visibleSections.contains(selectedSection) { selectedSection = .home }
     }
 
@@ -213,6 +227,7 @@ struct ShalevRootView: View {
             Task { @MainActor in
                 if success {
                     selectedOperatorID = ""
+                    authenticatedOperatorID = ""
                     selectedSection = .home
                 } else {
                     operatorAuthError = authError?.localizedDescription ?? "No se pudo confirmar tu identidad."
