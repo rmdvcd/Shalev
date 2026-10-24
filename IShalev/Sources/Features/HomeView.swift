@@ -438,14 +438,14 @@ struct HomeView: View {
                 totals[line.name] = (units: previous.units + line.quantity, cents: previous.cents + line.subtotalCents)
             }
         }
-        return totals.map { entry in
+        let ranked: [RankedSaleItem] = totals.map { entry in
             RankedSaleItem(name: entry.key, units: entry.value.units, totalCents: entry.value.cents)
         }
-        .sorted { lhs, rhs in
-            lhs.units == rhs.units ? lhs.totalCents > rhs.totalCents : lhs.units > rhs.units
+        let sorted = ranked.sorted { lhs, rhs in
+            if lhs.units != rhs.units { return lhs.units > rhs.units }
+            return lhs.totalCents > rhs.totalCents
         }
-        .prefix(3)
-        .map { $0 }
+        return Array(sorted.prefix(3))
     }
 
     private var paymentSummary: String {
