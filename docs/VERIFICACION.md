@@ -1,6 +1,6 @@
 # Shalev — Verificación real
 
-> **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización: **2026-10-21**. El repositorio mantiene la app Android nativa; Flutter/iOS y la web de escritorio se retiraron.
+> **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización Android: **2026-10-21**. La app principal sigue siendo Android. El antiguo Flutter/iOS y la web de escritorio se retiraron; la nueva contraparte SwiftUI vive en `IShalev/` y tiene una sección de verificación independiente al final de este documento.
 
 ## Auditoría de interfaz: teclado, icono de «Continuar» y ventanas (2026-10-21, 0.32.0)
 
@@ -196,3 +196,16 @@ python3 tools/verificacion/api_minima.py # después de compilar bytecode debug
 ```
 
 Añadir a esta tabla cada nueva corrida con fecha, SHA, resultado por job y cualquier límite que no haya sido comprobado. Mantener el historial anterior en `docs/HISTORIAL_DESARROLLO.md`; sus métricas pertenecen a las versiones y commits que menciona, no al estado actual.
+
+## Contraparte nativa iOS `IShalev` — avance (2026-10-24)
+
+- Proyecto Xcode/SwiftUI separado en `IShalev/` (iOS 17+). Incluye onboarding y selección global de módulos; flujo GL con anclas públicas cotejadas literalmente contra Android; bloqueo con autenticación del dispositivo; perfiles de empleados con permisos locales por módulo/acción; fotografías desde la fototeca; pegado/análisis manual de SMS de Transfermóvil; corrección/anulación de ventas del turno abierto; PDF/CSV; respaldo propio cifrado `.shalev-ios`; guía, soporte y consulta de versiones `ios-v*`.
+- `.github/workflows/ios-build.yml` compila una app de simulador en `macos-15`, la empaqueta para Appetize y publica el ZIP de Actions durante siete días. Si están configurados `APPETIZE_API_KEY` (y opcionalmente `APPETIZE_PUBLIC_KEY`), el job intenta subir/actualizar la app de Appetize.
+- **CI iOS (2026-10-24):** [run `40112292578`](https://github.com/rmdvcd/Shalev/actions/runs/40112292578), commit `94e5287`: **verde**. `swift test --package-path IShalev` ejecutó las nuevas pruebas de reglas/derivación del PIN, bloqueo por intentos y compatibilidad de perfiles antiguos; después `xcodebuild` compiló la app para iOS Simulator y publicó el ZIP (retención de 7 días).
+- **CI Android (2026-10-24):** [run `40112292573`](https://github.com/rmdvcd/Shalev/actions/runs/40112292573), mismo commit: **verde** (tests JVM y compilación de instrumentados, lint, permisos, API mínima y APKs). El job de pruebas instrumentadas en emulador quedó omitido según la configuración ordinaria.
+- **Appetize aún no verificado:** aunque indicaste haber creado el secreto, la anotación del run `40112292578` volvió a confirmar que `APPETIZE_API_KEY` no está disponible para este workflow; no se hizo la subida y aún no hay URL ejecutable. Comprueba que sea un **Repository secret** dentro de GitHub → Settings → Secrets and variables → Actions → **Secrets**, con el nombre exacto `APPETIZE_API_KEY` (no una variable, ni un secreto de Environment/Organization que no esté disponible para este job). No compartas el valor. `APPETIZE_PUBLIC_KEY` es opcional para actualizar una app existente. El ZIP está en los artefactos del run para subir manualmente.
+- **Compilación local:** NO DISPONIBLE; el entorno es Linux y no tiene `swift` ni `xcodebuild`. La compilación aprobada es la del job macOS indicado arriba.
+- **Revisión estática (2026-10-24):** 17 fuentes Swift parseadas con Tree-sitter Swift; `.pbxproj`, workflow YAML y esquema de referencias se validaron estructuralmente. Esto no sustituye `xcodebuild`.
+- **Perfiles de empleado (implementado y con pruebas unitarias en verde; falta validar la interfaz):** cada perfil exige PIN de 6–12 dígitos; se guarda un verificador PBKDF2-HMAC-SHA256 con sal aleatoria (310 000 iteraciones), nunca el PIN en claro. Cinco fallos bloquean 15 minutos; el perfil vuelve a bloquearse al pasar la app a segundo plano y al reiniciarla. El retorno al administrador conserva autenticación del dispositivo. Se añadieron campos opcionales para que los datos/respaldo anteriores sigan decodificando; perfiles antiguos sin PIN requieren que el administrador lo configure antes de activarlos.
+- **Pendiente mayor:** sincronización de datos entre iOS y Android/otros teléfonos y prueba end-to-end en Appetize/dispositivo. Los perfiles y permisos siguen siendo locales y no se sincronizan. El comprobador de actualizaciones no instala (iOS exige TestFlight/App Store/MDM). El SMS se pega manualmente; Excel se exporta como CSV, no `.xlsx`. GL, exportación, respaldo y flujos de venta aún necesitan validación funcional.
+- El respaldo iOS mantiene intencionalmente su formato y cifrado propios; no se cambió el contrato GL ni sus claves.

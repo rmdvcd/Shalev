@@ -1,6 +1,6 @@
 # Contexto de Shalev para la IA de OpenCode
 
-Este documento resume el proyecto mantenido en este repositorio: la app Android nativa. Las reglas obligatorias están en `AGENTS.md`; lo pendiente está en `Pendiente.md`, y el orden de pruebas, en `Pruebas.md`. El estado medido de las verificaciones está en `docs/VERIFICACION.md`. Los documentos de versiones anteriores se conservan como referencia histórica.
+Este documento resume la app principal Android nativa de este repositorio. También existe el subproyecto iOS nativo `IShalev/`, cuya arquitectura, alcance y compilación se describen en `IShalev/README.md`; las reglas Kotlin/Gradle de este contexto aplican a Android. Las reglas obligatorias están en `AGENTS.md`; lo pendiente de Android está en `Pendiente.md`, y el orden de pruebas, en `Pruebas.md`. El estado medido de las verificaciones está en `docs/VERIFICACION.md`. Los documentos de versiones anteriores se conservan como referencia histórica.
 
 > **Idioma:** responde siempre en español. Todo el texto de la interfaz, los comentarios y la documentación también están en español.
 
@@ -235,6 +235,6 @@ Siguen pendientes la comprobación en un teléfono real, las capturas Roborazzi 
 | `docs/HISTORIAL_DESARROLLO.md` | Registro de decisiones de cada versión |
 | `docs/OPENCODE_DESKTOP.md` | Guía paso a paso con OpenCode Desktop |
 
-## Alcance del repositorio (2026-10-15)
+## Alcance del repositorio
 
-El producto mantenido aquí es la app Android nativa. Se retiraron `desktop/` (web-escritorio) y `flutter_app/` (iOS/Flutter), junto con sus dependencias, pruebas y workflows. La sincronización Android principal/secundaria, el formato `.shalev` y el cliente de licencias GL siguen activos. Las menciones a las plataformas retiradas en `docs/HISTORIAL_DESARROLLO.md` y las auditorías fechadas son contexto histórico, no instrucciones para el código actual.
+La aplicación Android nativa sigue siendo el producto principal. Se retiraron los antiguos proyectos `desktop/` y `flutter_app/` con sus dependencias, pruebas y workflows; la contraparte actual `IShalev/` es un proyecto SwiftUI nuevo y separado, no una restauración del Flutter histórico. La sincronización Android principal/secundaria, el formato `.shalev` y el cliente de licencias GL siguen activos en Android. Las menciones a las plataformas retiradas en `docs/HISTORIAL_DESARROLLO.md` y las auditorías fechadas son contexto histórico, no instrucciones para modificar el código Android.

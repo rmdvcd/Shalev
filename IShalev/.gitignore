@@ -1,0 +1,18 @@
+# Xcode and Swift Package Manager local state and build output
+.build/
+.DS_Store
+*.xcuserstate
+*.xcuserdatad/
+*.xccheckout
+xcuserdata/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.xcarchive/
+
+# Local signing material
+*.mobileprovision
+*.p12
+*.cer
+*.p8

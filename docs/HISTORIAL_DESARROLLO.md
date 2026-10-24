@@ -2077,3 +2077,12 @@ Primera vez que el repositorio se verifica solo: GitHub Actions ejecuta Gradle r
   Android no conserva la extensión `webFotos`: no se afirma transferencia de fotos al móvil.
 - Pruebas nuevas y autoprueba de empaquetado ampliadas; guía de OpenCode CLI actualizada.
   **No se ejecutaron pruebas, validadores, compilación, CI ni empaquetado en esta fase.**
+
+## Contraparte iOS nativa `IShalev` — 2026-10-24
+
+- Se creó `IShalev/` como proyecto SwiftUI/Xcode independiente (target iOS 17+), conservando la paleta, iconografía y tipografía de marca del Android.
+- Incluye Inicio y gráficos, apertura/cierre de turno, caja, catálogo de productos/insumos/elaborados con recetas, servicios, carrito, cobro efectivo/Transfermóvil con QR compatible, clientes fijos, registros, ajustes de precios y datos de perfil/cobro.
+- Los importes del dominio se almacenan en centavos; persistencia local JSON cifrada con AES-GCM y clave en Keychain; respaldo iOS con contraseña independiente del `.shalev` Android.
+- Se añadió `.github/workflows/ios-build.yml` para compilar en runner macOS y publicar una app de simulador como artefacto para Appetize.
+- Revisión estática: nueve fuentes Swift pasan Tree-sitter; `project.pbxproj`, scheme, `Info.plist`, manifiestos de recursos y YAML del workflow pasan parseo estructural. Esto no equivale a type-check ni compilación.
+- **No compilado ni ejecutado:** este entorno no tiene Xcode ni simulador iOS; el primer build queda pendiente del workflow macOS. La licencia GL, la LAN entre teléfonos, captura de SMS/notificaciones, edición/anulación de ventas y exportaciones PDF/Excel Android no se portaron en esta fase. `IShalev/README.md` documenta límites y pasos de compilación/emulación gratuita.

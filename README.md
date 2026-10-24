@@ -2,6 +2,8 @@
 
 App Android nativa para pequeños negocios: vender en turnos, controlar inventario e insumos, cobrar por transferencia, ver estadísticas y exportar registros. Funciona **sin conexión** y guarda todos los datos **cifrados en el teléfono**. El uso se controla con licencias offline emitidas por la app GL del desarrollador (contrato v1).
 
+**Contraparte iOS:** [IShalev](IShalev/README.md) es un proyecto SwiftUI nativo e independiente dentro de este repositorio. Incluye onboarding, licencia GL, perfiles locales de empleados, venta, caja, inventario, servicios, corrección de ventas, exportación y soporte; la sincronización iOS↔Android y la distribución firmada aún no están resueltas. El estado de compilación y pruebas está en [docs/VERIFICACION.md](docs/VERIFICACION.md).
+
 | | |
 |---|---|
 | Versión | **1.0** (`versionCode 53`) |
@@ -15,6 +17,7 @@ App Android nativa para pequeños negocios: vender en turnos, controlar inventar
 
 | Documento | Contenido |
 |---|---|
+| [IShalev/README.md](IShalev/README.md) | Proyecto iOS nativo SwiftUI, alcance, compilación y pruebas online |
 | [SECURITY.md](SECURITY.md) | Gestión de claves, cifrado, modelo de amenazas y buenas prácticas |
 | [LICENSE_CLIENT.md](LICENSE_CLIENT.md) | Cómo aplica Shalev el contrato de licencias GL v1 |
 | [FORMATOS.md](FORMATOS.md) | Formato del respaldo `.shalev` y de las exportaciones (PDF, Excel, imágenes; registro de la prueba) |
@@ -28,9 +31,9 @@ App Android nativa para pequeños negocios: vender en turnos, controlar inventar
 
 Los documentos de trabajo que estaban fuera del proyecto (`DECISIONES_LICENCIA_Shalev.md`, `PRUEBA_COMPATIBILIDAD_GL.md`, `ARQUITECTURA_Shalev.md`, planes y auditorías de los Prompts 17 y 18, entregas `ENTREGA_*`) se retiraron en la 0.18.0. Lo vigente está en `LICENSE_CLIENT.md` (contrato GL y decisiones de licencia), `SECURITY.md`, `docs/HISTORIAL_DESARROLLO.md` y el propio código.
 
-## Alcance actual y cambios recientes — 21 de octubre de 2026
+## Alcance actual y cambios recientes — 24 de octubre de 2026
 
-Este repositorio mantiene la aplicación **Android nativa**. La app Flutter/iOS y la aplicación web de escritorio se retiraron; también se eliminaron sus proyectos, pruebas y pipelines propios. La sincronización por red local entre teléfonos Android sigue siendo parte de la app.
+La aplicación principal de este repositorio sigue siendo **Android nativa**. Los antiguos proyectos Flutter/iOS y web de escritorio se retiraron; `IShalev/` es una contraparte iOS nueva, nativa en SwiftUI y con proyecto Xcode separado, no una restauración del código Flutter eliminado. La sincronización por red local entre teléfonos Android sigue siendo parte de la app Android.
 
 La rama contiene mejoras recientes en Inicio, Inventario, Registros, Actualizar y Licencia. El detalle para usuarios está en [MANUAL_USUARIO.md](MANUAL_USUARIO.md), los cambios técnicos en [docs/HISTORIAL_DESARROLLO.md](docs/HISTORIAL_DESARROLLO.md) y el estado medido de las pruebas en [docs/VERIFICACION.md](docs/VERIFICACION.md).
 
