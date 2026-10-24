@@ -407,10 +407,7 @@ struct HomeView: View {
     }
 
     private var topProducts: some View {
-        let grouped = Dictionary(grouping: periodSales.flatMap { $0.lines }, by: \.name)
-            .map { (name: $0.key, units: $0.value.reduce(0) { $0 + $1.quantity }, total: $0.value.reduce(Int64(0)) { $0 + $1.subtotalCents }) }
-            .sorted { $0.units == $1.units ? $0.total > $1.total : $0.units > $1.units }
-            .prefix(3)
+        let grouped = topRankedProducts
         return VStack(spacing: 10) {
             if grouped.isEmpty {
                 Text("Todavía no hay ventas para mostrar.").font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
@@ -425,12 +422,30 @@ struct HomeView: View {
                             .background(Color.shalevPrimaryContainer, in: Circle())
                         Text(item.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevText).lineLimit(1)
                         Spacer()
-                        Text("\(item.units) u · \(Cup(cents: item.total).formatted)")
+                        Text("\(item.units) u · \(Cup(cents: item.totalCents).formatted)")
                             .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
                     }
                 }
             }
         }
+    }
+
+    private var topRankedProducts: [RankedSaleItem] {
+        var totals: [String: (units: Int, cents: Int64)] = [:]
+        for sale in periodSales {
+            for line in sale.lines {
+                let previous = totals[line.name] ?? (units: 0, cents: 0)
+                totals[line.name] = (units: previous.units + line.quantity, cents: previous.cents + line.subtotalCents)
+            }
+        }
+        return totals.map { entry in
+            RankedSaleItem(name: entry.key, units: entry.value.units, totalCents: entry.value.cents)
+        }
+        .sorted { lhs, rhs in
+            lhs.units == rhs.units ? lhs.totalCents > rhs.totalCents : lhs.units > rhs.units
+        }
+        .prefix(3)
+        .map { $0 }
     }
 
     private var paymentSummary: String {
@@ -442,6 +457,13 @@ struct HomeView: View {
         let count = store.data.settings.priceAdjustments.filter(\.active).count
         return count == 0 ? "Sin ajustes activos" : "\(count) ajuste\(count == 1 ? "" : "s") activo\(count == 1 ? "" : "s")"
     }
+}
+
+private struct RankedSaleItem: Identifiable {
+    var name: String
+    var units: Int
+    var totalCents: Int64
+    var id: String { name }
 }
 
 private enum ShiftSheetAction: String, Identifiable, Equatable {

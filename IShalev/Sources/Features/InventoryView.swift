@@ -239,7 +239,8 @@ private struct ProductEditorView: View {
     private var ingredients: [Product] { store.activeProducts.filter { $0.kind == .ingredient } }
 
     var body: some View {
-        NavigationStack {
+        let photoActionTitle = imageData == nil ? "Añadir foto" : "Cambiar foto"
+        return NavigationStack {
             ScrollView {
                 VStack(spacing: 14) {
                     ShalevScreenTitle(title: product == nil ? "Agregar artículo" : "Editar artículo",
@@ -258,7 +259,7 @@ private struct ProductEditorView: View {
                             }
                             HStack(spacing: 10) {
                                 PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                                    Label(imageData == nil ? "Añadir foto" : "Cambiar foto", systemImage: "photo")
+                                    Label(photoActionTitle, systemImage: "photo")
                                 }
                                 .buttonStyle(ShalevTonalButtonStyle())
                                 if imageData != nil {
@@ -279,7 +280,7 @@ private struct ProductEditorView: View {
                                     ForEach(InventoryKind.allCases) { option in Text(option.rawValue).tag(option) }
                                 }
                                 .pickerStyle(.segmented)
-                                .onChange(of: kind) { newValue in
+                                .onChange(of: kind) { _, newValue in
                                     if newValue == .ingredient { category = "Insumos" }
                                     else if newValue == .prepared { category = "Elaborado" }
                                     else if category == "Insumos" || category == "Elaborado" { category = "Otros" }

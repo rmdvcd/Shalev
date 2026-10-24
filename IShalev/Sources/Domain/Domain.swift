@@ -149,7 +149,10 @@ enum TransferMessageParser {
         let prefix = (text as NSString).substring(to: match.range.location)
         let blockStart = prefix.range(of: "Banco ", options: [.backwards, .caseInsensitive])?.lowerBound ?? prefix.startIndex
         let relevant = String(prefix[blockStart...])
-        let cents = matches(amount, in: relevant).last?.number.flatMap { Cup.parse($0)?.cents }
+        let amountMatches = matches(amount, in: relevant)
+        let cents: Int64?
+        if let amountText = amountMatches.last?.number { cents = Cup.parse(amountText)?.cents }
+        else { cents = nil }
         return ParsedTransferMessage(transactionNumber: match.number.uppercased(), amountCents: cents)
     }
 
