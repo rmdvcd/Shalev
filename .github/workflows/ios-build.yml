@@ -1,0 +1,72 @@
+name: Compilación iOS de IShalev
+
+on:
+  push:
+    paths:
+      - 'IShalev/**'
+      - '.github/workflows/ios-build.yml'
+  pull_request:
+    paths:
+      - 'IShalev/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios-simulator:
+    name: Compilar app para iOS Simulator
+    runs-on: macos-15
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v4
+
+      - name: Mostrar herramientas de Apple
+        run: xcodebuild -version
+
+      - name: Compilar sin firma para el simulador
+        run: >-
+          xcodebuild
+          -project IShalev/IShalev.xcodeproj
+          -scheme IShalev
+          -configuration Debug
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath "$RUNNER_TEMP/IShalevDerivedData"
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+      - name: Empaquetar app de simulador para Appetize
+        run: >-
+          ditto -c -k --sequesterRsrc --keepParent
+          "$RUNNER_TEMP/IShalevDerivedData/Build/Products/Debug-iphonesimulator/IShalev.app"
+          "$RUNNER_TEMP/IShalev-iOS-Simulator.zip"
+
+      - name: Subir la app a Appetize (opcional)
+        if: github.event_name != 'pull_request'
+        env:
+          APPETIZE_API_KEY: ${{ secrets.APPETIZE_API_KEY }}
+          APPETIZE_PUBLIC_KEY: ${{ secrets.APPETIZE_PUBLIC_KEY }}
+        run: |
+          if [ -z "$APPETIZE_API_KEY" ]; then
+            echo "APPETIZE_API_KEY no está configurado; el ZIP se publica como artefacto para subirlo manualmente."
+            exit 0
+          fi
+          if [ -n "$APPETIZE_PUBLIC_KEY" ]; then
+            endpoint="https://api.appetize.io/v1/apps/$APPETIZE_PUBLIC_KEY"
+          else
+            endpoint="https://api.appetize.io/v1/apps"
+          fi
+          response=$(curl --fail --silent --show-error -X POST "$endpoint" \
+            -H "X-API-KEY: $APPETIZE_API_KEY" \
+            -F "file=@$RUNNER_TEMP/IShalev-iOS-Simulator.zip" \
+            -F "platform=ios")
+          echo "$response" | python3 -c 'import json,sys; data=json.load(sys.stdin); key=data.get("publicKey") or data.get("buildId"); print("Appetize build: https://appetize.io/app/" + key if key else "Appetize respondió sin publicKey/buildId")'
+
+      - name: Publicar el artefacto de simulador
+        uses: actions/upload-artifact@v4
+        with:
+          name: IShalev-iOS-Simulator
+          path: ${{ runner.temp }}/IShalev-iOS-Simulator.zip
+          if-no-files-found: error
+          retention-days: 7

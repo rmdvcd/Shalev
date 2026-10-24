@@ -1,6 +1,6 @@
 # Shalev — Verificación real
 
-> **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización: **2026-10-21**. El repositorio mantiene la app Android nativa; Flutter/iOS y la web de escritorio se retiraron.
+> **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización Android: **2026-10-21**. La app principal sigue siendo Android. El antiguo Flutter/iOS y la web de escritorio se retiraron; la nueva contraparte SwiftUI vive en `IShalev/` y tiene una sección de verificación independiente al final de este documento.
 
 ## Auditoría de interfaz: teclado, icono de «Continuar» y ventanas (2026-10-21, 0.32.0)
 
@@ -196,3 +196,12 @@ python3 tools/verificacion/api_minima.py # después de compilar bytecode debug
 ```
 
 Añadir a esta tabla cada nueva corrida con fecha, SHA, resultado por job y cualquier límite que no haya sido comprobado. Mantener el historial anterior en `docs/HISTORIAL_DESARROLLO.md`; sus métricas pertenecen a las versiones y commits que menciona, no al estado actual.
+
+## Contraparte nativa iOS `IShalev` — avance (2026-10-24)
+
+- Proyecto Xcode/SwiftUI separado en `IShalev/` (iOS 17+). Incluye onboarding y selección global de módulos; flujo GL con anclas públicas cotejadas literalmente contra Android; bloqueo con autenticación del dispositivo; perfiles de empleados con permisos locales por módulo/acción; fotografías desde la fototeca; pegado/análisis manual de SMS de Transfermóvil; corrección/anulación de ventas del turno abierto; PDF/CSV; respaldo propio cifrado `.shalev-ios`; guía, soporte y consulta de versiones `ios-v*`.
+- `.github/workflows/ios-build.yml` compila una app de simulador en `macos-15`, la empaqueta para Appetize y publica el ZIP de Actions durante siete días. Si están configurados `APPETIZE_API_KEY` (y opcionalmente `APPETIZE_PUBLIC_KEY`), el job intenta subir/actualizar la app de Appetize.
+- **Compilación local:** NO DISPONIBLE; el entorno es Linux y no tiene `swift` ni `xcodebuild`. No se declara type-check ni compilación aprobada hasta observar un job macOS verde.
+- **Revisión estática (2026-10-24):** 17 fuentes Swift parseadas con Tree-sitter Swift; `.pbxproj`, workflow YAML y esquema de referencias se validaron estructuralmente. Esto no sustituye `xcodebuild`.
+- **Pendiente mayor:** sincronización de datos entre iOS y Android/otros teléfonos y prueba end-to-end. Los perfiles locales no tienen PIN propio ni se sincronizan. El comprobador de actualizaciones no instala (iOS exige TestFlight/App Store/MDM). El SMS se pega manualmente; Excel se exporta como CSV, no `.xlsx`. GL, exportación, respaldo y flujos de venta necesitan validación de ejecución.
+- El respaldo iOS mantiene intencionalmente su formato y cifrado propios; no se cambió el contrato GL ni sus claves.

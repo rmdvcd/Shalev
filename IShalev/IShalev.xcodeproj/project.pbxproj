@@ -1,0 +1,313 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		000000000000000000000101 /* AppRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* AppRoot.swift */; };
+		000000000000000000000102 /* Domain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000012 /* Domain.swift */; };
+		000000000000000000000103 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000013 /* DesignSystem.swift */; };
+		000000000000000000000104 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000014 /* HomeView.swift */; };
+		000000000000000000000105 /* InventoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000015 /* InventoryView.swift */; };
+		000000000000000000000106 /* SaleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000016 /* SaleView.swift */; };
+		000000000000000000000107 /* ServicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000017 /* ServicesView.swift */; };
+		000000000000000000000108 /* RecordsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000018 /* RecordsView.swift */; };
+		000000000000000000000109 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000019 /* SettingsView.swift */; };
+		00000000000000000000010C /* License.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001A /* License.swift */; };
+		00000000000000000000010D /* LicenseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001B /* LicenseView.swift */; };
+		00000000000000000000010E /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001C /* OnboardingView.swift */; };
+		00000000000000000000010F /* DeviceLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001D /* DeviceLockView.swift */; };
+		000000000000000000000110 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001E /* ExportService.swift */; };
+		000000000000000000000111 /* EmployeeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001F /* EmployeeSettingsView.swift */; };
+		000000000000000000000112 /* SupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000020 /* SupportView.swift */; };
+		000000000000000000000113 /* UpdatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000021 /* UpdatesView.swift */; };
+		00000000000000000000010A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000024 /* Assets.xcassets */; };
+		00000000000000000000010B /* Orbitron-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000025 /* Orbitron-Bold.ttf */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		000000000000000000000011 /* AppRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoot.swift; sourceTree = "<group>"; };
+		000000000000000000000012 /* Domain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Domain.swift; sourceTree = "<group>"; };
+		000000000000000000000013 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		000000000000000000000014 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		000000000000000000000015 /* InventoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventoryView.swift; sourceTree = "<group>"; };
+		000000000000000000000016 /* SaleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaleView.swift; sourceTree = "<group>"; };
+		000000000000000000000017 /* ServicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesView.swift; sourceTree = "<group>"; };
+		000000000000000000000018 /* RecordsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsView.swift; sourceTree = "<group>"; };
+		000000000000000000000019 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		00000000000000000000001A /* License.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = License.swift; sourceTree = "<group>"; };
+		00000000000000000000001B /* LicenseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicenseView.swift; sourceTree = "<group>"; };
+		00000000000000000000001C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		00000000000000000000001D /* DeviceLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceLockView.swift; sourceTree = "<group>"; };
+		00000000000000000000001E /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
+		00000000000000000000001F /* EmployeeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmployeeSettingsView.swift; sourceTree = "<group>"; };
+		000000000000000000000020 /* SupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportView.swift; sourceTree = "<group>"; };
+		000000000000000000000021 /* UpdatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdatesView.swift; sourceTree = "<group>"; };
+		000000000000000000000023 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		000000000000000000000024 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		000000000000000000000025 /* Orbitron-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Orbitron-Bold.ttf"; sourceTree = "<group>"; };
+		000000000000000000000026 /* IShalev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IShalev.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		000000000000000000000302 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		000000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000003 /* Sources */,
+				000000000000000000000008 /* Resources */,
+				000000000000000000000023 /* Info.plist */,
+				00000000000000000000000B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		000000000000000000000003 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000004 /* App */,
+				000000000000000000000005 /* Domain */,
+				000000000000000000000006 /* Design */,
+				000000000000000000000007 /* Features */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		000000000000000000000004 /* App */ = {
+			isa = PBXGroup;
+			children = (000000000000000000000011 /* AppRoot.swift */,);
+			path = App;
+			sourceTree = "<group>";
+		};
+		000000000000000000000005 /* Domain */ = {
+			isa = PBXGroup;
+			children = (000000000000000000000012 /* Domain.swift */, 00000000000000000000001A /* License.swift */);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+		000000000000000000000006 /* Design */ = {
+			isa = PBXGroup;
+			children = (000000000000000000000013 /* DesignSystem.swift */,);
+			path = Design;
+			sourceTree = "<group>";
+		};
+		000000000000000000000007 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000014 /* HomeView.swift */,
+				000000000000000000000015 /* InventoryView.swift */,
+				000000000000000000000016 /* SaleView.swift */,
+				000000000000000000000017 /* ServicesView.swift */,
+				000000000000000000000018 /* RecordsView.swift */,
+				000000000000000000000019 /* SettingsView.swift */,
+				00000000000000000000001B /* LicenseView.swift */,
+				00000000000000000000001C /* OnboardingView.swift */,
+				00000000000000000000001D /* DeviceLockView.swift */,
+				00000000000000000000001E /* ExportService.swift */,
+				00000000000000000000001F /* EmployeeSettingsView.swift */,
+				000000000000000000000020 /* SupportView.swift */,
+				000000000000000000000021 /* UpdatesView.swift */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		000000000000000000000008 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000024 /* Assets.xcassets */,
+				00000000000000000000000A /* Fonts */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		00000000000000000000000A /* Fonts */ = {
+			isa = PBXGroup;
+			children = (000000000000000000000025 /* Orbitron-Bold.ttf */,);
+			path = Fonts;
+			sourceTree = "<group>";
+		};
+		00000000000000000000000B /* Products */ = {
+			isa = PBXGroup;
+			children = (000000000000000000000026 /* IShalev.app */,);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		000000000000000000000401 /* IShalev */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 000000000000000000000602 /* Build configuration list for PBXNativeTarget "IShalev" */;
+			buildPhases = (
+				000000000000000000000301 /* Sources */,
+				000000000000000000000302 /* Frameworks */,
+				000000000000000000000303 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = IShalev;
+			productName = IShalev;
+			productReference = 000000000000000000000026 /* IShalev.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		000000000000000000000C01 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {000000000000000000000401 = {CreatedOnToolsVersion = 15.0; LastSwiftMigration = 1600; };};
+			};
+			buildConfigurationList = 000000000000000000000601 /* Build configuration list for PBXProject "IShalev" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = es;
+			hasScannedForEncodings = 0;
+			knownRegions = (es, en, Base);
+			mainGroup = 000000000000000000000001;
+			productRefGroup = 00000000000000000000000B /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (000000000000000000000401 /* IShalev */,);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		000000000000000000000303 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				00000000000000000000010A /* Assets.xcassets in Resources */,
+				00000000000000000000010B /* Orbitron-Bold.ttf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		000000000000000000000301 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000101 /* AppRoot.swift in Sources */,
+				000000000000000000000102 /* Domain.swift in Sources */,
+				000000000000000000000103 /* DesignSystem.swift in Sources */,
+				000000000000000000000104 /* HomeView.swift in Sources */,
+				000000000000000000000105 /* InventoryView.swift in Sources */,
+				000000000000000000000106 /* SaleView.swift in Sources */,
+				000000000000000000000107 /* ServicesView.swift in Sources */,
+				000000000000000000000108 /* RecordsView.swift in Sources */,
+				000000000000000000000109 /* SettingsView.swift in Sources */,
+				00000000000000000000010C /* License.swift in Sources */,
+				00000000000000000000010D /* LicenseView.swift in Sources */,
+				00000000000000000000010E /* OnboardingView.swift in Sources */,
+				00000000000000000000010F /* DeviceLockView.swift in Sources */,
+				000000000000000000000110 /* ExportService.swift in Sources */,
+				000000000000000000000111 /* EmployeeSettingsView.swift in Sources */,
+				000000000000000000000112 /* SupportView.swift in Sources */,
+				000000000000000000000113 /* UpdatesView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		000000000000000000000501 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		000000000000000000000502 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		000000000000000000000503 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cu.shalev.ishalev;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		000000000000000000000504 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cu.shalev.ishalev;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		000000000000000000000601 /* Build configuration list for PBXProject "IShalev" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000501 /* Debug */,
+				000000000000000000000502 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		000000000000000000000602 /* Build configuration list for PBXNativeTarget "IShalev" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000503 /* Debug */,
+				000000000000000000000504 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 000000000000000000000C01 /* Project object */;
+}
