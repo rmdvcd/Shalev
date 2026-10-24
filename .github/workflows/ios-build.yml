@@ -44,15 +44,15 @@ jobs:
         run: |
           log="$RUNNER_TEMP/xcodebuild.log"
           if [ -f "$log" ]; then
-            mapfile -t issues < <(grep -E 'error:|warning:|BUILD FAILED|The following build commands failed' "$log" | tail -n 80 || true)
-            if [ "${#issues[@]}" -gt 0 ]; then
+            issues=$(grep -E 'error:|warning:|BUILD FAILED|The following build commands failed' "$log" | tail -n 80 || true)
+            if [ -n "$issues" ]; then
               {
                 echo '## Diagnóstico de xcodebuild'
                 echo '```text'
-                printf '%s\n' "${issues[@]}"
+                printf '%s\n' "$issues"
                 echo '```'
               } >> "$GITHUB_STEP_SUMMARY"
-              for issue in "${issues[@]}"; do echo "::error::$issue"; done
+              while IFS= read -r issue; do echo "::error::$issue"; done <<< "$issues"
             fi
           fi
 
