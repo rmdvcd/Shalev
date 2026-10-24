@@ -495,6 +495,19 @@ enum EmployeePIN {
         return constantTimeEqual(try derive(pin: pin, salt: salt), verifier)
     }
 
+    static func registeringFailure(for employee: LocalEmployee, at now: Date) -> (employee: LocalEmployee, result: EmployeePINVerification) {
+        var updated = employee
+        updated.pinFailedAttempts = (updated.pinFailedAttempts ?? 0) + 1
+        if (updated.pinFailedAttempts ?? 0) >= maximumAttempts {
+            let lockedUntil = now.addingTimeInterval(lockDuration)
+            updated.pinFailedAttempts = 0
+            updated.pinLockedUntil = lockedUntil
+            return (updated, .locked(until: lockedUntil))
+        }
+        let remaining = maximumAttempts - (updated.pinFailedAttempts ?? 0)
+        return (updated, .rejected(attemptsRemaining: remaining))
+    }
+
     private static func derive(pin: String, salt: Data) throws -> Data {
         let password = Array(pin.utf8)
         var output = Data(count: keyLength)
@@ -599,17 +612,9 @@ final class ShalevStore: ObservableObject {
             try saveEmployee(employee)
             return .accepted
         }
-        employee.pinFailedAttempts = (employee.pinFailedAttempts ?? 0) + 1
-        if (employee.pinFailedAttempts ?? 0) >= EmployeePIN.maximumAttempts {
-            let lockedUntil = now.addingTimeInterval(EmployeePIN.lockDuration)
-            employee.pinFailedAttempts = 0
-            employee.pinLockedUntil = lockedUntil
-            try saveEmployee(employee)
-            return .locked(until: lockedUntil)
-        }
-        let remaining = EmployeePIN.maximumAttempts - (employee.pinFailedAttempts ?? 0)
-        try saveEmployee(employee)
-        return .rejected(attemptsRemaining: remaining)
+        let failure = EmployeePIN.registeringFailure(for: employee, at: now)
+        try saveEmployee(failure.employee)
+        return failure.result
     }
 
     func deleteEmployee(_ id: UUID) throws {

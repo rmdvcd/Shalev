@@ -1,4 +1,5 @@
-# Xcode local state and build output
+# Xcode and Swift Package Manager local state and build output
+.build/
 .DS_Store
 *.xcuserstate
 *.xcuserdatad/

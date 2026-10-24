@@ -25,6 +25,9 @@ jobs:
       - name: Mostrar herramientas de Apple
         run: xcodebuild -version
 
+      - name: Ejecutar pruebas unitarias del dominio iOS
+        run: swift test --package-path IShalev
+
       - name: Compilar sin firma para el simulador
         shell: bash
         run: |

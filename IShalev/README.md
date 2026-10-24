@@ -46,9 +46,11 @@ xcodebuild \
   -destination 'platform=iOS Simulator,name=iPhone 16' \
   CODE_SIGNING_ALLOWED=NO \
   build
+
+swift test --package-path IShalev # pruebas unitarias del dominio iOS
 ```
 
-El proyecto de Android que lo acompaña sigue en la raíz del repositorio. Los 17 archivos Swift pasan revisión sintáctica con Tree-sitter y el proyecto Xcode pasa parseo estructural; esto **no** sustituye el type-check ni la compilación. El entorno de desarrollo es Linux y carece de Xcode/`xcodebuild`; la compilación real debe confirmarse en GitHub Actions con macOS.
+El proyecto de Android que lo acompaña sigue en la raíz del repositorio. Las pruebas unitarias verifican las reglas y derivación del PIN, el bloqueo tras intentos fallidos y la lectura de perfiles guardados antes de incorporar PIN. La compilación y las pruebas automatizadas se ejecutan en GitHub Actions sobre macOS; el entorno de desarrollo local es Linux y carece de Xcode/`swift`.
 
 ## Compilar y probar online sin coste
 
