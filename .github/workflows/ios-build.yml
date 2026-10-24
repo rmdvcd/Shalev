@@ -69,7 +69,9 @@ jobs:
           APPETIZE_PUBLIC_KEY: ${{ secrets.APPETIZE_PUBLIC_KEY }}
         run: |
           if [ -z "$APPETIZE_API_KEY" ]; then
-            echo "APPETIZE_API_KEY no está configurado; el ZIP se publica como artefacto para subirlo manualmente."
+            message="APPETIZE_API_KEY no está configurado; el ZIP se publica como artefacto para subirlo manualmente."
+            echo "$message" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::notice::$message"
             exit 0
           fi
           if [ -n "$APPETIZE_PUBLIC_KEY" ]; then
@@ -81,7 +83,14 @@ jobs:
             -H "X-API-KEY: $APPETIZE_API_KEY" \
             -F "file=@$RUNNER_TEMP/IShalev-iOS-Simulator.zip" \
             -F "platform=ios")
-          echo "$response" | python3 -c 'import json,sys; data=json.load(sys.stdin); key=data.get("publicKey") or data.get("buildId"); print("Appetize build: https://appetize.io/app/" + key if key else "Appetize respondió sin publicKey/buildId")'
+          app_url=$(echo "$response" | python3 -c 'import json,sys; data=json.load(sys.stdin); key=data.get("publicKey") or data.get("buildId"); print("https://appetize.io/app/" + key if key else "")')
+          if [ -z "$app_url" ]; then
+            echo "::warning::Appetize respondió sin publicKey/buildId; revisa el resultado de subida."
+          else
+            message="Appetize build: $app_url"
+            echo "$message" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::notice::$message"
+          fi
 
       - name: Publicar el artefacto de simulador
         uses: actions/upload-artifact@v4
