@@ -211,6 +211,8 @@ struct Product: Codable, Identifiable, Equatable {
     /// Se usa para detectar que el inventario cambió mientras se hacía un conteo de cierre.
     /// Opcional para poder leer los datos creados por las primeras versiones de IShalev.
     var updatedAt: Date? = nil
+    /// Nombre de la foto en el protocolo LAN; no es una ruta arbitraria del sistema.
+    var syncPhotoName: String? = nil
 
     var displayStock: String {
         if kind == .prepared { return "Elaborado" }
@@ -229,6 +231,7 @@ struct ServiceItem: Codable, Identifiable, Equatable {
     var uses: [IngredientUse] = []
     var isActive: Bool = true
     var createdAt: Date = Date()
+    var syncPhotoName: String? = nil
 }
 
 struct Customer: Codable, Identifiable, Equatable {
@@ -274,6 +277,12 @@ struct Sale: Codable, Identifiable, Equatable {
     var correctionOfSaleID: UUID? = nil
     /// Nombre congelado de quien registró la operación.
     var sellerName: String? = nil
+    /// Id de la app secundaria de origen en la principal; nil en las operaciones locales.
+    var employeeID: Int64? = nil
+    /// La secundaria lo marca solo cuando la principal confirma haber guardado la venta.
+    var synced: Bool = false
+    /// Cambios de una venta sincronizada que la principal aún debe devolver a esa secundaria.
+    var changePending: Bool = false
 
     var isService: Bool { !lines.isEmpty && lines.allSatisfy { $0.kind == .service } }
     var totalCents: Int64 { lines.reduce(0) { $0 + $1.subtotalCents } }
@@ -304,6 +313,8 @@ struct CashMovement: Codable, Identifiable, Equatable {
     var amountCents: Int64
     var reason: String
     var actorName: String? = nil
+    /// Confirmación de la principal al recibir este movimiento por UUID.
+    var synced: Bool = false
 }
 
 /// Desglose de efectivo y conciliación física asociados al cierre de un turno.
@@ -373,6 +384,10 @@ struct Shift: Codable, Identifiable, Equatable {
     var closedBy: String? = nil
     var closingCount: ShiftClosingCount? = nil
     var summary: ShiftSummary? = nil
+    /// Secundaria propietaria en la base general; nil identifica el turno de esta instalación.
+    var employeeID: Int64? = nil
+    /// La secundaria solo lo confirma después de que la principal guarda el turno.
+    var synced: Bool = false
 }
 
 struct PriceAdjustment: Codable, Identifiable, Equatable {
@@ -478,6 +493,18 @@ struct LocalEmployee: Codable, Identifiable, Equatable {
     var pinVerifier: Data? = nil
     var pinFailedAttempts: Int? = 0
     var pinLockedUntil: Date? = nil
+    /// Metadatos de una app Android/iOS vinculada. Las claves y tokens nunca se guardan aquí.
+    var syncID: Int64? = nil
+    var syncActive: Bool = true
+    var linkedAt: Date? = nil
+    var lastSyncAt: Date? = nil
+    var codeExpiresAt: Date? = nil
+    var paymentCardID: UUID? = nil
+    var paymentPhoneID: UUID? = nil
+    var phone: String? = nil
+    var deviceID: String? = nil
+    var closeRequestedAt: Date? = nil
+    var employeeCloseRequestAt: Date? = nil
 
     var hasPIN: Bool { pinSalt?.count == EmployeePIN.saltLength && pinVerifier?.count == EmployeePIN.keyLength }
 }
@@ -766,6 +793,10 @@ final class ShalevStore: ObservableObject {
     private var readOnlyAfterLoadFailure = false
     /// Contexto de sesión, no se incluye en el respaldo. La raíz lo actualiza al cambiar de empleado.
     var currentOperatorName: String?
+    /// Lo configura el motor de sincronización; no forma parte de los datos respaldados.
+    var requiresClosingApproval = false
+    var allowsRemoteSaleCorrections = false
+    var changeHandler: ((AppData, AppData) -> Void)?
 
     init(storage: LocalStorePersisting? = nil) {
         self.storage = storage ?? EncryptedLocalStore()
@@ -785,8 +816,11 @@ final class ShalevStore: ObservableObject {
 
     var activeProducts: [Product] { data.products.filter(\.isActive).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
     var activeServices: [ServiceItem] { data.services.filter(\.isActive).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
-    var employees: [LocalEmployee] { data.employees ?? [] }
-    var openShift: Shift? { data.shifts.first(where: { $0.closedAt == nil }) }
+    /// Perfiles con PIN de este dispositivo; las apps vinculadas se administran aparte.
+    var employees: [LocalEmployee] { (data.employees ?? []).filter { $0.syncID == nil } }
+    var linkedApps: [LocalEmployee] { (data.employees ?? []).filter { $0.syncID != nil } }
+    /// Como en Android, los turnos recibidos de secundarias no bloquean el turno de esta instalación.
+    var openShift: Shift? { data.shifts.first(where: { $0.closedAt == nil && $0.employeeID == nil }) }
     var actorName: String {
         let explicit = currentOperatorName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !explicit.isEmpty { return String(explicit.prefix(80)) }
@@ -794,7 +828,7 @@ final class ShalevStore: ObservableObject {
         return owner.isEmpty ? "Titular del dispositivo" : String(owner.prefix(80))
     }
     var suggestedOpeningCashCents: Int64? {
-        data.shifts.filter { $0.closedAt != nil }.sorted { ($0.closedAt ?? .distantPast) > ($1.closedAt ?? .distantPast) }
+        data.shifts.filter { $0.closedAt != nil && $0.employeeID == nil }.sorted { ($0.closedAt ?? .distantPast) > ($1.closedAt ?? .distantPast) }
             .first.map { $0.countedCashCents ?? $0.openingCashCents }
     }
 
@@ -854,6 +888,37 @@ final class ShalevStore: ObservableObject {
         next.employees = (next.employees ?? []).filter { $0.id != id }
         try commit(next)
     }
+
+    func saveLinkedApp(_ incoming: LocalEmployee) throws {
+        guard incoming.syncID != nil else { throw BusinessError.invalidName }
+        let name = incoming.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (2...40).contains(name.count),
+              !(data.employees ?? []).contains(where: {
+                  $0.id != incoming.id && $0.syncID != nil && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame
+              }) else { throw BusinessError.invalidName }
+        var next = data
+        var employee = incoming
+        employee.name = name
+        // Un perfil vinculado no es un operador local y nunca necesita un PIN en este teléfono.
+        employee.pinSalt = nil; employee.pinVerifier = nil; employee.pinFailedAttempts = nil; employee.pinLockedUntil = nil
+        var list = next.employees ?? []
+        if let index = list.firstIndex(where: { $0.id == employee.id }) { list[index] = employee }
+        else { list.append(employee) }
+        next.employees = list
+        try commit(next)
+    }
+
+    /// Escritura transaccional usada por el motor de sincronización después de validar un lote o una instantánea.
+    func replaceDataForSync(_ next: AppData) throws { try commit(next) }
+
+    func resetForSecondary(employeeName: String) throws {
+        var next = AppData.empty
+        next.settings.profile.ownerName = employeeName
+        next.settings.profile.ownerFirstName = employeeName
+        try commit(next)
+    }
+
+    func resetAfterUnlink() throws { try commit(.empty) }
 
     /// Actualiza el cliente y los datos visibles de todas sus compras, como hace Shalev Android.
     func updateCustomer(_ incoming: Customer) throws {
@@ -1104,14 +1169,15 @@ final class ShalevStore: ObservableObject {
         }
         guard let index = next.shifts.firstIndex(where: { $0.id == current.id }) else { throw BusinessError.noOpenShift }
         var savedCount = count
-        savedCount.approvedBy = actorName
-        savedCount.approvedAt = now
+        savedCount.approvedBy = requiresClosingApproval ? nil : actorName
+        savedCount.approvedAt = requiresClosingApproval ? nil : now
         let allSales = next.sales.filter { $0.shiftID == current.id }
         let validSales = allSales.filter { !$0.isCancelled }
         next.shifts[index].countedCashCents = count.cashCents
         next.shifts[index].closedAt = now
         next.shifts[index].closedBy = actorName
         next.shifts[index].closingCount = savedCount
+        next.shifts[index].synced = false
         next.shifts[index].summary = ShiftSummary(saleCount: validSales.count,
             units: validSales.reduce(0) { $0 + $1.units },
             totalCents: validSales.reduce(0) { $0 + $1.totalCents },
@@ -1262,7 +1328,10 @@ final class ShalevStore: ObservableObject {
         guard let original = data.sales.first(where: { $0.id == saleID }) else { throw BusinessError.unavailableItem("venta") }
         guard !original.isCancelled else { throw BusinessError.saleAlreadyCancelled }
         guard let shift = data.shifts.first(where: { $0.id == original.shiftID }) else { throw BusinessError.turnClosed }
-        guard shift.closedAt == nil, openShift?.id == shift.id else { throw BusinessError.turnClosed }
+        guard shift.closedAt == nil,
+              shift.employeeID == nil ? openShift?.id == shift.id : allowsRemoteSaleCorrections else {
+            throw BusinessError.turnClosed
+        }
         let note = reason.trimmingCharacters(in: .whitespacesAndNewlines).split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard (3...60).contains(note.count) else { throw BusinessError.invalidReason }
 
@@ -1272,6 +1341,7 @@ final class ShalevStore: ObservableObject {
         next.sales[index].isCancelled = true
         next.sales[index].cancelledAt = Date()
         next.sales[index].cancellationReason = note
+        if next.sales[index].employeeID != nil { next.sales[index].changePending = true }
         try commit(next)
     }
 
@@ -1282,7 +1352,10 @@ final class ShalevStore: ObservableObject {
         guard let original = data.sales.first(where: { $0.id == saleID }) else { throw BusinessError.unavailableItem("venta") }
         guard !original.isCancelled else { throw BusinessError.saleAlreadyCancelled }
         guard let shift = data.shifts.first(where: { $0.id == original.shiftID }) else { throw BusinessError.turnClosed }
-        guard shift.closedAt == nil, openShift?.id == shift.id else { throw BusinessError.turnClosed }
+        guard shift.closedAt == nil,
+              shift.employeeID == nil ? openShift?.id == shift.id : allowsRemoteSaleCorrections else {
+            throw BusinessError.turnClosed
+        }
         guard !cart.isEmpty else { throw BusinessError.emptyCart }
         let note = reason.trimmingCharacters(in: .whitespacesAndNewlines).split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard (3...60).contains(note.count) else { throw BusinessError.invalidReason }
@@ -1327,6 +1400,10 @@ final class ShalevStore: ObservableObject {
         next.sales[originalIndex].isCancelled = true
         next.sales[originalIndex].cancelledAt = Date()
         next.sales[originalIndex].cancellationReason = "Modificada · \(note)"
+        if next.sales[originalIndex].employeeID != nil { next.sales[originalIndex].changePending = true }
+        replacement.employeeID = original.employeeID
+        replacement.synced = original.employeeID != nil
+        replacement.changePending = original.employeeID != nil
         next.sales.insert(replacement, at: 0)
         try commit(next)
         return replacement
@@ -1560,8 +1637,10 @@ final class ShalevStore: ObservableObject {
     private func commit(_ next: AppData) throws {
         guard !readOnlyAfterLoadFailure else { throw BusinessError.storageUnavailable }
         do {
+            let previous = data
             try storage.save(next)
             data = next
+            changeHandler?(previous, next)
         } catch {
             throw BusinessError.storageUnavailable
         }

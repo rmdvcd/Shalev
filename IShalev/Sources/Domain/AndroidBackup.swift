@@ -162,7 +162,7 @@ enum AndroidBackupCodec {
     private static func date(_ milliseconds: Int64) -> Date { Date(timeIntervalSince1970: Double(milliseconds) / 1_000) }
 }
 
-private enum GZIP {
+enum GZIP {
     static func encode(_ input: Data) throws -> Data {
         var stream = z_stream()
         guard deflateInit2_(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 16 + MAX_WBITS, 8,
@@ -262,7 +262,7 @@ private enum AndroidID {
 
 // MARK: - JSON portable de Android
 
-private extension AndroidBackupCodec {
+extension AndroidBackupCodec {
     static func jsonForExport(_ app: AppData) throws -> Data {
         try validateReferences(app)
         let products = app.products.filter { $0.kind != .ingredient }
@@ -280,29 +280,15 @@ private extension AndroidBackupCodec {
             ["id": AndroidID.int64("cash", movement.id), "turnoId": AndroidID.int64("shift", movement.shiftID),
              "fecha": milliseconds(movement.date), "tipo": movement.kind == .income ? "ENTRADA" : "SALIDA",
              "importeCent": movement.amountCents, "motivo": movement.reason, "hechoPor": movement.actorName ?? "",
-             "uuid": movement.id.uuidString.lowercased(), "sincronizado": false] as [String: Any]
+             "uuid": movement.id.uuidString.lowercased(), "sincronizado": movement.synced] as [String: Any]
         }
         let serviceDTOs = app.services.map(exportService)
         let customerDTOs = app.customers.map { customer in
             ["nombreApellidos": customer.name, "ci": customer.identification, "telefono": customer.phone,
              "creadoEn": milliseconds(customer.updatedAt), "actualizadoEn": milliseconds(customer.updatedAt)]
         }
-        let employeeDTOs = (app.employees ?? []).map { employee in
-            ["id": AndroidID.int64("employee", employee.id), "nombre": employee.name,
-             "permisos": exportPermissions(employee.permissions), "creadoEn": milliseconds(employee.createdAt)] as [String: Any]
-        }
-        let adjustments = try app.settings.priceAdjustments.map { adjustment -> [String: Any] in
-            let ids = adjustment.productIDs ?? Set(app.products.filter { $0.kind != .ingredient }.map(\.id))
-            guard ids.allSatisfy({ id in app.products.contains(where: { $0.id == id && $0.kind != .ingredient }) }) else {
-                throw BusinessError.androidBackupUnsupported("un preajuste apunta a un insumo o a un artículo que ya no existe")
-            }
-            var dto: [String: Any] = ["id": AndroidID.int64("adjustment", adjustment.id), "nombre": adjustment.name,
-                "puntosBasicos": adjustment.basisPoints, "productoIds": ids.map { AndroidID.int64("product", $0) },
-                "activo": adjustment.active]
-            if let method = adjustment.paymentMethod { dto["metodoPago"] = method == .cash ? "EFECTIVO" : "TRANSFERENCIA" }
-            if let minimum = adjustment.minimumAmountCents { dto["importeMinimoCent"] = minimum }
-            return dto
-        }
+        let employeeDTOs = (app.employees ?? []).map(exportEmployee)
+        let adjustments = try app.settings.priceAdjustments.map { try exportAdjustment($0, app: app) }
         let root: [String: Any] = [
             "formato": "spvi-respaldo", "version": 4, "creadoEn": milliseconds(Date()), "appVersion": "IShalev-1.0",
             "productos": productDTOs, "recetas": recipeDTOs, "insumos": try ingredients.map(exportIngredient),
@@ -383,12 +369,43 @@ private extension AndroidBackupCodec {
         return names.sorted()
     }
 
+    static func exportEmployee(_ employee: LocalEmployee) -> [String: Any] {
+        var dto: [String: Any] = [
+            "id": employee.syncID ?? AndroidID.int64("employee", employee.id), "nombre": employee.name,
+            "permisos": exportPermissions(employee.permissions),
+            "creadoEn": milliseconds(employee.linkedAt ?? employee.createdAt), "activo": employee.syncActive
+        ]
+        if let date = employee.lastSyncAt { dto["ultimaSync"] = milliseconds(date) }
+        if let date = employee.codeExpiresAt { dto["codigoExpiraEn"] = milliseconds(date) }
+        if let id = employee.paymentCardID { dto["pagoTarjetaId"] = AndroidID.int64("card", id) }
+        if let id = employee.paymentPhoneID { dto["pagoTelefonoId"] = AndroidID.int64("phone", id) }
+        if let phone = employee.phone { dto["telefono"] = phone }
+        if let id = employee.deviceID { dto["deviceId"] = id }
+        if let date = employee.closeRequestedAt { dto["cierreSolicitadoEn"] = milliseconds(date) }
+        if let date = employee.employeeCloseRequestAt { dto["cierreSolicitadoEmpleadoEn"] = milliseconds(date) }
+        return dto
+    }
+
+    static func exportAdjustment(_ adjustment: PriceAdjustment, app: AppData) throws -> [String: Any] {
+        let ids = adjustment.productIDs ?? Set(app.products.filter { $0.kind != .ingredient }.map(\.id))
+        guard ids.allSatisfy({ id in app.products.contains(where: { $0.id == id && $0.kind != .ingredient }) }) else {
+            throw BusinessError.androidBackupUnsupported("un preajuste apunta a un insumo o a un artículo que ya no existe")
+        }
+        var dto: [String: Any] = ["id": AndroidID.int64("adjustment", adjustment.id), "nombre": adjustment.name,
+            "puntosBasicos": adjustment.basisPoints, "productoIds": ids.map { AndroidID.int64("product", $0) },
+            "activo": adjustment.active]
+        if let method = adjustment.paymentMethod { dto["metodoPago"] = method == .cash ? "EFECTIVO" : "TRANSFERENCIA" }
+        if let minimum = adjustment.minimumAmountCents { dto["importeMinimoCent"] = minimum }
+        return dto
+    }
+
     static func exportShift(_ shift: Shift, app: AppData) throws -> [String: Any] {
         var dto: [String: Any] = [
             "id": AndroidID.int64("shift", shift.id), "abiertoEn": milliseconds(shift.openedAt),
             "abiertoPor": shift.openedBy ?? "", "uuid": shift.id.uuidString.lowercased(),
-            "sincronizado": false, "fondoCent": shift.openingCashCents
+            "sincronizado": shift.synced, "fondoCent": shift.openingCashCents
         ]
+        if let employeeID = shift.employeeID { dto["empleadoId"] = employeeID }
         if let closed = shift.closedAt { dto["cerradoEn"] = milliseconds(closed) }
         if let closedBy = shift.closedBy { dto["cerradoPor"] = closedBy }
         if let counted = shift.countedCashCents { dto["contadoCent"] = counted }
@@ -443,9 +460,10 @@ private extension AndroidBackupCodec {
         var dto: [String: Any] = [
             "id": AndroidID.int64("sale", sale.id), "turnoId": AndroidID.int64("shift", sale.shiftID),
             "fecha": milliseconds(sale.date), "metodoPago": sale.paymentMethod == .cash ? "EFECTIVO" : "TRANSFERENCIA",
-            "detalles": details, "uuid": sale.id.uuidString.lowercased(), "sincronizado": false,
+            "detalles": details, "uuid": sale.id.uuidString.lowercased(), "sincronizado": sale.synced,
             "vendidoPor": sale.sellerName ?? ""
         ]
+        if let employeeID = sale.employeeID { dto["empleadoId"] = employeeID }
         if sale.paymentMethod == .transfer {
             let customer = sale.customer
             dto["transaccion"] = [
@@ -458,7 +476,10 @@ private extension AndroidBackupCodec {
         }
         if let cancelled = sale.cancelledAt { dto["anuladaEn"] = milliseconds(cancelled) }
         if let reason = sale.cancellationReason { dto["motivoAnulacion"] = reason }
-        if let correction = sale.correctionOfSaleID { dto["corrigeVentaId"] = AndroidID.int64("sale", correction) }
+        if let correction = sale.correctionOfSaleID {
+            dto["corrigeVentaId"] = AndroidID.int64("sale", correction)
+            dto["corrigeUuid"] = correction.uuidString.lowercased()
+        }
         return dto
     }
 
@@ -510,8 +531,9 @@ private extension AndroidBackupCodec {
         let ingredients = try dictionaries(root["insumos"]).map(importIngredient)
         let services = dictionaries(root["servicios"]).map(importService)
         let shifts = try dictionaries(root["turnos"]).map(importShift)
-        guard shifts.filter({ $0.closedAt == nil }).count <= 1 else {
-            throw BusinessError.androidBackupUnsupported("el archivo contiene varios turnos abiertos; cierra los turnos secundarios antes de migrar")
+        let openShifts = shifts.filter { $0.closedAt == nil }
+        guard Set(openShifts.map { $0.employeeID }).count == openShifts.count else {
+            throw BusinessError.androidBackupUnsupported("hay más de un turno abierto para la misma app o empleado")
         }
         let sales = dictionaries(root["ventas"]).map(importSale)
         let shiftIDs = Set(shifts.map(\.id))
@@ -579,7 +601,7 @@ private extension AndroidBackupCodec {
             criticalStockMilli: prepared ? 0 : try milli(int64(row["nivelCritico"])),
             priceCents: int64(row["precioVentaCent"]), costCents: int64(row["precioCostoCent"]), uses: uses,
             isActive: !bool(row["eliminado"]), createdAt: date(int64(row["creadoEn"])),
-            updatedAt: date(int64(row["actualizadoEn"])))
+            updatedAt: date(int64(row["actualizadoEn"])), syncPhotoName: optionalString(row["fotoUri"]))
     }
 
     static func importIngredient(_ row: [String: Any]) throws -> Product {
@@ -589,7 +611,7 @@ private extension AndroidBackupCodec {
             unit: string(row["unidad"], default: "u"), lowStockMilli: int64(row["nivelBajoMil"]),
             criticalStockMilli: int64(row["nivelCriticoMil"]), priceCents: int64(row["precioVentaCent"]),
             costCents: int64(row["precioCent"]), isActive: true, createdAt: date(int64(row["creadoEn"])),
-            updatedAt: date(int64(row["actualizadoEn"])))
+            updatedAt: date(int64(row["actualizadoEn"])), syncPhotoName: optionalString(row["fotoUri"]))
     }
 
     static func importService(_ row: [String: Any]) -> ServiceItem {
@@ -602,7 +624,8 @@ private extension AndroidBackupCodec {
         return ServiceItem(id: AndroidID.uuid("service", id), name: string(row["nombre"]),
             type: string(row["tipo"], default: "General"), description: string(row["descripcion"]),
             imageData: image(row["fotoData"]), priceCents: int64(row["importeCent"]), uses: uses,
-            isActive: !bool(row["eliminado"]), createdAt: date(int64(row["creadoEn"])))
+            isActive: !bool(row["eliminado"]), createdAt: date(int64(row["creadoEn"])),
+            syncPhotoName: optionalString(row["fotoUri"]))
     }
 
     static func importProfile(_ row: [String: Any]) -> StoreProfile {
@@ -664,14 +687,17 @@ private extension AndroidBackupCodec {
                 inventoryCountSkipped: optionalBool(value["inventarioOmitido"]), reason: string(value["motivo"]),
                 approvedBy: optionalString(value["aprobadoPor"]), approvedAt: optionalInt64(value["aprobadoEn"]).map(date))
         }
-        return Shift(id: AndroidID.uuid("shift", int64(row["id"])), openedAt: date(int64(row["abiertoEn"])),
+        let id = optionalString(row["uuid"]).flatMap(UUID.init(uuidString:)) ?? AndroidID.uuid("shift", int64(row["id"]))
+        return Shift(id: id, openedAt: date(int64(row["abiertoEn"])),
             closedAt: optionalInt64(row["cerradoEn"]).map(date), openingCashCents: int64(row["fondoCent"]),
             countedCashCents: optionalInt64(row["contadoCent"]), openedBy: optionalString(row["abiertoPor"]),
-            closedBy: optionalString(row["cerradoPor"]), closingCount: closing, summary: summary)
+            closedBy: optionalString(row["cerradoPor"]), closingCount: closing, summary: summary,
+            employeeID: optionalInt64(row["empleadoId"]), synced: bool(row["sincronizado"]))
     }
 
     static func importSale(_ row: [String: Any]) -> Sale {
         let id = int64(row["id"])
+        let globalID = optionalString(row["uuid"]).flatMap(UUID.init(uuidString:)) ?? AndroidID.uuid("sale", id)
         let details = dictionaries(row["detalles"]).map { line -> SaleLine in
             let service = string(line["clase"], default: "PRODUCTO") == "SERVICIO"
             let ingredient = string(line["clase"], default: "PRODUCTO") == "INSUMO"
@@ -697,13 +723,15 @@ private extension AndroidBackupCodec {
             card = optionalString(value["tarjetaCobro"])
             phone = optionalString(value["telefonoCobro"])
         }
-        return Sale(id: AndroidID.uuid("sale", id), shiftID: AndroidID.uuid("shift", int64(row["turnoId"])),
+        let correction = optionalString(row["corrigeUuid"]).flatMap(UUID.init(uuidString:))
+            ?? optionalInt64(row["corrigeVentaId"]).map { AndroidID.uuid("sale", $0) }
+        return Sale(id: globalID, shiftID: AndroidID.uuid("shift", int64(row["turnoId"])),
             date: date(int64(row["fecha"])), paymentMethod: string(row["metodoPago"]) == "TRANSFERENCIA" ? .transfer : .cash,
             lines: details, transactionNumber: transaction, customer: customer, customerIsFixed: fixed,
             paymentCard: card, paymentPhone: phone, isCancelled: optionalInt64(row["anuladaEn"]) != nil,
             cancelledAt: optionalInt64(row["anuladaEn"]).map(date), cancellationReason: optionalString(row["motivoAnulacion"]),
-            correctionOfSaleID: optionalInt64(row["corrigeVentaId"]).map { AndroidID.uuid("sale", $0) },
-            sellerName: optionalString(row["vendidoPor"]))
+            correctionOfSaleID: correction, sellerName: optionalString(row["vendidoPor"]),
+            employeeID: optionalInt64(row["empleadoId"]), synced: bool(row["sincronizado"]))
     }
 
     static func importMovement(_ row: [String: Any]) throws -> InventoryMovement {
@@ -720,9 +748,12 @@ private extension AndroidBackupCodec {
     }
 
     static func importCash(_ row: [String: Any]) -> CashMovement {
-        CashMovement(id: AndroidID.uuid("cash", int64(row["id"])), shiftID: AndroidID.uuid("shift", int64(row["turnoId"])),
+        let fallback = AndroidID.uuid("cash", int64(row["id"]))
+        let id = optionalString(row["uuid"]).flatMap(UUID.init(uuidString:)) ?? fallback
+        return CashMovement(id: id, shiftID: AndroidID.uuid("shift", int64(row["turnoId"])),
             date: date(int64(row["fecha"])), kind: string(row["tipo"]) == "SALIDA" ? .expense : .income,
-            amountCents: int64(row["importeCent"]), reason: string(row["motivo"]), actorName: optionalString(row["hechoPor"]))
+            amountCents: int64(row["importeCent"]), reason: string(row["motivo"]), actorName: optionalString(row["hechoPor"]),
+            synced: bool(row["sincronizado"]))
     }
 
     static func importEmployee(_ row: [String: Any]) -> LocalEmployee {
@@ -733,8 +764,17 @@ private extension AndroidBackupCodec {
         if names.contains("EDITAR_INVENTARIO") { permissions.formUnion([.editInventory, .viewInventory]) }
         if names.contains("CAMBIAR_PRECIOS") { permissions.insert(.changePrices) }
         if names.contains("EXPORTAR") { permissions.insert(.exportReports) }
-        return LocalEmployee(id: AndroidID.uuid("employee", int64(row["id"])), name: string(row["nombre"]),
-            permissions: permissions, createdAt: date(int64(row["creadoEn"])))
+        let syncID = int64(row["id"])
+        return LocalEmployee(id: AndroidID.uuid("employee", syncID), name: string(row["nombre"]),
+            permissions: permissions, createdAt: date(int64(row["creadoEn"])), syncID: syncID,
+            syncActive: bool(row["activo"], default: true), linkedAt: date(int64(row["creadoEn"])),
+            lastSyncAt: optionalInt64(row["ultimaSync"]).map(date),
+            codeExpiresAt: optionalInt64(row["codigoExpiraEn"]).map(date),
+            paymentCardID: optionalInt64(row["pagoTarjetaId"]).map { AndroidID.uuid("card", $0) },
+            paymentPhoneID: optionalInt64(row["pagoTelefonoId"]).map { AndroidID.uuid("phone", $0) },
+            phone: optionalString(row["telefono"]), deviceID: optionalString(row["deviceId"]),
+            closeRequestedAt: optionalInt64(row["cierreSolicitadoEn"]).map(date),
+            employeeCloseRequestAt: optionalInt64(row["cierreSolicitadoEmpleadoEn"]).map(date))
     }
 
     static func wholeUnits(_ milli: Int64, _ name: String) throws -> Int64 {

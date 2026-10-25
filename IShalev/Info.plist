@@ -26,6 +26,14 @@
     <true/>
     <key>NSFaceIDUsageDescription</key>
     <string>Shalev usa Face ID para desbloquear el acceso local a los datos del negocio.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Shalev necesita la red local para vincular y sincronizar las apps principal y secundaria del negocio.</string>
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_shalev._tcp</string>
+    </array>
+    <key>NSCameraUsageDescription</key>
+    <string>Shalev usa la cámara para escanear el código QR de vinculación con la app principal.</string>
     <key>UIAppFonts</key>
     <array>
         <string>Orbitron-Bold.ttf</string>
