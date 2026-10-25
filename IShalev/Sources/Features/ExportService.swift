@@ -9,6 +9,16 @@ struct ExportReport {
     var rows: [[String]]
 }
 
+struct ExportCard {
+    var title: String
+    var subtitle: String
+    var description: String
+    var price: String
+    var imageData: Data?
+}
+
+private enum ExportImageError: Error { case empty }
+
 enum ExportFormat: Equatable {
     case xlsx
     case csv
@@ -38,6 +48,111 @@ enum ShalevExporter {
         }
         try data.write(to: url, options: .atomic)
         return url
+    }
+
+    static func writePriceImages(_ report: ExportReport) throws -> [URL] {
+        let pageSize = 12
+        let pages = max(1, (report.rows.count + pageSize - 1) / pageSize)
+        return try (0..<pages).map { page in
+            let start = page * pageSize
+            let end = min(report.rows.count, start + pageSize)
+            let rows = start < end ? Array(report.rows[start..<end]) : []
+            let pageReport = ExportReport(title: report.title, subtitle: report.subtitle, headers: report.headers, rows: rows)
+            let data = tablePNG(pageReport, page: page + 1, pages: pages)
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("shalev-precios-\(UUID().uuidString)-\(page + 1).png")
+            try data.write(to: url, options: .atomic)
+            return url
+        }
+    }
+
+    static func writeCards(_ cards: [ExportCard], businessName: String, comment: String) throws -> [URL] {
+        guard !cards.isEmpty else { throw ExportImageError.empty }
+        return try cards.enumerated().map { index, card in
+            let data = cardPNG(card, businessName: businessName, comment: comment)
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("shalev-tarjeta-\(UUID().uuidString)-\(index + 1).png")
+            try data.write(to: url, options: .atomic)
+            return url
+        }
+    }
+
+    private static func tablePNG(_ report: ExportReport, page: Int, pages: Int) -> Data {
+        let width: CGFloat = 1_080
+        let height = max(720, 320 + CGFloat(report.rows.count) * 76)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format)
+        return renderer.pngData { _ in
+            UIColor.systemBackground.setFill()
+            UIRectFill(CGRect(x: 0, y: 0, width: width, height: height))
+            drawText(report.title, in: CGRect(x: 48, y: 38, width: 984, height: 58), font: .boldSystemFont(ofSize: 42))
+            drawText(report.subtitle, in: CGRect(x: 48, y: 104, width: 984, height: 70), font: .systemFont(ofSize: 23), color: .secondaryLabel)
+            let headers = Array(report.headers.prefix(3))
+            let widths: [CGFloat] = [500, 220, 264]
+            var x: CGFloat = 48
+            for (index, header) in headers.enumerated() {
+                drawText(header, in: CGRect(x: x, y: 202, width: widths[index] - 12, height: 38),
+                         font: .boldSystemFont(ofSize: 24), color: .secondaryLabel,
+                         alignment: index == 2 ? .right : .left)
+                x += widths[index]
+            }
+            UIColor.separator.setStroke()
+            let rule = UIBezierPath(); rule.move(to: CGPoint(x: 48, y: 250)); rule.addLine(to: CGPoint(x: 1_032, y: 250)); rule.stroke()
+            for (rowIndex, row) in report.rows.enumerated() {
+                let y = 270 + CGFloat(rowIndex) * 76
+                x = 48
+                for column in 0..<min(3, row.count) {
+                    drawText(row[column], in: CGRect(x: x, y: y, width: widths[column] - 12, height: 48),
+                             font: .systemFont(ofSize: 25, weight: column == 2 ? .semibold : .regular),
+                             alignment: column == 2 ? .right : .left)
+                    x += widths[column]
+                }
+            }
+            drawText("Shalev · \(page)/\(pages)", in: CGRect(x: 48, y: height - 48, width: 984, height: 28),
+                     font: .systemFont(ofSize: 19), color: .secondaryLabel, alignment: .right)
+        }
+    }
+
+    private static func cardPNG(_ card: ExportCard, businessName: String, comment: String) -> Data {
+        let size = CGSize(width: 1_080, height: 1_350)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        return renderer.pngData { context in
+            UIColor.systemBackground.setFill(); UIRectFill(CGRect(origin: .zero, size: size))
+            let photoRect = CGRect(x: 48, y: 48, width: 984, height: 650)
+            UIColor.secondarySystemBackground.setFill()
+            UIBezierPath(roundedRect: photoRect, cornerRadius: 34).fill()
+            if let data = card.imageData, let image = UIImage(data: data), image.size.width > 0, image.size.height > 0 {
+                context.cgContext.saveGState()
+                UIBezierPath(roundedRect: photoRect, cornerRadius: 34).addClip()
+                let scale = max(photoRect.width / image.size.width, photoRect.height / image.size.height)
+                let drawSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+                let origin = CGPoint(x: photoRect.midX - drawSize.width / 2, y: photoRect.midY - drawSize.height / 2)
+                image.draw(in: CGRect(origin: origin, size: drawSize))
+                context.cgContext.restoreGState()
+            }
+            drawText(card.subtitle.uppercased(), in: CGRect(x: 56, y: 742, width: 968, height: 38),
+                     font: .boldSystemFont(ofSize: 23), color: .secondaryLabel)
+            drawText(card.title, in: CGRect(x: 56, y: 792, width: 968, height: 118), font: .boldSystemFont(ofSize: 48))
+            drawText(card.price, in: CGRect(x: 56, y: 922, width: 968, height: 80), font: .boldSystemFont(ofSize: 56))
+            drawText(card.description, in: CGRect(x: 56, y: 1020, width: 968, height: 116),
+                     font: .systemFont(ofSize: 27), color: .secondaryLabel)
+            let note = comment.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !note.isEmpty {
+                drawText(note, in: CGRect(x: 56, y: 1148, width: 968, height: 72), font: .systemFont(ofSize: 24))
+            }
+            drawText(businessName, in: CGRect(x: 56, y: 1_266, width: 968, height: 42),
+                     font: .systemFont(ofSize: 25, weight: .semibold), color: .secondaryLabel, alignment: .center)
+        }
+    }
+
+    private static func drawText(_ text: String, in rect: CGRect, font: UIFont, color: UIColor = .label,
+                                 alignment: NSTextAlignment = .left) {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = alignment
+        paragraph.lineBreakMode = .byTruncatingTail
+        (text as NSString).draw(with: rect, options: [.usesLineFragmentOrigin],
+                                attributes: [.font: font, .foregroundColor: color, .paragraphStyle: paragraph], context: nil)
     }
 
     private static func xlsxData(_ report: ExportReport) -> Data {
@@ -245,8 +360,9 @@ struct ExportCenterView: View {
     var canExportServices = true
     var canExportSales = true
     @State private var scope: ExportScope = .inventory
-    @State private var shareFileURL: URL?
+    @State private var shareFileURLs: [URL] = []
     @State private var showShareSheet = false
+    @State private var exportComment = ""
     @State private var errorMessage: String?
 
     private var availableScopes: [ExportScope] {
@@ -284,6 +400,21 @@ struct ExportCenterView: View {
                             .buttonStyle(ShalevTonalButtonStyle())
                     }
                 }
+                if scope != .sales {
+                    ShalevCard {
+                        VStack(alignment: .leading, spacing: 11) {
+                            ShalevSectionHeader(title: "Imágenes para compartir")
+                            TextField("Comentario opcional en las imágenes", text: $exportComment)
+                                .padding(11).background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+                            Button(action: exportPriceImages) { Label("Lista de precios en PNG", systemImage: "photo") }
+                                .buttonStyle(ShalevTonalButtonStyle())
+                            Button(action: exportCards) { Label("Tarjetas de artículos en PNG", systemImage: "rectangle.portrait.on.rectangle.portrait") }
+                                .buttonStyle(ShalevTonalButtonStyle())
+                            Text("Las imágenes no incluyen costos, ganancias ni existencias.")
+                                .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                        }
+                    }
+                }
                 .padding(.bottom, 22)
             }
             .padding(18)
@@ -296,7 +427,7 @@ struct ExportCenterView: View {
             if !scopes.contains(scope) { scope = scopes.first ?? .sales }
         }
         .sheet(isPresented: $showShareSheet) {
-            if let shareFileURL { ShareSheet(items: [shareFileURL]) }
+            ShareSheet(items: shareFileURLs)
         }
         .alert("No se pudo exportar", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Entendido", role: .cancel) { errorMessage = nil }
@@ -342,9 +473,59 @@ struct ExportCenterView: View {
         }
     }
 
+    private var priceReport: ExportReport {
+        let business = store.data.settings.profile.businessName
+        let comment = exportComment.trimmingCharacters(in: .whitespacesAndNewlines)
+        let subtitle = "\(business) · \(Date().shalevDate)" + (comment.isEmpty ? "" : " · \(comment)")
+        switch scope {
+        case .inventory:
+            return ExportReport(title: "Lista de precios", subtitle: subtitle, headers: ["Artículo", "Tipo", "Precio"],
+                                rows: store.activeProducts.filter { $0.priceCents > 0 }.map {
+                                    [$0.name, $0.kind.rawValue, Cup(cents: $0.priceCents).formatted]
+                                })
+        case .services:
+            return ExportReport(title: "Precios de servicios", subtitle: subtitle, headers: ["Servicio", "Tipo", "Precio"],
+                                rows: store.activeServices.map { [$0.name, $0.type, Cup(cents: $0.priceCents).formatted] })
+        case .sales:
+            return report
+        }
+    }
+
+    private var exportCardModels: [ExportCard] {
+        switch scope {
+        case .inventory:
+            return store.activeProducts.filter { $0.priceCents > 0 }.map {
+                ExportCard(title: $0.name, subtitle: $0.kind.rawValue, description: $0.description,
+                           price: Cup(cents: $0.priceCents).formatted, imageData: $0.imageData)
+            }
+        case .services:
+            return store.activeServices.map {
+                ExportCard(title: $0.name, subtitle: $0.type, description: $0.description,
+                           price: Cup(cents: $0.priceCents).formatted, imageData: $0.imageData)
+            }
+        case .sales: return []
+        }
+    }
+
+    private func exportPriceImages() {
+        do {
+            shareFileURLs = try ShalevExporter.writePriceImages(priceReport)
+            showShareSheet = true
+        } catch { errorMessage = "No se pudieron crear las imágenes." }
+    }
+
+    private func exportCards() {
+        do {
+            shareFileURLs = try ShalevExporter.writeCards(exportCardModels,
+                                                           businessName: store.data.settings.profile.businessName,
+                                                           comment: exportComment)
+            showShareSheet = true
+        } catch { errorMessage = "No se pudieron crear las tarjetas." }
+    }
+
     private func export(_ format: ExportFormat) {
         do {
-            shareFileURL = try ShalevExporter.write(report, format: format)
+            shareFileURLs = [try ShalevExporter.write(report, format: format)]
             showShareSheet = true
         } catch {
             errorMessage = "Comprueba el espacio libre e inténtalo de nuevo."

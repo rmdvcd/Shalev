@@ -9,7 +9,7 @@ let package = Package(
         .target(
             name: "IShalevDomain",
             path: "Sources/Domain",
-            sources: ["Domain.swift"]
+            sources: ["Domain.swift", "License.swift"]
         ),
         .testTarget(
             name: "IShalevDomainTests",

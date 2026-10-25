@@ -125,8 +125,8 @@ struct OnboardingView: View {
         }
         identification = profile.identification
         phone = profile.licensePhone ?? ""
-        transferPhone = profile.transferPhone
-        transferCard = profile.transferCard
+        transferPhone = profile.paymentPhone?.number ?? profile.transferPhone
+        transferCard = profile.paymentCard?.number ?? profile.transferCard
     }
 
     private func finish() {
@@ -143,13 +143,29 @@ struct OnboardingView: View {
         profile.ownerName = "\(profile.ownerFirstName ?? "") \(profile.ownerLastName ?? "")".trimmingCharacters(in: .whitespacesAndNewlines)
         profile.identification = identification.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         profile.licensePhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
-        profile.transferPhone = transferPhone.trimmingCharacters(in: .whitespacesAndNewlines)
-        profile.transferCard = transferCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTransferPhone = transferPhone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTransferCard = transferCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedTransferPhone.isEmpty {
+            let entry = TransferPhone(number: trimmedTransferPhone)
+            profile.transferPhones = [entry]
+            profile.paymentPhoneID = entry.id
+        } else {
+            profile.transferPhones = []
+            profile.paymentPhoneID = nil
+        }
+        if !trimmedTransferCard.isEmpty {
+            let entry = TransferCard(number: trimmedTransferCard)
+            profile.transferCards = [entry]
+            profile.paymentCardID = entry.id
+        } else {
+            profile.transferCards = []
+            profile.paymentCardID = nil
+        }
         do {
             try store.saveProfile(profile)
             onComplete()
         } catch {
-            errorMessage = "Comprueba el espacio libre e inténtalo de nuevo."
+            errorMessage = error.localizedDescription
         }
     }
 }

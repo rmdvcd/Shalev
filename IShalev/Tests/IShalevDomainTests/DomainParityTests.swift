@@ -116,7 +116,7 @@ final class DomainParityTests: XCTestCase {
             XCTAssertEqual(error as? BusinessError, .duplicateCustomer)
         }
         try store.removeFixedCustomer(edited.id)
-        XCTAssertTrue(store.data.customers.isEmpty)
+        XCTAssertEqual(store.data.customers.map(\.id), [other.id])
         XCTAssertNotNil(store.data.sales.first(where: { $0.id == sale.id })?.customer)
     }
 
