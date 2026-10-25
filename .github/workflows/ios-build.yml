@@ -50,7 +50,7 @@ jobs:
         run: |
           for log in "$RUNNER_TEMP/swift-test.log" "$RUNNER_TEMP/xcodebuild.log"; do
             if [ -f "$log" ]; then
-              issues=$(grep -E 'error:|warning:|BUILD FAILED|Test Suite .* failed|The following build commands failed' "$log" | tail -n 100 || true)
+              issues=$(grep -E 'error:|BUILD FAILED|Test Suite .* failed|The following build commands failed' "$log" | tail -n 100 || true)
               if [ -n "$issues" ]; then
                 {
                   echo "## Diagnóstico de $(basename "$log")"

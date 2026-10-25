@@ -88,8 +88,17 @@ struct SyncView: View {
         if sync.closeRequestedByPrincipal {
             Section { Label("La principal pidió cerrar tu turno. Cuéntalo y ciérralo desde Inicio.", systemImage: "lock.rotation") }
         }
+        if sync.link?.closeNotice == true {
+            Section {
+                Label("El turno se cerró por una petición de la principal.", systemImage: "checkmark.circle")
+                Button("Entendido") { sync.dismissCloseNotices() }
+            }
+        }
         if sync.closeRejectedByPrincipal {
-            Section { Label("La principal no aprobó la solicitud de cierre. Puedes seguir vendiendo.", systemImage: "xmark.circle") }
+            Section {
+                Label("La principal no aprobó la solicitud de cierre. Puedes seguir vendiendo.", systemImage: "xmark.circle")
+                Button("Entendido") { sync.dismissCloseNotices() }
+            }
         }
         Section("Caja") {
             if sync.link?.closeRequested == true {
@@ -104,6 +113,7 @@ struct SyncView: View {
             Text("Vender y cerrar siguen disponibles sin red. Los turnos, ventas y movimientos se reenvían hasta que la principal confirme que los guardó.")
                 .font(.caption).foregroundStyle(.secondary)
             Button("Desvincular y borrar datos…", role: .destructive) { confirmUnlink = true }
+                .disabled(sync.isBusy)
         }
     }
 }

@@ -2,6 +2,24 @@ import Foundation
 import Network
 import Darwin
 
+/// Los callbacks de Network pueden llegar más de una vez; la continuación se consume bajo lock.
+private final class SyncOnce<Value>: @unchecked Sendable {
+    private var continuation: CheckedContinuation<Value, Error>?
+    private let lock = NSLock()
+    init(_ continuation: CheckedContinuation<Value, Error>) { self.continuation = continuation }
+    func resume(_ result: Result<Value, Error>) {
+        lock.lock()
+        let current = continuation
+        continuation = nil
+        lock.unlock()
+        guard let current else { return }
+        switch result {
+        case .success(let value): current.resume(returning: value)
+        case .failure(let error): current.resume(throwing: error)
+        }
+    }
+}
+
 /// Una conexión TCP con tramas de longitud fija. Hay un solo lector y las escrituras se serializan en el actor.
 actor SyncSocket {
     private let connection: NWConnection
@@ -29,21 +47,12 @@ actor SyncSocket {
 
     func start() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            var resumed = false
+            let once = SyncOnce(continuation)
             connection.stateUpdateHandler = { state in
                 switch state {
-                case .ready:
-                    guard !resumed else { return }
-                    resumed = true
-                    continuation.resume()
-                case .failed(let error):
-                    guard !resumed else { return }
-                    resumed = true
-                    continuation.resume(throwing: error)
-                case .cancelled:
-                    guard !resumed else { return }
-                    resumed = true
-                    continuation.resume(throwing: SyncError.disconnected)
+                case .ready: once.resume(.success(()))
+                case .failed(let error): once.resume(.failure(error))
+                case .cancelled: once.resume(.failure(SyncError.disconnected))
                 default: break
                 }
             }
@@ -178,16 +187,14 @@ enum SyncBonjour {
     static func serviceName(businessID: String) -> String { "Shalev-" + businessID.prefix(12) }
 
     static func find(businessID: String, timeout: UInt64) async -> NWEndpoint? {
-        await withCheckedContinuation { continuation in
+        try? await withCheckedThrowingContinuation { (continuation: CheckedContinuation<NWEndpoint?, Error>) in
             let queue = DispatchQueue(label: "cu.shalev.ishalev.sync.bonjour")
             let browser = NWBrowser(for: .bonjour(type: serviceType, domain: nil), using: .tcp)
-            var resumed = false
+            let once = SyncOnce<NWEndpoint?>(continuation)
             let expected = serviceName(businessID: businessID)
             func finish(_ endpoint: NWEndpoint?) {
-                guard !resumed else { return }
-                resumed = true
                 browser.cancel()
-                continuation.resume(returning: endpoint)
+                once.resume(.success(endpoint))
             }
             browser.browseResultsChangedHandler = { results, _ in
                 for result in results {
@@ -198,7 +205,7 @@ enum SyncBonjour {
             }
             browser.stateUpdateHandler = { state in
                 if case .failed = state { finish(nil) }
-                if case .cancelled = state, !resumed { finish(nil) }
+                if case .cancelled = state { finish(nil) }
             }
             browser.start(queue: queue)
             queue.asyncAfter(deadline: .now() + .seconds(Int(timeout))) { finish(nil) }
@@ -223,21 +230,12 @@ final class SyncListener: @unchecked Sendable {
 
     func start() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            var resumed = false
+            let once = SyncOnce(continuation)
             listener.stateUpdateHandler = { state in
                 switch state {
-                case .ready:
-                    guard !resumed else { return }
-                    resumed = true
-                    continuation.resume()
-                case .failed(let error):
-                    guard !resumed else { return }
-                    resumed = true
-                    continuation.resume(throwing: error)
-                case .cancelled:
-                    guard !resumed else { return }
-                    resumed = true
-                    continuation.resume(throwing: SyncError.disconnected)
+                case .ready: once.resume(.success(()))
+                case .failed(let error): once.resume(.failure(error))
+                case .cancelled: once.resume(.failure(SyncError.disconnected))
                 default: break
                 }
             }

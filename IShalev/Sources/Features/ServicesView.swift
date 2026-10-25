@@ -331,7 +331,9 @@ private struct ServiceEditorView: View {
             working = true
             Task {
                 do {
-                    _ = try await sync.executeRemote(SyncJSON.message("servicio_guardar", ["servicio": AndroidBackupCodec.exportService(updated)]))
+                    var row = AndroidBackupCodec.exportService(updated)
+                    if let name = updated.syncPhotoName { row["fotoUri"] = name }
+                    _ = try await sync.executeRemote(SyncJSON.message("servicio_guardar", ["servicio": row]))
                     dismiss()
                 } catch { errorMessage = error.localizedDescription; working = false }
             }

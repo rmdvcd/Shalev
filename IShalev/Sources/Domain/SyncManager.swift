@@ -29,12 +29,14 @@ final class SyncManager: ObservableObject {
     private var pairingOffers: [Int64: SyncPairingOffer] = [:]
     private var serverSessions: [Int64: SyncEncryptedSession] = [:]
     private var clientSession: SyncEncryptedSession?
+    private var clientCommandsUnique = false
     private var syncTask: Task<Bool, Error>?
     private var maintenanceTask: Task<Void, Never>?
     private var requestInFlight = false
     private var requestID: Int64 = 0
     private var commandResults: [Int64: [String: (value: Int64?, error: String?)]] = [:]
     private var startingListener = false
+    private var incomingConnections = 0
 
     var link: SyncLink? { configuration.link }
     var businessID: String { configuration.businessID }
@@ -211,6 +213,13 @@ final class SyncManager: ObservableObject {
         _ = try await synchronize()
     }
 
+    func dismissCloseNotices() {
+        guard var link else { return }
+        link.closeNotice = false; link.closeRejectedNotice = false
+        configuration.link = link
+        try? persist()
+    }
+
     // MARK: - Vinculación de esta app como secundaria
 
     func linkSecondary(qr: String, phone: String?) async throws {
@@ -285,19 +294,26 @@ final class SyncManager: ObservableObject {
     func synchronize() async throws -> Bool {
         guard isSecondary else { return false }
         if let syncTask { return try await syncTask.value }
-        let task = Task<Bool, Error> { [weak self] in
-            guard let self else { return false }
-            return try await self.performSynchronization()
+        var result = false
+        for _ in 0..<4 {
+            let task = Task<Bool, Error> { [weak self] in
+                guard let self else { return false }
+                return try await self.performSynchronization()
+            }
+            syncTask = task
+            do {
+                result = try await task.value
+                syncTask = nil
+            } catch {
+                syncTask = nil
+                throw error
+            }
+            let approvedClosePending = store.data.shifts.contains {
+                !$0.synced && $0.closedAt != nil && $0.closingCount?.approvedAt != nil
+            }
+            if (link?.changesAcknowledged.isEmpty ?? true) && !approvedClosePending { break }
         }
-        syncTask = task
-        do {
-            let result = try await task.value
-            syncTask = nil
-            return result
-        } catch {
-            syncTask = nil
-            throw error
-        }
+        return result
     }
 
     /// Toda apertura de turno de una secundaria pasa por aquí; la venta y el cierre no llaman a esta función.
@@ -346,6 +362,7 @@ final class SyncManager: ObservableObject {
             link.lastSync = Date()
             let oldClosePending = link.closePending
             link.closePending = AndroidBackupCodec.bool(response["cerrarTurno"])
+            if link.closePending { link.closeRequested = false }
             if oldClosePending && !link.closePending { link.closeNotice = true }
             if AndroidBackupCodec.bool(response["cierreRechazado"]) {
                 link.closeRejectedNotice = true; link.closeRequested = false
@@ -391,6 +408,7 @@ final class SyncManager: ObservableObject {
         }
         guard type == "hola_ok", let principalNonce = Data(base64Encoded: AndroidBackupCodec.string(response["nonce"])),
               principalNonce.count == 16 else { throw SyncError.invalidMessage }
+        clientCommandsUnique = AndroidBackupCodec.bool(response["comandosUnicos"])
         return try SyncEncryptedSession(socket: socket, side: .secondary, employeeKey: link.key,
             secondaryNonce: nonce, principalNonce: principalNonce)
     }
@@ -506,6 +524,9 @@ final class SyncManager: ObservableObject {
     }
 
     private func accept(_ connection: NWConnection) async {
+        guard incomingConnections < 24 else { connection.cancel(); return }
+        incomingConnections += 1
+        defer { incomingConnections -= 1 }
         let socket = SyncSocket(connection: connection)
         do {
             try await socket.start()
@@ -522,11 +543,20 @@ final class SyncManager: ObservableObject {
 
     private func acceptPairing(_ greeting: [String: Any], socket: SyncSocket) async throws {
         let employeeID = AndroidBackupCodec.int64(greeting["empleado"])
-        guard AndroidBackupCodec.int(greeting["v"], default: 1) == 1,
-              AndroidBackupCodec.string(greeting["negocio"]) == businessID,
-              let offer = pairingOffers[employeeID], Date() < offer.code.expiresAt,
-              let employee = store.linkedApps.first(where: { $0.syncID == employeeID && $0.syncActive }),
-              let secondaryPublic = Data(base64Encoded: AndroidBackupCodec.string(greeting["pub"])),
+        guard AndroidBackupCodec.int(greeting["v"], default: 1) == 1 else {
+            try await sendRejection("version", socket: socket); return
+        }
+        guard AndroidBackupCodec.string(greeting["negocio"]) == businessID else {
+            try await sendRejection("otro_negocio", socket: socket); return
+        }
+        guard let offer = pairingOffers[employeeID],
+              let employee = store.linkedApps.first(where: { $0.syncID == employeeID && $0.syncActive }) else {
+            try await sendRejection("codigo_invalido", socket: socket); return
+        }
+        guard Date() < offer.code.expiresAt else {
+            try await sendRejection("codigo_vencido", socket: socket); return
+        }
+        guard let secondaryPublic = Data(base64Encoded: AndroidBackupCodec.string(greeting["pub"])),
               let mac = Data(base64Encoded: AndroidBackupCodec.string(greeting["mac"])) else {
             try await sendRejection("codigo_invalido", socket: socket); return
         }
@@ -560,9 +590,13 @@ final class SyncManager: ObservableObject {
 
     private func acceptSession(_ hello: [String: Any], socket: SyncSocket) async throws {
         let employeeID = AndroidBackupCodec.int64(hello["empleado"])
-        guard AndroidBackupCodec.int(hello["v"], default: 1) == 1,
-              AndroidBackupCodec.string(hello["negocio"]) == businessID,
-              let key = configuration.employeeKeys[String(employeeID)],
+        guard AndroidBackupCodec.int(hello["v"], default: 1) == 1 else {
+            try await sendRejection("version", socket: socket); return
+        }
+        guard AndroidBackupCodec.string(hello["negocio"]) == businessID else {
+            try await sendRejection("otro_negocio", socket: socket); return
+        }
+        guard let key = configuration.employeeKeys[String(employeeID)],
               let employee = store.linkedApps.first(where: { $0.syncID == employeeID }),
               let secondaryNonce = Data(base64Encoded: AndroidBackupCodec.string(hello["nonce"])), secondaryNonce.count == 16 else {
             try await sendRejection("desconocida", socket: socket); return
@@ -693,9 +727,21 @@ final class SyncManager: ObservableObject {
         guard !isBusy, !requestInFlight else { throw SyncError.remote("Espera a que termine la sincronización.") }
         isBusy = true; status = "Aplicando cambio en la principal…"
         defer { isBusy = false }
-        let id = nextID()
-        let response = try await clientRequest(SyncJSON.message("cmd", ["id": id, "accion": action, "clave": UUID().uuidString.lowercased()]), expected: "cmd_ok")
-        guard AndroidBackupCodec.int64(response["id"]) == id else { throw SyncError.invalidMessage }
+        let commandKey = UUID().uuidString.lowercased()
+        var response: [String: Any]
+        var retries = 0
+        while true {
+            let id = nextID()
+            do {
+                response = try await clientRequest(SyncJSON.message("cmd", ["id": id, "accion": action, "clave": commandKey]), expected: "cmd_ok")
+                guard AndroidBackupCodec.int64(response["id"]) == id else { throw SyncError.invalidMessage }
+                break
+            } catch {
+                // Como Android 0.21.7: una sola repetición con la misma clave y solo si la principal promete idempotencia.
+                if clientCommandsUnique && retries < 1 { retries += 1; continue }
+                throw error
+            }
+        }
         if let error = AndroidBackupCodec.optionalString(response["error"]) {
             if error == "permiso" { throw SyncError.permission }
             throw SyncError.remote(error)

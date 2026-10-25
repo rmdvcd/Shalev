@@ -509,11 +509,15 @@ private struct ProductEditorView: View {
 
     private func remoteSaveAction(_ saved: Product) throws -> [String: Any] {
         if saved.kind == .ingredient {
-            var action = SyncJSON.message("insumo_guardar", ["insumo": try AndroidBackupCodec.exportIngredient(saved)])
+            var row = try AndroidBackupCodec.exportIngredient(saved)
+            if let name = saved.syncPhotoName { row["fotoUri"] = name }
+            var action = SyncJSON.message("insumo_guardar", ["insumo": row])
             if let product { action["cantidadLeidaMil"] = product.stockMilli }
             return action
         }
-        var fields: [String: Any] = ["producto": try AndroidBackupCodec.exportProduct(saved)]
+        var row = try AndroidBackupCodec.exportProduct(saved)
+        if let name = saved.syncPhotoName { row["fotoUri"] = name }
+        var fields: [String: Any] = ["producto": row]
         if saved.kind == .prepared {
             fields["receta"] = ["productoId": AndroidID.int64("product", saved.id), "lineas": saved.uses.map {
                 ["insumoId": AndroidID.int64("ingredient", $0.ingredientID), "cantidadMil": $0.milliUnits]
