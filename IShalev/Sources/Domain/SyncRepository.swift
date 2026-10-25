@@ -43,6 +43,19 @@ struct SyncLicense: Codable, Equatable {
             permitidas: row["permitidas"].map { AndroidBackupCodec.int($0) })
     }
 
+    /// Una principal antigua puede omitir el permiso; si lo envía, cualquier inconsistencia bloquea la secundaria.
+    func validated(deviceID: String, now: Date = Date()) -> SyncLicense {
+        if clase == "BLOQUEADA" { return self }
+        guard let subToken, !subToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return self }
+        guard let firmaPub, !firmaPub.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let permission = SyncSubToken.verify(subToken, publicKeyBase64: firmaPub, deviceID: deviceID, now: now),
+              ranura == nil || ranura == permission.slot,
+              permitidas == nil || permitidas == permission.allowed else { return SyncLicense(clase: "BLOQUEADA") }
+        var copy = self
+        copy.ranura = permission.slot; copy.permitidas = permission.allowed
+        return copy
+    }
+
     func state(now: Date = Date()) -> GLLicenseState {
         switch clase {
         case "PERPETUA": return .perpetual(id: "principal", secondaries: permitidas ?? 0)
@@ -201,11 +214,17 @@ enum SyncCatalog {
         SyncCrypto.sha256Hex(try SyncJSON.data(snapshot))
     }
 
+    static func normalizedPhotoName(_ value: String?) -> String? {
+        guard let value, !value.isEmpty else { return nil }
+        let name = value.split(separator: "/").last.map(String.init) ?? value
+        return name.isEmpty ? nil : name
+    }
+
     static func photoName(for product: Product) -> String {
-        product.syncPhotoName ?? product.id.uuidString.lowercased() + ".jpg"
+        normalizedPhotoName(product.syncPhotoName) ?? product.id.uuidString.lowercased() + ".jpg"
     }
     static func photoName(for service: ServiceItem) -> String {
-        service.syncPhotoName ?? service.id.uuidString.lowercased() + ".jpg"
+        normalizedPhotoName(service.syncPhotoName) ?? service.id.uuidString.lowercased() + ".jpg"
     }
 
     static func photo(named name: String, app: AppData) -> (entity: String, id: Int64, data: Data)? {
@@ -227,14 +246,14 @@ enum SyncCatalog {
         var products = try AndroidBackupCodec.dictionaries(snapshot["productos"]).map { row -> Product in
             var product = try AndroidBackupCodec.importProduct(row, recipe: recipes[AndroidBackupCodec.int64(row["id"])])
             if product.imageData == nil, let old = current.products.first(where: { $0.id == product.id }),
-               old.syncPhotoName == product.syncPhotoName { product.imageData = old.imageData }
+               normalizedPhotoName(old.syncPhotoName) == normalizedPhotoName(product.syncPhotoName) { product.imageData = old.imageData }
             return product
         }
         products += try AndroidBackupCodec.dictionaries(snapshot["insumos"]).map(AndroidBackupCodec.importIngredient)
         let services = AndroidBackupCodec.dictionaries(snapshot["servicios"]).map { row -> ServiceItem in
             var service = AndroidBackupCodec.importService(row)
             if service.imageData == nil, let old = current.services.first(where: { $0.id == service.id }),
-               old.syncPhotoName == service.syncPhotoName { service.imageData = old.imageData }
+               normalizedPhotoName(old.syncPhotoName) == normalizedPhotoName(service.syncPhotoName) { service.imageData = old.imageData }
             return service
         }
         var next = current
@@ -412,7 +431,7 @@ enum SyncCatalog {
             guard let id = UUID(uuidString: AndroidBackupCodec.string(change["uuid"])),
                   let shiftID = UUID(uuidString: AndroidBackupCodec.string(change["turnoUuid"])) else { throw SyncError.invalidMessage }
             if let index = next.sales.firstIndex(where: { $0.id == id }) {
-                if let cancelled = AndroidBackupCodec.optionalInt64(change["anuladaEn"]), next.sales[index].cancelledAt == nil {
+                if !(change["nueva"] is [String: Any]), let cancelled = AndroidBackupCodec.optionalInt64(change["anuladaEn"]), next.sales[index].cancelledAt == nil {
                     next.sales[index].isCancelled = true
                     next.sales[index].cancelledAt = Date(timeIntervalSince1970: Double(cancelled) / 1_000)
                     next.sales[index].cancellationReason = AndroidBackupCodec.optionalString(change["motivo"])

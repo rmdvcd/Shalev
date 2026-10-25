@@ -86,6 +86,30 @@ final class SyncProtocolTests: XCTestCase {
         XCTAssertThrowsError(try reflectedReceiver.open(reflected))
     }
 
+    func testSecondarySubTokenBindsSignatureDeviceSlotQuotaAndExpiry() throws {
+        let signer = P256.Signing.PrivateKey(), now = Date(timeIntervalSince1970: 1_800_000_000)
+        let issued = try SyncSubToken.issue(licenseID: "licencia-prueba", deviceID: "SPVI:abcdef123456",
+            slot: 2, allowed: 3, expiresAt: nil, signer: signer)
+        let expected = SyncSubTokenData(licenseID: "licencia-prueba", deviceID: "SPVI:abcdef123456", slot: 2, allowed: 3, expiresAt: nil)
+        XCTAssertEqual(SyncSubToken.verify(issued.token, publicKeyBase64: issued.publicKey, deviceID: expected.deviceID, now: now), expected)
+        XCTAssertNil(SyncSubToken.verify(issued.token, publicKeyBase64: issued.publicKey, deviceID: "SPVI:otro-dispositivo", now: now))
+        XCTAssertNil(SyncSubToken.verify(issued.token + "x", publicKeyBase64: issued.publicKey, deviceID: expected.deviceID, now: now))
+
+        var license = SyncLicense(clase: "PERPETUA", subToken: issued.token, firmaPub: issued.publicKey, ranura: 2, permitidas: 3)
+        XCTAssertEqual(license.validated(deviceID: expected.deviceID, now: now).state(now: now),
+            .perpetual(id: "principal", secondaries: 3))
+        license.ranura = 1 // El campo exterior no puede contradecir al firmado.
+        XCTAssertEqual(license.validated(deviceID: expected.deviceID, now: now).clase, "BLOQUEADA")
+        let old = SyncLicense(clase: "PERPETUA", permitidas: 3)
+        XCTAssertEqual(old.validated(deviceID: "otro", now: now), old, "Una principal anterior sin sub-token sigue siendo compatible")
+
+        let expired = try SyncSubToken.issue(licenseID: "licencia-prueba", deviceID: expected.deviceID,
+            slot: 1, allowed: 1, expiresAt: now.addingTimeInterval(-1), signer: signer)
+        XCTAssertNil(SyncSubToken.verify(expired.token, publicKeyBase64: expired.publicKey, deviceID: expected.deviceID, now: now))
+        XCTAssertThrowsError(try SyncSubToken.issue(licenseID: "x", deviceID: expected.deviceID,
+            slot: 1, allowed: 0, expiresAt: nil, signer: signer))
+    }
+
     func testFrameLimits() throws {
         XCTAssertEqual(try SyncFrames.lengthPrefix(0x0102_0304), Data([1, 2, 3, 4]))
         XCTAssertEqual(try SyncFrames.decodeLength(Data([1, 2, 3, 4])), 0x0102_0304)

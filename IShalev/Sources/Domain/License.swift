@@ -252,6 +252,9 @@ private final class GLDeviceIdentity {
         let secret = try privateKey.sharedSecretFromKeyAgreement(with: peer)
         return secret.withUnsafeBytes { Data($0) }
     }
+    func secondarySigner() throws -> P256.Signing.PrivateKey {
+        try P256.Signing.PrivateKey(rawRepresentation: privateKey.rawRepresentation)
+    }
 }
 
 private enum GLVaultStore {
@@ -325,6 +328,20 @@ final class GLLicenseManager: ObservableObject {
     var savedLicenseID: String? { verifiedInstalled?.id }
     var installedType: GLLicenseType? { verifiedInstalled?.type }
     var installedSecondaries: Int? { verifiedInstalled?.secondaries }
+
+    func issueSecondaryPermission(deviceID: String, slot: Int) -> (token: String, publicKey: String, slot: Int, allowed: Int)? {
+        let id: String, expiry: Date?, allowed: Int
+        switch state {
+        case .active(_, let date, let licenseID, let count): id = licenseID; expiry = date; allowed = count
+        case .perpetual(let licenseID, let count): id = licenseID; expiry = nil; allowed = count
+        default: return nil // La prueba de IShalev no incluye cuota de secundarias.
+        }
+        guard let identity, allowed > 0, slot >= 1, slot <= allowed,
+              let permission = try? SyncSubToken.issue(licenseID: id, deviceID: deviceID, slot: slot,
+                  allowed: allowed, expiresAt: expiry, signer: identity.secondarySigner()) else { return nil }
+        return (permission.token, permission.publicKey, slot, allowed)
+    }
+
     var renewableLicenseID: String? {
         guard let verified = verifiedInstalled, verified.expiresAt != nil else { return nil }
         return verified.id

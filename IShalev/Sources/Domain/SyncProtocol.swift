@@ -222,6 +222,65 @@ enum SyncCrypto {
 }
 
 /// AES-GCM + gzip + número de secuencia autenticado. Una instancia pertenece a una sola conexión.
+struct SyncSubTokenData: Equatable {
+    let licenseID: String
+    let deviceID: String
+    let slot: Int
+    let allowed: Int
+    let expiresAt: Date?
+}
+
+/// Permiso de secundaria 0.31+: firma ECDSA de la identidad de la principal, no una cuota autodeclarada.
+enum SyncSubToken {
+    static func validDeviceID(_ raw: String) -> String? {
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (8...128).contains(value.utf8.count), value.utf8.allSatisfy({
+            ($0 >= 48 && $0 <= 57) || ($0 >= 65 && $0 <= 90) || ($0 >= 97 && $0 <= 122) || $0 == 58 || $0 == 95 || $0 == 45
+        }) else { return nil }
+        return value
+    }
+
+    static func issue(licenseID: String, deviceID: String, slot: Int, allowed: Int,
+                      expiresAt: Date?, signer: P256.Signing.PrivateKey) throws -> (token: String, publicKey: String) {
+        guard !licenseID.isEmpty, licenseID.count <= 64, !deviceID.isEmpty, deviceID.count <= 128,
+              !licenseID.contains("|"), !licenseID.contains("."), !deviceID.contains("|"), !deviceID.contains("."),
+              (0...10).contains(allowed), slot >= 1, slot <= allowed else { throw SyncError.permission }
+        let text = [licenseID, deviceID, String(slot), String(allowed), expiresAt.map(dateString) ?? "PERPETUA"].joined(separator: "|")
+        let signature = try signer.signature(for: Data(text.utf8)).derRepresentation
+        return (text + "." + signature.base64EncodedString(), signer.publicKey.derRepresentation.base64EncodedString())
+    }
+
+    static func verify(_ token: String, publicKeyBase64: String, deviceID: String, now: Date) -> SyncSubTokenData? {
+        guard !token.isEmpty, token.count <= 4_096, let cut = token.lastIndex(of: "."), cut > token.startIndex else { return nil }
+        let text = String(token[..<cut]), encoded = String(token[token.index(after: cut)...])
+        guard !encoded.isEmpty, let der = Data(base64Encoded: encoded),
+              let keyDER = Data(base64Encoded: publicKeyBase64),
+              let key = try? P256.Signing.PublicKey(derRepresentation: keyDER),
+              let signature = try? P256.Signing.ECDSASignature(derRepresentation: der),
+              key.isValidSignature(signature, for: Data(text.utf8)) else { return nil }
+        let fields = text.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+        guard fields.count == 5, let slot = Int(fields[2]), let allowed = Int(fields[3]),
+              (0...10).contains(allowed), slot >= 1, slot <= allowed, fields[1] == deviceID else { return nil }
+        let expiry: Date?
+        if fields[4] == "PERPETUA" { expiry = nil }
+        else if let date = parseDate(fields[4]) { expiry = date }
+        else { return nil }
+        guard expiry == nil || now < expiry! else { return nil }
+        return SyncSubTokenData(licenseID: fields[0], deviceID: fields[1], slot: slot, allowed: allowed, expiresAt: expiry)
+    }
+
+    private static func dateString(_ date: Date) -> String {
+        let format = ISO8601DateFormatter(); format.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return format.string(from: date)
+    }
+    private static func parseDate(_ text: String) -> Date? {
+        let format = ISO8601DateFormatter(); format.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = format.date(from: text) { return date }
+        format.formatOptions = [.withInternetDateTime]
+        return format.date(from: text)
+    }
+}
+
 struct SyncChannelCipher {
     enum Side { case principal, secondary }
 

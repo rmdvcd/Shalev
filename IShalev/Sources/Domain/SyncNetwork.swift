@@ -31,7 +31,6 @@ actor SyncSocket {
         let tcp = NWProtocolTCP.Options()
         tcp.noDelay = true
         let parameters = NWParameters(tls: nil, tcp: tcp)
-        parameters.allowLocalOnly = true
         connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: UInt16(port))!, using: parameters)
     }
 
@@ -39,7 +38,6 @@ actor SyncSocket {
         let tcp = NWProtocolTCP.Options()
         tcp.noDelay = true
         let parameters = NWParameters(tls: nil, tcp: tcp)
-        parameters.allowLocalOnly = true
         connection = NWConnection(to: endpoint, using: parameters)
     }
 
@@ -222,7 +220,6 @@ final class SyncListener: @unchecked Sendable {
         let tcp = NWProtocolTCP.Options()
         tcp.noDelay = true
         let parameters = NWParameters(tls: nil, tcp: tcp)
-        parameters.allowLocalOnly = true
         listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: UInt16(port))!)
         listener.service = NWListener.Service(name: SyncBonjour.serviceName(businessID: businessID), type: SyncBonjour.serviceType)
         listener.newConnectionHandler = onConnection

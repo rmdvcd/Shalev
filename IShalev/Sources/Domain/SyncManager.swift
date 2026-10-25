@@ -337,9 +337,9 @@ final class SyncManager: ObservableObject {
             let response = try await clientRequest(message, expected: "sync_ok")
             guard AndroidBackupCodec.int64(response["id"]) == id,
                   let received = response["recibidos"] as? [String: Any] else { throw SyncError.invalidMessage }
-            var next = try SyncCatalog.applyChanges(AndroidBackupCodec.dictionaries(response["cambiosVentas"]), to: store.data)
-            link.changesAcknowledged = next.applied
-            next = SyncCatalog.applyReceipts(received, to: next.app)
+            let changed = try SyncCatalog.applyChanges(AndroidBackupCodec.dictionaries(response["cambiosVentas"]), to: store.data)
+            link.changesAcknowledged = changed.applied
+            var next = SyncCatalog.applyReceipts(received, to: changed.app)
             next = try SyncCatalog.applyApprovedCount(response["conteoAprobado"] as? [String: Any],
                 shiftUUID: AndroidBackupCodec.optionalString(response["conteoTurnoUuid"]), to: next)
             if let snapshot = response["instantanea"] as? [String: Any] {
@@ -348,7 +348,7 @@ final class SyncManager: ObservableObject {
                     link.employeeName = AndroidBackupCodec.string(employee["nombre"], default: link.employeeName)
                     link.permissions = (employee["permisos"] as? [String] ?? []).sorted()
                 }
-                link.license = SyncLicense.from(snapshot["licencia"] as? [String: Any])
+                link.license = SyncLicense.from(snapshot["licencia"] as? [String: Any])?.validated(deviceID: licenseManager.deviceID)
                 link.businessName = AndroidBackupCodec.string(snapshot["nombreNegocio"], default: link.businessName)
                 if let preferences = snapshot["preferencias"] as? [String: Any] {
                     link.modules = preferences["modulos"] as? [String]
@@ -474,7 +474,7 @@ final class SyncManager: ObservableObject {
             let existingName = photo.entity == "servicio"
                 ? store.data.services.first(where: { $0.id == uuid })?.syncPhotoName
                 : store.data.products.first(where: { $0.id == uuid })?.syncPhotoName
-            if existing != nil && existingName == photo.name { continue }
+            if existing != nil && SyncCatalog.normalizedPhotoName(existingName) == photo.name { continue }
             guard photo.bytes >= 0 && photo.bytes <= Int64(SyncFrames.maximumClear) else { continue }
             var data = Data()
             var hash = ""
@@ -611,7 +611,8 @@ final class SyncManager: ObservableObject {
         do {
             var pending = try await session.receive()
             // Solo un mensaje cifrado prueba la clave y registra/desplaza la sesión anterior.
-            if let device = AndroidBackupCodec.optionalString(hello["device"]), var updated = store.linkedApps.first(where: { $0.syncID == employeeID }) {
+            if let rawDevice = AndroidBackupCodec.optionalString(hello["device"]),
+               let device = SyncSubToken.validDeviceID(rawDevice), var updated = store.linkedApps.first(where: { $0.syncID == employeeID }) {
                 updated.deviceID = device; try? store.saveLinkedApp(updated)
             }
             if let old = serverSessions[employeeID] { await old.close() }
@@ -665,8 +666,17 @@ final class SyncManager: ObservableObject {
         }
         try store.replaceDataForSync(next)
         guard let current = store.linkedApps.first(where: { $0.syncID == employeeID }) else { throw SyncError.invalidMessage }
+        var license = SyncLicense.from(licenseManager.state)
+        let activeApps = store.linkedApps.filter(\.syncActive).sorted {
+            (($0.linkedAt ?? .distantPast), $0.syncID ?? 0) < (($1.linkedAt ?? .distantPast), $1.syncID ?? 0)
+        }
+        if let device = current.deviceID, let slot = activeApps.firstIndex(where: { $0.syncID == employeeID }).map({ $0 + 1 }),
+           let permission = licenseManager.issueSecondaryPermission(deviceID: device, slot: slot) {
+            license.subToken = permission.token; license.firmaPub = permission.publicKey
+            license.ranura = permission.slot; license.permitidas = permission.allowed
+        }
         let snapshot = try SyncCatalog.snapshot(app: store.data, employee: current,
-            license: SyncLicense.from(licenseManager.state), modules: modulesProvider())
+            license: license, modules: modulesProvider())
         let hash = try SyncCatalog.hash(snapshot)
         let includeSnapshot = AndroidBackupCodec.optionalString(message["hash"]) != hash
         var response = SyncJSON.message("sync_ok", ["id": AndroidBackupCodec.int64(message["id"]),
