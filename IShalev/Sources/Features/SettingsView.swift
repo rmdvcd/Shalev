@@ -98,7 +98,7 @@ struct SettingsView: View {
                             settingsDivider
                         }
                         if canExport {
-                            settingsRow("Exportar", subtitle: "PDF y tablas compatibles con Excel", symbol: "square.and.arrow.up.fill", sheet: .export)
+                            settingsRow("Exportar", subtitle: "Excel (XLSX), CSV, PDF e imágenes", symbol: "square.and.arrow.up.fill", sheet: .export)
                             settingsDivider
                         }
                         settingsRow("Ayuda", subtitle: "Guía rápida de los flujos principales", symbol: "questionmark.circle.fill", sheet: .help)

@@ -114,7 +114,8 @@ struct RecordsView: View {
                 Spacer(minLength: 0)
                 if canExport && selectedTab != .customers {
                     Menu {
-                        Button("Excel (CSV)", systemImage: "tablecells") { export(.csv) }
+                        Button("Excel (XLSX)", systemImage: "tablecells") { export(.xlsx) }
+                        Button("CSV", systemImage: "text.alignleft") { export(.csv) }
                         Button("PDF", systemImage: "doc.richtext") { export(.pdf) }
                     } label: {
                         Image(systemName: "square.and.arrow.up")
@@ -216,13 +217,15 @@ struct RecordsView: View {
         switch selectedTab {
         case .sales, .services, .transfers:
             return ExportReport(title: selectedTab.rawValue, subtitle: subtitle,
-                                headers: ["Fecha", "Artículos", "Pago", "Total CUP", "Costo CUP", "Ganancia CUP", "Transacción", "Estado"],
+                                headers: ["Fecha", "Artículos", "Pago", "Total CUP", "Costo CUP", "Ganancia CUP", "Transacción", "Cliente", "Carné", "Teléfono", "Tarjeta de cobro", "Teléfono de cobro", "Vendedor", "Estado"],
                                 rows: sales.map { sale in
                                     [sale.date.shalevDateTime,
                                      sale.lines.map { "\($0.quantity) × \($0.name)" }.joined(separator: ", "),
                                      sale.paymentMethod.rawValue, Cup(cents: sale.totalCents).inputValue,
                                      Cup(cents: sale.costCents).inputValue, Cup(cents: sale.profitCents).inputValue,
-                                     sale.transactionNumber, sale.isCancelled ? "Anulada" : "Vigente"]
+                                     sale.transactionNumber, sale.customer?.name ?? "", sale.customer?.identification ?? "",
+                                     sale.customer?.phone ?? "", sale.paymentCard ?? "", sale.paymentPhone ?? "",
+                                     sale.sellerName ?? "", sale.isCancelled ? "Anulada" : "Vigente"]
                                 })
         case .movements:
             let headers = ["Fecha", "Tipo", "Detalle", "Variación", "Importe CUP"]

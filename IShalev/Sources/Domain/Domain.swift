@@ -715,7 +715,7 @@ enum CustomerValidator {
 
     static func validTransactionNumber(_ value: String) -> String? {
         let number = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (6...30).contains(number.count), number.allSatisfy(\.isLetterOrNumber),
+        guard (6...30).contains(number.count), number.allSatisfy({ $0.isLetter || $0.isNumber }),
               number.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) && $0.isASCII }) else { return nil }
         return number.uppercased()
     }
@@ -723,7 +723,7 @@ enum CustomerValidator {
     static func suggestions(_ customers: [Customer], containing text: String) -> [Customer] {
         let query = folded(text)
         guard query.count >= 2 else { return [] }
-        return customers.compactMap { customer in
+        return customers.compactMap { customer -> (Customer, Bool)? in
             let name = folded(customer.name)
             guard name.contains(query), name != query else { return nil }
             return (customer, name.hasPrefix(query))
