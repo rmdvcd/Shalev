@@ -50,7 +50,15 @@ final class SyncManager: ObservableObject {
     var closeRejectedByPrincipal: Bool { link?.closeRejectedNotice ?? false }
 
     init(store: ShalevStore, licenseManager: GLLicenseManager, secureStore: SyncSecureStoring? = nil,
-         modulesProvider: @escaping () -> [String] = { ["VENTAS", "INVENTARIO", "SERVICIOS"] }) {
+         modulesProvider: @escaping () -> [String] = {
+            let defaults = UserDefaults.standard
+            func enabled(_ key: String) -> Bool { defaults.object(forKey: key) == nil ? true : defaults.bool(forKey: key) }
+            var modules: [String] = []
+            if enabled("shalev.module.sales") { modules.append("VENTAS") }
+            if enabled("shalev.module.inventory") { modules.append("INVENTARIO") }
+            if enabled("shalev.module.services") { modules.append("SERVICIOS") }
+            return modules
+         }) {
         self.store = store
         self.licenseManager = licenseManager
         let storage = secureStore ?? SyncKeychainStore()
@@ -452,7 +460,7 @@ final class SyncManager: ObservableObject {
             guard photo.bytes >= 0 && photo.bytes <= Int64(SyncFrames.maximumClear) else { continue }
             var data = Data()
             var hash = ""
-            while data.count < photo.bytes {
+            while Int64(data.count) < photo.bytes {
                 let id = nextID()
                 let response = try await clientRequest(SyncJSON.message("foto_pedir", ["id": id, "nombre": photo.name, "desde": data.count]), expected: "foto_bloque")
                 guard AndroidBackupCodec.int64(response["id"]) == id else { throw SyncError.invalidMessage }
@@ -461,7 +469,7 @@ final class SyncManager: ObservableObject {
                       let block = Data(base64Encoded: AndroidBackupCodec.string(response["datos"])) else { throw SyncError.invalidMessage }
                 data.append(block)
                 hash = AndroidBackupCodec.string(response["sha256"])
-                guard data.count <= photo.bytes else { throw SyncError.invalidMessage }
+                guard Int64(data.count) <= photo.bytes else { throw SyncError.invalidMessage }
                 if block.isEmpty && data.count < photo.bytes { throw SyncError.disconnected }
             }
             guard data.count == photo.bytes, SyncCrypto.sha256Hex(data) == hash else { throw SyncError.authentication }
@@ -645,7 +653,7 @@ final class SyncManager: ObservableObject {
         let id = AndroidBackupCodec.int64(request["id"])
         let from = AndroidBackupCodec.int64(request["desde"])
         let name = AndroidBackupCodec.string(request["nombre"])
-        guard from >= 0, let photo = SyncCatalog.photo(named: name, app: store.data), from <= photo.data.count else {
+        guard from >= 0, let photo = SyncCatalog.photo(named: name, app: store.data), from <= Int64(photo.data.count) else {
             return SyncJSON.message("foto_bloque", ["id": id, "desde": max(0, from), "datos": "", "total": 0, "error": "no_encontrado"])
         }
         let start = Int(from), end = min(photo.data.count, start + 256 * 1_024)
@@ -661,6 +669,8 @@ final class SyncManager: ObservableObject {
             notifyCatalogChanged()
         }
     }
+
+    func modulesChanged() { notifyCatalogChanged() }
 
     private func notifyCatalogChanged() {
         guard !isSecondary else { return }

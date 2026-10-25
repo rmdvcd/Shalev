@@ -221,7 +221,7 @@ enum GZIP {
     }
 }
 
-private enum AndroidID {
+enum AndroidID {
     private static let prefixes = [
         "product": "10000001", "ingredient": "10000002", "service": "10000003", "shift": "10000004",
         "sale": "10000005", "movement": "10000006", "cash": "10000007", "adjustment": "10000008",

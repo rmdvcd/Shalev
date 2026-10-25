@@ -28,6 +28,7 @@
 		000000000000000000000116 /* SyncNetwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000028 /* SyncNetwork.swift */; };
 		000000000000000000000117 /* SyncRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000029 /* SyncRepository.swift */; };
 		000000000000000000000118 /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002A /* SyncManager.swift */; };
+		000000000000000000000119 /* SyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002B /* SyncView.swift */; };
 		00000000000000000000010A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000024 /* Assets.xcassets */; };
 		00000000000000000000010B /* Orbitron-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000025 /* Orbitron-Bold.ttf */; };
 /* End PBXBuildFile section */
@@ -55,6 +56,7 @@
 		000000000000000000000028 /* SyncNetwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncNetwork.swift; sourceTree = "<group>"; };
 		000000000000000000000029 /* SyncRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncRepository.swift; sourceTree = "<group>"; };
 		00000000000000000000002A /* SyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncManager.swift; sourceTree = "<group>"; };
+		00000000000000000000002B /* SyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncView.swift; sourceTree = "<group>"; };
 		000000000000000000000023 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		000000000000000000000024 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		000000000000000000000025 /* Orbitron-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Orbitron-Bold.ttf"; sourceTree = "<group>"; };
@@ -126,6 +128,7 @@
 				00000000000000000000001F /* EmployeeSettingsView.swift */,
 				000000000000000000000020 /* SupportView.swift */,
 				000000000000000000000021 /* UpdatesView.swift */,
+				00000000000000000000002B /* SyncView.swift */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -231,6 +234,7 @@
 				000000000000000000000116 /* SyncNetwork.swift in Sources */,
 				000000000000000000000117 /* SyncRepository.swift in Sources */,
 				000000000000000000000118 /* SyncManager.swift in Sources */,
+				000000000000000000000119 /* SyncView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

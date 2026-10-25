@@ -92,13 +92,15 @@ final class SyncCatalogTests: XCTestCase {
         let fixture = self.fixture()
         let batch = try SyncCatalog.pendingBatch(app: fixture.app)
         var principal = fixture.app
-        principal.shifts[0].synced = true
-        principal.sales[0].synced = true
+        principal.shifts = [Shift(openingCashCents: 2_000, openedBy: "Dueña")]
+        principal.sales = []
+        principal.cashMovements = []
+        principal.inventoryMovements = []
         let applied = try SyncCatalog.applyBatch(batch, employeeID: 9, to: principal).app
         let storage = SyncMemoryStorage()
         storage.value = applied
         let store = ShalevStore(storage: storage)
-        XCTAssertEqual(store.openShift?.id, fixture.shift.id)
+        XCTAssertEqual(store.openShift?.employeeID, nil)
         XCTAssertEqual(applied.shifts.filter { $0.closedAt == nil }.count, 2)
     }
 }

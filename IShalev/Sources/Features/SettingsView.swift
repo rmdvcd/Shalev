@@ -4,7 +4,7 @@ import UIKit
 import LocalAuthentication
 
 private enum SettingsSheet: String, Identifiable, Equatable {
-    case license, profile, payment, prices, backup, export, employees, updates, help, support, about
+    case license, profile, payment, prices, backup, export, employees, sync, updates, help, support, about
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -15,6 +15,7 @@ private enum SettingsSheet: String, Identifiable, Equatable {
         case .backup: "Respaldo"
         case .export: "Exportar"
         case .employees: "Empleados"
+        case .sync: "Apps vinculadas"
         case .updates: "Actualizaciones"
         case .help: "Ayuda"
         case .support: "Soporte"
@@ -27,6 +28,7 @@ private enum SettingsSheet: String, Identifiable, Equatable {
 struct SettingsView: View {
     @ObservedObject var store: ShalevStore
     @ObservedObject var licenseManager: GLLicenseManager
+    @ObservedObject var sync: SyncManager
     @Binding var selectedOperatorID: String
     let isAdministrator: Bool
     let canChangePrices: Bool
@@ -93,6 +95,8 @@ struct SettingsView: View {
                 }
                 ShalevCard(padding: 5) {
                     VStack(spacing: 0) {
+                        settingsRow("Apps vinculadas", subtitle: sync.isSecondary ? "Secundaria · sincronización por red local" : "Principal y secundarias por red local", symbol: "point.3.connected.trianglepath", sheet: .sync)
+                        settingsDivider
                         if isAdministrator {
                             settingsRow("Respaldo", subtitle: "Exportar o importar una copia cifrada", symbol: "externaldrive.fill", sheet: .backup)
                             settingsDivider
@@ -147,11 +151,12 @@ struct SettingsView: View {
                         case .license: EmptyView()
                         case .profile: ProfileSettingsView(store: store)
                         case .payment: PaymentSettingsView(store: store)
-                        case .prices: PriceAdjustmentsView(store: store)
+                        case .prices: PriceAdjustmentsView(store: store, sync: sync)
                         case .backup: BackupSettingsView(store: store)
                         case .export: ExportCenterView(store: store, canExportInventory: canExportInventory,
                                                        canExportServices: canExportServices, canExportSales: canExportSales)
                         case .employees: EmployeeSettingsView(store: store, selectedOperatorID: $selectedOperatorID)
+                        case .sync: SyncView(sync: sync)
                         case .updates: UpdatesView()
                         case .help: HelpView()
                         case .support: SupportView()
@@ -360,6 +365,7 @@ private struct PaymentSettingsView: View {
 @MainActor
 private struct PriceAdjustmentsView: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     @State private var editor: PriceAdjustment?
     @State private var showCreate = false
     @State private var errorMessage: String?
@@ -386,7 +392,16 @@ private struct PriceAdjustmentsView: View {
                                     .foregroundStyle(adjustment.basisPoints >= 0 ? Color.shalevSecondary : Color.shalevSuccess)
                                 Toggle(adjustment.name, isOn: Binding(get: { adjustment.active }, set: { value in
                                     var changed = adjustment; changed.active = value
-                                    do { try store.savePriceAdjustment(changed) } catch { errorMessage = error.localizedDescription }
+                                    if sync.isSecondary {
+                                        Task {
+                                            do {
+                                                let row = try AndroidBackupCodec.exportAdjustment(changed, app: store.data)
+                                                _ = try await sync.executeRemote(SyncJSON.message("preajuste_guardar", ["preajuste": row]))
+                                            } catch { errorMessage = error.localizedDescription }
+                                        }
+                                    } else {
+                                        do { try store.savePriceAdjustment(changed) } catch { errorMessage = error.localizedDescription }
+                                    }
                                 }))
                                 .labelsHidden().tint(Color.shalevPrimary)
                                 Button { editor = adjustment } label: { Image(systemName: "pencil.circle.fill").foregroundStyle(Color.shalevPrimary) }
@@ -404,11 +419,11 @@ private struct PriceAdjustmentsView: View {
         }
         .background(Color.shalevBackground)
         .sheet(isPresented: $showCreate) {
-            PriceAdjustmentEditor(store: store, adjustment: nil)
+            PriceAdjustmentEditor(store: store, sync: sync, adjustment: nil)
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
         }
         .sheet(item: $editor) { adjustment in
-            PriceAdjustmentEditor(store: store, adjustment: adjustment)
+            PriceAdjustmentEditor(store: store, sync: sync, adjustment: adjustment)
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
         }
         .alert("No se pudo actualizar", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
@@ -432,6 +447,7 @@ private struct PriceAdjustmentsView: View {
 @MainActor
 private struct PriceAdjustmentEditor: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     let adjustment: PriceAdjustment?
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
@@ -441,9 +457,11 @@ private struct PriceAdjustmentEditor: View {
     @State private var productIDs: Set<UUID>
     @State private var errorMessage: String?
     @State private var confirmDelete = false
+    @State private var working = false
 
-    init(store: ShalevStore, adjustment: PriceAdjustment?) {
+    init(store: ShalevStore, sync: SyncManager, adjustment: PriceAdjustment?) {
         self.store = store
+        self.sync = sync
         self.adjustment = adjustment
         _name = State(initialValue: adjustment?.name ?? "")
         _percent = State(initialValue: adjustment.map { NSDecimalNumber(decimal: Decimal($0.basisPoints) / Decimal(100)).stringValue } ?? "10")
@@ -497,7 +515,8 @@ private struct PriceAdjustmentEditor: View {
                             Text("Usa porcentaje negativo para un descuento y positivo para un recargo.")
                                 .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
                             Button { save() } label: { Label("Guardar ajuste", systemImage: "checkmark") }
-                                .buttonStyle(ShalevPrimaryButtonStyle())
+                                .buttonStyle(ShalevPrimaryButtonStyle()).disabled(working)
+                            if working { ProgressView().frame(maxWidth: .infinity) }
                         }
                     }
                     if adjustment != nil {
@@ -536,14 +555,35 @@ private struct PriceAdjustmentEditor: View {
                                      basisPoints: NSDecimalNumber(decimal: rounded).intValue,
                                      productIDs: productIDs, paymentMethod: method, minimumAmountCents: minimumCents,
                                      active: adjustment?.active ?? true)
-        do { try store.savePriceAdjustment(result); dismiss() }
-        catch { errorMessage = error.localizedDescription }
+        if sync.isSecondary {
+            working = true
+            Task {
+                do {
+                    let row = try AndroidBackupCodec.exportAdjustment(result, app: store.data)
+                    _ = try await sync.executeRemote(SyncJSON.message("preajuste_guardar", ["preajuste": row]))
+                    dismiss()
+                } catch { errorMessage = error.localizedDescription; working = false }
+            }
+        } else {
+            do { try store.savePriceAdjustment(result); dismiss() }
+            catch { errorMessage = error.localizedDescription }
+        }
     }
 
     private func delete() {
         guard let adjustment else { return }
-        do { try store.deletePriceAdjustment(adjustment.id); dismiss() }
-        catch { errorMessage = error.localizedDescription }
+        if sync.isSecondary {
+            working = true
+            Task {
+                do {
+                    _ = try await sync.executeRemote(SyncJSON.message("preajuste_eliminar", ["id": AndroidID.int64("adjustment", adjustment.id)]))
+                    dismiss()
+                } catch { errorMessage = error.localizedDescription; working = false }
+            }
+        } else {
+            do { try store.deletePriceAdjustment(adjustment.id); dismiss() }
+            catch { errorMessage = error.localizedDescription }
+        }
     }
 }
 

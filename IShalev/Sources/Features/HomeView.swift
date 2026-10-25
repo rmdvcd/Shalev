@@ -4,6 +4,7 @@ import Charts
 @MainActor
 struct HomeView: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     let onNewSale: () -> Void
     let onSellService: () -> Void
     let onShowInventory: () -> Void
@@ -240,7 +241,7 @@ struct HomeView: View {
         .sheet(item: $shiftSheet) { action in
             Group {
                 if action == .close { ShiftClosingSheet(store: store) }
-                else { ShiftOperationSheet(store: store, action: action) }
+                else { ShiftOperationSheet(store: store, sync: sync, action: action) }
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
@@ -760,12 +761,14 @@ private struct ShiftClosingSheet: View {
 @MainActor
 private struct ShiftOperationSheet: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     let action: ShiftSheetAction
     @Environment(\.dismiss) private var dismiss
     @State private var amountText = ""
     @State private var reason = ""
     @State private var movementKind: CashMovementKind = .income
     @State private var errorMessage: String?
+    @State private var working = false
 
     private var amount: Int64? { Cup.parse(amountText)?.cents }
     private var expected: Int64 { store.openShift.map { store.expectedCashCents(for: $0.id) } ?? 0 }
@@ -817,6 +820,8 @@ private struct ShiftOperationSheet: View {
                             }
                             Button(action == .open ? "Abrir turno" : action == .close ? "Cerrar turno" : "Guardar movimiento") { submit() }
                                 .buttonStyle(ShalevPrimaryButtonStyle())
+                                .disabled(working)
+                            if working { ProgressView("Sincroniza antes de abrir…").frame(maxWidth: .infinity) }
                         }
                     }
                 }
@@ -867,18 +872,25 @@ private struct ShiftOperationSheet: View {
 
     private func submit() {
         guard let amount else { errorMessage = "Escribe un importe válido."; return }
+        if action == .open {
+            working = true
+            Task {
+                do {
+                    try await sync.prepareToOpenShift()
+                    try store.openShift(openingCashCents: amount)
+                    dismiss()
+                } catch { errorMessage = error.localizedDescription }
+                working = false
+            }
+            return
+        }
         do {
             switch action {
-            case .open:
-                try store.openShift(openingCashCents: amount)
-            case .close:
-                try store.closeShift(countedCashCents: amount)
-            case .cashMovement:
-                try store.recordCashMovement(kind: movementKind, amountCents: amount, reason: reason)
+            case .open: break
+            case .close: try store.closeShift(countedCashCents: amount)
+            case .cashMovement: try store.recordCashMovement(kind: movementKind, amountCents: amount, reason: reason)
             }
             dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        } catch { errorMessage = error.localizedDescription }
     }
 }

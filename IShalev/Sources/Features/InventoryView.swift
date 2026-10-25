@@ -37,6 +37,7 @@ private enum ProductSheet: Identifiable {
 @MainActor
 struct InventoryView: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     let onSell: () -> Void
     var canEdit = true
     var canSell = true
@@ -123,7 +124,7 @@ struct InventoryView: View {
             }
         }
         .sheet(item: $sheet) { route in
-            ProductEditorView(store: store, product: route.product)
+            ProductEditorView(store: store, sync: sync, product: route.product)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -192,6 +193,7 @@ private struct ProductRow: View {
 @MainActor
 private struct ProductEditorView: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     let product: Product?
     @Environment(\.dismiss) private var dismiss
 
@@ -214,9 +216,11 @@ private struct ProductEditorView: View {
     @State private var recipeAmount = "0.100"
     @State private var errorMessage: String?
     @State private var confirmDelete = false
+    @State private var working = false
 
-    init(store: ShalevStore, product: Product?) {
+    init(store: ShalevStore, sync: SyncManager, product: Product?) {
         self.store = store
+        self.sync = sync
         self.product = product
         _name = State(initialValue: product?.name ?? "")
         _category = State(initialValue: product?.category ?? "Otros")
@@ -245,7 +249,7 @@ private struct ProductEditorView: View {
                 VStack(spacing: 14) {
                     ShalevScreenTitle(title: product == nil ? "Agregar artículo" : "Editar artículo",
                                      subtitle: "Los datos se guardan cifrados en este teléfono.")
-                    if kind != .prepared {
+                    if kind != .prepared && !sync.isSecondary {
                     ShalevCard {
                         VStack(spacing: 10) {
                             if let imageData, let photo = UIImage(data: imageData) {
@@ -332,6 +336,8 @@ private struct ProductEditorView: View {
                                 Label("Guardar", systemImage: "checkmark")
                             }
                             .buttonStyle(ShalevPrimaryButtonStyle())
+                            .disabled(working)
+                            if working { ProgressView().frame(maxWidth: .infinity) }
                         }
                     }
 
@@ -351,7 +357,7 @@ private struct ProductEditorView: View {
             .background(Color.shalevBackground)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Cancelar") { dismiss() }.foregroundStyle(Color.shalevSecondaryText) }
-                ToolbarItem(placement: .topBarTrailing) { Button("Guardar") { save() }.fontWeight(.semibold).foregroundStyle(Color.shalevPrimary) }
+                ToolbarItem(placement: .topBarTrailing) { Button("Guardar") { save() }.fontWeight(.semibold).foregroundStyle(Color.shalevPrimary).disabled(working) }
             }
             .alert("Revisa los datos", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("Entendido", role: .cancel) { errorMessage = nil }
@@ -484,15 +490,55 @@ private struct ProductEditorView: View {
                             stockMilli: stockMilli, unit: unit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "u" : unit,
                             lowStockMilli: low, criticalStockMilli: critical, priceCents: priceCents,
                             costCents: kind == .prepared ? 0 : costCents, uses: recipe,
-                            isActive: product?.isActive ?? true, createdAt: product?.createdAt ?? Date())
-        do { try store.saveProduct(saved); dismiss() }
-        catch { errorMessage = error.localizedDescription }
+                            isActive: product?.isActive ?? true, createdAt: product?.createdAt ?? Date(),
+                            updatedAt: product?.updatedAt, syncPhotoName: product?.syncPhotoName)
+        if sync.isSecondary {
+            working = true
+            Task {
+                do {
+                    let action = try remoteSaveAction(saved)
+                    _ = try await sync.executeRemote(action)
+                    dismiss()
+                } catch { errorMessage = error.localizedDescription; working = false }
+            }
+        } else {
+            do { try store.saveProduct(saved); dismiss() }
+            catch { errorMessage = error.localizedDescription }
+        }
+    }
+
+    private func remoteSaveAction(_ saved: Product) throws -> [String: Any] {
+        if saved.kind == .ingredient {
+            var action = SyncJSON.message("insumo_guardar", ["insumo": try AndroidBackupCodec.exportIngredient(saved)])
+            if let product { action["cantidadLeidaMil"] = product.stockMilli }
+            return action
+        }
+        var fields: [String: Any] = ["producto": try AndroidBackupCodec.exportProduct(saved)]
+        if saved.kind == .prepared {
+            fields["receta"] = ["productoId": AndroidID.int64("product", saved.id), "lineas": saved.uses.map {
+                ["insumoId": AndroidID.int64("ingredient", $0.ingredientID), "cantidadMil": $0.milliUnits]
+            }]
+        }
+        if let product { fields["cantidadLeida"] = product.stockMilli / 1_000 }
+        return SyncJSON.message("producto_guardar", fields)
     }
 
     private func delete() {
         guard let product else { return }
-        do { try store.deleteProduct(product.id); dismiss() }
-        catch { errorMessage = error.localizedDescription }
+        if sync.isSecondary {
+            working = true
+            Task {
+                do {
+                    let domain = product.kind == .ingredient ? "insumo" : "producto"
+                    let id = AndroidID.int64(product.kind == .ingredient ? "ingredient" : "product", product.id)
+                    _ = try await sync.executeRemote(SyncJSON.message("\(domain)_eliminar", ["id": id]))
+                    dismiss()
+                } catch { errorMessage = error.localizedDescription; working = false }
+            }
+        } else {
+            do { try store.deleteProduct(product.id); dismiss() }
+            catch { errorMessage = error.localizedDescription }
+        }
     }
 }
 

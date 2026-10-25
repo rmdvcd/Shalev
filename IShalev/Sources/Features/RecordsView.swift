@@ -588,7 +588,9 @@ private struct SaleDetailView: View {
         }
     }
 
-    private var canModify: Bool { allowModifications && !sale.isCancelled && store.openShift?.id == sale.shiftID }
+    private var canModify: Bool {
+        allowModifications && !sale.isCancelled && store.data.shifts.contains(where: { $0.id == sale.shiftID && $0.closedAt == nil })
+    }
 
     private func cancelSale() {
         do {

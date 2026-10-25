@@ -20,6 +20,7 @@ private enum ServiceSheet: Identifiable {
 @MainActor
 struct ServicesView: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     let onSell: () -> Void
     var canEdit = true
     var canSell = true
@@ -97,7 +98,7 @@ struct ServicesView: View {
             }
         }
         .sheet(item: $sheet) { route in
-            ServiceEditorView(store: store, service: route.service)
+            ServiceEditorView(store: store, sync: sync, service: route.service)
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
         }
     }
@@ -138,6 +139,7 @@ private struct ServiceRow: View {
 @MainActor
 private struct ServiceEditorView: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     let service: ServiceItem?
     @Environment(\.dismiss) private var dismiss
 
@@ -152,9 +154,11 @@ private struct ServiceEditorView: View {
     @State private var recipeAmount = "0.100"
     @State private var errorMessage: String?
     @State private var confirmDelete = false
+    @State private var working = false
 
-    init(store: ShalevStore, service: ServiceItem?) {
+    init(store: ShalevStore, sync: SyncManager, service: ServiceItem?) {
         self.store = store
+        self.sync = sync
         self.service = service
         _name = State(initialValue: service?.name ?? "")
         _type = State(initialValue: service?.type ?? "General")
@@ -191,9 +195,10 @@ private struct ServiceEditorView: View {
                                     Label(imageData == nil ? "Añadir foto" : "Cambiar foto", systemImage: "photo")
                                 }
                                 .buttonStyle(ShalevTonalButtonStyle())
+                                .disabled(sync.isSecondary)
                                 if imageData != nil {
                                     Button(role: .destructive) { imageData = nil; selectedPhoto = nil } label: { Label("Quitar", systemImage: "trash") }
-                                        .buttonStyle(ShalevTonalButtonStyle())
+                                        .buttonStyle(ShalevTonalButtonStyle()).disabled(sync.isSecondary)
                                 }
                             }
                         }
@@ -213,7 +218,8 @@ private struct ServiceEditorView: View {
                             Text("Importe (CUP)").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                             TextField("0.00", text: $price).keyboardType(.decimalPad).textFieldStyle(ServiceInputStyle())
                             Button { save() } label: { Label("Guardar", systemImage: "checkmark") }
-                                .buttonStyle(ShalevPrimaryButtonStyle())
+                                .buttonStyle(ShalevPrimaryButtonStyle()).disabled(working)
+                            if working { ProgressView().frame(maxWidth: .infinity) }
                         }
                     }
                     if service != nil {
@@ -231,7 +237,7 @@ private struct ServiceEditorView: View {
             .onChange(of: selectedPhoto) { _, _ in loadPhoto() }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Cancelar") { dismiss() }.foregroundStyle(Color.shalevSecondaryText) }
-                ToolbarItem(placement: .topBarTrailing) { Button("Guardar") { save() }.fontWeight(.semibold).foregroundStyle(Color.shalevPrimary) }
+                ToolbarItem(placement: .topBarTrailing) { Button("Guardar") { save() }.fontWeight(.semibold).foregroundStyle(Color.shalevPrimary).disabled(working) }
             }
             .alert("Revisa los datos", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("Entendido", role: .cancel) { errorMessage = nil }
@@ -320,15 +326,35 @@ private struct ServiceEditorView: View {
         guard let cents = Cup.parse(price)?.cents else { errorMessage = "Escribe un importe válido en CUP."; return }
         let updated = ServiceItem(id: service?.id ?? UUID(), name: name, type: type, description: description,
                                   imageData: imageData, priceCents: cents, uses: recipe, isActive: service?.isActive ?? true,
-                                  createdAt: service?.createdAt ?? Date())
-        do { try store.saveService(updated); dismiss() }
-        catch { errorMessage = error.localizedDescription }
+                                  createdAt: service?.createdAt ?? Date(), syncPhotoName: service?.syncPhotoName)
+        if sync.isSecondary {
+            working = true
+            Task {
+                do {
+                    _ = try await sync.executeRemote(SyncJSON.message("servicio_guardar", ["servicio": AndroidBackupCodec.exportService(updated)]))
+                    dismiss()
+                } catch { errorMessage = error.localizedDescription; working = false }
+            }
+        } else {
+            do { try store.saveService(updated); dismiss() }
+            catch { errorMessage = error.localizedDescription }
+        }
     }
 
     private func delete() {
         guard let service else { return }
-        do { try store.deleteService(service.id); dismiss() }
-        catch { errorMessage = error.localizedDescription }
+        if sync.isSecondary {
+            working = true
+            Task {
+                do {
+                    _ = try await sync.executeRemote(SyncJSON.message("servicio_eliminar", ["id": AndroidID.int64("service", service.id)]))
+                    dismiss()
+                } catch { errorMessage = error.localizedDescription; working = false }
+            }
+        } else {
+            do { try store.deleteService(service.id); dismiss() }
+            catch { errorMessage = error.localizedDescription }
+        }
     }
 }
 
