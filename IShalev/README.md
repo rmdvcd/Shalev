@@ -58,8 +58,8 @@ El proyecto de Android que lo acompaña sigue en la raíz del repositorio. Las p
 
 ### Verificación registrada
 
-- El run [`40154517963`](https://github.com/rmdvcd/Shalev/actions/runs/40154517963), del commit `2477699`, terminó con las pruebas de dominio, la compilación para simulador, el empaquetado y la publicación del artefacto en verde.
-- Ese run publicó la build [`IShalev 1.0.0` en Appetize](https://appetize.io/app/nvbg5yhfjfov2tvxp6z6oqbcae). No se ha ejecutado una sesión interactiva de esa build; todavía deben comprobarse los flujos internos, la vinculación LAN y los permisos del simulador.
+- El run [`40155048824`](https://github.com/rmdvcd/Shalev/actions/runs/40155048824), del commit `f82be0a`, terminó con las pruebas de dominio, la compilación para simulador, el empaquetado y la publicación del artefacto en verde.
+- Ese run publicó la build [`IShalev 1.0.0` en Appetize](https://appetize.io/app/oxa2csfcfvzb6ls57zjavg4x3e). No se ha ejecutado una sesión interactiva de esa build; todavía deben comprobarse los flujos internos, la vinculación LAN y los permisos del simulador.
 - Estas comprobaciones no sustituyen pruebas en un iPhone físico, activación real con GL ni una sesión de sincronización con Android.
 
 ### 1. GitHub Actions — opción recomendada para compilar
