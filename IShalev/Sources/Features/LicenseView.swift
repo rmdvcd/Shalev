@@ -235,7 +235,7 @@ struct LicenseView: View {
                 firstName: profile.ownerFirstName ?? owner.first.map(String.init) ?? "",
                 lastName: profile.ownerLastName ?? (owner.count > 1 ? owner.dropFirst().joined(separator: " ") : ""),
                 identification: profile.identification,
-                phone: profile.licensePhone ?? profile.transferPhone
+                phone: profile.licensePhone ?? profile.paymentPhone?.number ?? profile.transferPhone
             )
         }
         firstName = license.requestProfile.firstName

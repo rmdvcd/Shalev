@@ -4,12 +4,21 @@ import LocalAuthentication
 @main
 @MainActor
 struct IShalevApp: App {
-    @StateObject private var store = ShalevStore()
-    @StateObject private var licenseManager = GLLicenseManager()
+    @StateObject private var store: ShalevStore
+    @StateObject private var licenseManager: GLLicenseManager
+    @StateObject private var sync: SyncManager
+
+    init() {
+        let store = ShalevStore()
+        let license = GLLicenseManager()
+        _store = StateObject(wrappedValue: store)
+        _licenseManager = StateObject(wrappedValue: license)
+        _sync = StateObject(wrappedValue: SyncManager(store: store, licenseManager: license))
+    }
 
     var body: some Scene {
         WindowGroup {
-            ShalevRootView(store: store, licenseManager: licenseManager)
+            ShalevRootView(store: store, licenseManager: licenseManager, sync: sync)
                 .preferredColorScheme(nil)
         }
     }
@@ -45,6 +54,7 @@ enum SaleMode: String, Identifiable, Equatable {
 struct ShalevRootView: View {
     @ObservedObject var store: ShalevStore
     @ObservedObject var licenseManager: GLLicenseManager
+    @ObservedObject var sync: SyncManager
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("shalev.onboarding.completed") private var onboardingCompleted = false
     @AppStorage("shalev.lock.enabled") private var appLockEnabled = false
@@ -63,35 +73,44 @@ struct ShalevRootView: View {
         guard !selectedOperatorID.isEmpty else { return nil }
         return store.employees.first { $0.id.uuidString == selectedOperatorID }
     }
-    private var isAdministrator: Bool { activeEmployee == nil }
+    private var isAdministrator: Bool { !sync.isSecondary && activeEmployee == nil }
+    private var effectiveLicenseState: GLLicenseState { sync.secondaryLicenseState ?? licenseManager.state }
+    private var effectiveSales: Bool { salesEnabled && sync.moduleEnabled("VENTAS") }
+    private var effectiveInventory: Bool { inventoryEnabled && sync.moduleEnabled("INVENTARIO") }
+    private var effectiveServices: Bool { servicesEnabled && sync.moduleEnabled("SERVICIOS") }
     private func permits(_ permission: EmployeePermission) -> Bool {
-        activeEmployee?.permissions.contains(permission) ?? true
+        if sync.isSecondary { return sync.permissions(sync.link?.permissions ?? []).contains(permission) }
+        return activeEmployee?.permissions.contains(permission) ?? true
     }
-    private var canSellProducts: Bool { salesEnabled && permits(.sellProducts) }
-    private var canSellServices: Bool { servicesEnabled && permits(.sellServices) }
+    private var canSellProducts: Bool { effectiveSales && permits(.sellProducts) }
+    private var canSellServices: Bool { effectiveServices && permits(.sellServices) }
     private var canViewInventory: Bool {
-        (salesEnabled || inventoryEnabled) && (permits(.viewInventory) || (salesEnabled && permits(.sellProducts)))
+        (effectiveSales || effectiveInventory) && (permits(.viewInventory) || (effectiveSales && permits(.sellProducts)))
     }
     private var canEditInventory: Bool { permits(.editInventory) }
     private var canViewRecords: Bool { permits(.viewRecords) || permits(.correctSales) }
     private var canManageCash: Bool { permits(.manageCash) }
     private var canChangePrices: Bool { permits(.changePrices) }
     private var canExport: Bool { permits(.exportReports) }
-    private var canCorrectSales: Bool { permits(.correctSales) }
+    private var canCorrectSales: Bool { !sync.isSecondary && permits(.correctSales) }
     private var canOpenSettings: Bool {
-        isAdministrator || permits(.manageSettings) || canChangePrices || canExport
+        sync.isSecondary || isAdministrator || permits(.manageSettings) || canChangePrices || canExport
     }
 
     var body: some View {
         Group {
-            if licenseManager.state == .loading {
+            if !sync.isSecondary && licenseManager.state == .loading {
                 ProgressView("Comprobando licencia…")
                     .tint(Color.shalevPrimary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.shalevBackground.ignoresSafeArea())
-            } else if !licenseManager.state.unlocked {
-                LicenseView(store: store, license: licenseManager, blocking: true)
-            } else if !onboardingCompleted {
+            } else if !effectiveLicenseState.unlocked {
+                if sync.isSecondary {
+                    NavigationStack { SyncView(sync: sync) }
+                } else {
+                    LicenseView(store: store, license: licenseManager, blocking: true)
+                }
+            } else if !onboardingCompleted && !sync.isSecondary {
                 OnboardingView(store: store) { onboardingCompleted = true }
             } else if appLockEnabled && !appUnlocked {
                 DeviceLockView { appUnlocked = true }
@@ -104,10 +123,13 @@ struct ShalevRootView: View {
             }
         }
         .task {
+            store.currentOperatorName = activeEmployee?.name
             repairSelection()
             if salesEnabled && !inventoryEnabled { inventoryEnabled = true }
             ensureOneModule()
+            sync.start()
             await licenseManager.refresh()
+            sync.start()
             Task { await licenseManager.checkRevocationsIfDue() }
         }
         .onChange(of: scenePhase) { _, phase in
@@ -115,28 +137,41 @@ struct ShalevRootView: View {
                 if appLockEnabled { appUnlocked = false }
                 if !selectedOperatorID.isEmpty { authenticatedOperatorID = "" }
             } else if phase == .active {
+                sync.start()
                 Task {
                     await licenseManager.refresh()
+                    sync.start()
                     await licenseManager.checkRevocationsIfDue()
                 }
             }
         }
         .onChange(of: salesEnabled) { _, enabled in
+            sync.modulesChanged()
             if enabled && !inventoryEnabled { inventoryEnabled = true }
             ensureOneModule()
             repairSelection()
         }
         .onChange(of: inventoryEnabled) { _, enabled in
+            sync.modulesChanged()
             if !enabled && salesEnabled { salesEnabled = false }
             ensureOneModule()
             repairSelection()
         }
-        .onChange(of: servicesEnabled) { _, _ in ensureOneModule(); repairSelection() }
+        .onChange(of: servicesEnabled) { _, _ in sync.modulesChanged(); ensureOneModule(); repairSelection() }
         .onChange(of: selectedOperatorID) { oldID, newID in
             if oldID != newID { authenticatedOperatorID = "" }
+            store.currentOperatorName = activeEmployee?.name
             repairSelection()
         }
-        .onChange(of: store.data.employees) { _, _ in repairSelection() }
+        .onChange(of: store.data.employees) { _, _ in
+            store.currentOperatorName = activeEmployee?.name
+            repairSelection()
+        }
+        .onChange(of: sync.role) { _, _ in
+            selectedOperatorID = ""; authenticatedOperatorID = ""
+            store.currentOperatorName = nil
+            repairSelection()
+        }
         .alert("No se pudo cambiar de operador", isPresented: Binding(get: { operatorAuthError != nil }, set: { if !$0 { operatorAuthError = nil } })) {
             Button("Entendido", role: .cancel) { operatorAuthError = nil }
         } message: { Text(operatorAuthError ?? "") }
@@ -146,26 +181,26 @@ struct ShalevRootView: View {
         Group {
             switch selectedSection {
             case .home:
-                HomeView(store: store, onNewSale: { saleMode = .products }, onSellService: { saleMode = .services },
+                HomeView(store: store, sync: sync, onNewSale: { saleMode = .products }, onSellService: { saleMode = .services },
                          onShowInventory: { selectedSection = .inventory }, onShowSettings: { selectedSection = .settings },
                          canSellProducts: canSellProducts, canSellServices: canSellServices,
                          canManageCash: canManageCash, canViewInventory: canViewInventory,
-                         canViewRecords: canViewRecords, canViewSales: salesEnabled, canViewServices: servicesEnabled,
+                         canViewRecords: canViewRecords, canViewSales: effectiveSales, canViewServices: effectiveServices,
                          canManageBusinessSettings: isAdministrator, canChangePrices: canChangePrices,
-                         isEmployeeSession: !isAdministrator, onSwitchToOwner: switchToOwner)
+                         isEmployeeSession: !sync.isSecondary && !isAdministrator, onSwitchToOwner: switchToOwner)
             case .inventory:
-                InventoryView(store: store, onSell: { saleMode = .products }, canEdit: canEditInventory, canSell: canSellProducts)
+                InventoryView(store: store, sync: sync, onSell: { saleMode = .products }, canEdit: canEditInventory, canSell: canSellProducts)
             case .services:
-                ServicesView(store: store, onSell: { saleMode = .services }, canEdit: canEditInventory, canSell: canSellServices)
+                ServicesView(store: store, sync: sync, onSell: { saleMode = .services }, canEdit: canEditInventory, canSell: canSellServices)
             case .records:
                 RecordsView(store: store, canExport: canExport, canCorrectSales: canCorrectSales,
                             canManageCash: canManageCash, canViewInventory: canViewInventory,
-                            canViewSales: salesEnabled, canViewServices: servicesEnabled)
+                            canViewSales: effectiveSales, canViewServices: effectiveServices)
             case .settings:
-                SettingsView(store: store, licenseManager: licenseManager, selectedOperatorID: $selectedOperatorID,
+                SettingsView(store: store, licenseManager: licenseManager, sync: sync, selectedOperatorID: $selectedOperatorID,
                              isAdministrator: isAdministrator, canChangePrices: canChangePrices, canExport: canExport,
-                             canExportInventory: salesEnabled || inventoryEnabled,
-                             canExportServices: servicesEnabled, canExportSales: salesEnabled)
+                             canExportInventory: effectiveSales || effectiveInventory,
+                             canExportServices: effectiveServices, canExportSales: effectiveSales)
             }
         }
         .frame(maxWidth: 700)
@@ -193,9 +228,9 @@ struct ShalevRootView: View {
     private var visibleSections: [MainSection] {
         MainSection.allCases.filter { section in
             switch section {
-            case .inventory: (salesEnabled || inventoryEnabled) && (canViewInventory || canEditInventory)
-            case .services: servicesEnabled && (canSellServices || canEditInventory)
-            case .records: canViewRecords && (salesEnabled || servicesEnabled || inventoryEnabled)
+            case .inventory: (effectiveSales || effectiveInventory) && (canViewInventory || canEditInventory)
+            case .services: effectiveServices && (canSellServices || canEditInventory)
+            case .records: canViewRecords && (effectiveSales || effectiveServices || effectiveInventory)
             case .settings: canOpenSettings
             case .home: true
             }

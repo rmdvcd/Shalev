@@ -3,10 +3,12 @@ import SwiftUI
 private enum RecordSheet: Identifiable {
     case sale(Sale)
     case shift(Shift)
+    case customer(Customer)
     var id: String {
         switch self {
         case .sale(let sale): "sale-\(sale.id.uuidString)"
         case .shift(let shift): "shift-\(shift.id.uuidString)"
+        case .customer(let customer): "customer-\(customer.id.uuidString)"
         }
     }
 }
@@ -72,8 +74,16 @@ struct RecordsView: View {
     }
 
     private var customers: [Customer] {
-        store.data.customers.filter { search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) || $0.phone.localizedCaseInsensitiveContains(search) }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        store.data.customers.filter {
+            search.isEmpty || $0.name.localizedCaseInsensitiveContains(search)
+                || $0.identification.contains(search) || $0.phone.localizedCaseInsensitiveContains(search)
+        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private func customerSummary(_ customer: Customer) -> String {
+        let purchases = store.purchases(for: customer)
+        let total = purchases.reduce(Int64(0)) { $0 + $1.totalCents }
+        return "\(purchases.count) compra\(purchases.count == 1 ? "" : "s") · \(Cup(cents: total).formatted)"
     }
 
     private var shifts: [Shift] {
@@ -102,9 +112,10 @@ struct RecordsView: View {
             HStack(spacing: 8) {
                 ShalevScreenTitle(title: "Registros", subtitle: "Operaciones, caja y turnos")
                 Spacer(minLength: 0)
-                if canExport {
+                if canExport && selectedTab != .customers {
                     Menu {
-                        Button("Excel (CSV)", systemImage: "tablecells") { export(.csv) }
+                        Button("Excel (XLSX)", systemImage: "tablecells") { export(.xlsx) }
+                        Button("CSV", systemImage: "text.alignleft") { export(.csv) }
                         Button("PDF", systemImage: "doc.richtext") { export(.pdf) }
                     } label: {
                         Image(systemName: "square.and.arrow.up")
@@ -159,7 +170,14 @@ struct RecordsView: View {
                         else { ForEach(movements) { MovementRecordRow(record: $0) } }
                     case .customers:
                         if customers.isEmpty { emptyState }
-                        else { ForEach(customers) { CustomerRecordRow(customer: $0) } }
+                        else {
+                            ForEach(customers) { customer in
+                                Button { sheet = .customer(customer) } label: {
+                                    CustomerRecordRow(customer: customer, purchaseSummary: customerSummary(customer))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     case .shifts:
                         if shifts.isEmpty { emptyState }
                         else {
@@ -182,6 +200,7 @@ struct RecordsView: View {
             switch route {
             case .sale(let sale): SaleDetailView(sale: sale, store: store, allowModifications: canCorrectSales, onDone: { sheet = nil })
             case .shift(let shift): ShiftDetailView(shift: shift, store: store)
+            case .customer(let customer): CustomerDetailView(store: store, customerID: customer.id)
             }
         }
         .sheet(isPresented: $showShareSheet) {
@@ -198,13 +217,15 @@ struct RecordsView: View {
         switch selectedTab {
         case .sales, .services, .transfers:
             return ExportReport(title: selectedTab.rawValue, subtitle: subtitle,
-                                headers: ["Fecha", "Artículos", "Pago", "Total CUP", "Costo CUP", "Ganancia CUP", "Transacción", "Estado"],
+                                headers: ["Fecha", "Artículos", "Pago", "Total CUP", "Costo CUP", "Ganancia CUP", "Transacción", "Cliente", "Carné", "Teléfono", "Tarjeta de cobro", "Teléfono de cobro", "Vendedor", "Estado"],
                                 rows: sales.map { sale in
                                     [sale.date.shalevDateTime,
                                      sale.lines.map { "\($0.quantity) × \($0.name)" }.joined(separator: ", "),
                                      sale.paymentMethod.rawValue, Cup(cents: sale.totalCents).inputValue,
                                      Cup(cents: sale.costCents).inputValue, Cup(cents: sale.profitCents).inputValue,
-                                     sale.transactionNumber, sale.isCancelled ? "Anulada" : "Vigente"]
+                                     sale.transactionNumber, sale.customer?.name ?? "", sale.customer?.identification ?? "",
+                                     sale.customer?.phone ?? "", sale.paymentCard ?? "", sale.paymentPhone ?? "",
+                                     sale.sellerName ?? "", sale.isCancelled ? "Anulada" : "Vigente"]
                                 })
         case .movements:
             let headers = ["Fecha", "Tipo", "Detalle", "Variación", "Importe CUP"]
@@ -316,6 +337,7 @@ private struct MovementRecordRow: View {
 
 private struct CustomerRecordRow: View {
     let customer: Customer
+    let purchaseSummary: String
     var body: some View {
         HStack(spacing: 11) {
             Image(systemName: "person.crop.circle.fill").font(.system(size: 23)).foregroundStyle(Color.shalevPrimary)
@@ -323,6 +345,7 @@ private struct CustomerRecordRow: View {
                 Text(customer.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
                 Text(maskedID.isEmpty ? customer.phone : "CI · \(maskedID)")
                     .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                Text(purchaseSummary).font(.system(size: 11, weight: .medium)).foregroundStyle(Color.shalevPrimary)
             }
             Spacer()
             if !customer.phone.isEmpty { Image(systemName: "phone.fill").font(.system(size: 12)).foregroundStyle(Color.shalevTertiary) }
@@ -332,6 +355,108 @@ private struct CustomerRecordRow: View {
     private var maskedID: String {
         guard customer.identification.count > 3 else { return customer.identification }
         return "••••••••\(customer.identification.suffix(3))"
+    }
+}
+
+@MainActor
+private struct CustomerDetailView: View {
+    @ObservedObject var store: ShalevStore
+    let customerID: UUID
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @State private var identification: String
+    @State private var phone: String
+    @State private var errorMessage: String?
+    @State private var confirmingRemoval = false
+
+    init(store: ShalevStore, customerID: UUID) {
+        self.store = store
+        self.customerID = customerID
+        let customer = store.data.customers.first(where: { $0.id == customerID })
+        _name = State(initialValue: customer?.name ?? "")
+        _identification = State(initialValue: customer?.identification ?? "")
+        _phone = State(initialValue: customer?.phone ?? "")
+    }
+
+    private var purchases: [Sale] {
+        guard let customer = store.data.customers.first(where: { $0.id == customerID }) else { return [] }
+        return store.purchases(for: customer)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 14) {
+                    ShalevScreenTitle(title: "Cliente fijo", subtitle: "Editar el carné también corrige sus compras anteriores.")
+                    ShalevCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            TextField("Nombre y apellidos", text: $name)
+                                .textContentType(.name).textFieldStyle(SaleEditFieldStyle())
+                            TextField("Carné cubano de 11 dígitos", text: $identification)
+                                .keyboardType(.numberPad).textFieldStyle(SaleEditFieldStyle())
+                                .onChange(of: identification) { _, value in
+                                    identification = String(value.filter(\.isNumber).prefix(11))
+                                }
+                            TextField("Teléfono", text: $phone)
+                                .keyboardType(.phonePad).textFieldStyle(SaleEditFieldStyle())
+                            Button { save() } label: { Label("Guardar cambios", systemImage: "checkmark") }
+                                .buttonStyle(ShalevPrimaryButtonStyle())
+                        }
+                    }
+                    ShalevCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Compras (\(purchases.count))")
+                                .font(.system(size: 16, weight: .semibold)).foregroundStyle(Color.shalevText)
+                            if purchases.isEmpty {
+                                Text("Este cliente todavía no tiene compras.").font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+                            } else {
+                                ForEach(purchases) { sale in
+                                    HStack(alignment: .top) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(sale.date.shalevDateTime).font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                                            Text(sale.lines.map(\.name).joined(separator: ", "))
+                                                .font(.system(size: 13)).foregroundStyle(Color.shalevText).lineLimit(2)
+                                            if sale.isCancelled { Text("Anulada").font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.shalevError) }
+                                        }
+                                        Spacer()
+                                        Text(Cup(cents: sale.totalCents).formatted).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                    }
+                                    if sale.id != purchases.last?.id { Divider() }
+                                }
+                            }
+                        }
+                    }
+                    Button(role: .destructive) { confirmingRemoval = true } label: {
+                        Label("Quitar de clientes fijos", systemImage: "person.crop.circle.badge.xmark")
+                    }
+                    .buttonStyle(ShalevTonalButtonStyle())
+                    Text("Las compras permanecen en Registros, pero dejarán de aparecer en esta ficha.")
+                        .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).multilineTextAlignment(.center)
+                }
+                .padding(16)
+            }
+            .background(Color.shalevBackground)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Cerrar") { dismiss() } } }
+            .alert("Quitar cliente fijo", isPresented: $confirmingRemoval) {
+                Button("Cancelar", role: .cancel) {}
+                Button("Quitar", role: .destructive) {
+                    do { try store.removeFixedCustomer(customerID); dismiss() }
+                    catch { errorMessage = error.localizedDescription }
+                }
+            } message: { Text("No se borrarán las compras registradas.") }
+            .alert("No se pudieron guardar los cambios", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("Entendido", role: .cancel) { errorMessage = nil }
+            } message: { Text(errorMessage ?? "") }
+        }
+    }
+
+    private func save() {
+        guard var customer = store.data.customers.first(where: { $0.id == customerID }) else { return }
+        customer.name = name
+        customer.identification = identification
+        customer.phone = phone
+        do { try store.updateCustomer(customer) }
+        catch { errorMessage = error.localizedDescription }
     }
 }
 
@@ -399,7 +524,15 @@ private struct SaleDetailView: View {
                             detailRow("Costo", Cup(cents: sale.costCents).formatted)
                             detailRow("Ganancia", Cup(cents: sale.profitCents).formatted)
                             if !sale.transactionNumber.isEmpty { detailRow("N.º de transacción", sale.transactionNumber) }
-                            if let customer = sale.customer { detailRow("Cliente", customer.name) }
+                            if let customer = sale.customer {
+                                detailRow("Cliente", customer.name)
+                                detailRow("Carné", customer.identification)
+                                detailRow("Teléfono", customer.phone)
+                            }
+                            if let card = sale.paymentCard { detailRow("Cobrado en la tarjeta", card) }
+                            if let phone = sale.paymentPhone { detailRow("Teléfono de cobro", phone) }
+                            if let seller = sale.sellerName, !seller.isEmpty { detailRow("Vendedor", seller) }
+                            if let correction = sale.correctionOfSaleID { detailRow("Corrige", "Venta \(correction.uuidString.prefix(8))") }
                             if sale.customerIsFixed { ShalevStatusPill(title: "Cliente fijo", symbol: "person.crop.circle.fill") }
                             if sale.isCancelled {
                                 ShalevStatusPill(title: "Anulada", color: .shalevError, symbol: "xmark.circle.fill")
@@ -455,7 +588,9 @@ private struct SaleDetailView: View {
         }
     }
 
-    private var canModify: Bool { allowModifications && !sale.isCancelled && store.openShift?.id == sale.shiftID }
+    private var canModify: Bool {
+        allowModifications && !sale.isCancelled && store.data.shifts.contains(where: { $0.id == sale.shiftID && $0.closedAt == nil })
+    }
 
     private func cancelSale() {
         do {
@@ -482,6 +617,10 @@ private struct SaleEditView: View {
     @State private var lines: [SaleLine]
     @State private var payment: PaymentMethod
     @State private var transactionNumber: String
+    @State private var customerName: String
+    @State private var customerID: String
+    @State private var customerPhone: String
+    @State private var customerIsFixed: Bool
     @State private var reason = ""
     @State private var errorMessage: String?
 
@@ -492,6 +631,16 @@ private struct SaleEditView: View {
         _lines = State(initialValue: sale.lines)
         _payment = State(initialValue: sale.paymentMethod)
         _transactionNumber = State(initialValue: sale.transactionNumber)
+        _customerName = State(initialValue: sale.customer?.name ?? "")
+        _customerID = State(initialValue: sale.customer?.identification ?? "")
+        _customerPhone = State(initialValue: sale.customer?.phone ?? "")
+        _customerIsFixed = State(initialValue: sale.customerIsFixed)
+    }
+
+    private var editedCustomer: Customer? {
+        guard payment == .transfer, !customerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return Customer(id: sale.customer?.id ?? UUID(), name: customerName, identification: customerID,
+                        phone: customerPhone, updatedAt: sale.customer?.updatedAt ?? Date())
     }
 
     private var cart: [CartDraft] {
@@ -563,6 +712,16 @@ private struct SaleEditView: View {
                                 TextField("N.º de transacción", text: $transactionNumber)
                                     .textInputAutocapitalization(.characters)
                                     .textFieldStyle(SaleEditFieldStyle())
+                                Text("Datos del cliente").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                TextField("Nombre y apellidos", text: $customerName)
+                                    .textFieldStyle(SaleEditFieldStyle())
+                                TextField("Carné cubano de 11 dígitos", text: $customerID)
+                                    .keyboardType(.numberPad)
+                                    .textFieldStyle(SaleEditFieldStyle())
+                                TextField("Teléfono", text: $customerPhone)
+                                    .keyboardType(.phonePad)
+                                    .textFieldStyle(SaleEditFieldStyle())
+                                Toggle("Cliente fijo", isOn: $customerIsFixed).tint(Color.shalevPrimary)
                             }
                             HStack {
                                 Text("Total corregido").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
@@ -631,7 +790,9 @@ private struct SaleEditView: View {
     private func save() {
         guard preview != nil else { errorMessage = "Revisa las existencias y los artículos activos."; return }
         do {
-            _ = try store.modifySale(sale.id, cart: cart, payment: payment, transactionNumber: transactionNumber, reason: reason)
+            _ = try store.modifySale(sale.id, cart: cart, payment: payment, transactionNumber: transactionNumber,
+                                     reason: reason, customer: editedCustomer,
+                                     customerIsFixed: payment == .transfer && customerIsFixed)
             onSaved()
         } catch {
             errorMessage = error.localizedDescription
@@ -654,6 +815,16 @@ private struct ShiftDetailView: View {
 
     private var shiftSales: [Sale] { store.data.sales.filter { $0.shiftID == shift.id && !$0.isCancelled } }
     private var cashSales: Int64 { shiftSales.filter { $0.paymentMethod == .cash }.reduce(0) { $0 + $1.totalCents } }
+    private var cashMovementsTotal: Int64 {
+        store.data.cashMovements.filter { $0.shiftID == shift.id }.reduce(Int64(0)) { total, movement in
+            total + (movement.kind == .income ? movement.amountCents : -movement.amountCents)
+        }
+    }
+    private var displayedExpectedCash: Int64 {
+        guard let summary = shift.summary else { return store.expectedCashCents(for: shift.id) }
+        return shift.openingCashCents + summary.cashCents + cashMovementsTotal
+    }
+    private var cashDifference: Int64? { shift.countedCashCents.map { $0 - displayedExpectedCash } }
 
     var body: some View {
         NavigationStack {
@@ -664,12 +835,39 @@ private struct ShiftDetailView: View {
                         VStack(spacing: 9) {
                             detailRow("Estado", shift.closedAt == nil ? "Abierto" : "Cerrado")
                             detailRow("Fondo inicial", Cup(cents: shift.openingCashCents).formatted)
-                            detailRow("Ventas en efectivo", Cup(cents: cashSales).formatted)
-                            detailRow("Efectivo esperado", Cup(cents: store.expectedCashCents(for: shift.id)).formatted)
+                            detailRow("Ventas en efectivo", Cup(cents: shift.summary?.cashCents ?? cashSales).formatted)
+                            if let summary = shift.summary {
+                                detailRow("Transferencias", Cup(cents: summary.transferCents).formatted)
+                                detailRow("Total de ventas", "\(summary.saleCount) · \(Cup(cents: summary.totalCents).formatted)")
+                                detailRow("Ganancia", Cup(cents: summary.profitCents).formatted)
+                            }
+                            detailRow("Efectivo esperado", Cup(cents: displayedExpectedCash).formatted)
                             if let counted = shift.countedCashCents { detailRow("Efectivo contado", Cup(cents: counted).formatted) }
+                            if let difference = cashDifference { detailRow("Diferencia de caja", Cup(cents: difference).formatted) }
+                            if let openedBy = shift.openedBy { detailRow("Abierto por", openedBy) }
+                            if let closedBy = shift.closedBy { detailRow("Cerrado por", closedBy) }
                             if let closed = shift.closedAt { detailRow("Cerrado", closed.shalevDateTime) }
                         }
                         .font(.system(size: 13)).foregroundStyle(Color.shalevText)
+                    }
+                    if let count = shift.closingCount {
+                        ShalevCard {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ShalevSectionHeader(title: "Conciliación de inventario")
+                                if count.inventoryCountSkipped == true {
+                                    Text("Conteo omitido explícitamente; no se ajustaron existencias.")
+                                        .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                                } else if count.inventory.allSatisfy({ $0.differenceMilli == 0 }) {
+                                    Text("Sin diferencias de inventario.").font(.system(size: 12)).foregroundStyle(Color.shalevSuccess)
+                                } else {
+                                    ForEach(count.inventory.filter { $0.differenceMilli != 0 }) { discrepancy in
+                                        Text("\(discrepancy.productName): \(FixedNumber.formatMilli(discrepancy.expectedMilli)) → \(FixedNumber.formatMilli(discrepancy.countedMilli))")
+                                            .font(.system(size: 12)).foregroundStyle(Color.shalevText)
+                                    }
+                                    if !count.reason.isEmpty { Text("Motivo: \(count.reason)").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText) }
+                                }
+                            }
+                        }
                     }
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 10) {

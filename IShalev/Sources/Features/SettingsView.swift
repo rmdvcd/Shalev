@@ -4,7 +4,7 @@ import UIKit
 import LocalAuthentication
 
 private enum SettingsSheet: String, Identifiable, Equatable {
-    case license, profile, payment, prices, backup, export, employees, updates, help, support, about
+    case license, profile, payment, prices, backup, export, employees, sync, updates, help, support, about
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -15,6 +15,7 @@ private enum SettingsSheet: String, Identifiable, Equatable {
         case .backup: "Respaldo"
         case .export: "Exportar"
         case .employees: "Empleados"
+        case .sync: "Apps vinculadas"
         case .updates: "Actualizaciones"
         case .help: "Ayuda"
         case .support: "Soporte"
@@ -27,6 +28,7 @@ private enum SettingsSheet: String, Identifiable, Equatable {
 struct SettingsView: View {
     @ObservedObject var store: ShalevStore
     @ObservedObject var licenseManager: GLLicenseManager
+    @ObservedObject var sync: SyncManager
     @Binding var selectedOperatorID: String
     let isAdministrator: Bool
     let canChangePrices: Bool
@@ -53,7 +55,7 @@ struct SettingsView: View {
                             settingsDivider
                             settingsRow("Perfil", subtitle: "Datos del negocio y del titular", symbol: "person.crop.circle", sheet: .profile)
                             settingsDivider
-                            settingsRow("Pago electrónico", subtitle: "Teléfono y tarjeta para Transfermóvil", symbol: "creditcard.fill", sheet: .payment)
+                            settingsRow("Pago electrónico", subtitle: "Tarjetas y teléfonos para Transfermóvil", symbol: "creditcard.fill", sheet: .payment)
                         }
                         if canChangePrices {
                             if isAdministrator { settingsDivider }
@@ -93,12 +95,14 @@ struct SettingsView: View {
                 }
                 ShalevCard(padding: 5) {
                     VStack(spacing: 0) {
+                        settingsRow("Apps vinculadas", subtitle: sync.isSecondary ? "Secundaria · sincronización por red local" : "Principal y secundarias por red local", symbol: "point.3.connected.trianglepath", sheet: .sync)
+                        settingsDivider
                         if isAdministrator {
                             settingsRow("Respaldo", subtitle: "Exportar o importar una copia cifrada", symbol: "externaldrive.fill", sheet: .backup)
                             settingsDivider
                         }
                         if canExport {
-                            settingsRow("Exportar", subtitle: "PDF y tablas compatibles con Excel", symbol: "square.and.arrow.up.fill", sheet: .export)
+                            settingsRow("Exportar", subtitle: "Excel (XLSX), CSV, PDF e imágenes", symbol: "square.and.arrow.up.fill", sheet: .export)
                             settingsDivider
                         }
                         settingsRow("Ayuda", subtitle: "Guía rápida de los flujos principales", symbol: "questionmark.circle.fill", sheet: .help)
@@ -147,11 +151,12 @@ struct SettingsView: View {
                         case .license: EmptyView()
                         case .profile: ProfileSettingsView(store: store)
                         case .payment: PaymentSettingsView(store: store)
-                        case .prices: PriceAdjustmentsView(store: store)
+                        case .prices: PriceAdjustmentsView(store: store, sync: sync)
                         case .backup: BackupSettingsView(store: store)
                         case .export: ExportCenterView(store: store, canExportInventory: canExportInventory,
                                                        canExportServices: canExportServices, canExportSales: canExportSales)
                         case .employees: EmployeeSettingsView(store: store, selectedOperatorID: $selectedOperatorID)
+                        case .sync: SyncView(sync: sync)
                         case .updates: UpdatesView()
                         case .help: HelpView()
                         case .support: SupportView()
@@ -245,28 +250,77 @@ private struct ProfileSettingsView: View {
 private struct PaymentSettingsView: View {
     @ObservedObject var store: ShalevStore
     @Environment(\.dismiss) private var dismiss
-    @State private var phone: String
-    @State private var card: String
+    @State private var phones: [TransferPhone]
+    @State private var cards: [TransferCard]
+    @State private var paymentPhoneID: UUID?
+    @State private var paymentCardID: UUID?
     @State private var errorMessage: String?
 
     init(store: ShalevStore) {
         self.store = store
-        _phone = State(initialValue: store.data.settings.profile.transferPhone)
-        _card = State(initialValue: store.data.settings.profile.transferCard)
+        let profile = store.data.settings.profile
+        _phones = State(initialValue: profile.availablePhones)
+        _cards = State(initialValue: profile.availableCards)
+        _paymentPhoneID = State(initialValue: profile.paymentPhone?.id)
+        _paymentCardID = State(initialValue: profile.paymentCard?.id)
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 15) {
-                ShalevScreenTitle(title: "Pago electrónico", subtitle: "Datos que aparecerán en el QR de Transfermóvil")
+                ShalevScreenTitle(title: "Pago electrónico", subtitle: "Elige la tarjeta y el teléfono que recibirán las transferencias")
                 ShalevCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        labeledField("Teléfono (opcional)", text: $phone, placeholder: "+53 5212 3456", keyboard: .phonePad)
-                        labeledField("Tarjeta o cuenta", text: $card, placeholder: "Número de tarjeta", keyboard: .numberPad)
-                        Text("La tarjeta debe tener de 12 a 20 dígitos. Transfermóvil completa la tarjeta y el móvil; el importe se muestra por separado y no se incorpora al QR.")
-                            .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
+                        ShalevSectionHeader(title: "Tarjetas y cuentas")
+                        ForEach($cards) { $card in
+                            VStack(spacing: 8) {
+                                labeledField("Alias (opcional)", text: $card.alias, placeholder: "Ej. Cuenta principal")
+                                labeledField("Tarjeta o cuenta", text: $card.number, placeholder: "12–20 dígitos", keyboard: .numberPad)
+                                Button(role: .destructive) { removeCard(card.id) } label: {
+                                    Label("Eliminar tarjeta", systemImage: "trash")
+                                }
+                                .buttonStyle(ShalevTonalButtonStyle())
+                            }
+                            if card.id != cards.last?.id { Divider() }
+                        }
+                        Button { cards.append(TransferCard(number: "")) } label: { Label("Agregar tarjeta", systemImage: "plus") }
+                            .buttonStyle(ShalevTonalButtonStyle())
+                        if !cards.isEmpty {
+                            Picker("Tarjeta para cobros", selection: $paymentCardID) {
+                                Text("Ninguna").tag(UUID?.none)
+                                ForEach(cards) { card in Text(cardLabel(card)).tag(UUID?.some(card.id)) }
+                            }
+                            .font(.system(size: 13, weight: .medium))
+                        }
                     }
                 }
+                ShalevCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ShalevSectionHeader(title: "Teléfonos")
+                        ForEach($phones) { $phone in
+                            VStack(spacing: 8) {
+                                labeledField("Alias (opcional)", text: $phone.alias, placeholder: "Ej. Móvil del negocio")
+                                labeledField("Teléfono", text: $phone.number, placeholder: "+53 5212 3456", keyboard: .phonePad)
+                                Button(role: .destructive) { removePhone(phone.id) } label: {
+                                    Label("Eliminar teléfono", systemImage: "trash")
+                                }
+                                .buttonStyle(ShalevTonalButtonStyle())
+                            }
+                            if phone.id != phones.last?.id { Divider() }
+                        }
+                        Button { phones.append(TransferPhone(number: "")) } label: { Label("Agregar teléfono", systemImage: "plus") }
+                            .buttonStyle(ShalevTonalButtonStyle())
+                        if !phones.isEmpty {
+                            Picker("Teléfono para cobros", selection: $paymentPhoneID) {
+                                Text("Ninguno").tag(UUID?.none)
+                                ForEach(phones) { phone in Text(phoneLabel(phone)).tag(UUID?.some(phone.id)) }
+                            }
+                            .font(.system(size: 13, weight: .medium))
+                        }
+                    }
+                }
+                Text("La tarjeta seleccionada es obligatoria para cobrar por transferencia. El teléfono se incorpora al QR cuando existe; el importe se muestra por separado.")
+                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
                 Button { save() } label: { Label("Guardar datos de cobro", systemImage: "checkmark") }
                     .buttonStyle(ShalevPrimaryButtonStyle())
             }
@@ -278,12 +332,31 @@ private struct PaymentSettingsView: View {
         } message: { Text(errorMessage ?? "") }
     }
 
+    private func cardLabel(_ card: TransferCard) -> String {
+        let masked = card.number.count >= 4 ? "•••• \(card.number.suffix(4))" : "Nueva tarjeta"
+        return card.alias.isEmpty ? masked : "\(card.alias) · \(masked)"
+    }
+
+    private func phoneLabel(_ phone: TransferPhone) -> String {
+        phone.alias.isEmpty ? phone.number : "\(phone.alias) · \(phone.number)"
+    }
+
+    private func removeCard(_ id: UUID) {
+        cards.removeAll { $0.id == id }
+        if paymentCardID == id { paymentCardID = nil }
+    }
+
+    private func removePhone(_ id: UUID) {
+        phones.removeAll { $0.id == id }
+        if paymentPhoneID == id { paymentPhoneID = nil }
+    }
+
     private func save() {
-        let digits = card.filter(\.isNumber)
-        if !digits.isEmpty && !(12...20).contains(digits.count) { errorMessage = "La tarjeta debe tener entre 12 y 20 dígitos."; return }
         var profile = store.data.settings.profile
-        profile.transferPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
-        profile.transferCard = digits
+        profile.transferCards = cards
+        profile.transferPhones = phones
+        profile.paymentCardID = paymentCardID
+        profile.paymentPhoneID = paymentPhoneID
         do { try store.saveProfile(profile); dismiss() }
         catch { errorMessage = error.localizedDescription }
     }
@@ -292,6 +365,7 @@ private struct PaymentSettingsView: View {
 @MainActor
 private struct PriceAdjustmentsView: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     @State private var editor: PriceAdjustment?
     @State private var showCreate = false
     @State private var errorMessage: String?
@@ -318,7 +392,16 @@ private struct PriceAdjustmentsView: View {
                                     .foregroundStyle(adjustment.basisPoints >= 0 ? Color.shalevSecondary : Color.shalevSuccess)
                                 Toggle(adjustment.name, isOn: Binding(get: { adjustment.active }, set: { value in
                                     var changed = adjustment; changed.active = value
-                                    do { try store.savePriceAdjustment(changed) } catch { errorMessage = error.localizedDescription }
+                                    if sync.isSecondary {
+                                        Task {
+                                            do {
+                                                let row = try AndroidBackupCodec.exportAdjustment(changed, app: store.data)
+                                                _ = try await sync.executeRemote(SyncJSON.message("preajuste_guardar", ["preajuste": row]))
+                                            } catch { errorMessage = error.localizedDescription }
+                                        }
+                                    } else {
+                                        do { try store.savePriceAdjustment(changed) } catch { errorMessage = error.localizedDescription }
+                                    }
                                 }))
                                 .labelsHidden().tint(Color.shalevPrimary)
                                 Button { editor = adjustment } label: { Image(systemName: "pencil.circle.fill").foregroundStyle(Color.shalevPrimary) }
@@ -336,11 +419,11 @@ private struct PriceAdjustmentsView: View {
         }
         .background(Color.shalevBackground)
         .sheet(isPresented: $showCreate) {
-            PriceAdjustmentEditor(store: store, adjustment: nil)
+            PriceAdjustmentEditor(store: store, sync: sync, adjustment: nil)
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
         }
         .sheet(item: $editor) { adjustment in
-            PriceAdjustmentEditor(store: store, adjustment: adjustment)
+            PriceAdjustmentEditor(store: store, sync: sync, adjustment: adjustment)
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
         }
         .alert("No se pudo actualizar", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
@@ -351,7 +434,9 @@ private struct PriceAdjustmentsView: View {
     private func adjustmentSummary(_ adjustment: PriceAdjustment) -> String {
         let payment = adjustment.paymentMethod?.rawValue ?? "Todos los pagos"
         let minimum = adjustment.minimumAmountCents.map { " · desde \(Cup(cents: $0).formatted)" } ?? ""
-        return "\(payment)\(minimum)"
+        let articles = adjustment.productIDs.map { " · \($0.count) artículo\($0.count == 1 ? "" : "s")" }
+            ?? " · todos los artículos (anterior)"
+        return "\(payment)\(minimum)\(articles)"
     }
     private func percentText(_ basisPoints: Int) -> String {
         let value = Decimal(basisPoints) / Decimal(100)
@@ -362,22 +447,27 @@ private struct PriceAdjustmentsView: View {
 @MainActor
 private struct PriceAdjustmentEditor: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     let adjustment: PriceAdjustment?
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
     @State private var percent: String
     @State private var method: PaymentMethod?
     @State private var minimum: String
+    @State private var productIDs: Set<UUID>
     @State private var errorMessage: String?
     @State private var confirmDelete = false
+    @State private var working = false
 
-    init(store: ShalevStore, adjustment: PriceAdjustment?) {
+    init(store: ShalevStore, sync: SyncManager, adjustment: PriceAdjustment?) {
         self.store = store
+        self.sync = sync
         self.adjustment = adjustment
         _name = State(initialValue: adjustment?.name ?? "")
         _percent = State(initialValue: adjustment.map { NSDecimalNumber(decimal: Decimal($0.basisPoints) / Decimal(100)).stringValue } ?? "10")
         _method = State(initialValue: adjustment?.paymentMethod)
         _minimum = State(initialValue: adjustment?.minimumAmountCents.map { Cup(cents: $0).inputValue } ?? "")
+        _productIDs = State(initialValue: adjustment?.productIDs ?? Set(store.activeProducts.map(\.id)))
     }
 
     var body: some View {
@@ -400,10 +490,33 @@ private struct PriceAdjustmentEditor: View {
                                 .pickerStyle(.segmented)
                             }
                             labeledField("Importe mínimo (opcional, CUP)", text: $minimum, placeholder: "Sin mínimo", keyboard: .decimalPad)
+                            Divider()
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Artículos incluidos").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                Text("El ajuste solo se aplica a los artículos seleccionados. Si hay varios ajustes para un mismo artículo, se suman.")
+                                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                ForEach(store.activeProducts) { product in
+                                    Toggle(isOn: Binding(get: { productIDs.contains(product.id) }, set: { selected in
+                                        if selected { productIDs.insert(product.id) } else { productIDs.remove(product.id) }
+                                    })) {
+                                        HStack {
+                                            Text(product.name).font(.system(size: 13)).foregroundStyle(Color.shalevText)
+                                            Spacer()
+                                            Text(Cup(cents: product.priceCents).formatted)
+                                                .font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
+                                        }
+                                    }
+                                    .tint(Color.shalevPrimary)
+                                }
+                                if store.activeProducts.isEmpty {
+                                    Text("Crea primero un artículo en Inventario.").font(.system(size: 12)).foregroundStyle(Color.shalevError)
+                                }
+                            }
                             Text("Usa porcentaje negativo para un descuento y positivo para un recargo.")
                                 .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
                             Button { save() } label: { Label("Guardar ajuste", systemImage: "checkmark") }
-                                .buttonStyle(ShalevPrimaryButtonStyle())
+                                .buttonStyle(ShalevPrimaryButtonStyle()).disabled(working)
+                            if working { ProgressView().frame(maxWidth: .infinity) }
                         }
                     }
                     if adjustment != nil {
@@ -429,26 +542,48 @@ private struct PriceAdjustmentEditor: View {
 
     private func save() {
         guard let percentValue = Decimal(string: percent.replacingOccurrences(of: ",", with: "."), locale: Locale(identifier: "en_US_POSIX")),
-              percentValue >= Decimal(-90), percentValue <= Decimal(1_000) else {
-            errorMessage = "El porcentaje debe estar entre -90 % y 1 000 %."; return
+              percentValue >= Decimal(-90), percentValue <= Decimal(100), percentValue != 0 else {
+            errorMessage = "El porcentaje debe ser distinto de cero y estar entre −90 % y +100 %."; return
         }
         var basis = percentValue * Decimal(100)
         var rounded = Decimal()
         NSDecimalRound(&rounded, &basis, 0, .plain)
         let minimumCents = minimum.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : Cup.parse(minimum)?.cents
         if !minimum.isEmpty && minimumCents == nil { errorMessage = "Escribe un importe mínimo válido."; return }
+        guard !productIDs.isEmpty else { errorMessage = "Selecciona al menos un artículo."; return }
         let result = PriceAdjustment(id: adjustment?.id ?? UUID(), name: name,
                                      basisPoints: NSDecimalNumber(decimal: rounded).intValue,
-                                     paymentMethod: method, minimumAmountCents: minimumCents,
+                                     productIDs: productIDs, paymentMethod: method, minimumAmountCents: minimumCents,
                                      active: adjustment?.active ?? true)
-        do { try store.savePriceAdjustment(result); dismiss() }
-        catch { errorMessage = error.localizedDescription }
+        if sync.isSecondary {
+            working = true
+            Task {
+                do {
+                    let row = try AndroidBackupCodec.exportAdjustment(result, app: store.data)
+                    _ = try await sync.executeRemote(SyncJSON.message("preajuste_guardar", ["preajuste": row]))
+                    dismiss()
+                } catch { errorMessage = error.localizedDescription; working = false }
+            }
+        } else {
+            do { try store.savePriceAdjustment(result); dismiss() }
+            catch { errorMessage = error.localizedDescription }
+        }
     }
 
     private func delete() {
         guard let adjustment else { return }
-        do { try store.deletePriceAdjustment(adjustment.id); dismiss() }
-        catch { errorMessage = error.localizedDescription }
+        if sync.isSecondary {
+            working = true
+            Task {
+                do {
+                    _ = try await sync.executeRemote(SyncJSON.message("preajuste_eliminar", ["id": AndroidID.int64("adjustment", adjustment.id)]))
+                    dismiss()
+                } catch { errorMessage = error.localizedDescription; working = false }
+            }
+        } else {
+            do { try store.deletePriceAdjustment(adjustment.id); dismiss() }
+            catch { errorMessage = error.localizedDescription }
+        }
     }
 }
 
@@ -464,6 +599,8 @@ private struct BackupSettingsView: View {
     @State private var password = ""
     @State private var confirmPassword = ""
     @State private var exportDocument = ShalevBackupDocument(data: Data())
+    @State private var exportFormat: PortableBackupFormat = .ios
+    @State private var exportContentType: UTType = .shalevBackup
     @State private var showExporter = false
     @State private var showImporter = false
     @State private var pendingBackup: Data?
@@ -473,13 +610,23 @@ private struct BackupSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                ShalevScreenTitle(title: "Respaldo", subtitle: "Copia cifrada de los datos de Shalev para iOS")
+                ShalevScreenTitle(title: "Respaldo", subtitle: "Copias cifradas para iOS y Android")
                 ShalevCard {
-                    VStack(alignment: .leading, spacing: 9) {
+                    VStack(alignment: .leading, spacing: 11) {
                         Label("Protege tu copia con una contraseña", systemImage: "lock.fill")
                             .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
-                        Text("La exportación usa AES-GCM y PBKDF2. Guarda la contraseña: no se puede recuperar y el respaldo iOS no es compatible con el formato Android .shalev.")
+                        Picker("Formato de exportación", selection: $exportFormat) {
+                            ForEach(PortableBackupFormat.allCases) { format in
+                                Text(format.title).tag(format)
+                            }
+                        }
+                        .font(.system(size: 13, weight: .medium))
+                        Text(exportFormat == .ios
+                             ? "El formato iOS conserva todos los datos propios de IShalev. La importación detecta automáticamente respaldos iOS y Android."
+                             : "El formato .shalev puede abrirse en Shalev para Android. Las fotos se conservan para IShalev como datos adicionales; Android no muestra esos datos adicionales ni los PIN locales.")
                             .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
+                        Text("La exportación usa AES-GCM y PBKDF2. Guarda la contraseña: no se puede recuperar.")
+                            .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Button { password = ""; confirmPassword = ""; passwordSheet = .export } label: {
@@ -504,19 +651,24 @@ private struct BackupSettingsView: View {
             }
             .presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
         }
-        .fileExporter(isPresented: $showExporter, document: exportDocument, contentType: .shalevBackup,
-                      defaultFilename: "respaldo-shalev-ios") { result in
+        .fileExporter(isPresented: $showExporter, document: exportDocument, contentType: exportContentType,
+                      defaultFilename: exportFormat == .ios ? "respaldo-shalev-ios" : "respaldo-shalev-android") { result in
             if case .failure(let error) = result { alertMessage = error.localizedDescription }
             password = ""; confirmPassword = ""
         }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.shalevBackup], allowsMultipleSelection: false) { result in
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.shalevBackup, .shalevAndroidBackup], allowsMultipleSelection: false) { result in
             do {
                 guard let url = try result.get().first else { return }
                 let hasAccess = url.startAccessingSecurityScopedResource()
                 defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
-                pendingBackup = try Data(contentsOf: url)
+                let backup = try Data(contentsOf: url)
+                pendingBackup = backup
                 password = ""; confirmPassword = ""
-                passwordSheet = .restore
+                if AndroidBackupCodec.isAndroidBackup(backup) && !AndroidBackupCodec.requiresPassword(backup) {
+                    showRestoreConfirmation = true
+                } else {
+                    passwordSheet = .restore
+                }
             } catch {
                 alertMessage = error.localizedDescription
             }
@@ -533,7 +685,8 @@ private struct BackupSettingsView: View {
     private func handlePassword(_ mode: BackupPasswordMode) {
         if mode == .export {
             do {
-                exportDocument = ShalevBackupDocument(data: try store.makeEncryptedBackup(password: password))
+                exportDocument = ShalevBackupDocument(data: try store.makeEncryptedBackup(password: password, format: exportFormat))
+                exportContentType = exportFormat == .ios ? .shalevBackup : .shalevAndroidBackup
                 showExporter = true
             } catch { alertMessage = error.localizedDescription }
         } else if pendingBackup != nil {
@@ -587,15 +740,20 @@ private struct BackupPasswordSheet: View {
     }
 
     private func validate() {
-        guard password.count >= 8 else { errorMessage = "Usa una contraseña de al menos 8 caracteres."; return }
-        if mode == .export && password != confirmPassword { errorMessage = "Las contraseñas no coinciden."; return }
+        if mode == .export {
+            guard password.count >= 8 else { errorMessage = "Usa una contraseña de al menos 8 caracteres."; return }
+            guard password == confirmPassword else { errorMessage = "Las contraseñas no coinciden."; return }
+        } else {
+            guard !password.isEmpty else { errorMessage = "Escribe la contraseña del respaldo."; return }
+        }
         onConfirm()
         dismiss()
     }
 }
 
 private struct ShalevBackupDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.shalevBackup] }
+    static var readableContentTypes: [UTType] { [.shalevBackup, .shalevAndroidBackup] }
+    static var writableContentTypes: [UTType] { [.shalevBackup, .shalevAndroidBackup] }
     var data: Data
 
     init(data: Data) { self.data = data }
@@ -610,6 +768,7 @@ private struct ShalevBackupDocument: FileDocument {
 
 extension UTType {
     static let shalevBackup = UTType(exportedAs: "cu.shalev.ios-backup", conformingTo: .data)
+    static let shalevAndroidBackup = UTType(exportedAs: "cu.shalev.android-backup", conformingTo: .data)
 }
 
 private struct HelpView: View {
@@ -620,7 +779,7 @@ private struct HelpView: View {
         ("Corregir una venta", "Desde Registros, modifica o anula una venta del turno abierto. Escribe un motivo; la operación original queda en el historial.", "pencil.and.list.clipboard"),
         ("Empleados", "En Ajustes → Empleados crea perfiles y elige permisos. Los perfiles son locales a este iPhone; volver al administrador exige autenticación del dispositivo.", "person.2.fill"),
         ("Cerrar caja", "Al cerrar el turno, cuenta el efectivo y compara el resultado con el efectivo esperado.", "checkmark.circle.fill"),
-        ("Respaldos", "Exporta una copia con contraseña. El respaldo iOS es independiente del formato Android.", "externaldrive.fill"),
+        ("Respaldos", "Exporta una copia iOS o un archivo .shalev compatible con Android. Al importar, el formato se detecta automáticamente; los respaldos Android sin contraseña también se pueden abrir.", "externaldrive.fill"),
         ("Actualizaciones", "Comprobar ahora consulta publicaciones iOS en GitHub. La instalación se gestiona por TestFlight, App Store o un canal autorizado.", "arrow.down.circle.fill"),
     ]
 
@@ -662,7 +821,7 @@ private struct AboutView: View {
                     }
                 }
                 ShalevCard {
-                    Text("IShalev usa una interfaz y almacenamiento nativos de Apple y valida licencias bajo el contrato GL. La sincronización de datos con teléfonos Android todavía no está disponible; el respaldo iOS es un formato cifrado independiente.")
+                    Text("IShalev usa una interfaz y almacenamiento nativos de Apple y valida licencias bajo el contrato GL. Puede intercambiar respaldos .shalev con Android; la sincronización por red local entre dispositivos todavía no está disponible.")
                         .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
                 }
             }

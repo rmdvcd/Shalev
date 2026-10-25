@@ -68,7 +68,12 @@ enum FixedNumber {
             }
         }
 
-        guard let decimal = Decimal(string: value, locale: Locale(identifier: "en_US_POSIX")), decimal >= 0 else {
+        let maximumDecimals = multiplier == 100 ? 2 : 3
+        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count <= 2, let whole = parts.first, !whole.isEmpty,
+              whole.allSatisfy(\.isNumber),
+              parts.count == 1 || ((1...maximumDecimals).contains(parts[1].count) && parts[1].allSatisfy(\.isNumber)),
+              let decimal = Decimal(string: value, locale: Locale(identifier: "en_US_POSIX")), decimal >= 0 else {
             return nil
         }
         var scaled = decimal * Decimal(multiplier)
@@ -203,6 +208,11 @@ struct Product: Codable, Identifiable, Equatable {
     var uses: [IngredientUse] = []
     var isActive: Bool = true
     var createdAt: Date = Date()
+    /// Se usa para detectar que el inventario cambió mientras se hacía un conteo de cierre.
+    /// Opcional para poder leer los datos creados por las primeras versiones de IShalev.
+    var updatedAt: Date? = nil
+    /// Nombre de la foto en el protocolo LAN; no es una ruta arbitraria del sistema.
+    var syncPhotoName: String? = nil
 
     var displayStock: String {
         if kind == .prepared { return "Elaborado" }
@@ -216,10 +226,12 @@ struct ServiceItem: Codable, Identifiable, Equatable {
     var name: String
     var type: String = "General"
     var description: String = ""
+    var imageData: Data? = nil
     var priceCents: Int64 = 0
     var uses: [IngredientUse] = []
     var isActive: Bool = true
     var createdAt: Date = Date()
+    var syncPhotoName: String? = nil
 }
 
 struct Customer: Codable, Identifiable, Equatable {
@@ -237,10 +249,13 @@ struct SaleLine: Codable, Identifiable, Equatable {
     var name: String
     var category: String
     var quantity: Int
+    /// Precio antes de los preajustes. Las líneas antiguas lo recuperan de `unitPriceCents`.
+    var basePriceCents: Int64? = nil
     var unitPriceCents: Int64
     var unitCostCents: Int64
 
     var subtotalCents: Int64 { unitPriceCents * Int64(quantity) }
+    var baseSubtotalCents: Int64 { (basePriceCents ?? unitPriceCents) * Int64(quantity) }
     var costCents: Int64 { unitCostCents * Int64(quantity) }
 }
 
@@ -253,10 +268,21 @@ struct Sale: Codable, Identifiable, Equatable {
     var transactionNumber: String = ""
     var customer: Customer? = nil
     var customerIsFixed: Bool = false
+    /// Datos de cobro congelados al registrar la transferencia.
+    var paymentCard: String? = nil
+    var paymentPhone: String? = nil
     var isCancelled: Bool = false
     var cancelledAt: Date? = nil
     var cancellationReason: String? = nil
     var correctionOfSaleID: UUID? = nil
+    /// Nombre congelado de quien registró la operación.
+    var sellerName: String? = nil
+    /// Id de la app secundaria de origen en la principal; nil en las operaciones locales.
+    var employeeID: Int64? = nil
+    /// La secundaria lo marca solo cuando la principal confirma haber guardado la venta.
+    var synced: Bool = false
+    /// Cambios de una venta sincronizada que la principal aún debe devolver a esa secundaria.
+    var changePending: Bool = false
 
     var isService: Bool { !lines.isEmpty && lines.allSatisfy { $0.kind == .service } }
     var totalCents: Int64 { lines.reduce(0) { $0 + $1.subtotalCents } }
@@ -274,6 +300,9 @@ struct InventoryMovement: Codable, Identifiable, Equatable {
     var deltaMilli: Int64
     var reason: String
     var saleID: UUID? = nil
+    var shiftID: UUID? = nil
+    var resultingStockMilli: Int64? = nil
+    var actorName: String? = nil
 }
 
 struct CashMovement: Codable, Identifiable, Equatable {
@@ -283,6 +312,66 @@ struct CashMovement: Codable, Identifiable, Equatable {
     var kind: CashMovementKind
     var amountCents: Int64
     var reason: String
+    var actorName: String? = nil
+    /// Confirmación de la principal al recibir este movimiento por UUID.
+    var synced: Bool = false
+}
+
+/// Desglose de efectivo y conciliación física asociados al cierre de un turno.
+struct ShiftInventoryCount: Codable, Identifiable, Equatable {
+    var productID: UUID
+    var id: UUID { productID }
+    var productName: String
+    var category: String
+    var unit: String
+    var expectedMilli: Int64
+    var countedMilli: Int64
+    var updatedAt: Date
+
+    var differenceMilli: Int64 { countedMilli - expectedMilli }
+}
+
+struct ShiftClosingCount: Codable, Equatable {
+    /// Denominación CUP → cantidad de billetes.
+    var bills: [Int: Int] = [:]
+    var otherCashCents: Int64 = 0
+    var inventory: [ShiftInventoryCount] = []
+    /// Decisión explícita de cerrar sin contar ni ajustar existencias.
+    var inventoryCountSkipped: Bool? = nil
+    var reason: String = ""
+    var approvedBy: String? = nil
+    var approvedAt: Date? = nil
+
+    static let denominations = [1, 3, 5, 10, 20, 50, 100, 200, 500, 1_000, 5_000, 20_000]
+
+    var cashCents: Int64 {
+        bills.reduce(otherCashCents) { total, entry in
+            total + Int64(entry.key) * 100 * Int64(entry.value)
+        }
+    }
+    var hasInventoryDifferences: Bool { inventory.contains { $0.differenceMilli != 0 } }
+
+    func isValid() -> Bool {
+        let validBills = bills.allSatisfy { Self.denominations.contains($0.key) && (0...999_999).contains($0.value) }
+        let validInventory = inventory.count <= 10_000 && inventory.allSatisfy { $0.expectedMilli >= 0 && $0.countedMilli >= 0 }
+            && Set(inventory.map(\.productID)).count == inventory.count
+        let normalizedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        return otherCashCents >= 0 && validBills && validInventory
+            && (inventoryCountSkipped != true || inventory.isEmpty)
+            && (inventoryCountSkipped == true || !hasInventoryDifferences || (3...160).contains(normalizedReason.count))
+    }
+}
+
+struct ShiftSummary: Codable, Equatable {
+    var saleCount: Int
+    var units: Int
+    var totalCents: Int64
+    var cashCents: Int64
+    var transferCents: Int64
+    var costCents: Int64
+    var cancelledCount: Int
+
+    var profitCents: Int64 { totalCents - costCents }
 }
 
 struct Shift: Codable, Identifiable, Equatable {
@@ -291,6 +380,14 @@ struct Shift: Codable, Identifiable, Equatable {
     var closedAt: Date? = nil
     var openingCashCents: Int64
     var countedCashCents: Int64? = nil
+    var openedBy: String? = nil
+    var closedBy: String? = nil
+    var closingCount: ShiftClosingCount? = nil
+    var summary: ShiftSummary? = nil
+    /// Secundaria propietaria en la base general; nil identifica el turno de esta instalación.
+    var employeeID: Int64? = nil
+    /// La secundaria solo lo confirma después de que la principal guarda el turno.
+    var synced: Bool = false
 }
 
 struct PriceAdjustment: Codable, Identifiable, Equatable {
@@ -298,9 +395,25 @@ struct PriceAdjustment: Codable, Identifiable, Equatable {
     var name: String
     /// Puntos básicos: 1 000 = 10 %. Positivo = recargo; negativo = descuento.
     var basisPoints: Int
+    /// Artículos a los que se aplica. `nil` representa un ajuste global creado por una versión anterior.
+    var productIDs: Set<UUID>? = nil
     var paymentMethod: PaymentMethod? = nil
     var minimumAmountCents: Int64? = nil
     var active: Bool = true
+
+    func applies(to sourceID: UUID) -> Bool { productIDs?.contains(sourceID) ?? true }
+}
+
+struct TransferCard: Codable, Identifiable, Equatable {
+    var id: UUID = UUID()
+    var number: String
+    var alias: String = ""
+}
+
+struct TransferPhone: Codable, Identifiable, Equatable {
+    var id: UUID = UUID()
+    var number: String
+    var alias: String = ""
 }
 
 struct StoreProfile: Codable, Equatable {
@@ -310,8 +423,35 @@ struct StoreProfile: Codable, Equatable {
     var ownerLastName: String? = nil
     var identification: String = ""
     var licensePhone: String? = nil
+    /// Campos antiguos conservados para leer respaldos de IShalev 1.0.
     var transferPhone: String = ""
     var transferCard: String = ""
+    var transferPhones: [TransferPhone]? = nil
+    var transferCards: [TransferCard]? = nil
+    var paymentPhoneID: UUID? = nil
+    var paymentCardID: UUID? = nil
+
+    var availablePhones: [TransferPhone] {
+        if let transferPhones { return transferPhones }
+        guard let number = CustomerValidator.normalizedPhone(transferPhone) else { return [] }
+        return [TransferPhone(number: number)]
+    }
+
+    var availableCards: [TransferCard] {
+        if let transferCards { return transferCards }
+        let number = transferCard.filter(\.isNumber)
+        return (12...20).contains(number.count) ? [TransferCard(number: number)] : []
+    }
+
+    var paymentPhone: TransferPhone? {
+        if let paymentPhoneID { return availablePhones.first(where: { $0.id == paymentPhoneID }) }
+        return transferPhones == nil ? availablePhones.first : nil
+    }
+
+    var paymentCard: TransferCard? {
+        if let paymentCardID { return availableCards.first(where: { $0.id == paymentCardID }) }
+        return transferCards == nil ? availableCards.first : nil
+    }
 }
 
 enum EmployeePermission: String, Codable, CaseIterable, Identifiable, Hashable {
@@ -353,8 +493,51 @@ struct LocalEmployee: Codable, Identifiable, Equatable {
     var pinVerifier: Data? = nil
     var pinFailedAttempts: Int? = 0
     var pinLockedUntil: Date? = nil
+    /// Metadatos de una app Android/iOS vinculada. Las claves y tokens nunca se guardan aquí.
+    var syncID: Int64? = nil
+    var syncActive: Bool = true
+    var linkedAt: Date? = nil
+    var lastSyncAt: Date? = nil
+    var codeExpiresAt: Date? = nil
+    var paymentCardID: UUID? = nil
+    var paymentPhoneID: UUID? = nil
+    var phone: String? = nil
+    var deviceID: String? = nil
+    var closeRequestedAt: Date? = nil
+    var employeeCloseRequestAt: Date? = nil
 
     var hasPIN: Bool { pinSalt?.count == EmployeePIN.saltLength && pinVerifier?.count == EmployeePIN.keyLength }
+}
+
+extension LocalEmployee {
+    private enum CodingKeys: String, CodingKey {
+        case id, name, permissions, createdAt, pinSalt, pinVerifier, pinFailedAttempts, pinLockedUntil
+        case syncID, syncActive, linkedAt, lastSyncAt, codeExpiresAt, paymentCardID, paymentPhoneID
+        case phone, deviceID, closeRequestedAt, employeeCloseRequestAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try values.decode(String.self, forKey: .name)
+        permissions = try values.decodeIfPresent(Set<EmployeePermission>.self, forKey: .permissions) ?? []
+        createdAt = try values.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        pinSalt = try values.decodeIfPresent(Data.self, forKey: .pinSalt)
+        pinVerifier = try values.decodeIfPresent(Data.self, forKey: .pinVerifier)
+        pinFailedAttempts = try values.decodeIfPresent(Int.self, forKey: .pinFailedAttempts)
+        pinLockedUntil = try values.decodeIfPresent(Date.self, forKey: .pinLockedUntil)
+        syncID = try values.decodeIfPresent(Int64.self, forKey: .syncID)
+        syncActive = try values.decodeIfPresent(Bool.self, forKey: .syncActive) ?? true
+        linkedAt = try values.decodeIfPresent(Date.self, forKey: .linkedAt)
+        lastSyncAt = try values.decodeIfPresent(Date.self, forKey: .lastSyncAt)
+        codeExpiresAt = try values.decodeIfPresent(Date.self, forKey: .codeExpiresAt)
+        paymentCardID = try values.decodeIfPresent(UUID.self, forKey: .paymentCardID)
+        paymentPhoneID = try values.decodeIfPresent(UUID.self, forKey: .paymentPhoneID)
+        phone = try values.decodeIfPresent(String.self, forKey: .phone)
+        deviceID = try values.decodeIfPresent(String.self, forKey: .deviceID)
+        closeRequestedAt = try values.decodeIfPresent(Date.self, forKey: .closeRequestedAt)
+        employeeCloseRequestAt = try values.decodeIfPresent(Date.self, forKey: .employeeCloseRequestAt)
+    }
 }
 
 struct AppSettings: Codable, Equatable {
@@ -387,6 +570,8 @@ struct CartDraft: Identifiable, Equatable {
 struct SalePreview: Equatable {
     var lines: [SaleLine]
     var baseTotalCents: Int64
+    /// Avisos no bloqueantes: vender al costo o por debajo puede ser intencional.
+    var warnings: [String] = []
     var totalCents: Int64 { lines.reduce(0) { $0 + $1.subtotalCents } }
 }
 
@@ -409,7 +594,13 @@ enum RecordsTab: String, CaseIterable, Identifiable, Equatable {
     var id: String { rawValue }
 }
 
-enum BusinessError: LocalizedError {
+enum PortableBackupFormat: String, CaseIterable, Identifiable, Equatable {
+    case ios, android
+    var id: String { rawValue }
+    var title: String { self == .ios ? "IShalev (iOS)" : "Shalev Android (.shalev)" }
+}
+
+enum BusinessError: LocalizedError, Equatable {
     case invalidName
     case invalidAmount
     case shiftAlreadyOpen
@@ -422,14 +613,24 @@ enum BusinessError: LocalizedError {
     case insufficientStock(String)
     case invalidReason
     case invalidPaymentDetails
+    case invalidPaymentConfiguration
     case invalidRecipe
     case storageUnavailable
     case backupPassword
     case backupInvalid
     case unsupportedBackup
+    case androidBackupUnsupported(String)
     case employeePINRequired
     case invalidEmployeePIN
     case employeePINSetupFailed
+    case invalidCustomer
+    case duplicateCustomer
+    case invalidTransactionNumber
+    case invalidPrice
+    case invalidPriceAdjustment
+    case closingCountChanged
+    case invalidClosingCount
+    case saleCorrectionRequiresPrincipal
 
     var errorDescription: String? {
         switch self {
@@ -445,14 +646,24 @@ enum BusinessError: LocalizedError {
         case .insufficientStock(let name): "No hay existencias suficientes de «\(name)»."
         case .invalidReason: "Escribe un motivo de entre 3 y 60 caracteres."
         case .invalidPaymentDetails: "Configura una tarjeta válida en Ajustes → Pago electrónico."
+        case .invalidPaymentConfiguration: "Revisa tarjetas y teléfonos: no puede haber números vacíos, inválidos o repetidos."
         case .invalidRecipe: "La receta debe contener insumos activos de tipo Insumo y cantidades válidas."
         case .storageUnavailable: "El almacenamiento cifrado no está disponible. No se guardaron cambios."
         case .backupPassword: "La contraseña debe tener al menos 8 caracteres."
         case .backupInvalid: "No se pudo abrir el respaldo. Comprueba la contraseña y que el archivo sea válido."
         case .unsupportedBackup: "Este respaldo pertenece a una versión no compatible de Shalev para iOS."
+        case .androidBackupUnsupported(let detail): "El respaldo no se puede convertir entre iOS y Android: \(detail)."
         case .employeePINRequired: "Cada perfil de empleado necesita un PIN propio de 6 a 12 dígitos."
         case .invalidEmployeePIN: "El PIN debe tener entre 6 y 12 dígitos numéricos."
         case .employeePINSetupFailed: "No se pudo configurar el PIN seguro. Inténtalo de nuevo."
+        case .invalidCustomer: "Completa nombre y apellidos, un carné cubano de 11 dígitos y un teléfono válido."
+        case .duplicateCustomer: "Ese carné ya pertenece a otro cliente fijo."
+        case .invalidTransactionNumber: "El número de transacción es obligatorio y debe tener de 6 a 30 letras o dígitos."
+        case .invalidPrice: "Revisa el precio: debe ser mayor que cero y superar el costo del artículo."
+        case .invalidPriceAdjustment: "El ajuste necesita un nombre, un porcentaje entre −90 % y +100 %, al menos un artículo y un mínimo mayor que cero."
+        case .closingCountChanged: "El inventario cambió mientras contabas. Vuelve a cargar el conteo antes de cerrar."
+        case .invalidClosingCount: "Revisa el efectivo, las cantidades contadas y el motivo de las diferencias (de 3 a 160 caracteres)."
+        case .saleCorrectionRequiresPrincipal: "Las ventas solo se pueden anular o modificar en la app principal."
         }
     }
 }
@@ -541,23 +752,93 @@ enum EmployeePIN {
     }
 }
 
+// MARK: - Validación compartida con los flujos de venta y clientes
+
+enum CustomerValidator {
+    static func normalizedName(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    static func normalizedPhone(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digits = trimmed.filter(\.isNumber)
+        let candidate: String
+        if trimmed.hasPrefix("+") { candidate = "+\(digits)" }
+        else if trimmed.hasPrefix("00"), digits.count > 2 { candidate = "+\(digits.dropFirst(2))" }
+        else if digits.count == 8 { candidate = "+53\(digits)" }
+        else if digits.count == 10, digits.hasPrefix("53") { candidate = "+\(digits)" }
+        else if (11...15).contains(digits.count) { candidate = "+\(digits)" }
+        else { return nil }
+        let suffix = candidate.dropFirst()
+        return (8...15).contains(suffix.count) && suffix.allSatisfy(\.isNumber) ? candidate : nil
+    }
+
+    static func normalized(_ customer: Customer) -> Customer? {
+        let name = normalizedName(customer.name)
+        let identification = customer.identification.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard name.count >= 2, name.count <= 80,
+              name.first?.isLetter == true, name.last?.isLetter == true,
+              name.allSatisfy({ $0.isLetter || $0 == " " || $0 == "'" || $0 == "-" }),
+              identification.count == 11, identification.allSatisfy(\.isNumber),
+              let phone = normalizedPhone(customer.phone) else { return nil }
+        return Customer(id: customer.id, name: name, identification: identification, phone: phone, updatedAt: customer.updatedAt)
+    }
+
+    static func validTransactionNumber(_ value: String) -> String? {
+        let number = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (6...30).contains(number.count), number.allSatisfy({ $0.isLetter || $0.isNumber }),
+              number.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) && $0.isASCII }) else { return nil }
+        return number.uppercased()
+    }
+
+    static func suggestions(_ customers: [Customer], containing text: String) -> [Customer] {
+        let query = folded(text)
+        guard query.count >= 2 else { return [] }
+        return customers.compactMap { customer -> (Customer, Bool)? in
+            let name = folded(customer.name)
+            guard name.contains(query), name != query else { return nil }
+            return (customer, name.hasPrefix(query))
+        }.sorted { lhs, rhs in
+            if lhs.1 != rhs.1 { return lhs.1 && !rhs.1 }
+            return lhs.0.name.localizedCaseInsensitiveCompare(rhs.0.name) == .orderedAscending
+        }.prefix(3).map(\.0)
+    }
+
+    private static func folded(_ value: String) -> String {
+        normalizedName(value).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "es_ES"))
+            .lowercased()
+    }
+}
+
 // MARK: - Persistencia cifrada y operaciones de negocio
+
+protocol LocalStorePersisting: AnyObject {
+    func load() throws -> AppData?
+    func save(_ data: AppData) throws
+}
 
 @MainActor
 final class ShalevStore: ObservableObject {
     @Published private(set) var data: AppData
     @Published private(set) var loadError: String?
 
-    private let storage: EncryptedLocalStore
+    private let storage: LocalStorePersisting
     private var readOnlyAfterLoadFailure = false
+    /// Contexto de sesión, no se incluye en el respaldo. La raíz lo actualiza al cambiar de empleado.
+    var currentOperatorName: String?
+    /// Lo configura el motor de sincronización; no forma parte de los datos respaldados.
+    var requiresClosingApproval = false
+    var allowsSaleCorrections = true
+    var allowsRemoteSaleCorrections = false
+    var changeHandler: ((AppData, AppData) -> Void)?
 
-    init(storage: EncryptedLocalStore = EncryptedLocalStore()) {
-        self.storage = storage
+    init(storage: LocalStorePersisting? = nil) {
+        self.storage = storage ?? EncryptedLocalStore()
         var initial = AppData.empty
         var loadMessage: String?
         var readOnly = false
         do {
-            if let saved = try storage.load() { initial = saved }
+            if let saved = try self.storage.load() { initial = saved }
         } catch {
             loadMessage = "No se pudieron abrir los datos cifrados. La app no los reemplazará automáticamente."
             readOnly = true
@@ -569,8 +850,27 @@ final class ShalevStore: ObservableObject {
 
     var activeProducts: [Product] { data.products.filter(\.isActive).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
     var activeServices: [ServiceItem] { data.services.filter(\.isActive).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
-    var employees: [LocalEmployee] { data.employees ?? [] }
-    var openShift: Shift? { data.shifts.first(where: { $0.closedAt == nil }) }
+    /// Perfiles con PIN de este dispositivo; las apps vinculadas se administran aparte.
+    var employees: [LocalEmployee] { (data.employees ?? []).filter { $0.syncID == nil } }
+    var linkedApps: [LocalEmployee] { (data.employees ?? []).filter { $0.syncID != nil } }
+    /// Como en Android, los turnos recibidos de secundarias no bloquean el turno de esta instalación.
+    var openShift: Shift? { data.shifts.first(where: { $0.closedAt == nil && $0.employeeID == nil }) }
+    var actorName: String {
+        let explicit = currentOperatorName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !explicit.isEmpty { return String(explicit.prefix(80)) }
+        let owner = CustomerValidator.normalizedName(data.settings.profile.ownerName)
+        return owner.isEmpty ? "Titular del dispositivo" : String(owner.prefix(80))
+    }
+    var suggestedOpeningCashCents: Int64? {
+        data.shifts.filter { $0.closedAt != nil && $0.employeeID == nil }.sorted { ($0.closedAt ?? .distantPast) > ($1.closedAt ?? .distantPast) }
+            .first.map { $0.countedCashCents ?? $0.openingCashCents }
+    }
+
+    func purchases(for customer: Customer) -> [Sale] {
+        data.sales.filter { sale in
+            !sale.isCancelled && sale.paymentMethod == .transfer && sale.customer?.identification == customer.identification
+        }.sorted { $0.date > $1.date }
+    }
 
     func saveEmployee(_ incoming: LocalEmployee, pin: String? = nil) throws {
         let name = incoming.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -623,34 +923,110 @@ final class ShalevStore: ObservableObject {
         try commit(next)
     }
 
+    func saveLinkedApp(_ incoming: LocalEmployee) throws {
+        guard incoming.syncID != nil else { throw BusinessError.invalidName }
+        let name = incoming.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (2...40).contains(name.count),
+              !(data.employees ?? []).contains(where: {
+                  $0.id != incoming.id && $0.syncID != nil && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame
+              }) else { throw BusinessError.invalidName }
+        var next = data
+        var employee = incoming
+        employee.name = name
+        // Un perfil vinculado no es un operador local y nunca necesita un PIN en este teléfono.
+        employee.pinSalt = nil; employee.pinVerifier = nil; employee.pinFailedAttempts = nil; employee.pinLockedUntil = nil
+        var list = next.employees ?? []
+        if let index = list.firstIndex(where: { $0.id == employee.id }) { list[index] = employee }
+        else { list.append(employee) }
+        next.employees = list
+        try commit(next)
+    }
+
+    /// Escritura transaccional usada por el motor de sincronización después de validar un lote o una instantánea.
+    func replaceDataForSync(_ next: AppData) throws { try commit(next) }
+
+    func resetForSecondary(employeeName: String) throws {
+        var next = AppData.empty
+        next.settings.profile.ownerName = employeeName
+        next.settings.profile.ownerFirstName = employeeName
+        try commit(next)
+    }
+
+    func resetAfterUnlink() throws { try commit(.empty) }
+
+    /// Actualiza el cliente y los datos visibles de todas sus compras, como hace Shalev Android.
+    func updateCustomer(_ incoming: Customer) throws {
+        guard let normalized = CustomerValidator.normalized(incoming) else { throw BusinessError.invalidCustomer }
+        guard data.customers.contains(where: { $0.id == incoming.id }) else { throw BusinessError.unavailableItem("cliente") }
+        guard !data.customers.contains(where: {
+            $0.id != incoming.id && $0.identification == normalized.identification
+        }) else { throw BusinessError.duplicateCustomer }
+        let previous = data.customers.first { $0.id == incoming.id }!
+        var next = data
+        guard let index = next.customers.firstIndex(where: { $0.id == incoming.id }) else { return }
+        next.customers[index] = Customer(id: previous.id, name: normalized.name,
+            identification: normalized.identification, phone: normalized.phone, updatedAt: Date())
+        for saleIndex in next.sales.indices {
+            guard var saleCustomer = next.sales[saleIndex].customer,
+                  saleCustomer.identification == previous.identification else { continue }
+            saleCustomer.name = normalized.name
+            saleCustomer.identification = normalized.identification
+            saleCustomer.phone = normalized.phone
+            saleCustomer.updatedAt = next.customers[index].updatedAt
+            next.sales[saleIndex].customer = saleCustomer
+        }
+        try commit(next)
+    }
+
+    func removeFixedCustomer(_ id: UUID) throws {
+        var next = data
+        next.customers.removeAll { $0.id == id }
+        try commit(next)
+    }
+
     func saveProduct(_ incoming: Product) throws {
-        guard !incoming.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw BusinessError.invalidName }
+        let name = incoming.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let category = incoming.kind == .ingredient ? "Insumos" : incoming.kind == .prepared ? "Elaborado" : incoming.category.trimmingCharacters(in: .whitespacesAndNewlines)
+        let description = incoming.description.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (1...80).contains(name.count), (1...40).contains(category.count),
+              description.count <= 40, !description.contains(where: \.isNewline) else { throw BusinessError.invalidName }
         guard (0...9_000_000_000_000).contains(incoming.priceCents),
               (0...9_000_000_000_000).contains(incoming.costCents),
               (0...9_000_000_000_000).contains(incoming.stockMilli),
               (0...9_000_000_000_000).contains(incoming.lowStockMilli),
               (0...9_000_000_000_000).contains(incoming.criticalStockMilli),
-              incoming.uses.allSatisfy({ (1...1_000_000_000).contains($0.milliUnits) }) else { throw BusinessError.invalidAmount }
+              incoming.criticalStockMilli <= incoming.lowStockMilli,
+              incoming.uses.allSatisfy({ (1...1_000_000_000).contains($0.milliUnits) }),
+              Set(incoming.uses.map(\.ingredientID)).count == incoming.uses.count else { throw BusinessError.invalidAmount }
         if incoming.kind == .prepared {
             let ingredientIDs = Set(data.products.filter { $0.isActive && $0.kind == .ingredient }.map(\.id))
             guard !incoming.uses.isEmpty,
                   incoming.uses.allSatisfy({ ingredientIDs.contains($0.ingredientID) }) else { throw BusinessError.invalidRecipe }
         }
+        let recipeCost = incoming.kind == .prepared ? unitCost(for: incoming.uses) : incoming.costCents
+        let hasValidSalePrice = incoming.kind == .ingredient && incoming.priceCents == 0
+            || (incoming.priceCents > 0 && incoming.priceCents > recipeCost)
+        guard hasValidSalePrice else { throw BusinessError.invalidPrice }
+
         var next = data
         var product = incoming
-        product.name = product.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        product.category = product.kind == .ingredient ? "Insumos" : product.kind == .prepared ? "Elaborado" : product.category.trimmingCharacters(in: .whitespacesAndNewlines)
-        if product.category.isEmpty { product.category = "Otros" }
+        product.name = name
+        product.category = category
+        product.description = description
+        product.updatedAt = Date()
         if product.kind != .prepared { product.uses = [] }
+        else { product.imageData = nil; product.stockMilli = 0; product.lowStockMilli = 0; product.criticalStockMilli = 0; product.expiresAt = nil }
         if let previous = next.products.first(where: { $0.id == product.id }) {
             let delta = (product.kind == .prepared ? 0 : product.stockMilli) - (previous.kind == .prepared ? 0 : previous.stockMilli)
             if delta != 0 {
                 next.inventoryMovements.insert(InventoryMovement(productID: product.id, productName: product.name,
-                    deltaMilli: delta, reason: "Ajuste manual"), at: 0)
+                    deltaMilli: delta, reason: "Ajuste manual", shiftID: openShift?.id,
+                    resultingStockMilli: product.stockMilli, actorName: actorName), at: 0)
             }
         } else if product.kind != .prepared && product.stockMilli > 0 {
             next.inventoryMovements.insert(InventoryMovement(productID: product.id, productName: product.name,
-                deltaMilli: product.stockMilli, reason: "Alta inicial"), at: 0)
+                deltaMilli: product.stockMilli, reason: "Alta inicial", shiftID: openShift?.id,
+                resultingStockMilli: product.stockMilli, actorName: actorName), at: 0)
         }
         try upsert(product, in: &next.products)
         try commit(next)
@@ -661,9 +1037,11 @@ final class ShalevStore: ObservableObject {
         guard let index = next.products.firstIndex(where: { $0.id == id }) else { return }
         if next.products[index].kind != .prepared && next.products[index].stockMilli > 0 {
             next.inventoryMovements.insert(InventoryMovement(productID: id, productName: next.products[index].name,
-                deltaMilli: -next.products[index].stockMilli, reason: "Baja de inventario"), at: 0)
+                deltaMilli: -next.products[index].stockMilli, reason: "Baja de inventario", shiftID: openShift?.id,
+                resultingStockMilli: 0, actorName: actorName), at: 0)
         }
         next.products[index].isActive = false
+        next.products[index].updatedAt = Date()
         try commit(next)
     }
 
@@ -675,20 +1053,29 @@ final class ShalevStore: ObservableObject {
         var next = data
         guard let index = next.products.firstIndex(where: { $0.id == productID }) else { throw BusinessError.invalidName }
         let delta = newStockMilli - current.stockMilli
+        guard delta != 0 else { return }
         next.products[index].stockMilli = newStockMilli
-        next.inventoryMovements.append(InventoryMovement(productID: productID, productName: current.name, deltaMilli: delta, reason: note))
+        next.products[index].updatedAt = Date()
+        next.inventoryMovements.insert(InventoryMovement(productID: productID, productName: current.name, deltaMilli: delta,
+            reason: note, shiftID: openShift?.id, resultingStockMilli: newStockMilli, actorName: actorName), at: 0)
         try commit(next)
     }
 
     func saveService(_ incoming: ServiceItem) throws {
-        guard !incoming.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw BusinessError.invalidName }
-        guard (0...9_000_000_000_000).contains(incoming.priceCents),
-              incoming.uses.allSatisfy({ (1...1_000_000_000).contains($0.milliUnits) }) else { throw BusinessError.invalidAmount }
+        let name = incoming.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let type = incoming.type.trimmingCharacters(in: .whitespacesAndNewlines)
+        let description = incoming.description.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (1...80).contains(name.count), (1...40).contains(type.count),
+              description.count <= 40, !description.contains(where: \.isNewline) else { throw BusinessError.invalidName }
+        guard (1...9_000_000_000_000).contains(incoming.priceCents),
+              incoming.uses.allSatisfy({ (1...1_000_000_000).contains($0.milliUnits) }),
+              Set(incoming.uses.map(\.ingredientID)).count == incoming.uses.count else { throw BusinessError.invalidAmount }
         let ingredientIDs = Set(data.products.filter { $0.isActive && $0.kind == .ingredient }.map(\.id))
         guard incoming.uses.allSatisfy({ ingredientIDs.contains($0.ingredientID) }) else { throw BusinessError.invalidRecipe }
         var service = incoming
-        service.name = service.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        service.type = service.type.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "General" : service.type.trimmingCharacters(in: .whitespacesAndNewlines)
+        service.name = name
+        service.type = type
+        service.description = description
         var next = data
         try upsert(service, in: &next.services)
         try commit(next)
@@ -702,16 +1089,46 @@ final class ShalevStore: ObservableObject {
     }
 
     func saveProfile(_ profile: StoreProfile) throws {
+        var normalized = profile
+        normalized.businessName = profile.businessName.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalized.ownerName = profile.ownerName.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalized.ownerFirstName = profile.ownerFirstName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalized.ownerLastName = profile.ownerLastName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cards = profile.availableCards.map { card in
+            TransferCard(id: card.id, number: card.number.filter(\.isNumber),
+                         alias: card.alias.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        let phones = profile.availablePhones.compactMap { phone -> TransferPhone? in
+            guard let number = CustomerValidator.normalizedPhone(phone.number) else { return nil }
+            return TransferPhone(id: phone.id, number: number, alias: phone.alias.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        guard cards.count == profile.availableCards.count, phones.count == profile.availablePhones.count,
+              cards.allSatisfy({ (12...20).contains($0.number.count) }),
+              Set(cards.map(\.number)).count == cards.count,
+              Set(phones.map(\.number)).count == phones.count else {
+            throw BusinessError.invalidPaymentConfiguration
+        }
+        normalized.transferCards = cards
+        normalized.transferPhones = phones
+        let requestedCardID = profile.paymentCardID ?? (profile.transferCards == nil ? cards.first?.id : nil)
+        let requestedPhoneID = profile.paymentPhoneID ?? (profile.transferPhones == nil ? phones.first?.id : nil)
+        normalized.paymentCardID = requestedCardID.flatMap { id in cards.contains(where: { $0.id == id }) ? id : nil }
+        normalized.paymentPhoneID = requestedPhoneID.flatMap { id in phones.contains(where: { $0.id == id }) ? id : nil }
+        normalized.transferCard = normalized.paymentCard?.number ?? ""
+        normalized.transferPhone = normalized.paymentPhone?.number ?? ""
         var next = data
-        next.settings.profile = profile
+        next.settings.profile = normalized
         try commit(next)
     }
 
     func savePriceAdjustment(_ adjustment: PriceAdjustment) throws {
         let name = adjustment.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty, name.count <= 60,
-              (-9_000...100_000).contains(adjustment.basisPoints),
-              adjustment.minimumAmountCents.map({ (0...9_000_000_000_000).contains($0) }) ?? true else { throw BusinessError.invalidAmount }
+        guard (1...80).contains(name.count), adjustment.basisPoints != 0,
+              (-9_000...10_000).contains(adjustment.basisPoints),
+              (adjustment.productIDs == nil || adjustment.productIDs?.isEmpty == false),
+              adjustment.minimumAmountCents.map({ (1...9_000_000_000_000).contains($0) }) ?? true else {
+            throw BusinessError.invalidPriceAdjustment
+        }
         var next = data
         var normalized = adjustment
         normalized.name = name
@@ -729,18 +1146,86 @@ final class ShalevStore: ObservableObject {
         guard openShift == nil else { throw BusinessError.shiftAlreadyOpen }
         guard (0...9_000_000_000_000).contains(openingCashCents) else { throw BusinessError.invalidAmount }
         var next = data
-        next.shifts.insert(Shift(openingCashCents: openingCashCents), at: 0)
+        next.shifts.insert(Shift(openingCashCents: openingCashCents, openedBy: actorName), at: 0)
         try commit(next)
     }
 
-    func closeShift(countedCashCents: Int64) throws {
+    /// Solo los artículos que cambiaron durante el turno; los elaborados se concilian mediante sus insumos.
+    func prepareClosingCount() throws -> ShiftClosingCount {
+        guard let shift = openShift else { throw BusinessError.noOpenShift }
+        let saleIDs = Set(data.sales.filter { $0.shiftID == shift.id }.map(\.id))
+        let movedIDs = Set(data.inventoryMovements.compactMap { movement -> UUID? in
+            if movement.shiftID == shift.id { return movement.productID }
+            if let saleID = movement.saleID, saleIDs.contains(saleID) { return movement.productID }
+            return nil
+        })
+        let lines = activeProducts.filter { movedIDs.contains($0.id) && $0.kind != .prepared }.map { product in
+            ShiftInventoryCount(productID: product.id, productName: product.name, category: product.category,
+                unit: product.unit, expectedMilli: product.stockMilli, countedMilli: product.stockMilli,
+                updatedAt: product.updatedAt ?? product.createdAt)
+        }.sorted {
+            if $0.category != $1.category { return $0.category.localizedCaseInsensitiveCompare($1.category) == .orderedAscending }
+            return $0.productName.localizedCaseInsensitiveCompare($1.productName) == .orderedAscending
+        }
+        return ShiftClosingCount(inventory: lines)
+    }
+
+    /// Cierra caja e inventario en una sola escritura. Las diferencias se aplican como ajustes auditables.
+    func closeShift(count: ShiftClosingCount) throws {
         guard let current = openShift else { throw BusinessError.noOpenShift }
-        guard (0...9_000_000_000_000).contains(countedCashCents) else { throw BusinessError.invalidAmount }
+        guard count.isValid(), (0...9_000_000_000_000).contains(count.cashCents) else { throw BusinessError.invalidClosingCount }
+        let fresh = try prepareClosingCount()
+        let currentSnapshot = fresh.inventory.map { ($0.productID, $0.expectedMilli, $0.updatedAt) }
+        let receivedSnapshot = count.inventory.map { ($0.productID, $0.expectedMilli, $0.updatedAt) }
+        if count.inventoryCountSkipped != true {
+            guard currentSnapshot.count == receivedSnapshot.count,
+                  zip(currentSnapshot, receivedSnapshot).allSatisfy({ lhs, rhs in
+                      lhs.0 == rhs.0 && lhs.1 == rhs.1 && lhs.2 == rhs.2
+                  }) else { throw BusinessError.closingCountChanged }
+        }
+
         var next = data
+        let now = Date()
+        for line in count.inventory where line.differenceMilli != 0 {
+            guard let index = next.products.firstIndex(where: {
+                $0.id == line.productID && $0.isActive && $0.kind != .prepared
+            }) else { throw BusinessError.closingCountChanged }
+            let adjusted = next.products[index].stockMilli.addingReportingOverflow(line.differenceMilli)
+            guard !adjusted.overflow, (0...9_000_000_000_000).contains(adjusted.partialValue) else {
+                throw BusinessError.invalidClosingCount
+            }
+            next.products[index].stockMilli = adjusted.partialValue
+            next.products[index].updatedAt = now
+            let note = "Conciliación de cierre · Esperado \(FixedNumber.formatMilli(line.expectedMilli)) · Contado \(FixedNumber.formatMilli(line.countedMilli)) · \(count.reason.trimmingCharacters(in: .whitespacesAndNewlines))"
+            next.inventoryMovements.insert(InventoryMovement(productID: line.productID, productName: line.productName,
+                deltaMilli: line.differenceMilli, reason: note, shiftID: current.id,
+                resultingStockMilli: adjusted.partialValue, actorName: actorName), at: 0)
+        }
         guard let index = next.shifts.firstIndex(where: { $0.id == current.id }) else { throw BusinessError.noOpenShift }
-        next.shifts[index].countedCashCents = countedCashCents
-        next.shifts[index].closedAt = Date()
+        var savedCount = count
+        savedCount.approvedBy = requiresClosingApproval ? nil : actorName
+        savedCount.approvedAt = requiresClosingApproval ? nil : now
+        let allSales = next.sales.filter { $0.shiftID == current.id }
+        let validSales = allSales.filter { !$0.isCancelled }
+        next.shifts[index].countedCashCents = count.cashCents
+        next.shifts[index].closedAt = now
+        next.shifts[index].closedBy = actorName
+        next.shifts[index].closingCount = savedCount
+        next.shifts[index].synced = false
+        next.shifts[index].summary = ShiftSummary(saleCount: validSales.count,
+            units: validSales.reduce(0) { $0 + $1.units },
+            totalCents: validSales.reduce(0) { $0 + $1.totalCents },
+            cashCents: validSales.filter { $0.paymentMethod == .cash }.reduce(0) { $0 + $1.totalCents },
+            transferCents: validSales.filter { $0.paymentMethod == .transfer }.reduce(0) { $0 + $1.totalCents },
+            costCents: validSales.reduce(0) { $0 + $1.costCents }, cancelledCount: allSales.count - validSales.count)
         try commit(next)
+    }
+
+    /// Compatibilidad interna con el cierre sencillo de las primeras builds; la interfaz nueva usa `closeShift(count:)`.
+    func closeShift(countedCashCents: Int64) throws {
+        var count = try prepareClosingCount()
+        count.otherCashCents = countedCashCents
+        try closeShift(count: count)
     }
 
     func expectedCashCents(for shiftID: UUID) -> Int64 {
@@ -758,7 +1243,8 @@ final class ShalevStore: ObservableObject {
         guard (1...9_000_000_000_000).contains(amountCents) else { throw BusinessError.invalidAmount }
         guard (3...60).contains(note.count) else { throw BusinessError.invalidReason }
         var next = data
-        next.cashMovements.insert(CashMovement(shiftID: shift.id, kind: kind, amountCents: amountCents, reason: note), at: 0)
+        next.cashMovements.insert(CashMovement(shiftID: shift.id, kind: kind, amountCents: amountCents,
+            reason: note, actorName: actorName), at: 0)
         try commit(next)
     }
 
@@ -793,7 +1279,8 @@ final class ShalevStore: ObservableObject {
                 }
                 let cost = unitCost(for: product)
                 return SaleLine(sourceID: product.id, kind: .product, name: product.name, category: product.category,
-                                quantity: draft.quantity, unitPriceCents: product.priceCents, unitCostCents: cost)
+                                quantity: draft.quantity, basePriceCents: product.priceCents,
+                                unitPriceCents: product.priceCents, unitCostCents: cost)
             case .service:
                 guard let service = data.services.first(where: { $0.id == draft.sourceID && $0.isActive }) else {
                     throw BusinessError.unavailableItem("Servicio")
@@ -802,7 +1289,8 @@ final class ShalevStore: ObservableObject {
                     throw BusinessError.insufficientStock(service.name)
                 }
                 return SaleLine(sourceID: service.id, kind: .service, name: service.name, category: service.type,
-                                quantity: draft.quantity, unitPriceCents: service.priceCents, unitCostCents: unitCost(for: service.uses))
+                                quantity: draft.quantity, basePriceCents: service.priceCents,
+                                unitPriceCents: service.priceCents, unitCostCents: unitCost(for: service.uses))
             }
         }
         let baseTotals = try checkedTotals(for: baseLines)
@@ -812,48 +1300,73 @@ final class ShalevStore: ObservableObject {
                 && (adjustment.minimumAmountCents.map { baseTotal >= $0 } ?? true)
         }
         let adjusted = baseLines.map { line in
-            let percent = applicable.reduce(0) { $0 + $1.basisPoints }
-            let result = Self.applyBasisPoints(line.unitPriceCents, percent)
-            return SaleLine(sourceID: line.sourceID, kind: line.kind, name: line.name, category: line.category,
-                            quantity: line.quantity, unitPriceCents: result, unitCostCents: line.unitCostCents)
+            let percent = max(-10_000, applicable.filter { $0.applies(to: line.sourceID) }.reduce(0) { $0 + $1.basisPoints })
+            let result = Self.applyBasisPoints(line.basePriceCents ?? line.unitPriceCents, percent)
+            return SaleLine(id: line.id, sourceID: line.sourceID, kind: line.kind, name: line.name, category: line.category,
+                            quantity: line.quantity, basePriceCents: line.basePriceCents,
+                            unitPriceCents: result, unitCostCents: line.unitCostCents)
         }
         _ = try checkedTotals(for: adjusted)
-        return SalePreview(lines: adjusted, baseTotalCents: baseTotal)
+        return SalePreview(lines: adjusted, baseTotalCents: baseTotal,
+                           warnings: adjusted.filter { $0.unitPriceCents <= $0.unitCostCents }.map(\.name))
     }
 
     @discardableResult
     func recordSale(_ cart: [CartDraft], payment: PaymentMethod, transactionNumber: String = "",
                     customer: Customer? = nil, customerIsFixed: Bool = false) throws -> Sale {
         guard let shift = openShift else { throw BusinessError.shiftRequired }
-        let transaction = transactionNumber.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard transaction.count <= 100 else { throw BusinessError.invalidAmount }
+        var transaction = ""
+        var validCustomer: Customer?
+        var paymentCard: String?
+        var paymentPhone: String?
+        if payment == .transfer {
+            guard let card = data.settings.profile.paymentCard, (12...20).contains(card.number.count) else {
+                throw BusinessError.invalidPaymentDetails
+            }
+            paymentCard = card.number
+            paymentPhone = data.settings.profile.paymentPhone?.number
+            guard let normalizedTransaction = CustomerValidator.validTransactionNumber(transactionNumber) else {
+                throw BusinessError.invalidTransactionNumber
+            }
+            guard let customer, let normalizedCustomer = CustomerValidator.normalized(customer) else {
+                throw BusinessError.invalidCustomer
+            }
+            transaction = normalizedTransaction
+            validCustomer = normalizedCustomer
+        }
         let preview = try previewSale(cart, payment: payment)
-        let sale = Sale(shiftID: shift.id, paymentMethod: payment, lines: preview.lines,
-                        transactionNumber: transaction, customer: customer, customerIsFixed: customerIsFixed)
+        var sale = Sale(shiftID: shift.id, paymentMethod: payment, lines: preview.lines,
+                        transactionNumber: transaction, customer: validCustomer,
+                        customerIsFixed: payment == .transfer && customerIsFixed,
+                        paymentCard: paymentCard, paymentPhone: paymentPhone, sellerName: actorName)
         var next = data
 
-        try applyInventory(lines: preview.lines, to: &next, saleID: sale.id, reason: "Venta")
-        next.sales.insert(sale, at: 0)
-        if customerIsFixed, let customer, !customer.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            if let existing = next.customers.firstIndex(where: {
-                (!customer.identification.isEmpty && $0.identification == customer.identification)
-                    || (!customer.phone.isEmpty && $0.phone == customer.phone)
-            }) {
-                next.customers[existing] = Customer(id: next.customers[existing].id, name: customer.name,
-                    identification: customer.identification, phone: customer.phone, updatedAt: Date())
+        try applyInventory(lines: preview.lines, to: &next, saleID: sale.id, reason: "Venta", shiftID: shift.id)
+        if sale.customerIsFixed, var fixed = validCustomer {
+            if let existing = next.customers.firstIndex(where: { $0.identification == fixed.identification }) {
+                fixed.id = next.customers[existing].id
+                fixed.updatedAt = Date()
+                next.customers[existing] = fixed
             } else {
-                next.customers.insert(customer, at: 0)
+                fixed.updatedAt = Date()
+                next.customers.insert(fixed, at: 0)
             }
+            sale.customer = fixed
         }
+        next.sales.insert(sale, at: 0)
         try commit(next)
         return sale
     }
 
     func cancelSale(_ saleID: UUID, reason: String) throws {
+        guard allowsSaleCorrections else { throw BusinessError.saleCorrectionRequiresPrincipal }
         guard let original = data.sales.first(where: { $0.id == saleID }) else { throw BusinessError.unavailableItem("venta") }
         guard !original.isCancelled else { throw BusinessError.saleAlreadyCancelled }
         guard let shift = data.shifts.first(where: { $0.id == original.shiftID }) else { throw BusinessError.turnClosed }
-        guard shift.closedAt == nil, openShift?.id == shift.id else { throw BusinessError.turnClosed }
+        guard shift.closedAt == nil,
+              shift.employeeID == nil ? openShift?.id == shift.id : allowsRemoteSaleCorrections else {
+            throw BusinessError.turnClosed
+        }
         let note = reason.trimmingCharacters(in: .whitespacesAndNewlines).split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard (3...60).contains(note.count) else { throw BusinessError.invalidReason }
 
@@ -863,22 +1376,42 @@ final class ShalevStore: ObservableObject {
         next.sales[index].isCancelled = true
         next.sales[index].cancelledAt = Date()
         next.sales[index].cancellationReason = note
+        if next.sales[index].employeeID != nil { next.sales[index].changePending = true }
         try commit(next)
     }
 
     /// Modifica las cantidades de una venta abierta de forma atómica: repone los movimientos originales, registra la
     /// corrección en el mismo turno y conserva los precios/costos históricos de los artículos que ya estaban.
     func modifySale(_ saleID: UUID, cart: [CartDraft], payment: PaymentMethod, transactionNumber: String,
-                    reason: String) throws -> Sale {
+                    reason: String, customer: Customer? = nil, customerIsFixed: Bool? = nil) throws -> Sale {
+        guard allowsSaleCorrections else { throw BusinessError.saleCorrectionRequiresPrincipal }
         guard let original = data.sales.first(where: { $0.id == saleID }) else { throw BusinessError.unavailableItem("venta") }
         guard !original.isCancelled else { throw BusinessError.saleAlreadyCancelled }
         guard let shift = data.shifts.first(where: { $0.id == original.shiftID }) else { throw BusinessError.turnClosed }
-        guard shift.closedAt == nil, openShift?.id == shift.id else { throw BusinessError.turnClosed }
+        guard shift.closedAt == nil,
+              shift.employeeID == nil ? openShift?.id == shift.id : allowsRemoteSaleCorrections else {
+            throw BusinessError.turnClosed
+        }
         guard !cart.isEmpty else { throw BusinessError.emptyCart }
         let note = reason.trimmingCharacters(in: .whitespacesAndNewlines).split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard (3...60).contains(note.count) else { throw BusinessError.invalidReason }
-        let transaction = transactionNumber.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard transaction.count <= 100 else { throw BusinessError.invalidAmount }
+        var transaction = ""
+        var validCustomer: Customer?
+        var paymentCard: String?
+        var paymentPhone: String?
+        if payment == .transfer {
+            let card = original.paymentCard ?? data.settings.profile.paymentCard?.number
+            guard let card, (12...20).contains(card.count) else { throw BusinessError.invalidPaymentDetails }
+            paymentCard = card
+            paymentPhone = original.paymentPhone ?? data.settings.profile.paymentPhone?.number
+            guard let normalizedTransaction = CustomerValidator.validTransactionNumber(transactionNumber) else {
+                throw BusinessError.invalidTransactionNumber
+            }
+            guard let sourceCustomer = customer ?? original.customer,
+                  let normalizedCustomer = CustomerValidator.normalized(sourceCustomer) else { throw BusinessError.invalidCustomer }
+            transaction = normalizedTransaction
+            validCustomer = normalizedCustomer
+        }
         let preview = try previewSale(cart, payment: payment, returningSaleID: saleID)
         let oldPrices = original.lines.reduce(into: [String: SaleLine]()) { result, line in
             result["\(line.kind.rawValue)-\(line.sourceID.uuidString)"] = line
@@ -886,19 +1419,27 @@ final class ShalevStore: ObservableObject {
         let adjustedLines = preview.lines.map { line -> SaleLine in
             guard let old = oldPrices["\(line.kind.rawValue)-\(line.sourceID.uuidString)"] else { return line }
             return SaleLine(id: line.id, sourceID: line.sourceID, kind: line.kind, name: line.name, category: line.category,
-                            quantity: line.quantity, unitPriceCents: old.unitPriceCents, unitCostCents: old.unitCostCents)
+                            quantity: line.quantity, basePriceCents: old.basePriceCents ?? old.unitPriceCents,
+                            unitPriceCents: old.unitPriceCents, unitCostCents: old.unitCostCents)
         }
         _ = try checkedTotals(for: adjustedLines)
-        let replacement = Sale(shiftID: original.shiftID, paymentMethod: payment, lines: adjustedLines,
-                               transactionNumber: transaction, customer: original.customer,
-                               customerIsFixed: original.customerIsFixed, correctionOfSaleID: original.id)
+        var replacement = Sale(shiftID: original.shiftID, paymentMethod: payment, lines: adjustedLines,
+                               transactionNumber: transaction, customer: validCustomer,
+                               customerIsFixed: payment == .transfer && (customerIsFixed ?? original.customerIsFixed),
+                               paymentCard: paymentCard, paymentPhone: paymentPhone,
+                               correctionOfSaleID: original.id, sellerName: actorName)
         var next = data
         try restoreInventory(for: original, in: &next, reason: "Corrección · devolución · \(note)")
-        try applyInventory(lines: replacement.lines, to: &next, saleID: replacement.id, reason: "Corrección de venta")
+        try applyInventory(lines: replacement.lines, to: &next, saleID: replacement.id,
+                           reason: "Corrección de venta", shiftID: original.shiftID)
         guard let originalIndex = next.sales.firstIndex(where: { $0.id == original.id }) else { throw BusinessError.unavailableItem("venta") }
         next.sales[originalIndex].isCancelled = true
         next.sales[originalIndex].cancelledAt = Date()
         next.sales[originalIndex].cancellationReason = "Modificada · \(note)"
+        if next.sales[originalIndex].employeeID != nil { next.sales[originalIndex].changePending = true }
+        replacement.employeeID = original.employeeID
+        replacement.synced = original.employeeID != nil
+        replacement.changePending = original.employeeID != nil
         next.sales.insert(replacement, at: 0)
         try commit(next)
         return replacement
@@ -932,14 +1473,22 @@ final class ShalevStore: ObservableObject {
         }
     }
 
-    func makeEncryptedBackup(password: String) throws -> Data {
+    func makeEncryptedBackup(password: String, format: PortableBackupFormat = .ios) throws -> Data {
         guard !readOnlyAfterLoadFailure else { throw BusinessError.storageUnavailable }
-        return try BackupCodec.encode(data, password: password)
+        switch format {
+        case .ios: return try BackupCodec.encode(data, password: password)
+        case .android: return try AndroidBackupCodec.encode(data, password: password)
+        }
     }
 
     func restoreEncryptedBackup(_ backup: Data, password: String) throws {
         guard !readOnlyAfterLoadFailure else { throw BusinessError.storageUnavailable }
-        let restored = try BackupCodec.decode(backup, password: password)
+        let restored: AppData
+        if AndroidBackupCodec.isAndroidBackup(backup) {
+            restored = try AndroidBackupCodec.decode(backup, password: password)
+        } else {
+            restored = try BackupCodec.decode(backup, password: password)
+        }
         guard restored.schemaVersion == AppData.empty.schemaVersion else { throw BusinessError.unsupportedBackup }
         try commit(restored)
     }
@@ -1045,12 +1594,15 @@ final class ShalevStore: ObservableObject {
             let restored = next.products[index].stockMilli.addingReportingOverflow(amount)
             guard !restored.overflow, (0...9_000_000_000_000).contains(restored.partialValue) else { throw BusinessError.invalidAmount }
             next.products[index].stockMilli = restored.partialValue
+            next.products[index].updatedAt = Date()
             next.inventoryMovements.insert(InventoryMovement(productID: movement.productID, productName: movement.productName,
-                deltaMilli: amount, reason: reason, saleID: sale.id), at: 0)
+                deltaMilli: amount, reason: reason, saleID: sale.id, shiftID: sale.shiftID,
+                resultingStockMilli: restored.partialValue, actorName: actorName), at: 0)
         }
     }
 
-    private func applyInventory(lines: [SaleLine], to next: inout AppData, saleID: UUID, reason: String) throws {
+    private func applyInventory(lines: [SaleLine], to next: inout AppData, saleID: UUID, reason: String,
+                                shiftID: UUID? = nil) throws {
         for line in lines {
             switch line.kind {
             case .product:
@@ -1058,7 +1610,7 @@ final class ShalevStore: ObservableObject {
                     throw BusinessError.unavailableItem(line.name)
                 }
                 if product.kind == .prepared {
-                    try consume(product.uses, quantity: line.quantity, from: &next, saleID: saleID)
+                    try consume(product.uses, quantity: line.quantity, from: &next, saleID: saleID, shiftID: shiftID)
                 } else {
                     let amount = Int64(line.quantity).multipliedReportingOverflow(by: 1_000)
                     guard !amount.overflow,
@@ -1067,21 +1619,24 @@ final class ShalevStore: ObservableObject {
                         throw BusinessError.insufficientStock(product.name)
                     }
                     next.products[index].stockMilli -= amount.partialValue
+                    next.products[index].updatedAt = Date()
                     next.inventoryMovements.insert(InventoryMovement(productID: product.id, productName: product.name,
-                        deltaMilli: -amount.partialValue, reason: reason, saleID: saleID), at: 0)
+                        deltaMilli: -amount.partialValue, reason: reason, saleID: saleID, shiftID: shiftID,
+                        resultingStockMilli: next.products[index].stockMilli, actorName: actorName), at: 0)
                 }
             case .service:
                 guard let service = next.services.first(where: { $0.id == line.sourceID && $0.isActive }) else {
                     throw BusinessError.unavailableItem(line.name)
                 }
                 if !service.uses.isEmpty {
-                    try consume(service.uses, quantity: line.quantity, from: &next, saleID: saleID)
+                    try consume(service.uses, quantity: line.quantity, from: &next, saleID: saleID, shiftID: shiftID)
                 }
             }
         }
     }
 
-    private func consume(_ uses: [IngredientUse], quantity: Int, from next: inout AppData, saleID: UUID) throws {
+    private func consume(_ uses: [IngredientUse], quantity: Int, from next: inout AppData, saleID: UUID,
+                         shiftID: UUID? = nil) throws {
         guard !uses.isEmpty else { throw BusinessError.insufficientStock("receta o insumos") }
         let grouped = Dictionary(grouping: uses, by: \.ingredientID)
         for (ingredientID, ingredientUses) in grouped {
@@ -1089,11 +1644,16 @@ final class ShalevStore: ObservableObject {
                 throw BusinessError.insufficientStock("insumo de la receta")
             }
             let perUnit = ingredientUses.reduce(Int64(0)) { $0 + $1.milliUnits }
-            let amount = perUnit * Int64(quantity)
-            guard amount > 0, next.products[index].stockMilli >= amount else { throw BusinessError.insufficientStock(next.products[index].name) }
-            next.products[index].stockMilli -= amount
+            let amount = perUnit.multipliedReportingOverflow(by: Int64(quantity))
+            guard !amount.overflow, amount.partialValue > 0,
+                  next.products[index].stockMilli >= amount.partialValue else {
+                throw BusinessError.insufficientStock(next.products[index].name)
+            }
+            next.products[index].stockMilli -= amount.partialValue
+            next.products[index].updatedAt = Date()
             next.inventoryMovements.insert(InventoryMovement(productID: ingredientID, productName: next.products[index].name,
-                deltaMilli: -amount, reason: "Consumo por venta", saleID: saleID), at: 0)
+                deltaMilli: -amount.partialValue, reason: "Consumo por venta", saleID: saleID, shiftID: shiftID,
+                resultingStockMilli: next.products[index].stockMilli, actorName: actorName), at: 0)
         }
     }
 
@@ -1113,8 +1673,10 @@ final class ShalevStore: ObservableObject {
     private func commit(_ next: AppData) throws {
         guard !readOnlyAfterLoadFailure else { throw BusinessError.storageUnavailable }
         do {
+            let previous = data
             try storage.save(next)
             data = next
+            changeHandler?(previous, next)
         } catch {
             throw BusinessError.storageUnavailable
         }
@@ -1123,7 +1685,7 @@ final class ShalevStore: ObservableObject {
 
 // MARK: - Archivo local cifrado con AES-GCM y clave de Keychain
 
-final class EncryptedLocalStore {
+final class EncryptedLocalStore: LocalStorePersisting {
     private let fileURL: URL
     private let keychainService: String
     private let keychainAccount = "database-key-v1"
@@ -1258,5 +1820,25 @@ enum BackupCodec {
         }
         guard status == kCCSuccess else { throw BusinessError.backupInvalid }
         return SymmetricKey(data: derived)
+    }
+}
+
+// MARK: - Formato de fechas compartido por la app y el paquete de dominio
+
+extension Date {
+    var shalevDateTime: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "es_ES")
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: self)
+    }
+
+    var shalevDate: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "es_ES")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: self)
     }
 }

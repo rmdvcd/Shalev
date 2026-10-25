@@ -4,6 +4,7 @@ import Charts
 @MainActor
 struct HomeView: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     let onNewSale: () -> Void
     let onSellService: () -> Void
     let onShowInventory: () -> Void
@@ -238,9 +239,12 @@ struct HomeView: View {
             }
         }
         .sheet(item: $shiftSheet) { action in
-            ShiftOperationSheet(store: store, action: action)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+            Group {
+                if action == .close { ShiftClosingSheet(store: store) }
+                else { ShiftOperationSheet(store: store, sync: sync, action: action) }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -449,7 +453,7 @@ struct HomeView: View {
     }
 
     private var paymentSummary: String {
-        let phone = store.data.settings.profile.transferPhone
+        let phone = store.data.settings.profile.paymentPhone?.number ?? ""
         return phone.isEmpty ? "Configura tus datos de cobro" : "Tel. \(phone)"
     }
 
@@ -471,15 +475,300 @@ private enum ShiftSheetAction: String, Identifiable, Equatable {
     var id: String { rawValue }
 }
 
+private enum ShiftClosingStage { case cash, inventory, review }
+
+@MainActor
+private struct ShiftClosingSheet: View {
+    @ObservedObject var store: ShalevStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var stage: ShiftClosingStage = .cash
+    @State private var closingCount: ShiftClosingCount?
+    @State private var billCounts: [Int: String] = [:]
+    @State private var otherCash = ""
+    @State private var countedStock: [UUID: String] = [:]
+    @State private var inventoryCountSkipped = false
+    @State private var inventoryConfirmed = false
+    @State private var discrepancyReason = ""
+    @State private var errorMessage: String?
+
+    private var expectedCash: Int64 { store.openShift.map { store.expectedCashCents(for: $0.id) } ?? 0 }
+    private var validShiftSales: [Sale] {
+        guard let shiftID = store.openShift?.id else { return [] }
+        return store.data.sales.filter { $0.shiftID == shiftID && !$0.isCancelled }
+    }
+    private var salesTotal: Int64 { validShiftSales.reduce(0) { $0 + $1.totalCents } }
+    private var cashSalesTotal: Int64 { validShiftSales.filter { $0.paymentMethod == .cash }.reduce(0) { $0 + $1.totalCents } }
+    private var transferSalesTotal: Int64 { validShiftSales.filter { $0.paymentMethod == .transfer }.reduce(0) { $0 + $1.totalCents } }
+    private var profitTotal: Int64 { validShiftSales.reduce(0) { $0 + $1.profitCents } }
+    private var preview: ShiftClosingCount? { closingCount }
+    private var countedCash: Int64? {
+        var total = otherCash.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Int64(0) : (Cup.parse(otherCash)?.cents ?? -1)
+        guard total >= 0 else { return nil }
+        for denomination in ShiftClosingCount.denominations {
+            let text = billCounts[denomination] ?? ""
+            guard !text.isEmpty else { continue }
+            guard let count = FixedNumber.parse(text, multiplier: 1) else { return nil }
+            let (units, overflow) = count.multipliedReportingOverflow(by: Int64(denomination) * 100)
+            guard !overflow else { return nil }
+            let (newTotal, additionOverflow) = total.addingReportingOverflow(units)
+            guard !additionOverflow else { return nil }
+            total = newTotal
+        }
+        return total
+    }
+    private var cashDifference: Int64? { countedCash.map { $0 - expectedCash } }
+    private var movedArticles: [ShiftInventoryCount] { preview?.inventory ?? [] }
+    private var inventoryInputsValid: Bool {
+        movedArticles.allSatisfy { FixedNumber.parse(countedStock[$0.productID] ?? "", multiplier: 1_000) != nil }
+    }
+    private var inventoryDifferences: [ShiftInventoryCount] {
+        movedArticles.filter { line in
+            guard let counted = FixedNumber.parse(countedStock[line.productID] ?? "", multiplier: 1_000) else { return true }
+            return counted != line.expectedMilli
+        }
+    }
+    private var reasonIsValid: Bool {
+        (3...160).contains(discrepancyReason.trimmingCharacters(in: .whitespacesAndNewlines).count)
+    }
+    private var canReviewInventory: Bool {
+        inventoryCountSkipped || (inventoryInputsValid && (inventoryDifferences.isEmpty || (inventoryConfirmed && reasonIsValid)))
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 14) {
+                    ShalevScreenTitle(title: "Cierre de turno", subtitle: subtitle)
+                    switch stage {
+                    case .cash: cashStep
+                    case .inventory: inventoryStep
+                    case .review: reviewStep
+                    }
+                }
+                .padding(18)
+            }
+            .background(Color.shalevBackground)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Cancelar") { dismiss() } } }
+            .alert("No se pudo cerrar el turno", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("Entendido", role: .cancel) { errorMessage = nil }
+            } message: { Text(errorMessage ?? "") }
+            .onAppear { if closingCount == nil { closingCount = try? store.prepareClosingCount() } }
+        }
+    }
+
+    private var subtitle: String {
+        switch stage {
+        case .cash: "1 de 3 · Cuenta cada denominación y otro efectivo."
+        case .inventory: "2 de 3 · Concilia los artículos movidos en este turno."
+        case .review: "3 de 3 · Revisa el resumen antes de cerrar."
+        }
+    }
+
+    private var cashStep: some View {
+        VStack(spacing: 14) {
+            ShalevCard {
+                VStack(spacing: 9) {
+                    closingRow("Efectivo esperado", Cup(cents: expectedCash).formatted)
+                    closingRow("Efectivo contado", countedCash.map { Cup(cents: $0).formatted } ?? "—")
+                    Divider()
+                    HStack {
+                        Text("Diferencia").font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+                        Spacer()
+                        Text(cashDifferenceText).font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(cashDifference == 0 ? Color.shalevSuccess : Color.shalevSecondary)
+                    }
+                }
+            }
+            ShalevCard {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Billetes").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.shalevText)
+                    ForEach(ShiftClosingCount.denominations, id: \.self) { denomination in
+                        HStack {
+                            Text("\(denomination) CUP").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevText)
+                            Spacer()
+                            TextField("0", text: billBinding(denomination))
+                                .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                                .frame(width: 90).padding(9)
+                                .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 10))
+                        }
+                    }
+                    Divider()
+                    HStack {
+                        Text("Otro efectivo (CUP)").font(.system(size: 13)).foregroundStyle(Color.shalevText)
+                        Spacer()
+                        TextField("0.00", text: $otherCash)
+                            .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                            .frame(width: 110).padding(9)
+                            .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+            }
+            Button { stage = .inventory } label: { Label("Continuar al inventario", systemImage: "arrow.right") }
+                .buttonStyle(ShalevPrimaryButtonStyle()).disabled(countedCash == nil)
+        }
+    }
+
+    private var inventoryStep: some View {
+        VStack(spacing: 14) {
+            ShalevCard {
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Omitir el conteo de inventario", isOn: $inventoryCountSkipped).tint(Color.shalevPrimary)
+                    Text("Si lo omites, no se ajustará ninguna existencia. El cierre conservará esta decisión.")
+                        .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                }
+            }
+            if !inventoryCountSkipped {
+                ShalevCard {
+                    VStack(alignment: .leading, spacing: 11) {
+                        Text("Existencias contadas").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.shalevText)
+                        if movedArticles.isEmpty {
+                            Text("No hubo movimientos de inventario en este turno.").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                        }
+                        ForEach(movedArticles) { line in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(line.productName).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                HStack {
+                                    Text("Esperado: \(FixedNumber.formatMilli(line.expectedMilli))")
+                                        .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                    Spacer()
+                                    TextField("Contado", text: stockBinding(line.productID))
+                                        .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                                        .frame(width: 105).padding(8)
+                                        .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 10))
+                                }
+                            }
+                        }
+                    }
+                }
+                if !inventoryDifferences.isEmpty {
+                    ShalevCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Label("Revisa las diferencias", systemImage: "exclamationmark.triangle.fill")
+                                .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevSecondary)
+                            ForEach(inventoryDifferences) { line in
+                                Text("\(line.productName): esperado \(FixedNumber.formatMilli(line.expectedMilli)), contado \(countedStock[line.productID] ?? "—")")
+                                    .font(.system(size: 12)).foregroundStyle(Color.shalevText)
+                            }
+                            Toggle("Confirmo que revisé las diferencias", isOn: $inventoryConfirmed).tint(Color.shalevPrimary)
+                            TextField("Motivo del ajuste (3–160 caracteres)", text: $discrepancyReason, axis: .vertical)
+                                .lineLimit(2...4).padding(11)
+                                .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+                        }
+                    }
+                }
+            }
+            HStack(spacing: 10) {
+                Button { stage = .cash } label: { Label("Atrás", systemImage: "arrow.left") }
+                    .buttonStyle(ShalevTonalButtonStyle())
+                Button { stage = .review } label: { Label("Revisar cierre", systemImage: "arrow.right") }
+                    .buttonStyle(ShalevPrimaryButtonStyle()).disabled(!canReviewInventory)
+            }
+        }
+    }
+
+    private var reviewStep: some View {
+        VStack(spacing: 14) {
+            ShalevCard {
+                VStack(spacing: 9) {
+                    closingRow("Ventas", "\(validShiftSales.count)")
+                    closingRow("Total de ventas", Cup(cents: salesTotal).formatted)
+                    closingRow("Efectivo / transferencias", "\(Cup(cents: cashSalesTotal).formatted) / \(Cup(cents: transferSalesTotal).formatted)")
+                    closingRow("Ganancia", Cup(cents: profitTotal).formatted)
+                    closingRow("Efectivo esperado", Cup(cents: expectedCash).formatted)
+                    closingRow("Efectivo contado", countedCash.map { Cup(cents: $0).formatted } ?? "—")
+                    closingRow("Diferencia de caja", cashDifferenceText)
+                }
+            }
+            ShalevCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Inventario").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.shalevText)
+                    if inventoryCountSkipped {
+                        Text("Conteo omitido: no se ajustarán existencias.").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                    } else if inventoryDifferences.isEmpty {
+                        Text("Sin diferencias por ajustar.").font(.system(size: 12)).foregroundStyle(Color.shalevSuccess)
+                    } else {
+                        Text("\(inventoryDifferences.count) artículo(s) con ajuste.").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevSecondary)
+                        Text(discrepancyReason).font(.system(size: 12)).foregroundStyle(Color.shalevText)
+                    }
+                }
+            }
+            Text("Al cerrar no podrás registrar más operaciones en este turno. El resumen quedará congelado.")
+                .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).multilineTextAlignment(.center)
+            HStack(spacing: 10) {
+                Button { stage = .inventory } label: { Label("Atrás", systemImage: "arrow.left") }
+                    .buttonStyle(ShalevTonalButtonStyle())
+                Button(action: finish) { Label("Cerrar turno", systemImage: "checkmark.circle.fill") }
+                    .buttonStyle(ShalevPrimaryButtonStyle())
+            }
+        }
+    }
+
+    private var cashDifferenceText: String {
+        guard let difference = cashDifference else { return "—" }
+        if difference == 0 { return "Cuadra" }
+        return "\(difference > 0 ? "+" : "−")\(Cup(cents: abs(difference)).formatted)"
+    }
+
+    private func closingRow(_ title: String, _ value: String) -> some View {
+        HStack(alignment: .top) {
+            Text(title).font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+            Spacer()
+            Text(value).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText).multilineTextAlignment(.trailing)
+        }
+    }
+
+    private func billBinding(_ denomination: Int) -> Binding<String> {
+        Binding(get: { billCounts[denomination] ?? "" }, set: { billCounts[denomination] = $0 })
+    }
+
+    private func stockBinding(_ productID: UUID) -> Binding<String> {
+        Binding(get: { countedStock[productID] ?? "" }, set: { countedStock[productID] = $0 })
+    }
+
+    private func finish() {
+        guard var count = preview else { errorMessage = "No hay un turno abierto para cerrar."; return }
+        var cashCounts: [Int: Int] = [:]
+        for denomination in ShiftClosingCount.denominations {
+            let text = billCounts[denomination] ?? ""
+            if !text.isEmpty {
+                guard let parsed = FixedNumber.parse(text, multiplier: 1),
+                      let value = Int(exactly: parsed) else { errorMessage = "Revisa el conteo de billetes."; return }
+                cashCounts[denomination] = value
+            }
+        }
+        count.bills = cashCounts
+        count.otherCashCents = Cup.parse(otherCash)?.cents ?? 0
+        count.inventoryCountSkipped = inventoryCountSkipped
+        count.reason = discrepancyReason
+        if inventoryCountSkipped {
+            count.inventory = []
+        } else {
+            for index in count.inventory.indices {
+                let productID = count.inventory[index].productID
+                guard let value = FixedNumber.parse(countedStock[productID] ?? "", multiplier: 1_000) else {
+                    errorMessage = "Completa todas las existencias contadas."; return
+                }
+                count.inventory[index].countedMilli = value
+            }
+        }
+        do {
+            try store.closeShift(count: count)
+            dismiss()
+        } catch { errorMessage = error.localizedDescription }
+    }
+}
+
 @MainActor
 private struct ShiftOperationSheet: View {
     @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
     let action: ShiftSheetAction
     @Environment(\.dismiss) private var dismiss
     @State private var amountText = ""
     @State private var reason = ""
     @State private var movementKind: CashMovementKind = .income
     @State private var errorMessage: String?
+    @State private var working = false
 
     private var amount: Int64? { Cup.parse(amountText)?.cents }
     private var expected: Int64 { store.openShift.map { store.expectedCashCents(for: $0.id) } ?? 0 }
@@ -531,6 +820,8 @@ private struct ShiftOperationSheet: View {
                             }
                             Button(action == .open ? "Abrir turno" : action == .close ? "Cerrar turno" : "Guardar movimiento") { submit() }
                                 .buttonStyle(ShalevPrimaryButtonStyle())
+                                .disabled(working)
+                            if working { ProgressView("Sincroniza antes de abrir…").frame(maxWidth: .infinity) }
                         }
                     }
                 }
@@ -581,18 +872,25 @@ private struct ShiftOperationSheet: View {
 
     private func submit() {
         guard let amount else { errorMessage = "Escribe un importe válido."; return }
+        if action == .open {
+            working = true
+            Task {
+                do {
+                    try await sync.prepareToOpenShift()
+                    try store.openShift(openingCashCents: amount)
+                    dismiss()
+                } catch { errorMessage = error.localizedDescription }
+                working = false
+            }
+            return
+        }
         do {
             switch action {
-            case .open:
-                try store.openShift(openingCashCents: amount)
-            case .close:
-                try store.closeShift(countedCashCents: amount)
-            case .cashMovement:
-                try store.recordCashMovement(kind: movementKind, amountCents: amount, reason: reason)
+            case .open: break
+            case .close: try store.closeShift(countedCashCents: amount)
+            case .cashMovement: try store.recordCashMovement(kind: movementKind, amountCents: amount, reason: reason)
             }
             dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        } catch { errorMessage = error.localizedDescription }
     }
 }

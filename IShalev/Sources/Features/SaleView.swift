@@ -35,9 +35,9 @@ struct SaleComposerView: View {
                         phone: customerPhone.trimmingCharacters(in: .whitespacesAndNewlines))
     }
     private var qrPayload: String? {
-        let card = store.data.settings.profile.transferCard.filter(\.isNumber)
+        let card = store.data.settings.profile.paymentCard?.number.filter(\.isNumber) ?? ""
         guard (12...20).contains(card.count) else { return nil }
-        let phoneDigits = store.data.settings.profile.transferPhone.filter(\.isNumber)
+        let phoneDigits = store.data.settings.profile.paymentPhone?.number.filter(\.isNumber) ?? ""
         let mobile = phoneDigits.hasPrefix("53") ? String(phoneDigits.dropFirst(2)) : phoneDigits
         let validMobile = mobile.count == 8 ? mobile : ""
         return "TRANSFERMOVIL_ETECSA,TRANSFERENCIA,\(card),\(validMobile),"
@@ -82,6 +82,16 @@ struct SaleComposerView: View {
             .alert("No se pudo registrar", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("Entendido", role: .cancel) { errorMessage = nil }
             } message: { Text(errorMessage ?? "") }
+            .onChange(of: payment) { _, method in
+                if method == .cash {
+                    transactionNumber = ""
+                    smsAmountCents = nil
+                    customerName = ""
+                    customerID = ""
+                    customerPhone = ""
+                    customerIsFixed = false
+                }
+            }
         }
     }
 
@@ -115,7 +125,6 @@ struct SaleComposerView: View {
                 }
 
                 if !cart.isEmpty { cartSummary }
-                customerFields
             }
             .padding(17)
             .padding(.bottom, 14)
@@ -190,26 +199,12 @@ struct SaleComposerView: View {
                 }
                 .pickerStyle(.segmented)
                 if payment == .transfer {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("N.º de transacción (opcional)").font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-                        TextField("Pega o escribe el número", text: $transactionNumber)
-                            .textInputAutocapitalization(.never)
-                            .padding(11)
-                            .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
-                        Button(action: pasteTransferSMS) {
-                            Label("Pegar SMS de Transfermóvil", systemImage: "doc.on.clipboard")
-                                .font(.system(size: 12, weight: .semibold))
-                        }
-                        .buttonStyle(ShalevTonalButtonStyle())
-                        if let smsAmountCents {
-                            let differs = smsAmountCents != totalCents
-                            Text(differs
-                                 ? "El SMS indica \(Cup(cents: smsAmountCents).formatted), pero la venta suma \(Cup(cents: totalCents).formatted). Revisa que sea el pago correcto."
-                                 : "Importe del SMS: \(Cup(cents: smsAmountCents).formatted)")
-                                .font(.system(size: 11, weight: differs ? .semibold : .regular))
-                                .foregroundStyle(differs ? Color.shalevError : Color.shalevSecondaryText)
-                        }
-                    }
+                    Text("Después del QR completarás el número de transacción y los datos del cliente.")
+                        .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                }
+                if let warnings = preview?.warnings, !warnings.isEmpty {
+                    Label("Revisa el precio de \(warnings.joined(separator: ", ")): queda al costo o por debajo después de los ajustes.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11, weight: .medium)).foregroundStyle(Color.shalevSecondary)
                 }
                 HStack {
                     Text("Total").font(.system(size: 14, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
@@ -220,38 +215,65 @@ struct SaleComposerView: View {
         }
     }
 
-    private var customerFields: some View {
-        DisclosureGroup {
-            VStack(spacing: 9) {
-                TextField("Nombre y apellidos", text: $customerName)
-                    .textContentType(.name).textFieldStyle(SaleInputStyle())
-                TextField("Carné de identidad (opcional)", text: $customerID)
-                    .textInputAutocapitalization(.characters).textFieldStyle(SaleInputStyle())
-                TextField("Teléfono (opcional)", text: $customerPhone)
-                    .keyboardType(.phonePad).textFieldStyle(SaleInputStyle())
-                Toggle("Guardar como cliente fijo", isOn: $customerIsFixed).tint(Color.shalevPrimary)
-                if !customerName.isEmpty {
-                    let matches = store.data.customers.filter { $0.name.localizedCaseInsensitiveContains(customerName) }.prefix(3)
-                    ForEach(Array(matches)) { match in
-                        Button {
-                            customerName = match.name
-                            customerID = match.identification
-                            customerPhone = match.phone
-                            customerIsFixed = true
-                        } label: {
-                            HStack { Image(systemName: "person.crop.circle.fill"); Text(match.name); Spacer(); Image(systemName: "arrow.up.left") }
-                                .font(.system(size: 13)).foregroundStyle(Color.shalevPrimary)
-                        }
+    private var transferTransactionFields: some View {
+        ShalevCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("N.º de transacción").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                TextField("6–30 letras o dígitos", text: $transactionNumber)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                    .textFieldStyle(SaleInputStyle())
+                    .onChange(of: transactionNumber) { _, value in
+                        if value.count > 30 { transactionNumber = String(value.prefix(30)) }
                     }
+                Button(action: pasteTransferSMS) {
+                    Label("Pegar SMS de Transfermóvil", systemImage: "doc.on.clipboard")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .buttonStyle(ShalevTonalButtonStyle())
+                if let smsAmountCents {
+                    let differs = smsAmountCents != totalCents
+                    Text(differs
+                         ? "El SMS indica \(Cup(cents: smsAmountCents).formatted), pero la venta suma \(Cup(cents: totalCents).formatted). Revisa que sea el pago correcto."
+                         : "Importe del SMS: \(Cup(cents: smsAmountCents).formatted)")
+                        .font(.system(size: 11, weight: differs ? .semibold : .regular))
+                        .foregroundStyle(differs ? Color.shalevError : Color.shalevSecondaryText)
                 }
             }
-            .padding(.top, 10)
-        } label: {
-            Label("Cliente fijo (opcional)", systemImage: "person.crop.circle")
-                .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
         }
-        .padding(15)
-        .background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var customerFields: some View {
+        ShalevCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Datos del cliente", systemImage: "person.crop.circle")
+                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                TextField("Nombre y apellidos", text: $customerName)
+                    .textContentType(.name).textFieldStyle(SaleInputStyle())
+                TextField("Carné cubano de 11 dígitos", text: $customerID)
+                    .keyboardType(.numberPad)
+                    .textInputAutocapitalization(.never).textFieldStyle(SaleInputStyle())
+                    .onChange(of: customerID) { _, value in
+                        customerID = String(value.filter(\.isNumber).prefix(11))
+                    }
+                TextField("Teléfono", text: $customerPhone)
+                    .keyboardType(.phonePad).textFieldStyle(SaleInputStyle())
+                Toggle("Guardar como cliente fijo", isOn: $customerIsFixed).tint(Color.shalevPrimary)
+                let matches = CustomerValidator.suggestions(store.data.customers, containing: customerName)
+                ForEach(matches) { match in
+                    Button {
+                        customerName = match.name
+                        customerID = match.identification
+                        customerPhone = match.phone
+                        customerIsFixed = true
+                    } label: {
+                        HStack { Image(systemName: "person.crop.circle.fill"); Text(match.name); Spacer(); Image(systemName: "arrow.up.left") }
+                            .font(.system(size: 13)).foregroundStyle(Color.shalevPrimary)
+                    }
+                    .accessibilityLabel("Usar cliente \(match.name)")
+                }
+            }
+        }
     }
 
     private var checkoutBar: some View {
@@ -293,8 +315,8 @@ struct SaleComposerView: View {
                             HStack { Text("Importe a transferir"); Spacer(); Text(Cup(cents: totalCents).formatted).fontWeight(.bold) }
                             Divider()
                             HStack { Text("Tarjeta"); Spacer(); Text(maskedCard).fontWeight(.semibold) }
-                            if !store.data.settings.profile.transferPhone.isEmpty {
-                                HStack { Text("Móvil"); Spacer(); Text(store.data.settings.profile.transferPhone).fontWeight(.semibold) }
+                            if let phone = store.data.settings.profile.paymentPhone?.number {
+                                HStack { Text("Móvil"); Spacer(); Text(phone).fontWeight(.semibold) }
                             }
                         }
                         .font(.system(size: 14)).foregroundStyle(Color.shalevText)
@@ -307,8 +329,14 @@ struct SaleComposerView: View {
                                 .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
                         }
                     }
+                    transferTransactionFields
+                    customerFields
+                    if let warnings = preview?.warnings, !warnings.isEmpty {
+                        Label("Revisa \(warnings.joined(separator: ", ")): el precio final queda al costo o por debajo.", systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 11, weight: .medium)).foregroundStyle(Color.shalevSecondary)
+                    }
                     Button { completeSale() } label: {
-                        Label("Confirmar pago recibido", systemImage: "checkmark.circle.fill")
+                        Label("Confirmar pago recibido y registrar", systemImage: "checkmark.circle.fill")
                     }
                     .buttonStyle(ShalevPrimaryButtonStyle())
                     .padding(.top, 2)
@@ -328,7 +356,7 @@ struct SaleComposerView: View {
     }
 
     private var maskedCard: String {
-        let digits = store.data.settings.profile.transferCard.filter(\.isNumber)
+        let digits = store.data.settings.profile.paymentCard?.number.filter(\.isNumber) ?? ""
         guard digits.count > 4 else { return "••••" }
         return "•••• •••• •••• \(digits.suffix(4))"
     }
@@ -373,7 +401,8 @@ struct SaleComposerView: View {
     private func completeSale() {
         do {
             _ = try store.recordSale(drafts, payment: payment, transactionNumber: transactionNumber,
-                                     customer: customer, customerIsFixed: customerIsFixed)
+                                     customer: payment == .transfer ? customer : nil,
+                                     customerIsFixed: payment == .transfer && customerIsFixed)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
