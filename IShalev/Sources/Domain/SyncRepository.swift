@@ -267,6 +267,26 @@ enum SyncCatalog {
         return sale
     }
 
+    static func productID(androidID: Int64, ingredient: Bool, in products: [Product]) -> UUID? {
+        let domain = ingredient ? "ingredient" : "product"
+        return products.first(where: {
+            ($0.kind == .ingredient) == ingredient && AndroidID.int64(domain, $0.id) == androidID
+        })?.id
+    }
+
+    static func serviceID(androidID: Int64, in services: [ServiceItem]) -> UUID? {
+        services.first(where: { AndroidID.int64("service", $0.id) == androidID })?.id
+    }
+
+    static func adjustmentID(androidID: Int64, in adjustments: [PriceAdjustment]) -> UUID? {
+        adjustments.first(where: { AndroidID.int64("adjustment", $0.id) == androidID })?.id
+    }
+
+    static func canonicalIngredientID(_ id: UUID, in products: [Product]) -> UUID {
+        let androidID = AndroidID.int64("ingredient", id)
+        return products.first(where: { $0.kind == .ingredient && AndroidID.int64("ingredient", $0.id) == androidID })?.id ?? id
+    }
+
     private static func canonicalCount(_ imported: ShiftClosingCount, app: AppData) -> ShiftClosingCount {
         var count = imported
         for index in count.inventory.indices {
@@ -313,13 +333,34 @@ enum SyncCatalog {
         products += try AndroidBackupCodec.dictionaries(snapshot["insumos"]).map {
             preserveIdentity(try AndroidBackupCodec.importIngredient($0), current: current.products)
         }
-        let services = AndroidBackupCodec.dictionaries(snapshot["servicios"]).map {
+        var services = AndroidBackupCodec.dictionaries(snapshot["servicios"]).map {
             preserveIdentity(AndroidBackupCodec.importService($0), current: current.services)
+        }
+        for productIndex in products.indices {
+            for useIndex in products[productIndex].uses.indices {
+                products[productIndex].uses[useIndex].ingredientID = canonicalIngredientID(products[productIndex].uses[useIndex].ingredientID, in: products)
+            }
+        }
+        for serviceIndex in services.indices {
+            for useIndex in services[serviceIndex].uses.indices {
+                services[serviceIndex].uses[useIndex].ingredientID = canonicalIngredientID(services[serviceIndex].uses[useIndex].ingredientID, in: products)
+            }
         }
         var next = current
         next.products = products
         next.services = services
         next.settings.priceAdjustments = AndroidBackupCodec.dictionaries(snapshot["preajustes"]).map(AndroidBackupCodec.importAdjustment)
+        for index in next.settings.priceAdjustments.indices {
+            let androidID = AndroidID.int64("adjustment", next.settings.priceAdjustments[index].id)
+            if let localID = adjustmentID(androidID: androidID, in: current.settings.priceAdjustments) {
+                next.settings.priceAdjustments[index].id = localID
+            }
+            if let ids = next.settings.priceAdjustments[index].productIDs {
+                next.settings.priceAdjustments[index].productIDs = Set(ids.compactMap {
+                    productID(androidID: AndroidID.int64("product", $0), ingredient: false, in: products)
+                })
+            }
+        }
         let activeProductIDs = Set(products.filter { $0.isActive && $0.kind != .ingredient }.map(\.id))
         for index in next.settings.priceAdjustments.indices {
             if let ids = next.settings.priceAdjustments[index].productIDs {

@@ -469,13 +469,11 @@ final class SyncManager: ObservableObject {
     private func downloadPendingPhotos() async throws {
         guard let link else { return }
         for photo in link.photos {
-            let uuid = AndroidID.uuid(photo.entity == "servicio" ? "service" : "product", photo.id)
-            let existing = photo.entity == "servicio"
-                ? store.data.services.first(where: { $0.id == uuid })?.imageData
-                : store.data.products.first(where: { $0.id == uuid })?.imageData
-            let existingName = photo.entity == "servicio"
-                ? store.data.services.first(where: { $0.id == uuid })?.syncPhotoName
-                : store.data.products.first(where: { $0.id == uuid })?.syncPhotoName
+            let domain = photo.entity == "servicio" ? "service" : photo.entity == "insumo" ? "ingredient" : "product"
+            let existingProduct = photo.entity == "servicio" ? nil : store.data.products.first(where: { AndroidID.int64(domain, $0.id) == photo.id })
+            let existingService = photo.entity == "servicio" ? store.data.services.first(where: { AndroidID.int64(domain, $0.id) == photo.id }) : nil
+            let existing = existingProduct?.imageData ?? existingService?.imageData
+            let existingName = existingProduct?.syncPhotoName ?? existingService?.syncPhotoName
             if existing != nil && SyncCatalog.normalizedPhotoName(existingName) == photo.name { continue }
             guard photo.bytes >= 0 && photo.bytes <= Int64(SyncFrames.maximumClear) else { continue }
             var data = Data()
@@ -494,9 +492,9 @@ final class SyncManager: ObservableObject {
             }
             guard data.count == photo.bytes, SyncCrypto.sha256Hex(data) == hash else { throw SyncError.authentication }
             var next = store.data
-            if photo.entity == "servicio", let index = next.services.firstIndex(where: { $0.id == uuid }) {
+            if photo.entity == "servicio", let index = next.services.firstIndex(where: { AndroidID.int64("service", $0.id) == photo.id }) {
                 next.services[index].imageData = data; next.services[index].syncPhotoName = photo.name
-            } else if let index = next.products.firstIndex(where: { $0.id == uuid }) {
+            } else if photo.entity != "servicio", let index = next.products.firstIndex(where: { AndroidID.int64(domain, $0.id) == photo.id }) {
                 next.products[index].imageData = data; next.products[index].syncPhotoName = photo.name
             } else { continue }
             try store.replaceDataForSync(next)
@@ -812,8 +810,14 @@ enum SyncCommands {
             guard let row = action["producto"] as? [String: Any] else { throw SyncError.invalidMessage }
             let recipes = (action["receta"] as? [String: Any]).map { AndroidBackupCodec.dictionaries($0["lineas"]) }
             var product = try AndroidBackupCodec.importProduct(row, recipe: recipes)
-            if let existing = store.data.products.first(where: { $0.id == product.id }) {
-                if product.imageData == nil { product.imageData = existing.imageData; product.syncPhotoName = existing.syncPhotoName }
+            for index in product.uses.indices { product.uses[index].ingredientID = SyncCatalog.canonicalIngredientID(product.uses[index].ingredientID, in: store.data.products) }
+            if let existingID = SyncCatalog.productID(androidID: AndroidBackupCodec.int64(row["id"]), ingredient: false, in: store.data.products),
+               let existing = store.data.products.first(where: { $0.id == existingID }) {
+                product.id = existing.id
+                if product.imageData == nil {
+                    product.imageData = existing.imageData
+                    if product.syncPhotoName == nil { product.syncPhotoName = existing.syncPhotoName }
+                }
                 if let read = AndroidBackupCodec.optionalInt64(action["cantidadLeida"]) {
                     let delta = product.stockMilli - read * 1_000
                     product.stockMilli = existing.stockMilli + delta
@@ -822,10 +826,12 @@ enum SyncCommands {
             try store.saveProduct(product)
             return AndroidID.int64("product", product.id)
         case "producto_eliminar":
-            let id = AndroidID.uuid("product", AndroidBackupCodec.int64(action["id"]))
+            let androidID = AndroidBackupCodec.int64(action["id"])
+            guard let id = SyncCatalog.productID(androidID: androidID, ingredient: false, in: store.data.products) else { throw BusinessError.unavailableItem("producto") }
             try store.deleteProduct(id); return nil
         case "producto_stock":
-            let id = AndroidID.uuid("product", AndroidBackupCodec.int64(action["id"]))
+            let androidID = AndroidBackupCodec.int64(action["id"])
+            guard let id = SyncCatalog.productID(androidID: androidID, ingredient: false, in: store.data.products) else { throw BusinessError.unavailableItem("producto") }
             let delta = AndroidBackupCodec.int64(action["delta"]) * 1_000
             try store.adjustStock(productID: id, newStockMilli: (store.data.products.first(where: { $0.id == id })?.stockMilli ?? 0) + delta,
                 reason: AndroidBackupCodec.string(action["nota"], default: "Ajuste desde app secundaria"))
@@ -833,8 +839,8 @@ enum SyncCommands {
         case "producto_precios":
             guard let prices = action["precios"] as? [String: Any] else { throw SyncError.invalidMessage }
             for (key, value) in prices {
-                let id = AndroidID.uuid("product", Int64(key) ?? 0)
-                guard var product = store.data.products.first(where: { $0.id == id && $0.kind != .ingredient }) else { continue }
+                guard let id = SyncCatalog.productID(androidID: Int64(key) ?? 0, ingredient: false, in: store.data.products),
+                      var product = store.data.products.first(where: { $0.id == id && $0.kind != .ingredient }) else { continue }
                 product.priceCents = AndroidBackupCodec.int64(value)
                 try store.saveProduct(product)
             }
@@ -842,8 +848,13 @@ enum SyncCommands {
         case "insumo_guardar":
             guard let row = action["insumo"] as? [String: Any] else { throw SyncError.invalidMessage }
             var product = try AndroidBackupCodec.importIngredient(row)
-            if let existing = store.data.products.first(where: { $0.id == product.id }) {
-                if product.imageData == nil { product.imageData = existing.imageData; product.syncPhotoName = existing.syncPhotoName }
+            if let existingID = SyncCatalog.productID(androidID: AndroidBackupCodec.int64(row["id"]), ingredient: true, in: store.data.products),
+               let existing = store.data.products.first(where: { $0.id == existingID }) {
+                product.id = existing.id
+                if product.imageData == nil {
+                    product.imageData = existing.imageData
+                    if product.syncPhotoName == nil { product.syncPhotoName = existing.syncPhotoName }
+                }
                 if let read = AndroidBackupCodec.optionalInt64(action["cantidadLeidaMil"]) {
                     product.stockMilli = existing.stockMilli + product.stockMilli - read
                 }
@@ -851,9 +862,12 @@ enum SyncCommands {
             try store.saveProduct(product)
             return AndroidID.int64("ingredient", product.id)
         case "insumo_eliminar":
-            try store.deleteProduct(AndroidID.uuid("ingredient", AndroidBackupCodec.int64(action["id"]))); return nil
+            let androidID = AndroidBackupCodec.int64(action["id"])
+            guard let id = SyncCatalog.productID(androidID: androidID, ingredient: true, in: store.data.products) else { throw BusinessError.unavailableItem("insumo") }
+            try store.deleteProduct(id); return nil
         case "insumo_stock":
-            let id = AndroidID.uuid("ingredient", AndroidBackupCodec.int64(action["id"]))
+            let androidID = AndroidBackupCodec.int64(action["id"])
+            guard let id = SyncCatalog.productID(androidID: androidID, ingredient: true, in: store.data.products) else { throw BusinessError.unavailableItem("insumo") }
             let current = store.data.products.first(where: { $0.id == id })?.stockMilli ?? 0
             try store.adjustStock(productID: id, newStockMilli: current + AndroidBackupCodec.int64(action["deltaMil"]),
                 reason: AndroidBackupCodec.string(action["nota"], default: "Ajuste desde app secundaria"))
@@ -861,20 +875,34 @@ enum SyncCommands {
         case "servicio_guardar":
             guard let row = action["servicio"] as? [String: Any] else { throw SyncError.invalidMessage }
             var service = AndroidBackupCodec.importService(row)
-            if service.imageData == nil, let old = store.data.services.first(where: { $0.id == service.id }) {
-                service.imageData = old.imageData; service.syncPhotoName = old.syncPhotoName
+            for index in service.uses.indices { service.uses[index].ingredientID = SyncCatalog.canonicalIngredientID(service.uses[index].ingredientID, in: store.data.products) }
+            if let existingID = SyncCatalog.serviceID(androidID: AndroidBackupCodec.int64(row["id"]), in: store.data.services),
+               let old = store.data.services.first(where: { $0.id == existingID }) {
+                service.id = old.id
+                if service.imageData == nil {
+                    service.imageData = old.imageData
+                    if service.syncPhotoName == nil { service.syncPhotoName = old.syncPhotoName }
+                }
             }
             try store.saveService(service)
             return AndroidID.int64("service", service.id)
         case "servicio_eliminar":
-            try store.deleteService(AndroidID.uuid("service", AndroidBackupCodec.int64(action["id"]))); return nil
+            let androidID = AndroidBackupCodec.int64(action["id"])
+            guard let id = SyncCatalog.serviceID(androidID: androidID, in: store.data.services) else { throw BusinessError.unavailableItem("servicio") }
+            try store.deleteService(id); return nil
         case "preajuste_guardar":
             guard let row = action["preajuste"] as? [String: Any] else { throw SyncError.invalidMessage }
-            let adjustment = AndroidBackupCodec.importAdjustment(row)
+            var adjustment = AndroidBackupCodec.importAdjustment(row)
+            if let id = SyncCatalog.adjustmentID(androidID: AndroidBackupCodec.int64(row["id"]), in: store.data.settings.priceAdjustments) { adjustment.id = id }
+            if let ids = adjustment.productIDs {
+                adjustment.productIDs = Set(ids.compactMap { SyncCatalog.productID(androidID: AndroidID.int64("product", $0), ingredient: false, in: store.data.products) })
+            }
             try store.savePriceAdjustment(adjustment)
             return AndroidID.int64("adjustment", adjustment.id)
         case "preajuste_eliminar":
-            try store.deletePriceAdjustment(AndroidID.uuid("adjustment", AndroidBackupCodec.int64(action["id"]))); return nil
+            let androidID = AndroidBackupCodec.int64(action["id"])
+            guard let id = SyncCatalog.adjustmentID(androidID: androidID, in: store.data.settings.priceAdjustments) else { throw BusinessError.unavailableItem("preajuste") }
+            try store.deletePriceAdjustment(id); return nil
         default: throw SyncError.invalidMessage
         }
     }

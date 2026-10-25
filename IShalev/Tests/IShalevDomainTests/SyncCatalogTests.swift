@@ -111,6 +111,29 @@ final class SyncCatalogTests: XCTestCase {
         XCTAssertEqual(SyncCatalog.photo(named: name, app: fixture.app)?.data, Data([1, 2, 3, 4]))
     }
 
+    func testRemoteCommandsResolveRandomLocalUUIDs() throws {
+        var fixture = self.fixture()
+        fixture.app.products[0].imageData = Data([1, 2, 3])
+        fixture.app.products[0].syncPhotoName = "agua.jpg"
+        fixture.app.settings.priceAdjustments = [PriceAdjustment(name: "Descuento", basisPoints: -1_000, productIDs: [fixture.product.id])]
+        let storage = SyncMemoryStorage(); storage.value = fixture.app
+        let store = ShalevStore(storage: storage)
+        var productRow = try AndroidBackupCodec.exportProduct(fixture.app.products[0])
+        productRow["precioVentaCent"] = 125
+        _ = try SyncCommands.apply(SyncJSON.message("producto_guardar", ["producto": productRow]), store: store)
+        XCTAssertEqual(store.data.products.count, 1)
+        XCTAssertEqual(store.data.products[0].id, fixture.product.id)
+        XCTAssertEqual(store.data.products[0].priceCents, 125)
+        XCTAssertEqual(store.data.products[0].imageData, Data([1, 2, 3]))
+        _ = try SyncCommands.apply(SyncJSON.message("producto_stock", ["id": AndroidID.int64("product", fixture.product.id), "delta": -1]), store: store)
+        XCTAssertEqual(store.data.products[0].stockMilli, 7_000)
+
+        let adjustmentRow = try AndroidBackupCodec.exportAdjustment(fixture.app.settings.priceAdjustments[0], app: fixture.app)
+        _ = try SyncCommands.apply(SyncJSON.message("preajuste_guardar", ["preajuste": adjustmentRow]), store: store)
+        XCTAssertEqual(store.data.settings.priceAdjustments.count, 1)
+        XCTAssertEqual(store.data.settings.priceAdjustments[0].productIDs, [fixture.product.id])
+    }
+
     func testRemoteOpenShiftDoesNotBlockLocalShift() throws {
         let fixture = self.fixture()
         let batch = try SyncCatalog.pendingBatch(app: fixture.app)
