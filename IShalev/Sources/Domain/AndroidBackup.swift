@@ -177,11 +177,12 @@ private enum GZIP {
             stream.avail_in = uInt(input.count)
             while status != Z_STREAM_END {
                 var buffer = [UInt8](repeating: 0, count: 32_768)
+                let capacity = buffer.count
                 let produced = buffer.withUnsafeMutableBytes { output -> Int in
                     stream.next_out = output.bindMemory(to: Bytef.self).baseAddress
-                    stream.avail_out = uInt(buffer.count)
+                    stream.avail_out = uInt(capacity)
                     status = deflate(&stream, Z_FINISH)
-                    return buffer.count - Int(stream.avail_out)
+                    return capacity - Int(stream.avail_out)
                 }
                 result.append(buffer, count: produced)
                 guard status == Z_OK || status == Z_STREAM_END else { throw BusinessError.backupInvalid }
@@ -203,11 +204,12 @@ private enum GZIP {
             stream.avail_in = uInt(input.count)
             while status != Z_STREAM_END {
                 var buffer = [UInt8](repeating: 0, count: 32_768)
+                let capacity = buffer.count
                 let produced = buffer.withUnsafeMutableBytes { output -> Int in
                     stream.next_out = output.bindMemory(to: Bytef.self).baseAddress
-                    stream.avail_out = uInt(buffer.count)
+                    stream.avail_out = uInt(capacity)
                     status = inflate(&stream, Z_NO_FLUSH)
-                    return buffer.count - Int(stream.avail_out)
+                    return capacity - Int(stream.avail_out)
                 }
                 result.append(buffer, count: produced)
                 guard result.count <= maximumBytes,
