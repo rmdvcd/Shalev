@@ -53,7 +53,7 @@ struct SettingsView: View {
                             settingsDivider
                             settingsRow("Perfil", subtitle: "Datos del negocio y del titular", symbol: "person.crop.circle", sheet: .profile)
                             settingsDivider
-                            settingsRow("Pago electrónico", subtitle: "Teléfono y tarjeta para Transfermóvil", symbol: "creditcard.fill", sheet: .payment)
+                            settingsRow("Pago electrónico", subtitle: "Tarjetas y teléfonos para Transfermóvil", symbol: "creditcard.fill", sheet: .payment)
                         }
                         if canChangePrices {
                             if isAdministrator { settingsDivider }
@@ -245,28 +245,77 @@ private struct ProfileSettingsView: View {
 private struct PaymentSettingsView: View {
     @ObservedObject var store: ShalevStore
     @Environment(\.dismiss) private var dismiss
-    @State private var phone: String
-    @State private var card: String
+    @State private var phones: [TransferPhone]
+    @State private var cards: [TransferCard]
+    @State private var paymentPhoneID: UUID?
+    @State private var paymentCardID: UUID?
     @State private var errorMessage: String?
 
     init(store: ShalevStore) {
         self.store = store
-        _phone = State(initialValue: store.data.settings.profile.transferPhone)
-        _card = State(initialValue: store.data.settings.profile.transferCard)
+        let profile = store.data.settings.profile
+        _phones = State(initialValue: profile.availablePhones)
+        _cards = State(initialValue: profile.availableCards)
+        _paymentPhoneID = State(initialValue: profile.paymentPhone?.id)
+        _paymentCardID = State(initialValue: profile.paymentCard?.id)
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 15) {
-                ShalevScreenTitle(title: "Pago electrónico", subtitle: "Datos que aparecerán en el QR de Transfermóvil")
+                ShalevScreenTitle(title: "Pago electrónico", subtitle: "Elige la tarjeta y el teléfono que recibirán las transferencias")
                 ShalevCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        labeledField("Teléfono (opcional)", text: $phone, placeholder: "+53 5212 3456", keyboard: .phonePad)
-                        labeledField("Tarjeta o cuenta", text: $card, placeholder: "Número de tarjeta", keyboard: .numberPad)
-                        Text("La tarjeta debe tener de 12 a 20 dígitos. Transfermóvil completa la tarjeta y el móvil; el importe se muestra por separado y no se incorpora al QR.")
-                            .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
+                        ShalevSectionHeader(title: "Tarjetas y cuentas")
+                        ForEach($cards) { $card in
+                            VStack(spacing: 8) {
+                                labeledField("Alias (opcional)", text: $card.alias, placeholder: "Ej. Cuenta principal")
+                                labeledField("Tarjeta o cuenta", text: $card.number, placeholder: "12–20 dígitos", keyboard: .numberPad)
+                                Button(role: .destructive) { removeCard(card.id) } label: {
+                                    Label("Eliminar tarjeta", systemImage: "trash")
+                                }
+                                .buttonStyle(ShalevTonalButtonStyle())
+                            }
+                            if card.id != cards.last?.id { Divider() }
+                        }
+                        Button { cards.append(TransferCard(number: "")) } label: { Label("Agregar tarjeta", systemImage: "plus") }
+                            .buttonStyle(ShalevTonalButtonStyle())
+                        if !cards.isEmpty {
+                            Picker("Tarjeta para cobros", selection: $paymentCardID) {
+                                Text("Ninguna").tag(UUID?.none)
+                                ForEach(cards) { card in Text(cardLabel(card)).tag(UUID?.some(card.id)) }
+                            }
+                            .font(.system(size: 13, weight: .medium))
+                        }
                     }
                 }
+                ShalevCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ShalevSectionHeader(title: "Teléfonos")
+                        ForEach($phones) { $phone in
+                            VStack(spacing: 8) {
+                                labeledField("Alias (opcional)", text: $phone.alias, placeholder: "Ej. Móvil del negocio")
+                                labeledField("Teléfono", text: $phone.number, placeholder: "+53 5212 3456", keyboard: .phonePad)
+                                Button(role: .destructive) { removePhone(phone.id) } label: {
+                                    Label("Eliminar teléfono", systemImage: "trash")
+                                }
+                                .buttonStyle(ShalevTonalButtonStyle())
+                            }
+                            if phone.id != phones.last?.id { Divider() }
+                        }
+                        Button { phones.append(TransferPhone(number: "")) } label: { Label("Agregar teléfono", systemImage: "plus") }
+                            .buttonStyle(ShalevTonalButtonStyle())
+                        if !phones.isEmpty {
+                            Picker("Teléfono para cobros", selection: $paymentPhoneID) {
+                                Text("Ninguno").tag(UUID?.none)
+                                ForEach(phones) { phone in Text(phoneLabel(phone)).tag(UUID?.some(phone.id)) }
+                            }
+                            .font(.system(size: 13, weight: .medium))
+                        }
+                    }
+                }
+                Text("La tarjeta seleccionada es obligatoria para cobrar por transferencia. El teléfono se incorpora al QR cuando existe; el importe se muestra por separado.")
+                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
                 Button { save() } label: { Label("Guardar datos de cobro", systemImage: "checkmark") }
                     .buttonStyle(ShalevPrimaryButtonStyle())
             }
@@ -278,12 +327,31 @@ private struct PaymentSettingsView: View {
         } message: { Text(errorMessage ?? "") }
     }
 
+    private func cardLabel(_ card: TransferCard) -> String {
+        let masked = card.number.count >= 4 ? "•••• \(card.number.suffix(4))" : "Nueva tarjeta"
+        return card.alias.isEmpty ? masked : "\(card.alias) · \(masked)"
+    }
+
+    private func phoneLabel(_ phone: TransferPhone) -> String {
+        phone.alias.isEmpty ? phone.number : "\(phone.alias) · \(phone.number)"
+    }
+
+    private func removeCard(_ id: UUID) {
+        cards.removeAll { $0.id == id }
+        if paymentCardID == id { paymentCardID = nil }
+    }
+
+    private func removePhone(_ id: UUID) {
+        phones.removeAll { $0.id == id }
+        if paymentPhoneID == id { paymentPhoneID = nil }
+    }
+
     private func save() {
-        let digits = card.filter(\.isNumber)
-        if !digits.isEmpty && !(12...20).contains(digits.count) { errorMessage = "La tarjeta debe tener entre 12 y 20 dígitos."; return }
         var profile = store.data.settings.profile
-        profile.transferPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
-        profile.transferCard = digits
+        profile.transferCards = cards
+        profile.transferPhones = phones
+        profile.paymentCardID = paymentCardID
+        profile.paymentPhoneID = paymentPhoneID
         do { try store.saveProfile(profile); dismiss() }
         catch { errorMessage = error.localizedDescription }
     }

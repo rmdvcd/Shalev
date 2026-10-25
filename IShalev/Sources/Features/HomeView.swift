@@ -452,7 +452,7 @@ struct HomeView: View {
     }
 
     private var paymentSummary: String {
-        let phone = store.data.settings.profile.transferPhone
+        let phone = store.data.settings.profile.paymentPhone?.number ?? ""
         return phone.isEmpty ? "Configura tus datos de cobro" : "Tel. \(phone)"
     }
 

@@ -20,6 +20,8 @@ final class DomainParityTests: XCTestCase {
     private func makeStore(products: [Product]? = nil) -> ShalevStore {
         var initial = AppData.empty
         initial.settings.profile.ownerName = "María Pérez"
+        initial.settings.profile.transferCard = "9200123456789012"
+        initial.settings.profile.transferPhone = "+5352123456"
         initial.products = products ?? [product()]
         return ShalevStore(storage: MemoryStorage(initial))
     }
@@ -88,6 +90,8 @@ final class DomainParityTests: XCTestCase {
         other.name = "Otro Cliente"
         var initial = AppData.empty
         initial.settings.profile.ownerName = "María Pérez"
+        initial.settings.profile.transferCard = "9200123456789012"
+        initial.settings.profile.transferPhone = "+5352123456"
         initial.products = [item]
         initial.customers = [other]
         let store = ShalevStore(storage: MemoryStorage(initial))
@@ -178,6 +182,41 @@ final class DomainParityTests: XCTestCase {
         XCTAssertThrowsError(try store.savePriceAdjustment(PriceAdjustment(name: "Global nuevo", basisPoints: 1_000,
                                                                             productIDs: []))) { error in
             XCTAssertEqual(error as? BusinessError, .invalidPriceAdjustment)
+        }
+    }
+
+    func testMultiplePaymentAccountsAndSaleSnapshot() throws {
+        let item = product()
+        let store = makeStore(products: [item])
+        try store.openShift(openingCashCents: 0)
+        let firstCard = TransferCard(number: "9200111111111111", alias: "Principal")
+        let secondCard = TransferCard(number: "9200222222222222", alias: "Secundaria")
+        let firstPhone = TransferPhone(number: "52123456", alias: "Tienda")
+        let secondPhone = TransferPhone(number: "+5358765432", alias: "Cobros")
+        var profile = store.data.settings.profile
+        profile.transferCards = [firstCard, secondCard]
+        profile.transferPhones = [firstPhone, secondPhone]
+        profile.paymentCardID = secondCard.id
+        profile.paymentPhoneID = secondPhone.id
+        try store.saveProfile(profile)
+        XCTAssertEqual(store.data.settings.profile.paymentPhone?.number, "+5358765432")
+        XCTAssertEqual(store.data.settings.profile.paymentCard?.id, secondCard.id)
+
+        let sale = try store.recordSale([CartDraft(sourceID: item.id, kind: .product, quantity: 1)],
+                                        payment: .transfer, transactionNumber: "abc123",
+                                        customer: customer())
+        XCTAssertEqual(sale.paymentCard, secondCard.number)
+        XCTAssertEqual(sale.paymentPhone, "+5358765432")
+        XCTAssertEqual(sale.transactionNumber, "ABC123")
+
+        profile = store.data.settings.profile
+        profile.paymentCardID = firstCard.id
+        try store.saveProfile(profile)
+        XCTAssertEqual(store.data.sales.first?.paymentCard, secondCard.number)
+
+        profile.transferPhones = [firstPhone, TransferPhone(id: UUID(), number: firstPhone.number)]
+        XCTAssertThrowsError(try store.saveProfile(profile)) {
+            XCTAssertEqual($0 as? BusinessError, .invalidPaymentConfiguration)
         }
     }
 

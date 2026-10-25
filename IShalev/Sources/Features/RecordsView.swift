@@ -523,6 +523,8 @@ private struct SaleDetailView: View {
                                 detailRow("Carné", customer.identification)
                                 detailRow("Teléfono", customer.phone)
                             }
+                            if let card = sale.paymentCard { detailRow("Cobrado en la tarjeta", card) }
+                            if let phone = sale.paymentPhone { detailRow("Teléfono de cobro", phone) }
                             if let seller = sale.sellerName, !seller.isEmpty { detailRow("Vendedor", seller) }
                             if let correction = sale.correctionOfSaleID { detailRow("Corrige", "Venta \(correction.uuidString.prefix(8))") }
                             if sale.customerIsFixed { ShalevStatusPill(title: "Cliente fijo", symbol: "person.crop.circle.fill") }

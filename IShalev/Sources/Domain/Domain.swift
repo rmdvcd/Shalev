@@ -265,6 +265,9 @@ struct Sale: Codable, Identifiable, Equatable {
     var transactionNumber: String = ""
     var customer: Customer? = nil
     var customerIsFixed: Bool = false
+    /// Datos de cobro congelados al registrar la transferencia.
+    var paymentCard: String? = nil
+    var paymentPhone: String? = nil
     var isCancelled: Bool = false
     var cancelledAt: Date? = nil
     var cancellationReason: String? = nil
@@ -383,6 +386,18 @@ struct PriceAdjustment: Codable, Identifiable, Equatable {
     func applies(to sourceID: UUID) -> Bool { productIDs?.contains(sourceID) ?? true }
 }
 
+struct TransferCard: Codable, Identifiable, Equatable {
+    var id: UUID = UUID()
+    var number: String
+    var alias: String = ""
+}
+
+struct TransferPhone: Codable, Identifiable, Equatable {
+    var id: UUID = UUID()
+    var number: String
+    var alias: String = ""
+}
+
 struct StoreProfile: Codable, Equatable {
     var businessName: String = "Mi negocio"
     var ownerName: String = ""
@@ -390,8 +405,35 @@ struct StoreProfile: Codable, Equatable {
     var ownerLastName: String? = nil
     var identification: String = ""
     var licensePhone: String? = nil
+    /// Campos antiguos conservados para leer respaldos de IShalev 1.0.
     var transferPhone: String = ""
     var transferCard: String = ""
+    var transferPhones: [TransferPhone]? = nil
+    var transferCards: [TransferCard]? = nil
+    var paymentPhoneID: UUID? = nil
+    var paymentCardID: UUID? = nil
+
+    var availablePhones: [TransferPhone] {
+        if let transferPhones { return transferPhones }
+        guard let number = CustomerValidator.normalizedPhone(transferPhone) else { return [] }
+        return [TransferPhone(number: number)]
+    }
+
+    var availableCards: [TransferCard] {
+        if let transferCards { return transferCards }
+        let number = transferCard.filter(\.isNumber)
+        return (12...20).contains(number.count) ? [TransferCard(number: number)] : []
+    }
+
+    var paymentPhone: TransferPhone? {
+        if let paymentPhoneID { return availablePhones.first(where: { $0.id == paymentPhoneID }) }
+        return transferPhones == nil ? availablePhones.first : nil
+    }
+
+    var paymentCard: TransferCard? {
+        if let paymentCardID { return availableCards.first(where: { $0.id == paymentCardID }) }
+        return transferCards == nil ? availableCards.first : nil
+    }
 }
 
 enum EmployeePermission: String, Codable, CaseIterable, Identifiable, Hashable {
@@ -504,6 +546,7 @@ enum BusinessError: LocalizedError, Equatable {
     case insufficientStock(String)
     case invalidReason
     case invalidPaymentDetails
+    case invalidPaymentConfiguration
     case invalidRecipe
     case storageUnavailable
     case backupPassword
@@ -534,6 +577,7 @@ enum BusinessError: LocalizedError, Equatable {
         case .insufficientStock(let name): "No hay existencias suficientes de «\(name)»."
         case .invalidReason: "Escribe un motivo de entre 3 y 60 caracteres."
         case .invalidPaymentDetails: "Configura una tarjeta válida en Ajustes → Pago electrónico."
+        case .invalidPaymentConfiguration: "Revisa tarjetas y teléfonos: no puede haber números vacíos, inválidos o repetidos."
         case .invalidRecipe: "La receta debe contener insumos activos de tipo Insumo y cantidades válidas."
         case .storageUnavailable: "El almacenamiento cifrado no está disponible. No se guardaron cambios."
         case .backupPassword: "La contraseña debe tener al menos 8 caracteres."
@@ -935,8 +979,35 @@ final class ShalevStore: ObservableObject {
     }
 
     func saveProfile(_ profile: StoreProfile) throws {
+        var normalized = profile
+        normalized.businessName = profile.businessName.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalized.ownerName = profile.ownerName.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalized.ownerFirstName = profile.ownerFirstName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalized.ownerLastName = profile.ownerLastName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cards = profile.availableCards.map { card in
+            TransferCard(id: card.id, number: card.number.filter(\.isNumber),
+                         alias: card.alias.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        let phones = profile.availablePhones.compactMap { phone -> TransferPhone? in
+            guard let number = CustomerValidator.normalizedPhone(phone.number) else { return nil }
+            return TransferPhone(id: phone.id, number: number, alias: phone.alias.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        guard cards.count == profile.availableCards.count, phones.count == profile.availablePhones.count,
+              cards.allSatisfy({ (12...20).contains($0.number.count) }),
+              Set(cards.map(\.number)).count == cards.count,
+              Set(phones.map(\.number)).count == phones.count else {
+            throw BusinessError.invalidPaymentConfiguration
+        }
+        normalized.transferCards = cards
+        normalized.transferPhones = phones
+        let requestedCardID = profile.paymentCardID ?? (profile.transferCards == nil ? cards.first?.id : nil)
+        let requestedPhoneID = profile.paymentPhoneID ?? (profile.transferPhones == nil ? phones.first?.id : nil)
+        normalized.paymentCardID = requestedCardID.flatMap { id in cards.contains(where: { $0.id == id }) ? id : nil }
+        normalized.paymentPhoneID = requestedPhoneID.flatMap { id in phones.contains(where: { $0.id == id }) ? id : nil }
+        normalized.transferCard = normalized.paymentCard?.number ?? ""
+        normalized.transferPhone = normalized.paymentPhone?.number ?? ""
         var next = data
-        next.settings.profile = profile
+        next.settings.profile = normalized
         try commit(next)
     }
 
@@ -1133,7 +1204,14 @@ final class ShalevStore: ObservableObject {
         guard let shift = openShift else { throw BusinessError.shiftRequired }
         var transaction = ""
         var validCustomer: Customer?
+        var paymentCard: String?
+        var paymentPhone: String?
         if payment == .transfer {
+            guard let card = data.settings.profile.paymentCard, (12...20).contains(card.number.count) else {
+                throw BusinessError.invalidPaymentDetails
+            }
+            paymentCard = card.number
+            paymentPhone = data.settings.profile.paymentPhone?.number
             guard let normalizedTransaction = CustomerValidator.validTransactionNumber(transactionNumber) else {
                 throw BusinessError.invalidTransactionNumber
             }
@@ -1146,7 +1224,8 @@ final class ShalevStore: ObservableObject {
         let preview = try previewSale(cart, payment: payment)
         var sale = Sale(shiftID: shift.id, paymentMethod: payment, lines: preview.lines,
                         transactionNumber: transaction, customer: validCustomer,
-                        customerIsFixed: payment == .transfer && customerIsFixed, sellerName: actorName)
+                        customerIsFixed: payment == .transfer && customerIsFixed,
+                        paymentCard: paymentCard, paymentPhone: paymentPhone, sellerName: actorName)
         var next = data
 
         try applyInventory(lines: preview.lines, to: &next, saleID: sale.id, reason: "Venta", shiftID: shift.id)
@@ -1196,7 +1275,13 @@ final class ShalevStore: ObservableObject {
         guard (3...60).contains(note.count) else { throw BusinessError.invalidReason }
         var transaction = ""
         var validCustomer: Customer?
+        var paymentCard: String?
+        var paymentPhone: String?
         if payment == .transfer {
+            let card = original.paymentCard ?? data.settings.profile.paymentCard?.number
+            guard let card, (12...20).contains(card.count) else { throw BusinessError.invalidPaymentDetails }
+            paymentCard = card
+            paymentPhone = original.paymentPhone ?? data.settings.profile.paymentPhone?.number
             guard let normalizedTransaction = CustomerValidator.validTransactionNumber(transactionNumber) else {
                 throw BusinessError.invalidTransactionNumber
             }
@@ -1219,6 +1304,7 @@ final class ShalevStore: ObservableObject {
         let replacement = Sale(shiftID: original.shiftID, paymentMethod: payment, lines: adjustedLines,
                                transactionNumber: transaction, customer: validCustomer,
                                customerIsFixed: payment == .transfer && (customerIsFixed ?? original.customerIsFixed),
+                               paymentCard: paymentCard, paymentPhone: paymentPhone,
                                correctionOfSaleID: original.id, sellerName: actorName)
         var next = data
         try restoreInventory(for: original, in: &next, reason: "Corrección · devolución · \(note)")

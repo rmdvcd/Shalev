@@ -35,9 +35,9 @@ struct SaleComposerView: View {
                         phone: customerPhone.trimmingCharacters(in: .whitespacesAndNewlines))
     }
     private var qrPayload: String? {
-        let card = store.data.settings.profile.transferCard.filter(\.isNumber)
+        let card = store.data.settings.profile.paymentCard?.number.filter(\.isNumber) ?? ""
         guard (12...20).contains(card.count) else { return nil }
-        let phoneDigits = store.data.settings.profile.transferPhone.filter(\.isNumber)
+        let phoneDigits = store.data.settings.profile.paymentPhone?.number.filter(\.isNumber) ?? ""
         let mobile = phoneDigits.hasPrefix("53") ? String(phoneDigits.dropFirst(2)) : phoneDigits
         let validMobile = mobile.count == 8 ? mobile : ""
         return "TRANSFERMOVIL_ETECSA,TRANSFERENCIA,\(card),\(validMobile),"
@@ -315,8 +315,8 @@ struct SaleComposerView: View {
                             HStack { Text("Importe a transferir"); Spacer(); Text(Cup(cents: totalCents).formatted).fontWeight(.bold) }
                             Divider()
                             HStack { Text("Tarjeta"); Spacer(); Text(maskedCard).fontWeight(.semibold) }
-                            if !store.data.settings.profile.transferPhone.isEmpty {
-                                HStack { Text("Móvil"); Spacer(); Text(store.data.settings.profile.transferPhone).fontWeight(.semibold) }
+                            if let phone = store.data.settings.profile.paymentPhone?.number {
+                                HStack { Text("Móvil"); Spacer(); Text(phone).fontWeight(.semibold) }
                             }
                         }
                         .font(.system(size: 14)).foregroundStyle(Color.shalevText)
@@ -356,7 +356,7 @@ struct SaleComposerView: View {
     }
 
     private var maskedCard: String {
-        let digits = store.data.settings.profile.transferCard.filter(\.isNumber)
+        let digits = store.data.settings.profile.paymentCard?.number.filter(\.isNumber) ?? ""
         guard digits.count > 4 else { return "••••" }
         return "•••• •••• •••• \(digits.suffix(4))"
     }

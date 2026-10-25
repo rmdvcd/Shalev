@@ -26,7 +26,10 @@ jobs:
         run: xcodebuild -version
 
       - name: Ejecutar pruebas unitarias del dominio iOS
-        run: swift test --package-path IShalev
+        shell: bash
+        run: |
+          set -o pipefail
+          swift test --package-path IShalev 2>&1 | tee "$RUNNER_TEMP/swift-test.log"
 
       - name: Compilar sin firma para el simulador
         shell: bash
@@ -41,23 +44,24 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log"
 
-      - name: Resumir errores de compilación
+      - name: Resumir errores de compilación y pruebas
         if: failure()
         shell: bash
         run: |
-          log="$RUNNER_TEMP/xcodebuild.log"
-          if [ -f "$log" ]; then
-            issues=$(grep -E 'error:|warning:|BUILD FAILED|The following build commands failed' "$log" | tail -n 80 || true)
-            if [ -n "$issues" ]; then
-              {
-                echo '## Diagnóstico de xcodebuild'
-                echo '```text'
-                printf '%s\n' "$issues"
-                echo '```'
-              } >> "$GITHUB_STEP_SUMMARY"
-              while IFS= read -r issue; do echo "::error::$issue"; done <<< "$issues"
+          for log in "$RUNNER_TEMP/swift-test.log" "$RUNNER_TEMP/xcodebuild.log"; do
+            if [ -f "$log" ]; then
+              issues=$(grep -E 'error:|warning:|BUILD FAILED|Test Suite .* failed|The following build commands failed' "$log" | tail -n 100 || true)
+              if [ -n "$issues" ]; then
+                {
+                  echo "## Diagnóstico de $(basename "$log")"
+                  echo '```text'
+                  printf '%s\n' "$issues"
+                  echo '```'
+                } >> "$GITHUB_STEP_SUMMARY"
+                while IFS= read -r issue; do echo "::error::$issue"; done <<< "$issues"
+              fi
             fi
-          fi
+          done
 
       - name: Empaquetar app de simulador para Appetize
         run: >-
