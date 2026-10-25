@@ -163,6 +163,21 @@ final class DomainParityTests: XCTestCase {
         XCTAssertNotNil(store.openShift)
     }
 
+    func testClosingCanExplicitlySkipInventoryWithoutAdjustingStock() throws {
+        let item = product()
+        let store = makeStore(products: [item])
+        try store.openShift(openingCashCents: 0)
+        try store.adjustStock(productID: item.id, newStockMilli: 19_000, reason: "Venta manual")
+        var count = try store.prepareClosingCount()
+        count.inventoryCountSkipped = true
+        count.inventory = []
+        try store.closeShift(count: count)
+
+        XCTAssertEqual(store.data.products[0].stockMilli, 19_000)
+        XCTAssertEqual(store.data.shifts[0].closingCount?.inventoryCountSkipped, true)
+        XCTAssertFalse(store.data.inventoryMovements.contains { $0.reason.hasPrefix("Conciliación de cierre") })
+    }
+
     func testNumericInputRejectsExcessPrecision() {
         XCTAssertNil(Cup.parse("1.234"))
         XCTAssertNil(FixedNumber.parse("1.2345", multiplier: 1_000))

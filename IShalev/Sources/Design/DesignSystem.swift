@@ -343,22 +343,4 @@ struct ShalevQRCode: View {
     }
 }
 
-// MARK: - Formato visual de fechas
-
-extension Date {
-    var shalevDateTime: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "es_ES")
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        return formatter.string(from: self)
-    }
-
-    var shalevDate: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "es_ES")
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: self)
-    }
-}
+// El formato de fechas compartido vive en Domain.swift para que también lo usen las pruebas del paquete.

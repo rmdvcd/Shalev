@@ -810,7 +810,16 @@ private struct ShiftDetailView: View {
 
     private var shiftSales: [Sale] { store.data.sales.filter { $0.shiftID == shift.id && !$0.isCancelled } }
     private var cashSales: Int64 { shiftSales.filter { $0.paymentMethod == .cash }.reduce(0) { $0 + $1.totalCents } }
-    private var displayedExpectedCash: Int64 { shift.summary?.expectedCashCents ?? store.expectedCashCents(for: shift.id) }
+    private var cashMovementsTotal: Int64 {
+        store.data.cashMovements.filter { $0.shiftID == shift.id }.reduce(Int64(0)) { total, movement in
+            total + (movement.kind == .income ? movement.amountCents : -movement.amountCents)
+        }
+    }
+    private var displayedExpectedCash: Int64 {
+        guard let summary = shift.summary else { return store.expectedCashCents(for: shift.id) }
+        return shift.openingCashCents + summary.cashCents + cashMovementsTotal
+    }
+    private var cashDifference: Int64? { shift.countedCashCents.map { $0 - displayedExpectedCash } }
 
     var body: some View {
         NavigationStack {
@@ -821,15 +830,15 @@ private struct ShiftDetailView: View {
                         VStack(spacing: 9) {
                             detailRow("Estado", shift.closedAt == nil ? "Abierto" : "Cerrado")
                             detailRow("Fondo inicial", Cup(cents: shift.openingCashCents).formatted)
-                            detailRow("Ventas en efectivo", Cup(cents: shift.summary?.cashSalesCents ?? cashSales).formatted)
+                            detailRow("Ventas en efectivo", Cup(cents: shift.summary?.cashCents ?? cashSales).formatted)
                             if let summary = shift.summary {
-                                detailRow("Transferencias", Cup(cents: summary.transferSalesCents).formatted)
-                                detailRow("Total de ventas", "\(summary.salesCount) · \(Cup(cents: summary.salesTotalCents).formatted)")
+                                detailRow("Transferencias", Cup(cents: summary.transferCents).formatted)
+                                detailRow("Total de ventas", "\(summary.saleCount) · \(Cup(cents: summary.totalCents).formatted)")
                                 detailRow("Ganancia", Cup(cents: summary.profitCents).formatted)
                             }
                             detailRow("Efectivo esperado", Cup(cents: displayedExpectedCash).formatted)
                             if let counted = shift.countedCashCents { detailRow("Efectivo contado", Cup(cents: counted).formatted) }
-                            if let summary = shift.summary { detailRow("Diferencia de caja", Cup(cents: summary.cashDifferenceCents).formatted) }
+                            if let difference = cashDifference { detailRow("Diferencia de caja", Cup(cents: difference).formatted) }
                             if let openedBy = shift.openedBy { detailRow("Abierto por", openedBy) }
                             if let closedBy = shift.closedBy { detailRow("Cerrado por", closedBy) }
                             if let closed = shift.closedAt { detailRow("Cerrado", closed.shalevDateTime) }
@@ -843,14 +852,14 @@ private struct ShiftDetailView: View {
                                 if count.inventoryCountSkipped {
                                     Text("Conteo omitido explícitamente; no se ajustaron existencias.")
                                         .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
-                                } else if count.discrepancies.isEmpty {
+                                } else if count.inventory.allSatisfy({ $0.differenceMilli == 0 }) {
                                     Text("Sin diferencias de inventario.").font(.system(size: 12)).foregroundStyle(Color.shalevSuccess)
                                 } else {
-                                    ForEach(count.discrepancies) { discrepancy in
-                                        Text("\(discrepancy.productName): \(FixedNumber.formatMilli(discrepancy.expectedStockMilli)) → \(FixedNumber.formatMilli(discrepancy.countedStockMilli))")
+                                    ForEach(count.inventory.filter { $0.differenceMilli != 0 }) { discrepancy in
+                                        Text("\(discrepancy.productName): \(FixedNumber.formatMilli(discrepancy.expectedMilli)) → \(FixedNumber.formatMilli(discrepancy.countedMilli))")
                                             .font(.system(size: 12)).foregroundStyle(Color.shalevText)
                                     }
-                                    if let reason = count.discrepancyReason { Text("Motivo: \(reason)").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText) }
+                                    if !count.reason.isEmpty { Text("Motivo: \(count.reason)").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText) }
                                 }
                             }
                         }

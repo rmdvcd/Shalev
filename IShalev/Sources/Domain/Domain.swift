@@ -325,6 +325,8 @@ struct ShiftClosingCount: Codable, Equatable {
     var bills: [Int: Int] = [:]
     var otherCashCents: Int64 = 0
     var inventory: [ShiftInventoryCount] = []
+    /// Decisión explícita de cerrar sin contar ni ajustar existencias.
+    var inventoryCountSkipped: Bool = false
     var reason: String = ""
     var approvedBy: String? = nil
     var approvedAt: Date? = nil
@@ -344,7 +346,8 @@ struct ShiftClosingCount: Codable, Equatable {
             && Set(inventory.map(\.productID)).count == inventory.count
         let normalizedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         return otherCashCents >= 0 && validBills && validInventory
-            && (!hasInventoryDifferences || (3...160).contains(normalizedReason.count))
+            && (!inventoryCountSkipped || inventory.isEmpty)
+            && (inventoryCountSkipped || !hasInventoryDifferences || (3...160).contains(normalizedReason.count))
     }
 }
 
@@ -1067,10 +1070,12 @@ final class ShalevStore: ObservableObject {
         let fresh = try prepareClosingCount()
         let currentSnapshot = fresh.inventory.map { ($0.productID, $0.expectedMilli, $0.updatedAt) }
         let receivedSnapshot = count.inventory.map { ($0.productID, $0.expectedMilli, $0.updatedAt) }
-        guard currentSnapshot.count == receivedSnapshot.count,
-              zip(currentSnapshot, receivedSnapshot).allSatisfy({ lhs, rhs in
-                  lhs.0 == rhs.0 && lhs.1 == rhs.1 && lhs.2 == rhs.2
-              }) else { throw BusinessError.closingCountChanged }
+        if !count.inventoryCountSkipped {
+            guard currentSnapshot.count == receivedSnapshot.count,
+                  zip(currentSnapshot, receivedSnapshot).allSatisfy({ lhs, rhs in
+                      lhs.0 == rhs.0 && lhs.1 == rhs.1 && lhs.2 == rhs.2
+                  }) else { throw BusinessError.closingCountChanged }
+        }
 
         var next = data
         let now = Date()
@@ -1684,5 +1689,25 @@ enum BackupCodec {
         }
         guard status == kCCSuccess else { throw BusinessError.backupInvalid }
         return SymmetricKey(data: derived)
+    }
+}
+
+// MARK: - Formato de fechas compartido por la app y el paquete de dominio
+
+extension Date {
+    var shalevDateTime: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "es_ES")
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: self)
+    }
+
+    var shalevDate: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "es_ES")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: self)
     }
 }

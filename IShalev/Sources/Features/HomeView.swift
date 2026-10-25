@@ -481,7 +481,8 @@ private struct ShiftClosingSheet: View {
     @ObservedObject var store: ShalevStore
     @Environment(\.dismiss) private var dismiss
     @State private var stage: ShiftClosingStage = .cash
-    @State private var billCounts: [Int64: String] = [:]
+    @State private var closingCount: ShiftClosingCount?
+    @State private var billCounts: [Int: String] = [:]
     @State private var otherCash = ""
     @State private var countedStock: [UUID: String] = [:]
     @State private var inventoryCountSkipped = false
@@ -490,15 +491,23 @@ private struct ShiftClosingSheet: View {
     @State private var errorMessage: String?
 
     private var expectedCash: Int64 { store.openShift.map { store.expectedCashCents(for: $0.id) } ?? 0 }
-    private var preview: ClosingPreview? { try? store.prepareClosingCount() }
+    private var validShiftSales: [Sale] {
+        guard let shiftID = store.openShift?.id else { return [] }
+        return store.data.sales.filter { $0.shiftID == shiftID && !$0.isCancelled }
+    }
+    private var salesTotal: Int64 { validShiftSales.reduce(0) { $0 + $1.totalCents } }
+    private var cashSalesTotal: Int64 { validShiftSales.filter { $0.paymentMethod == .cash }.reduce(0) { $0 + $1.totalCents } }
+    private var transferSalesTotal: Int64 { validShiftSales.filter { $0.paymentMethod == .transfer }.reduce(0) { $0 + $1.totalCents } }
+    private var profitTotal: Int64 { validShiftSales.reduce(0) { $0 + $1.profitCents } }
+    private var preview: ShiftClosingCount? { closingCount }
     private var countedCash: Int64? {
         var total = otherCash.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Int64(0) : (Cup.parse(otherCash)?.cents ?? -1)
         guard total >= 0 else { return nil }
-        for denomination in ShiftClosingDenominations.all {
+        for denomination in ShiftClosingCount.denominations {
             let text = billCounts[denomination] ?? ""
             guard !text.isEmpty else { continue }
             guard let count = FixedNumber.parse(text, unitScale: 1)?.cents else { return nil }
-            let (units, overflow) = count.multipliedReportingOverflow(by: denomination * 100)
+            let (units, overflow) = count.multipliedReportingOverflow(by: Int64(denomination) * 100)
             guard !overflow else { return nil }
             let (newTotal, additionOverflow) = total.addingReportingOverflow(units)
             guard !additionOverflow else { return nil }
@@ -507,14 +516,14 @@ private struct ShiftClosingSheet: View {
         return total
     }
     private var cashDifference: Int64? { countedCash.map { $0 - expectedCash } }
-    private var movedArticles: [ClosingInventoryLine] { preview?.movedArticles ?? [] }
+    private var movedArticles: [ShiftInventoryCount] { preview?.inventory ?? [] }
     private var inventoryInputsValid: Bool {
         movedArticles.allSatisfy { FixedNumber.parse(countedStock[$0.productID] ?? "", unitScale: 1) != nil }
     }
-    private var inventoryDifferences: [ClosingInventoryLine] {
+    private var inventoryDifferences: [ShiftInventoryCount] {
         movedArticles.filter { line in
             guard let counted = FixedNumber.parse(countedStock[line.productID] ?? "", unitScale: 1)?.cents else { return true }
-            return counted != line.expectedStockMilli
+            return counted != line.expectedMilli
         }
     }
     private var reasonIsValid: Bool {
@@ -542,6 +551,7 @@ private struct ShiftClosingSheet: View {
             .alert("No se pudo cerrar el turno", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("Entendido", role: .cancel) { errorMessage = nil }
             } message: { Text(errorMessage ?? "") }
+            .onAppear { if closingCount == nil { closingCount = try? store.prepareClosingCount() } }
         }
     }
 
@@ -571,7 +581,7 @@ private struct ShiftClosingSheet: View {
             ShalevCard {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Billetes").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.shalevText)
-                    ForEach(ShiftClosingDenominations.all, id: \.self) { denomination in
+                    ForEach(ShiftClosingCount.denominations, id: \.self) { denomination in
                         HStack {
                             Text("\(denomination) CUP").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevText)
                             Spacer()
@@ -617,7 +627,7 @@ private struct ShiftClosingSheet: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(line.productName).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
                                 HStack {
-                                    Text("Esperado: \(FixedNumber.formatMilli(line.expectedStockMilli))")
+                                    Text("Esperado: \(FixedNumber.formatMilli(line.expectedMilli))")
                                         .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
                                     Spacer()
                                     TextField("Contado", text: stockBinding(line.productID))
@@ -635,7 +645,7 @@ private struct ShiftClosingSheet: View {
                             Label("Revisa las diferencias", systemImage: "exclamationmark.triangle.fill")
                                 .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevSecondary)
                             ForEach(inventoryDifferences) { line in
-                                Text("\(line.productName): esperado \(FixedNumber.formatMilli(line.expectedStockMilli)), contado \(countedStock[line.productID] ?? "—")")
+                                Text("\(line.productName): esperado \(FixedNumber.formatMilli(line.expectedMilli)), contado \(countedStock[line.productID] ?? "—")")
                                     .font(.system(size: 12)).foregroundStyle(Color.shalevText)
                             }
                             Toggle("Confirmo que revisé las diferencias", isOn: $inventoryConfirmed).tint(Color.shalevPrimary)
@@ -657,17 +667,15 @@ private struct ShiftClosingSheet: View {
 
     private var reviewStep: some View {
         VStack(spacing: 14) {
-            if let preview {
-                ShalevCard {
-                    VStack(spacing: 9) {
-                        closingRow("Ventas", "\(preview.salesCount)")
-                        closingRow("Total de ventas", Cup(cents: preview.salesTotalCents).formatted)
-                        closingRow("Efectivo / transferencias", "\(Cup(cents: preview.cashSalesCents).formatted) / \(Cup(cents: preview.transferSalesCents).formatted)")
-                        closingRow("Ganancia", Cup(cents: preview.profitCents).formatted)
-                        closingRow("Efectivo esperado", Cup(cents: expectedCash).formatted)
-                        closingRow("Efectivo contado", countedCash.map { Cup(cents: $0).formatted } ?? "—")
-                        closingRow("Diferencia de caja", cashDifferenceText)
-                    }
+            ShalevCard {
+                VStack(spacing: 9) {
+                    closingRow("Ventas", "\(validShiftSales.count)")
+                    closingRow("Total de ventas", Cup(cents: salesTotal).formatted)
+                    closingRow("Efectivo / transferencias", "\(Cup(cents: cashSalesTotal).formatted) / \(Cup(cents: transferSalesTotal).formatted)")
+                    closingRow("Ganancia", Cup(cents: profitTotal).formatted)
+                    closingRow("Efectivo esperado", Cup(cents: expectedCash).formatted)
+                    closingRow("Efectivo contado", countedCash.map { Cup(cents: $0).formatted } ?? "—")
+                    closingRow("Diferencia de caja", cashDifferenceText)
                 }
             }
             ShalevCard {
@@ -708,7 +716,7 @@ private struct ShiftClosingSheet: View {
         }
     }
 
-    private func billBinding(_ denomination: Int64) -> Binding<String> {
+    private func billBinding(_ denomination: Int) -> Binding<String> {
         Binding(get: { billCounts[denomination] ?? "" }, set: { billCounts[denomination] = $0 })
     }
 
@@ -717,25 +725,33 @@ private struct ShiftClosingSheet: View {
     }
 
     private func finish() {
-        var cashCounts: [Int64: Int64] = [:]
-        for denomination in ShiftClosingDenominations.all {
+        guard var count = preview else { errorMessage = "No hay un turno abierto para cerrar."; return }
+        var cashCounts: [Int: Int] = [:]
+        for denomination in ShiftClosingCount.denominations {
             let text = billCounts[denomination] ?? ""
-            cashCounts[denomination] = text.isEmpty ? 0 : (FixedNumber.parse(text, unitScale: 1)?.cents ?? 0)
-        }
-        var stock: [UUID: Int64] = [:]
-        if !inventoryCountSkipped {
-            for line in movedArticles {
-                guard let value = FixedNumber.parse(countedStock[line.productID] ?? "", unitScale: 1)?.cents else {
-                    errorMessage = "Completa todas las existencias contadas."; return
-                }
-                stock[line.productID] = value
+            if !text.isEmpty {
+                guard let parsed = FixedNumber.parse(text, unitScale: 1)?.cents,
+                      let value = Int(exactly: parsed) else { errorMessage = "Revisa el conteo de billetes."; return }
+                cashCounts[denomination] = value
             }
         }
-        let count = ShiftClosingCount(cashCounts: cashCounts, otherCashCents: Cup.parse(otherCash)?.cents ?? 0,
-                                      countedStockMilli: stock, inventoryCountSkipped: inventoryCountSkipped,
-                                      inventoryConfirmed: inventoryConfirmed, discrepancyReason: discrepancyReason)
+        count.bills = cashCounts
+        count.otherCashCents = Cup.parse(otherCash)?.cents ?? 0
+        count.inventoryCountSkipped = inventoryCountSkipped
+        count.reason = discrepancyReason
+        if inventoryCountSkipped {
+            count.inventory = []
+        } else {
+            for index in count.inventory.indices {
+                let productID = count.inventory[index].productID
+                guard let value = FixedNumber.parse(countedStock[productID] ?? "", unitScale: 1)?.cents else {
+                    errorMessage = "Completa todas las existencias contadas."; return
+                }
+                count.inventory[index].countedMilli = value
+            }
+        }
         do {
-            _ = try store.closeShift(count: count)
+            try store.closeShift(count: count)
             dismiss()
         } catch { errorMessage = error.localizedDescription }
     }
