@@ -582,7 +582,9 @@ enum SyncCatalog {
 
     static func approveClosing(employeeID: Int64, by actor: String, in current: AppData, now: Date = Date()) -> AppData {
         var next = current
-        guard let index = next.shifts.firstIndex(where: { $0.employeeID == employeeID && $0.closedAt == nil && $0.closingCount != nil }) else { return next }
+        guard let index = next.shifts.firstIndex(where: {
+            $0.employeeID == employeeID && $0.closedAt == nil && $0.closingCount != nil && $0.closingCount?.approvedAt == nil
+        }) else { return next }
         next.shifts[index].closingCount?.approvedBy = actor
         next.shifts[index].closingCount?.approvedAt = now
         if let employeeIndex = (next.employees ?? []).firstIndex(where: { $0.syncID == employeeID }) {

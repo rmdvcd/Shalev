@@ -129,6 +129,7 @@ struct ShalevRootView: View {
             ensureOneModule()
             sync.start()
             await licenseManager.refresh()
+            sync.start()
             Task { await licenseManager.checkRevocationsIfDue() }
         }
         .onChange(of: scenePhase) { _, phase in
@@ -139,6 +140,7 @@ struct ShalevRootView: View {
                 sync.start()
                 Task {
                     await licenseManager.refresh()
+                    sync.start()
                     await licenseManager.checkRevocationsIfDue()
                 }
             }

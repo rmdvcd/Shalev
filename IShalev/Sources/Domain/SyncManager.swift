@@ -685,10 +685,12 @@ final class SyncManager: ObservableObject {
         let open = store.data.shifts.first(where: { $0.employeeID == employeeID && $0.closedAt == nil })
         response["cerrarTurno"] = current.closeRequestedAt != nil && open != nil
         response["cierreRechazado"] = rejectionPending
-        if let open, let count = open.closingCount, count.approvedAt != nil {
-            let row = try AndroidBackupCodec.exportShift(open, app: store.data)
+        if let approvedOpen = store.data.shifts.first(where: {
+            $0.employeeID == employeeID && $0.closedAt == nil && $0.closingCount?.approvedAt != nil
+        }) {
+            let row = try AndroidBackupCodec.exportShift(approvedOpen, app: store.data)
             response["conteoAprobado"] = row["conteoCierre"]
-            response["conteoTurnoUuid"] = open.id.uuidString.lowercased()
+            response["conteoTurnoUuid"] = approvedOpen.id.uuidString.lowercased()
         }
         return response
     }
