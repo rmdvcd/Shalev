@@ -781,7 +781,7 @@ private struct AboutView: View {
                     }
                 }
                 ShalevCard {
-                    Text("IShalev usa una interfaz y almacenamiento nativos de Apple y valida licencias bajo el contrato GL. Puede intercambiar respaldos .shalev con Android; la sincronización automática entre dispositivos todavía no está disponible.")
+                    Text("IShalev usa una interfaz y almacenamiento nativos de Apple y valida licencias bajo el contrato GL. Puede intercambiar respaldos .shalev con Android; la sincronización por red local entre dispositivos todavía no está disponible.")
                         .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
                 }
             }

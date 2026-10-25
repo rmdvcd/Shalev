@@ -2,13 +2,13 @@
 
 Subproyecto independiente en **SwiftUI**, pensado como contraparte iOS de la aplicación Android del repositorio. Conserva la marca y el flujo de un punto de venta offline, pero usa controles nativos de Apple; no es una conversión de Flutter ni un contenedor web.
 
-> **Estado y límites:** IShalev ya incorpora onboarding, módulos del negocio, flujo de solicitud/activación y validación local de licencias GL, bloqueo con autenticación del dispositivo, perfiles y permisos locales por empleado, fotos, pegado/análisis manual de SMS, corrección/anulación de ventas, exportación PDF/CSV, ayuda, soporte y consulta de publicaciones iOS. Estos flujos aún necesitan compilación y pruebas funcionales en macOS/Appetize. No hay todavía sincronización iOS↔Android ni perfiles compartidos entre teléfonos. iOS no puede leer automáticamente SMS ni auto-instalar una actualización descargada; la distribución debe usar TestFlight, App Store o un canal autorizado. La exportación «Excel» es CSV compatible con Excel, no `.xlsx`. El respaldo iOS conserva su formato cifrado propio `.shalev-ios`, incompatible con el `.shalev` de Android.
+> **Estado y límites:** IShalev incorpora onboarding, módulos del negocio, licencias GL, bloqueo con autenticación del dispositivo, perfiles y permisos locales por empleado, fotos, análisis manual de SMS, corrección/anulación de ventas, exportación XLSX/CSV/PDF/PNG y respaldos iOS/Android. Las pruebas de dominio y la compilación para simulador se verifican en macOS mediante GitHub Actions, y el workflow publica la build en Appetize. Las pruebas funcionales interactivas y la activación extremo a extremo contra GL siguen siendo necesarias. No hay todavía sincronización LAN iOS↔Android ni perfiles compartidos en tiempo real. iOS no puede leer automáticamente SMS ni auto-instalar actualizaciones; la distribución debe usar TestFlight, App Store o un canal autorizado.
 
 ## Contenido
 
 - `IShalev.xcodeproj` — proyecto Xcode compartido y esquema `IShalev`.
 - `Sources/App` — navegación nativa en cinco pestañas.
-- `Sources/Domain` — modelos y reglas del negocio, precios enteros en centavos, persistencia AES-GCM, copia de seguridad con contraseña.
+- `Sources/Domain` — modelos y reglas del negocio, precios enteros en centavos, persistencia AES-GCM y codecs de respaldo iOS/Android con contraseña.
 - `Sources/Design` — paleta adaptativa de Shalev, controles reutilizables y QR Transfermóvil.
 - `Sources/Features` — Inicio, Inventario, Venta, Servicios, Registros y Ajustes.
 - `Resources` — icono, logo, tipografía Orbitron y licencia OFL.
@@ -26,10 +26,11 @@ Subproyecto independiente en **SwiftUI**, pensado como contraparte iOS de la apl
 - **Empleados y permisos:** perfiles locales seleccionables, con permisos para ventas, inventario/servicios, registros, caja, cambios de precios, exportación y correcciones. Cada empleado tiene un PIN propio de 6 a 12 dígitos; se almacena un verificador PBKDF2-HMAC-SHA256 con sal aleatoria, nunca el PIN en claro. Cinco intentos fallidos bloquean el perfil durante 15 minutos y se solicita el PIN de nuevo al volver a la app. Volver al administrador exige Face ID o el código del dispositivo. Los perfiles todavía no se sincronizan con Android.
 - **Módulos:** Ventas, Inventario y Servicios se pueden activar/desactivar en onboarding y Ajustes; Ventas requiere y activa Inventario.
 - **Precios:** descuentos/recargos con método de pago e importe mínimo opcionales.
-- **Exportación:** PDF y CSV con BOM UTF-8 y separador `;`; el CSV abre en Excel, pero no es un libro `.xlsx`.
+- **Exportación:** libro Excel `.xlsx` con hojas y filas tabulares, CSV con BOM UTF-8 y separador `;`, PDF y listas/tarjetas PNG sin costos ni existencias para compartir con clientes.
 - **Soporte y actualizaciones:** ficha de contacto con WhatsApp/SMS; consulta manual de publicaciones GitHub `ios-v*`. La comprobación no descarga ni instala una versión.
 - **Privacidad:** funcionamiento local, sin cuenta, servidor, analítica ni anuncios. La base JSON se cifra con AES-GCM y una clave aleatoria guardada en Keychain; el archivo tiene protección de datos de iOS.
-- **Respaldo iOS:** archivo `.shalev-ios` cifrado con AES-GCM y clave derivada con PBKDF2-HMAC-SHA256. La contraseña no se almacena. Si se pierde, el respaldo no se puede descifrar.
+- **Respaldo iOS:** archivo `.shalev-ios` cifrado con AES-GCM y clave derivada con PBKDF2-HMAC-SHA256. Conserva el formato completo propio de IShalev; la contraseña no se almacena.
+- **Intercambio con Android:** importa respaldos `SPVIBAK` v3/v4, incluidos los archivos v4 sin contraseña del usuario, y exporta `.shalev` v4 con contraseña. Convierte explícitamente unidades Android a milésimas iOS, mantiene los importes en centavos y migra catálogo, recetas, servicios, ventas, turnos, caja, clientes, preajustes y empleados. Los PIN y secretos de licencia no viajan. Las fotos iOS se incluyen como campos adicionales que Android ignora. Si una cantidad de producto no puede representarse en unidades enteras Android, la exportación se detiene en vez de truncarla.
 
 ## Requisitos y compilación local
 
@@ -50,9 +51,15 @@ xcodebuild \
 swift test --package-path IShalev # pruebas unitarias del dominio iOS
 ```
 
-El proyecto de Android que lo acompaña sigue en la raíz del repositorio. Las pruebas unitarias verifican las reglas y derivación del PIN, el bloqueo tras intentos fallidos y la lectura de perfiles guardados antes de incorporar PIN. La compilación y las pruebas automatizadas se ejecutan en GitHub Actions sobre macOS; el entorno de desarrollo local es Linux y carece de Xcode/`swift`.
+El proyecto de Android que lo acompaña sigue en la raíz del repositorio. Las pruebas unitarias verifican reglas de venta/cierre, clientes, preajustes, PIN y licencias, además de vectores independientes `SPVIBAK` v3/v4, archivos sin contraseña, escalas de cantidades y estabilidad de IDs al convertir respaldos Android. La compilación y las pruebas automatizadas se ejecutan en GitHub Actions sobre macOS; el entorno de desarrollo local es Linux y carece de Xcode/`swift`.
 
 ## Compilar y probar online sin coste
+
+### Verificación registrada
+
+- El run [`40150131718`](https://github.com/rmdvcd/Shalev/actions/runs/40150131718), del commit `924f1a6`, terminó con las pruebas de dominio, la compilación para simulador y el empaquetado en verde.
+- Ese run publicó la build [`IShalev 1.0.0` en Appetize](https://appetize.io/app/diqz2jrfiqolr5rbe4d34sxlhe). La portada pública carga con iPhone 14 Pro/iOS 17.2; una sesión interactiva debe comprobar además los flujos internos y los permisos del simulador.
+- Estas comprobaciones no sustituyen pruebas en un iPhone físico, activación real con GL ni una sesión de sincronización con Android.
 
 ### 1. GitHub Actions — opción recomendada para compilar
 
@@ -75,12 +82,10 @@ Apple incluye 25 horas de cómputo al mes de Xcode Cloud **dentro de la membres�
 ## Seguridad y límites conocidos
 
 - La clave local AES-GCM vive en Keychain con `ThisDeviceOnly`; desinstalar, perder el llavero o cambiar de dispositivo no convierte el archivo local en un respaldo portable. Usa **Respaldo** y conserva la contraseña para migrar.
-- La copia `.shalev-ios` es incompatible con el formato Android `.shalev`.
-- En esta fase no se migran clientes, licencias, empleados ni datos Android.
+- Las copias `.shalev-ios` y `.shalev` son formatos distintos, pero Ajustes → Respaldo detecta ambos al importar y permite elegir el formato al exportar. La licencia y los PIN/verificadores locales no se incluyen en la migración Android.
 - Onboarding, solicitud/activación y validación local GL, bloqueo del dispositivo y permisos locales ya tienen interfaz y lógica portadas. La activación, revocación, trial y recuperación **no** se han validado end-to-end contra GL; las seis anclas SPKI públicas se verificaron contra Android y no se deben regenerar ni sustituir.
 - Los PIN por empleado se guardan como verificador PBKDF2-HMAC-SHA256 con sal aleatoria dentro de la base cifrada local; nunca se almacena el PIN en claro. Cada perfil se vuelve a bloquear al pasar la app a segundo plano y al iniciar otra sesión. Cambiar al administrador exige autenticación del dispositivo. Los perfiles/permisos siguen siendo locales y no se sincronizan con las apps secundarias ni con Android.
 - La sincronización principal/secundaria de Shalev Android y su red local no está presente.
 - El comprobador de actualizaciones consulta solo publicaciones GitHub `ios-v*`; no descarga ni instala. iOS distribuye nuevas versiones por TestFlight, App Store o gestión autorizada. Appetize recibe una build de simulador desde Actions.
-- El SMS se pega manualmente y se analiza; iOS no permite capturar SMS/notificaciones de otra app. La exportación «Excel» es CSV UTF-8, no `.xlsx`.
-- El proyecto no contiene claves de firma ni certificados de distribución.
+- El SMS se pega manualmente y se analiza; iOS no permite capturar SMS/notificaciones de otra app. La exportación de tablas ofrece XLSX y CSV.
 - El proyecto no contiene claves de firma ni certificados de distribución.
