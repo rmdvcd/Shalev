@@ -222,6 +222,67 @@ enum SyncCatalog {
         return name.isEmpty ? nil : name
     }
 
+    private static func preserveIdentity(_ imported: Product, current: [Product]) -> Product {
+        let domain = imported.kind == .ingredient ? "ingredient" : "product"
+        let androidID = AndroidID.int64(domain, imported.id)
+        guard let old = current.first(where: {
+            ($0.kind == .ingredient) == (imported.kind == .ingredient) && AndroidID.int64(domain, $0.id) == androidID
+        }) else { return imported }
+        var result = imported
+        result.id = old.id
+        if result.imageData == nil,
+           normalizedPhotoName(old.syncPhotoName) == normalizedPhotoName(imported.syncPhotoName) { result.imageData = old.imageData }
+        return result
+    }
+
+    private static func preserveIdentity(_ imported: ServiceItem, current: [ServiceItem]) -> ServiceItem {
+        let androidID = AndroidID.int64("service", imported.id)
+        guard let old = current.first(where: { AndroidID.int64("service", $0.id) == androidID }) else { return imported }
+        var result = imported
+        result.id = old.id
+        if result.imageData == nil,
+           normalizedPhotoName(old.syncPhotoName) == normalizedPhotoName(imported.syncPhotoName) { result.imageData = old.imageData }
+        return result
+    }
+
+    private static func canonicalSale(_ imported: Sale, app: AppData) -> Sale {
+        var sale = imported
+        for index in sale.lines.indices {
+            let domain = sale.lines[index].kind == .service ? "service" : "product"
+            let androidID = AndroidID.int64(domain, sale.lines[index].sourceID)
+            if domain == "service", let service = app.services.first(where: { AndroidID.int64(domain, $0.id) == androidID }) {
+                sale.lines[index].sourceID = service.id
+            } else if domain == "product", let product = app.products.first(where: {
+                $0.kind != .ingredient && AndroidID.int64(domain, $0.id) == androidID
+            }) {
+                sale.lines[index].sourceID = product.id
+            }
+        }
+        if let correction = sale.correctionOfSaleID {
+            let androidID = AndroidID.int64("sale", correction)
+            if let original = app.sales.first(where: { AndroidID.int64("sale", $0.id) == androidID }) {
+                sale.correctionOfSaleID = original.id
+            }
+        }
+        return sale
+    }
+
+    private static func canonicalCount(_ imported: ShiftClosingCount, app: AppData) -> ShiftClosingCount {
+        var count = imported
+        for index in count.inventory.indices {
+            let id = count.inventory[index].productID
+            let productAndroidID = AndroidID.int64("product", id)
+            let ingredientAndroidID = AndroidID.int64("ingredient", id)
+            if let product = app.products.first(where: {
+                ($0.kind == .ingredient && AndroidID.int64("ingredient", $0.id) == ingredientAndroidID)
+                    || ($0.kind != .ingredient && AndroidID.int64("product", $0.id) == productAndroidID)
+            }) {
+                count.inventory[index].productID = product.id
+            }
+        }
+        return count
+    }
+
     static func photoName(for product: Product) -> String {
         normalizedPhotoName(product.syncPhotoName) ?? product.id.uuidString.lowercased() + ".jpg"
     }
@@ -246,17 +307,14 @@ enum SyncCatalog {
             recipes[AndroidBackupCodec.int64(recipe["productoId"])] = AndroidBackupCodec.dictionaries(recipe["lineas"])
         }
         var products = try AndroidBackupCodec.dictionaries(snapshot["productos"]).map { row -> Product in
-            var product = try AndroidBackupCodec.importProduct(row, recipe: recipes[AndroidBackupCodec.int64(row["id"])])
-            if product.imageData == nil, let old = current.products.first(where: { $0.id == product.id }),
-               normalizedPhotoName(old.syncPhotoName) == normalizedPhotoName(product.syncPhotoName) { product.imageData = old.imageData }
-            return product
+            let product = try AndroidBackupCodec.importProduct(row, recipe: recipes[AndroidBackupCodec.int64(row["id"])])
+            return preserveIdentity(product, current: current.products)
         }
-        products += try AndroidBackupCodec.dictionaries(snapshot["insumos"]).map(AndroidBackupCodec.importIngredient)
-        let services = AndroidBackupCodec.dictionaries(snapshot["servicios"]).map { row -> ServiceItem in
-            var service = AndroidBackupCodec.importService(row)
-            if service.imageData == nil, let old = current.services.first(where: { $0.id == service.id }),
-               normalizedPhotoName(old.syncPhotoName) == normalizedPhotoName(service.syncPhotoName) { service.imageData = old.imageData }
-            return service
+        products += try AndroidBackupCodec.dictionaries(snapshot["insumos"]).map {
+            preserveIdentity(try AndroidBackupCodec.importIngredient($0), current: current.products)
+        }
+        let services = AndroidBackupCodec.dictionaries(snapshot["servicios"]).map {
+            preserveIdentity(AndroidBackupCodec.importService($0), current: current.services)
         }
         var next = current
         next.products = products
@@ -324,6 +382,7 @@ enum SyncCatalog {
             guard let id = UUID(uuidString: AndroidBackupCodec.string(wrapper["uuid"])),
                   let row = wrapper["turno"] as? [String: Any] else { throw SyncError.invalidMessage }
             var incoming = try AndroidBackupCodec.importShift(row)
+            incoming.closingCount = incoming.closingCount.map { canonicalCount($0, app: next) }
             incoming.id = id; incoming.employeeID = employeeID; incoming.synced = true
             incoming.closingCount?.approvedBy = nil; incoming.closingCount?.approvedAt = nil
             if let count = incoming.closingCount, (!count.isValid() || incoming.countedCashCents != count.cashCents) { continue }
@@ -362,14 +421,19 @@ enum SyncCatalog {
                   let row = wrapper["venta"] as? [String: Any] else { throw SyncError.invalidMessage }
             if next.sales.contains(where: { $0.id == id }) { receivedSales.append(id.uuidString.lowercased()); continue }
             guard let shift = next.shifts.first(where: { $0.id == shiftID && $0.employeeID == employeeID }) else { continue }
-            var sale = AndroidBackupCodec.importSale(row)
+            var sale = canonicalSale(AndroidBackupCodec.importSale(row), app: next)
             sale.id = id; sale.shiftID = shift.id; sale.employeeID = employeeID; sale.synced = true; sale.changePending = false
             next.sales.insert(sale, at: 0)
             if sale.customerIsFixed, let customer = sale.customer { upsertCustomer(customer, in: &next, at: sale.date) }
             for row in AndroidBackupCodec.dictionaries(wrapper["movimientos"]) {
                 var movement = try AndroidBackupCodec.importMovement(row)
                 movement.id = UUID(); movement.saleID = id; movement.shiftID = shiftID
-                guard let productIndex = next.products.firstIndex(where: { $0.id == movement.productID }) else { continue }
+                let entityID = AndroidBackupCodec.int64(row["entidadId"])
+                let domain = AndroidBackupCodec.string(row["entidad"]) == "INSUMO" ? "ingredient" : "product"
+                guard let productIndex = next.products.firstIndex(where: {
+                    $0.id == movement.productID || AndroidID.int64(domain, $0.id) == entityID
+                }) else { continue }
+                movement.productID = next.products[productIndex].id
                 let sum = next.products[productIndex].stockMilli.addingReportingOverflow(movement.deltaMilli)
                 let stock = sum.overflow ? (movement.deltaMilli < 0 ? Int64.min : Int64.max) : sum.partialValue
                 next.products[productIndex].stockMilli = stock
@@ -440,7 +504,7 @@ enum SyncCatalog {
                 }
             } else if let row = change["nueva"] as? [String: Any] {
                 guard next.shifts.contains(where: { $0.id == shiftID }) else { continue }
-                var sale = AndroidBackupCodec.importSale(row)
+                var sale = canonicalSale(AndroidBackupCodec.importSale(row), app: next)
                 sale.id = id; sale.shiftID = shiftID; sale.employeeID = nil; sale.synced = true; sale.changePending = false
                 if let original = AndroidBackupCodec.optionalString(change["corrigeUuid"]).flatMap(UUID.init(uuidString:)) {
                     sale.correctionOfSaleID = original
@@ -465,11 +529,12 @@ enum SyncCatalog {
         guard let countRow, let shiftUUID, let id = UUID(uuidString: shiftUUID),
               let index = current.shifts.firstIndex(where: { $0.id == id }) else { return current }
         let wrapper: [String: Any] = ["id": 0, "abiertoEn": 0, "fondoCent": 0, "conteoCierre": countRow]
-        let approved = try AndroidBackupCodec.importShift(wrapper).closingCount
+        let approved = try AndroidBackupCodec.importShift(wrapper).closingCount.map { canonicalCount($0, app: current) }
         guard let approved, let existing = current.shifts[index].closingCount,
               withoutApproval(existing) == withoutApproval(approved) else { return current }
         var next = current
-        next.shifts[index].closingCount = approved
+        next.shifts[index].closingCount?.approvedBy = approved.approvedBy
+        next.shifts[index].closingCount?.approvedAt = approved.approvedAt
         next.shifts[index].synced = false
         return next
     }
@@ -487,7 +552,13 @@ enum SyncCatalog {
     }
 
     private static func withoutApproval(_ count: ShiftClosingCount) -> ShiftClosingCount {
-        var copy = count; copy.approvedBy = nil; copy.approvedAt = nil; return copy
+        var copy = count
+        copy.approvedBy = nil; copy.approvedAt = nil
+        for index in copy.inventory.indices {
+            let milliseconds = (copy.inventory[index].updatedAt.timeIntervalSince1970 * 1_000).rounded(.down)
+            copy.inventory[index].updatedAt = Date(timeIntervalSince1970: milliseconds / 1_000)
+        }
+        return copy
     }
 
     private static func limitedProfile(_ profile: StoreProfile, employee: LocalEmployee) -> [String: Any] {

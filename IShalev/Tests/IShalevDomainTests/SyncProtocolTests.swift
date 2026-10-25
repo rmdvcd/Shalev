@@ -111,8 +111,8 @@ final class SyncProtocolTests: XCTestCase {
     }
 
     func testFrameLimits() throws {
-        XCTAssertEqual(try SyncFrames.lengthPrefix(0x0102_0304), Data([1, 2, 3, 4]))
-        XCTAssertEqual(try SyncFrames.decodeLength(Data([1, 2, 3, 4])), 0x0102_0304)
+        XCTAssertEqual(try SyncFrames.lengthPrefix(0x0010_2030), Data([0, 16, 32, 48]))
+        XCTAssertEqual(try SyncFrames.decodeLength(Data([0, 16, 32, 48])), 0x0010_2030)
         XCTAssertThrowsError(try SyncFrames.lengthPrefix(SyncFrames.maximum + 1))
     }
 }

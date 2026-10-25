@@ -509,6 +509,37 @@ struct LocalEmployee: Codable, Identifiable, Equatable {
     var hasPIN: Bool { pinSalt?.count == EmployeePIN.saltLength && pinVerifier?.count == EmployeePIN.keyLength }
 }
 
+extension LocalEmployee {
+    private enum CodingKeys: String, CodingKey {
+        case id, name, permissions, createdAt, pinSalt, pinVerifier, pinFailedAttempts, pinLockedUntil
+        case syncID, syncActive, linkedAt, lastSyncAt, codeExpiresAt, paymentCardID, paymentPhoneID
+        case phone, deviceID, closeRequestedAt, employeeCloseRequestAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try values.decode(String.self, forKey: .name)
+        permissions = try values.decodeIfPresent(Set<EmployeePermission>.self, forKey: .permissions) ?? []
+        createdAt = try values.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        pinSalt = try values.decodeIfPresent(Data.self, forKey: .pinSalt)
+        pinVerifier = try values.decodeIfPresent(Data.self, forKey: .pinVerifier)
+        pinFailedAttempts = try values.decodeIfPresent(Int.self, forKey: .pinFailedAttempts) ?? 0
+        pinLockedUntil = try values.decodeIfPresent(Date.self, forKey: .pinLockedUntil)
+        syncID = try values.decodeIfPresent(Int64.self, forKey: .syncID)
+        syncActive = try values.decodeIfPresent(Bool.self, forKey: .syncActive) ?? true
+        linkedAt = try values.decodeIfPresent(Date.self, forKey: .linkedAt)
+        lastSyncAt = try values.decodeIfPresent(Date.self, forKey: .lastSyncAt)
+        codeExpiresAt = try values.decodeIfPresent(Date.self, forKey: .codeExpiresAt)
+        paymentCardID = try values.decodeIfPresent(UUID.self, forKey: .paymentCardID)
+        paymentPhoneID = try values.decodeIfPresent(UUID.self, forKey: .paymentPhoneID)
+        phone = try values.decodeIfPresent(String.self, forKey: .phone)
+        deviceID = try values.decodeIfPresent(String.self, forKey: .deviceID)
+        closeRequestedAt = try values.decodeIfPresent(Date.self, forKey: .closeRequestedAt)
+        employeeCloseRequestAt = try values.decodeIfPresent(Date.self, forKey: .employeeCloseRequestAt)
+    }
+}
+
 struct AppSettings: Codable, Equatable {
     var profile: StoreProfile = StoreProfile()
     var priceAdjustments: [PriceAdjustment] = []

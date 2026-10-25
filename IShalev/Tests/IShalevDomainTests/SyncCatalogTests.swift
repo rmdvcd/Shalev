@@ -11,7 +11,7 @@ private final class SyncMemoryStorage: LocalStorePersisting {
 final class SyncCatalogTests: XCTestCase {
     private func fixture() -> (app: AppData, product: Product, shift: Shift, sale: Sale) {
         let product = Product(name: "Agua", kind: .product, stockMilli: 10_000, lowStockMilli: 1_000,
-                              criticalStockMilli: 500, priceCents: 100, costCents: 50)
+                              criticalStockMilli: 1_000, priceCents: 100, costCents: 50)
         let shift = Shift(openingCashCents: 1_000, openedBy: "Luis")
         let line = SaleLine(sourceID: product.id, kind: .product, name: product.name, category: product.category,
                             quantity: 2, unitPriceCents: 100, unitCostCents: 50)
@@ -36,6 +36,8 @@ final class SyncCatalogTests: XCTestCase {
         principal.products[0].stockMilli = 10_000
         let first = try SyncCatalog.applyBatch(batch, employeeID: 7, to: principal)
         XCTAssertEqual(first.app.sales.map(\.id), [fixture.sale.id])
+        XCTAssertEqual(first.app.sales[0].lines[0].sourceID, fixture.product.id)
+        XCTAssertEqual(first.app.inventoryMovements[0].productID, fixture.product.id)
         XCTAssertEqual(first.app.shifts.first?.employeeID, 7)
         XCTAssertEqual(first.app.products[0].stockMilli, 8_000)
         XCTAssertEqual(AndroidBackupCodec.dictionaries(first.received["ventas"]).count, 0)
@@ -63,6 +65,7 @@ final class SyncCatalogTests: XCTestCase {
             license: SyncLicense(clase: "PERPETUA"), modules: ["VENTAS", "INVENTARIO"])
         let withPending = try SyncCatalog.applySnapshot(snapshot, to: fixture.app)
         XCTAssertEqual(withPending.products[0].stockMilli, 6_000)
+        XCTAssertEqual(withPending.products[0].id, fixture.product.id)
         XCTAssertEqual(withPending.settings.profile.ownerName, "Luis")
         XCTAssertTrue(withPending.sales.map { $0.id } == [fixture.sale.id])
 
@@ -74,6 +77,26 @@ final class SyncCatalogTests: XCTestCase {
         confirmed.sales[0].synced = true
         let applied = try SyncCatalog.applySnapshot(currentSnapshot, to: confirmed)
         XCTAssertEqual(applied.products[0].stockMilli, 8_000)
+    }
+
+    func testApprovedCountSurvivesAndroidIDsAndMillisecondDates() throws {
+        var fixture = self.fixture()
+        let product = fixture.app.products[0]
+        let line = ShiftInventoryCount(productID: product.id, productName: product.name, category: product.category,
+            unit: product.unit, expectedMilli: 10_000, countedMilli: 10_000,
+            updatedAt: product.updatedAt ?? product.createdAt)
+        fixture.app.shifts[0].closingCount = ShiftClosingCount(inventory: [line])
+        fixture.app.shifts[0].countedCashCents = 0
+        var approvedShift = fixture.app.shifts[0]
+        approvedShift.closingCount?.approvedBy = "Dueña"
+        approvedShift.closingCount?.approvedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let row = try AndroidBackupCodec.exportShift(approvedShift, app: fixture.app)
+        let result = try SyncCatalog.applyApprovedCount(row["conteoCierre"] as? [String: Any],
+            shiftUUID: fixture.shift.id.uuidString.lowercased(), to: fixture.app)
+        XCTAssertEqual(result.shifts[0].closingCount?.approvedBy, "Dueña")
+        XCTAssertEqual(result.shifts[0].closingCount?.inventory[0].productID, product.id)
+        XCTAssertEqual(result.shifts[0].closingCount?.inventory[0].updatedAt, line.updatedAt)
+        XCTAssertFalse(result.shifts[0].synced)
     }
 
     func testPhotosHaveMetadataAndSeparateBytes() throws {
