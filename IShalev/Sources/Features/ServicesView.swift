@@ -298,9 +298,10 @@ private struct ServiceEditorView: View {
                 let scale = min(1, 1_200 / max(image.size.width, image.size.height))
                 let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
                 let renderer = UIGraphicsImageRenderer(size: size)
-                imageData = renderer.jpegData(withCompressionQuality: 0.82) { _ in
+                let compressed = renderer.jpegData(withCompressionQuality: 0.82) { _ in
                     image.draw(in: CGRect(origin: .zero, size: size))
                 }
+                imageData = compressed
             } catch { errorMessage = "No se pudo cargar la foto." }
         }
     }

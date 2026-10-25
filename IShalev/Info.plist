@@ -66,6 +66,23 @@
                 </array>
             </dict>
         </dict>
+        <dict>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeDescription</key>
+            <string>Respaldo cifrado compatible con Shalev para Android</string>
+            <key>UTTypeIdentifier</key>
+            <string>cu.shalev.android-backup</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>shalev</string>
+                </array>
+            </dict>
+        </dict>
     </array>
 </dict>
 </plist>

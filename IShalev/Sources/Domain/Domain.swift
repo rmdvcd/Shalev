@@ -536,6 +536,12 @@ enum RecordsTab: String, CaseIterable, Identifiable, Equatable {
     var id: String { rawValue }
 }
 
+enum PortableBackupFormat: String, CaseIterable, Identifiable, Equatable {
+    case ios, android
+    var id: String { rawValue }
+    var title: String { self == .ios ? "IShalev (iOS)" : "Shalev Android (.shalev)" }
+}
+
 enum BusinessError: LocalizedError, Equatable {
     case invalidName
     case invalidAmount
@@ -555,6 +561,7 @@ enum BusinessError: LocalizedError, Equatable {
     case backupPassword
     case backupInvalid
     case unsupportedBackup
+    case androidBackupUnsupported(String)
     case employeePINRequired
     case invalidEmployeePIN
     case employeePINSetupFailed
@@ -586,6 +593,7 @@ enum BusinessError: LocalizedError, Equatable {
         case .backupPassword: "La contraseña debe tener al menos 8 caracteres."
         case .backupInvalid: "No se pudo abrir el respaldo. Comprueba la contraseña y que el archivo sea válido."
         case .unsupportedBackup: "Este respaldo pertenece a una versión no compatible de Shalev para iOS."
+        case .androidBackupUnsupported(let detail): "El respaldo no se puede convertir entre iOS y Android: \(detail)."
         case .employeePINRequired: "Cada perfil de empleado necesita un PIN propio de 6 a 12 dígitos."
         case .invalidEmployeePIN: "El PIN debe tener entre 6 y 12 dígitos numéricos."
         case .employeePINSetupFailed: "No se pudo configurar el PIN seguro. Inténtalo de nuevo."
@@ -1352,14 +1360,22 @@ final class ShalevStore: ObservableObject {
         }
     }
 
-    func makeEncryptedBackup(password: String) throws -> Data {
+    func makeEncryptedBackup(password: String, format: PortableBackupFormat = .ios) throws -> Data {
         guard !readOnlyAfterLoadFailure else { throw BusinessError.storageUnavailable }
-        return try BackupCodec.encode(data, password: password)
+        switch format {
+        case .ios: return try BackupCodec.encode(data, password: password)
+        case .android: return try AndroidBackupCodec.encode(data, password: password)
+        }
     }
 
     func restoreEncryptedBackup(_ backup: Data, password: String) throws {
         guard !readOnlyAfterLoadFailure else { throw BusinessError.storageUnavailable }
-        let restored = try BackupCodec.decode(backup, password: password)
+        let restored: AppData
+        if AndroidBackupCodec.isAndroidBackup(backup) {
+            restored = try AndroidBackupCodec.decode(backup, password: password)
+        } else {
+            restored = try BackupCodec.decode(backup, password: password)
+        }
         guard restored.schemaVersion == AppData.empty.schemaVersion else { throw BusinessError.unsupportedBackup }
         try commit(restored)
     }

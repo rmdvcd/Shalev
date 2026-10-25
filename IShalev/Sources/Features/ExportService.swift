@@ -379,45 +379,12 @@ struct ExportCenterView: View {
         ScrollView {
             VStack(spacing: 15) {
                 ShalevScreenTitle(title: "Exportar", subtitle: "Libro de Excel, CSV o PDF")
-                ShalevCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ShalevSectionHeader(title: "Contenido")
-                        Picker("Contenido", selection: $scope) {
-                            ForEach(availableScopes) { Text($0.rawValue).tag($0) }
-                        }
-                        .pickerStyle(.segmented)
-                        Text("XLSX es un libro de Excel con filas y columnas; CSV es una alternativa de texto. Los datos no se envían a ningún servidor; eliges dónde compartir el archivo.")
-                            .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
-                    }
-                }
-                ShalevCard {
-                    VStack(spacing: 10) {
-                        Button { export(.xlsx) } label: { Label("Exportar Excel (XLSX)", systemImage: "tablecells") }
-                            .buttonStyle(ShalevPrimaryButtonStyle())
-                        Button { export(.csv) } label: { Label("Exportar CSV", systemImage: "text.alignleft") }
-                            .buttonStyle(ShalevTonalButtonStyle())
-                        Button { export(.pdf) } label: { Label("Exportar PDF", systemImage: "doc.richtext") }
-                            .buttonStyle(ShalevTonalButtonStyle())
-                    }
-                }
-                if scope != .sales {
-                    ShalevCard {
-                        VStack(alignment: .leading, spacing: 11) {
-                            ShalevSectionHeader(title: "Imágenes para compartir")
-                            TextField("Comentario opcional en las imágenes", text: $exportComment)
-                                .padding(11).background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
-                            Button(action: exportPriceImages) { Label("Lista de precios en PNG", systemImage: "photo") }
-                                .buttonStyle(ShalevTonalButtonStyle())
-                            Button(action: exportCards) { Label("Tarjetas de artículos en PNG", systemImage: "rectangle.portrait.on.rectangle.portrait") }
-                                .buttonStyle(ShalevTonalButtonStyle())
-                            Text("Las imágenes no incluyen costos, ganancias ni existencias.")
-                                .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
-                        }
-                    }
-                }
-                .padding(.bottom, 22)
+                contentCard
+                formatCard
+                if scope != .sales { imageCard }
             }
             .padding(18)
+            .padding(.bottom, 22)
             .frame(maxWidth: 680)
             .frame(maxWidth: .infinity)
         }
@@ -426,12 +393,53 @@ struct ExportCenterView: View {
         .onChange(of: availableScopes) { _, scopes in
             if !scopes.contains(scope) { scope = scopes.first ?? .sales }
         }
-        .sheet(isPresented: $showShareSheet) {
-            ShareSheet(items: shareFileURLs)
-        }
+        .sheet(isPresented: $showShareSheet) { ShareSheet(items: shareFileURLs) }
         .alert("No se pudo exportar", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Entendido", role: .cancel) { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }
+    }
+
+    private var contentCard: some View {
+        ShalevCard {
+            VStack(alignment: .leading, spacing: 12) {
+                ShalevSectionHeader(title: "Contenido")
+                Picker("Contenido", selection: $scope) {
+                    ForEach(availableScopes) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                Text("XLSX es un libro de Excel con filas y columnas; CSV es una alternativa de texto. Los datos no se envían a ningún servidor; eliges dónde compartir el archivo.")
+                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+            }
+        }
+    }
+
+    private var formatCard: some View {
+        ShalevCard {
+            VStack(spacing: 10) {
+                Button { export(.xlsx) } label: { Label("Exportar Excel (XLSX)", systemImage: "tablecells") }
+                    .buttonStyle(ShalevPrimaryButtonStyle())
+                Button { export(.csv) } label: { Label("Exportar CSV", systemImage: "text.alignleft") }
+                    .buttonStyle(ShalevTonalButtonStyle())
+                Button { export(.pdf) } label: { Label("Exportar PDF", systemImage: "doc.richtext") }
+                    .buttonStyle(ShalevTonalButtonStyle())
+            }
+        }
+    }
+
+    private var imageCard: some View {
+        ShalevCard {
+            VStack(alignment: .leading, spacing: 11) {
+                ShalevSectionHeader(title: "Imágenes para compartir")
+                TextField("Comentario opcional en las imágenes", text: $exportComment)
+                    .padding(11).background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+                Button(action: exportPriceImages) { Label("Lista de precios en PNG", systemImage: "photo") }
+                    .buttonStyle(ShalevTonalButtonStyle())
+                Button(action: exportCards) { Label("Tarjetas de artículos en PNG", systemImage: "rectangle.portrait.on.rectangle.portrait") }
+                    .buttonStyle(ShalevTonalButtonStyle())
+                Text("Las imágenes no incluyen costos, ganancias ni existencias.")
+                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+            }
+        }
     }
 
     private var report: ExportReport {

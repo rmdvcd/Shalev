@@ -23,6 +23,7 @@
 		000000000000000000000111 /* EmployeeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001F /* EmployeeSettingsView.swift */; };
 		000000000000000000000112 /* SupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000020 /* SupportView.swift */; };
 		000000000000000000000113 /* UpdatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000021 /* UpdatesView.swift */; };
+		000000000000000000000114 /* AndroidBackup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000022 /* AndroidBackup.swift */; };
 		00000000000000000000010A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000024 /* Assets.xcassets */; };
 		00000000000000000000010B /* Orbitron-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000025 /* Orbitron-Bold.ttf */; };
 /* End PBXBuildFile section */
@@ -45,6 +46,7 @@
 		00000000000000000000001F /* EmployeeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmployeeSettingsView.swift; sourceTree = "<group>"; };
 		000000000000000000000020 /* SupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportView.swift; sourceTree = "<group>"; };
 		000000000000000000000021 /* UpdatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdatesView.swift; sourceTree = "<group>"; };
+		000000000000000000000022 /* AndroidBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AndroidBackup.swift; sourceTree = "<group>"; };
 		000000000000000000000023 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		000000000000000000000024 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		000000000000000000000025 /* Orbitron-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Orbitron-Bold.ttf"; sourceTree = "<group>"; };
@@ -90,7 +92,7 @@
 		};
 		000000000000000000000005 /* Domain */ = {
 			isa = PBXGroup;
-			children = (000000000000000000000012 /* Domain.swift */, 00000000000000000000001A /* License.swift */);
+			children = (000000000000000000000012 /* Domain.swift */, 00000000000000000000001A /* License.swift */, 000000000000000000000022 /* AndroidBackup.swift */);
 			path = Domain;
 			sourceTree = "<group>";
 		};
@@ -216,6 +218,7 @@
 				000000000000000000000111 /* EmployeeSettingsView.swift in Sources */,
 				000000000000000000000112 /* SupportView.swift in Sources */,
 				000000000000000000000113 /* UpdatesView.swift in Sources */,
+				000000000000000000000114 /* AndroidBackup.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

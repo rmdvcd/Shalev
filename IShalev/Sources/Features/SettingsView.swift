@@ -559,6 +559,8 @@ private struct BackupSettingsView: View {
     @State private var password = ""
     @State private var confirmPassword = ""
     @State private var exportDocument = ShalevBackupDocument(data: Data())
+    @State private var exportFormat: PortableBackupFormat = .ios
+    @State private var exportContentType: UTType = .shalevBackup
     @State private var showExporter = false
     @State private var showImporter = false
     @State private var pendingBackup: Data?
@@ -568,13 +570,23 @@ private struct BackupSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                ShalevScreenTitle(title: "Respaldo", subtitle: "Copia cifrada de los datos de Shalev para iOS")
+                ShalevScreenTitle(title: "Respaldo", subtitle: "Copias cifradas para iOS y Android")
                 ShalevCard {
-                    VStack(alignment: .leading, spacing: 9) {
+                    VStack(alignment: .leading, spacing: 11) {
                         Label("Protege tu copia con una contraseña", systemImage: "lock.fill")
                             .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
-                        Text("La exportación usa AES-GCM y PBKDF2. Guarda la contraseña: no se puede recuperar y el respaldo iOS no es compatible con el formato Android .shalev.")
+                        Picker("Formato de exportación", selection: $exportFormat) {
+                            ForEach(PortableBackupFormat.allCases) { format in
+                                Text(format.title).tag(format)
+                            }
+                        }
+                        .font(.system(size: 13, weight: .medium))
+                        Text(exportFormat == .ios
+                             ? "El formato iOS conserva todos los datos propios de IShalev. La importación detecta automáticamente respaldos iOS y Android."
+                             : "El formato .shalev puede abrirse en Shalev para Android. Las fotos se conservan para IShalev como datos adicionales; Android no muestra esos datos adicionales ni los PIN locales.")
                             .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
+                        Text("La exportación usa AES-GCM y PBKDF2. Guarda la contraseña: no se puede recuperar.")
+                            .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Button { password = ""; confirmPassword = ""; passwordSheet = .export } label: {
@@ -599,19 +611,24 @@ private struct BackupSettingsView: View {
             }
             .presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
         }
-        .fileExporter(isPresented: $showExporter, document: exportDocument, contentType: .shalevBackup,
-                      defaultFilename: "respaldo-shalev-ios") { result in
+        .fileExporter(isPresented: $showExporter, document: exportDocument, contentType: exportContentType,
+                      defaultFilename: exportFormat == .ios ? "respaldo-shalev-ios" : "respaldo-shalev-android") { result in
             if case .failure(let error) = result { alertMessage = error.localizedDescription }
             password = ""; confirmPassword = ""
         }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.shalevBackup], allowsMultipleSelection: false) { result in
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.shalevBackup, .shalevAndroidBackup], allowsMultipleSelection: false) { result in
             do {
                 guard let url = try result.get().first else { return }
                 let hasAccess = url.startAccessingSecurityScopedResource()
                 defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
-                pendingBackup = try Data(contentsOf: url)
+                let backup = try Data(contentsOf: url)
+                pendingBackup = backup
                 password = ""; confirmPassword = ""
-                passwordSheet = .restore
+                if AndroidBackupCodec.isAndroidBackup(backup) && !AndroidBackupCodec.requiresPassword(backup) {
+                    showRestoreConfirmation = true
+                } else {
+                    passwordSheet = .restore
+                }
             } catch {
                 alertMessage = error.localizedDescription
             }
@@ -628,7 +645,8 @@ private struct BackupSettingsView: View {
     private func handlePassword(_ mode: BackupPasswordMode) {
         if mode == .export {
             do {
-                exportDocument = ShalevBackupDocument(data: try store.makeEncryptedBackup(password: password))
+                exportDocument = ShalevBackupDocument(data: try store.makeEncryptedBackup(password: password, format: exportFormat))
+                exportContentType = exportFormat == .ios ? .shalevBackup : .shalevAndroidBackup
                 showExporter = true
             } catch { alertMessage = error.localizedDescription }
         } else if pendingBackup != nil {
@@ -682,15 +700,20 @@ private struct BackupPasswordSheet: View {
     }
 
     private func validate() {
-        guard password.count >= 8 else { errorMessage = "Usa una contraseña de al menos 8 caracteres."; return }
-        if mode == .export && password != confirmPassword { errorMessage = "Las contraseñas no coinciden."; return }
+        if mode == .export {
+            guard password.count >= 8 else { errorMessage = "Usa una contraseña de al menos 8 caracteres."; return }
+            guard password == confirmPassword else { errorMessage = "Las contraseñas no coinciden."; return }
+        } else {
+            guard !password.isEmpty else { errorMessage = "Escribe la contraseña del respaldo."; return }
+        }
         onConfirm()
         dismiss()
     }
 }
 
 private struct ShalevBackupDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.shalevBackup] }
+    static var readableContentTypes: [UTType] { [.shalevBackup, .shalevAndroidBackup] }
+    static var writableContentTypes: [UTType] { [.shalevBackup, .shalevAndroidBackup] }
     var data: Data
 
     init(data: Data) { self.data = data }
@@ -705,6 +728,7 @@ private struct ShalevBackupDocument: FileDocument {
 
 extension UTType {
     static let shalevBackup = UTType(exportedAs: "cu.shalev.ios-backup", conformingTo: .data)
+    static let shalevAndroidBackup = UTType(exportedAs: "cu.shalev.android-backup", conformingTo: .data)
 }
 
 private struct HelpView: View {
@@ -715,7 +739,7 @@ private struct HelpView: View {
         ("Corregir una venta", "Desde Registros, modifica o anula una venta del turno abierto. Escribe un motivo; la operación original queda en el historial.", "pencil.and.list.clipboard"),
         ("Empleados", "En Ajustes → Empleados crea perfiles y elige permisos. Los perfiles son locales a este iPhone; volver al administrador exige autenticación del dispositivo.", "person.2.fill"),
         ("Cerrar caja", "Al cerrar el turno, cuenta el efectivo y compara el resultado con el efectivo esperado.", "checkmark.circle.fill"),
-        ("Respaldos", "Exporta una copia con contraseña. El respaldo iOS es independiente del formato Android.", "externaldrive.fill"),
+        ("Respaldos", "Exporta una copia iOS o un archivo .shalev compatible con Android. Al importar, el formato se detecta automáticamente; los respaldos Android sin contraseña también se pueden abrir.", "externaldrive.fill"),
         ("Actualizaciones", "Comprobar ahora consulta publicaciones iOS en GitHub. La instalación se gestiona por TestFlight, App Store o un canal autorizado.", "arrow.down.circle.fill"),
     ]
 
@@ -757,7 +781,7 @@ private struct AboutView: View {
                     }
                 }
                 ShalevCard {
-                    Text("IShalev usa una interfaz y almacenamiento nativos de Apple y valida licencias bajo el contrato GL. La sincronización de datos con teléfonos Android todavía no está disponible; el respaldo iOS es un formato cifrado independiente.")
+                    Text("IShalev usa una interfaz y almacenamiento nativos de Apple y valida licencias bajo el contrato GL. Puede intercambiar respaldos .shalev con Android; la sincronización automática entre dispositivos todavía no está disponible.")
                         .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
                 }
             }
