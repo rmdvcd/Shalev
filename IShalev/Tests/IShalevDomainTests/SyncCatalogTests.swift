@@ -58,13 +58,13 @@ final class SyncCatalogTests: XCTestCase {
 
     func testSnapshotReappliesOnlyUnconfirmedSaleMovements() throws {
         let fixture = self.fixture()
-        let employee = LocalEmployee(name: "Luis", syncID: 7)
+        let employee = LocalEmployee(name: "Luis", permissions: [], syncID: 7)
         let snapshot = try SyncCatalog.snapshot(app: fixture.app, employee: employee,
             license: SyncLicense(clase: "PERPETUA"), modules: ["VENTAS", "INVENTARIO"])
         let withPending = try SyncCatalog.applySnapshot(snapshot, to: fixture.app)
         XCTAssertEqual(withPending.products[0].stockMilli, 6_000)
         XCTAssertEqual(withPending.settings.profile.ownerName, "Luis")
-        XCTAssertTrue(withPending.sales.map(\.id) == [fixture.sale.id])
+        XCTAssertTrue(withPending.sales.map { $0.id } == [fixture.sale.id])
 
         var principal = fixture.app
         principal.products[0].stockMilli = 8_000
@@ -79,7 +79,7 @@ final class SyncCatalogTests: XCTestCase {
     func testPhotosHaveMetadataAndSeparateBytes() throws {
         var fixture = self.fixture()
         fixture.app.products[0].imageData = Data([1, 2, 3, 4])
-        let snapshot = try SyncCatalog.snapshot(app: fixture.app, employee: LocalEmployee(name: "Luis", syncID: 7),
+        let snapshot = try SyncCatalog.snapshot(app: fixture.app, employee: LocalEmployee(name: "Luis", permissions: [], syncID: 7),
             license: SyncLicense(clase: "PRUEBA", venceEn: 1), modules: [])
         let product = AndroidBackupCodec.dictionaries(snapshot["productos"])[0]
         XCTAssertNil(product["fotoData"])

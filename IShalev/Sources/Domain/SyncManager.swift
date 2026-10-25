@@ -745,7 +745,10 @@ final class SyncManager: ObservableObject {
         while true {
             let id = nextID()
             do {
-                response = try await clientRequest(SyncJSON.message("cmd", ["id": id, "accion": action, "clave": commandKey]), expected: "cmd_ok")
+                if clientSession == nil { clientSession = try await establishClient() }
+                var command = SyncJSON.message("cmd", ["id": id, "accion": action])
+                if clientCommandsUnique { command["clave"] = commandKey }
+                response = try await clientRequest(command, expected: "cmd_ok")
                 guard AndroidBackupCodec.int64(response["id"]) == id else { throw SyncError.invalidMessage }
                 break
             } catch {
@@ -766,7 +769,8 @@ final class SyncManager: ObservableObject {
         guard let action = message["accion"] as? [String: Any],
               let employee = store.linkedApps.first(where: { $0.syncID == employeeID }) else { throw SyncError.invalidMessage }
         let id = AndroidBackupCodec.int64(message["id"])
-        let key = AndroidBackupCodec.optionalString(message["clave"])
+        let rawKey = AndroidBackupCodec.optionalString(message["clave"])
+        let key = rawKey.flatMap { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.count <= 64 ? $0 : nil }
         if let key, let cached = commandResults[employeeID]?[key] {
             var response = SyncJSON.message("cmd_ok", ["id": id])
             if let value = cached.value { response["valor"] = value }
