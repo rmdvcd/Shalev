@@ -326,7 +326,7 @@ struct ShiftClosingCount: Codable, Equatable {
     var otherCashCents: Int64 = 0
     var inventory: [ShiftInventoryCount] = []
     /// Decisión explícita de cerrar sin contar ni ajustar existencias.
-    var inventoryCountSkipped: Bool = false
+    var inventoryCountSkipped: Bool? = nil
     var reason: String = ""
     var approvedBy: String? = nil
     var approvedAt: Date? = nil
@@ -346,8 +346,8 @@ struct ShiftClosingCount: Codable, Equatable {
             && Set(inventory.map(\.productID)).count == inventory.count
         let normalizedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         return otherCashCents >= 0 && validBills && validInventory
-            && (!inventoryCountSkipped || inventory.isEmpty)
-            && (inventoryCountSkipped || !hasInventoryDifferences || (3...160).contains(normalizedReason.count))
+            && (inventoryCountSkipped != true || inventory.isEmpty)
+            && (inventoryCountSkipped == true || !hasInventoryDifferences || (3...160).contains(normalizedReason.count))
     }
 }
 
@@ -1070,7 +1070,7 @@ final class ShalevStore: ObservableObject {
         let fresh = try prepareClosingCount()
         let currentSnapshot = fresh.inventory.map { ($0.productID, $0.expectedMilli, $0.updatedAt) }
         let receivedSnapshot = count.inventory.map { ($0.productID, $0.expectedMilli, $0.updatedAt) }
-        if !count.inventoryCountSkipped {
+        if count.inventoryCountSkipped != true {
             guard currentSnapshot.count == receivedSnapshot.count,
                   zip(currentSnapshot, receivedSnapshot).allSatisfy({ lhs, rhs in
                       lhs.0 == rhs.0 && lhs.1 == rhs.1 && lhs.2 == rhs.2

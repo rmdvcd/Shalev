@@ -81,7 +81,7 @@ struct RecordsView: View {
     }
 
     private func customerSummary(_ customer: Customer) -> String {
-        let purchases = store.customerPurchases(for: customer).filter { !$0.isCancelled }
+        let purchases = store.purchases(for: customer)
         let total = purchases.reduce(Int64(0)) { $0 + $1.totalCents }
         return "\(purchases.count) compra\(purchases.count == 1 ? "" : "s") · \(Cup(cents: total).formatted)"
     }
@@ -378,7 +378,10 @@ private struct CustomerDetailView: View {
         _phone = State(initialValue: customer?.phone ?? "")
     }
 
-    private var purchases: [Sale] { store.customerPurchases(forID: customerID) }
+    private var purchases: [Sale] {
+        guard let customer = store.data.customers.first(where: { $0.id == customerID }) else { return [] }
+        return store.purchases(for: customer)
+    }
 
     var body: some View {
         NavigationStack {
@@ -452,7 +455,7 @@ private struct CustomerDetailView: View {
         customer.name = name
         customer.identification = identification
         customer.phone = phone
-        do { try store.updateFixedCustomer(customer) }
+        do { try store.updateCustomer(customer) }
         catch { errorMessage = error.localizedDescription }
     }
 }
@@ -849,7 +852,7 @@ private struct ShiftDetailView: View {
                         ShalevCard {
                             VStack(alignment: .leading, spacing: 8) {
                                 ShalevSectionHeader(title: "Conciliación de inventario")
-                                if count.inventoryCountSkipped {
+                                if count.inventoryCountSkipped == true {
                                     Text("Conteo omitido explícitamente; no se ajustaron existencias.")
                                         .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
                                 } else if count.inventory.allSatisfy({ $0.differenceMilli == 0 }) {

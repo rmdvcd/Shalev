@@ -506,7 +506,7 @@ private struct ShiftClosingSheet: View {
         for denomination in ShiftClosingCount.denominations {
             let text = billCounts[denomination] ?? ""
             guard !text.isEmpty else { continue }
-            guard let count = FixedNumber.parse(text, unitScale: 1)?.cents else { return nil }
+            guard let count = FixedNumber.parse(text, multiplier: 1) else { return nil }
             let (units, overflow) = count.multipliedReportingOverflow(by: Int64(denomination) * 100)
             guard !overflow else { return nil }
             let (newTotal, additionOverflow) = total.addingReportingOverflow(units)
@@ -518,11 +518,11 @@ private struct ShiftClosingSheet: View {
     private var cashDifference: Int64? { countedCash.map { $0 - expectedCash } }
     private var movedArticles: [ShiftInventoryCount] { preview?.inventory ?? [] }
     private var inventoryInputsValid: Bool {
-        movedArticles.allSatisfy { FixedNumber.parse(countedStock[$0.productID] ?? "", unitScale: 1) != nil }
+        movedArticles.allSatisfy { FixedNumber.parse(countedStock[$0.productID] ?? "", multiplier: 1_000) != nil }
     }
     private var inventoryDifferences: [ShiftInventoryCount] {
         movedArticles.filter { line in
-            guard let counted = FixedNumber.parse(countedStock[line.productID] ?? "", unitScale: 1)?.cents else { return true }
+            guard let counted = FixedNumber.parse(countedStock[line.productID] ?? "", multiplier: 1_000) else { return true }
             return counted != line.expectedMilli
         }
     }
@@ -730,7 +730,7 @@ private struct ShiftClosingSheet: View {
         for denomination in ShiftClosingCount.denominations {
             let text = billCounts[denomination] ?? ""
             if !text.isEmpty {
-                guard let parsed = FixedNumber.parse(text, unitScale: 1)?.cents,
+                guard let parsed = FixedNumber.parse(text, multiplier: 1),
                       let value = Int(exactly: parsed) else { errorMessage = "Revisa el conteo de billetes."; return }
                 cashCounts[denomination] = value
             }
@@ -744,7 +744,7 @@ private struct ShiftClosingSheet: View {
         } else {
             for index in count.inventory.indices {
                 let productID = count.inventory[index].productID
-                guard let value = FixedNumber.parse(countedStock[productID] ?? "", unitScale: 1)?.cents else {
+                guard let value = FixedNumber.parse(countedStock[productID] ?? "", multiplier: 1_000) else {
                     errorMessage = "Completa todas las existencias contadas."; return
                 }
                 count.inventory[index].countedMilli = value
