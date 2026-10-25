@@ -554,6 +554,7 @@ enum SyncCatalog {
     private static func withoutApproval(_ count: ShiftClosingCount) -> ShiftClosingCount {
         var copy = count
         copy.approvedBy = nil; copy.approvedAt = nil
+        copy.inventoryCountSkipped = copy.inventoryCountSkipped ?? false
         for index in copy.inventory.indices {
             let milliseconds = (copy.inventory[index].updatedAt.timeIntervalSince1970 * 1_000).rounded(.down)
             copy.inventory[index].updatedAt = Date(timeIntervalSince1970: milliseconds / 1_000)

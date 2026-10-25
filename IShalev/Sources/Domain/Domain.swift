@@ -524,7 +524,7 @@ extension LocalEmployee {
         createdAt = try values.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         pinSalt = try values.decodeIfPresent(Data.self, forKey: .pinSalt)
         pinVerifier = try values.decodeIfPresent(Data.self, forKey: .pinVerifier)
-        pinFailedAttempts = try values.decodeIfPresent(Int.self, forKey: .pinFailedAttempts) ?? 0
+        pinFailedAttempts = try values.decodeIfPresent(Int.self, forKey: .pinFailedAttempts)
         pinLockedUntil = try values.decodeIfPresent(Date.self, forKey: .pinLockedUntil)
         syncID = try values.decodeIfPresent(Int64.self, forKey: .syncID)
         syncActive = try values.decodeIfPresent(Bool.self, forKey: .syncActive) ?? true
