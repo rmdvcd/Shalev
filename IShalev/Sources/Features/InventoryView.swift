@@ -245,6 +245,7 @@ private struct ProductEditorView: View {
                 VStack(spacing: 14) {
                     ShalevScreenTitle(title: product == nil ? "Agregar artículo" : "Editar artículo",
                                      subtitle: "Los datos se guardan cifrados en este teléfono.")
+                    if kind != .prepared {
                     ShalevCard {
                         VStack(spacing: 10) {
                             if let imageData, let photo = UIImage(data: imageData) {
@@ -271,6 +272,7 @@ private struct ProductEditorView: View {
                             }
                         }
                     }
+                    }
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 13) {
                             formField("Nombre", text: $name, placeholder: "Ej. Agua mineral")
@@ -282,14 +284,15 @@ private struct ProductEditorView: View {
                                 .pickerStyle(.segmented)
                                 .onChange(of: kind) { _, newValue in
                                     if newValue == .ingredient { category = "Insumos" }
-                                    else if newValue == .prepared { category = "Elaborado" }
+                                    else if newValue == .prepared { category = "Elaborado"; imageData = nil; selectedPhoto = nil }
                                     else if category == "Insumos" || category == "Elaborado" { category = "Otros" }
                                 }
                             }
                             if kind == .product {
                                 formField("Categoría", text: $category, placeholder: "Ej. Alimentos")
                             }
-                            formField("Descripción (opcional)", text: $description, placeholder: "Detalles para identificarlo", multiline: true)
+                            formField("Descripción (opcional, máximo 40)", text: $description, placeholder: "Detalles para identificarlo")
+                                .onChange(of: description) { _, value in if value.count > 40 { description = String(value.prefix(40)) } }
 
                             if kind != .prepared {
                                 Divider()
@@ -314,7 +317,7 @@ private struct ProductEditorView: View {
 
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 13) {
-                            fieldLabel("Precio de venta (CUP)")
+                            fieldLabel(kind == .ingredient ? "Precio de venta opcional (CUP)" : "Precio de venta (CUP)")
                             TextField("0.00", text: $price).keyboardType(.decimalPad).textFieldStyle(ShalevTextFieldStyle())
                             if kind != .prepared {
                                 fieldLabel("Costo por unidad (CUP)")
@@ -455,7 +458,12 @@ private struct ProductEditorView: View {
 
     private func save() {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { errorMessage = "Escribe el nombre del artículo."; return }
-        guard let priceCents = Cup.parse(price)?.cents else { errorMessage = "Escribe un precio válido en CUP."; return }
+        let priceCents: Int64
+        if kind == .ingredient && price.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { priceCents = 0 }
+        else {
+            guard let parsedPrice = Cup.parse(price)?.cents else { errorMessage = "Escribe un precio válido en CUP."; return }
+            priceCents = parsedPrice
+        }
         let costCents = Cup.parse(cost)?.cents ?? 0
         let stockMilli: Int64
         let low: Int64

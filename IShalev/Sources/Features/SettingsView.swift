@@ -351,7 +351,9 @@ private struct PriceAdjustmentsView: View {
     private func adjustmentSummary(_ adjustment: PriceAdjustment) -> String {
         let payment = adjustment.paymentMethod?.rawValue ?? "Todos los pagos"
         let minimum = adjustment.minimumAmountCents.map { " · desde \(Cup(cents: $0).formatted)" } ?? ""
-        return "\(payment)\(minimum)"
+        let articles = adjustment.productIDs.map { " · \($0.count) artículo\($0.count == 1 ? "" : "s")" }
+            ?? " · todos los artículos (anterior)"
+        return "\(payment)\(minimum)\(articles)"
     }
     private func percentText(_ basisPoints: Int) -> String {
         let value = Decimal(basisPoints) / Decimal(100)
@@ -368,6 +370,7 @@ private struct PriceAdjustmentEditor: View {
     @State private var percent: String
     @State private var method: PaymentMethod?
     @State private var minimum: String
+    @State private var productIDs: Set<UUID>
     @State private var errorMessage: String?
     @State private var confirmDelete = false
 
@@ -378,6 +381,7 @@ private struct PriceAdjustmentEditor: View {
         _percent = State(initialValue: adjustment.map { NSDecimalNumber(decimal: Decimal($0.basisPoints) / Decimal(100)).stringValue } ?? "10")
         _method = State(initialValue: adjustment?.paymentMethod)
         _minimum = State(initialValue: adjustment?.minimumAmountCents.map { Cup(cents: $0).inputValue } ?? "")
+        _productIDs = State(initialValue: adjustment?.productIDs ?? Set(store.activeProducts.map(\.id)))
     }
 
     var body: some View {
@@ -400,6 +404,28 @@ private struct PriceAdjustmentEditor: View {
                                 .pickerStyle(.segmented)
                             }
                             labeledField("Importe mínimo (opcional, CUP)", text: $minimum, placeholder: "Sin mínimo", keyboard: .decimalPad)
+                            Divider()
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Artículos incluidos").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                Text("El ajuste solo se aplica a los artículos seleccionados. Si hay varios ajustes para un mismo artículo, se suman.")
+                                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                ForEach(store.activeProducts) { product in
+                                    Toggle(isOn: Binding(get: { productIDs.contains(product.id) }, set: { selected in
+                                        if selected { productIDs.insert(product.id) } else { productIDs.remove(product.id) }
+                                    })) {
+                                        HStack {
+                                            Text(product.name).font(.system(size: 13)).foregroundStyle(Color.shalevText)
+                                            Spacer()
+                                            Text(Cup(cents: product.priceCents).formatted)
+                                                .font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
+                                        }
+                                    }
+                                    .tint(Color.shalevPrimary)
+                                }
+                                if store.activeProducts.isEmpty {
+                                    Text("Crea primero un artículo en Inventario.").font(.system(size: 12)).foregroundStyle(Color.shalevError)
+                                }
+                            }
                             Text("Usa porcentaje negativo para un descuento y positivo para un recargo.")
                                 .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
                             Button { save() } label: { Label("Guardar ajuste", systemImage: "checkmark") }
@@ -429,17 +455,18 @@ private struct PriceAdjustmentEditor: View {
 
     private func save() {
         guard let percentValue = Decimal(string: percent.replacingOccurrences(of: ",", with: "."), locale: Locale(identifier: "en_US_POSIX")),
-              percentValue >= Decimal(-90), percentValue <= Decimal(1_000) else {
-            errorMessage = "El porcentaje debe estar entre -90 % y 1 000 %."; return
+              percentValue >= Decimal(-90), percentValue <= Decimal(100), percentValue != 0 else {
+            errorMessage = "El porcentaje debe ser distinto de cero y estar entre −90 % y +100 %."; return
         }
         var basis = percentValue * Decimal(100)
         var rounded = Decimal()
         NSDecimalRound(&rounded, &basis, 0, .plain)
         let minimumCents = minimum.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : Cup.parse(minimum)?.cents
         if !minimum.isEmpty && minimumCents == nil { errorMessage = "Escribe un importe mínimo válido."; return }
+        guard !productIDs.isEmpty else { errorMessage = "Selecciona al menos un artículo."; return }
         let result = PriceAdjustment(id: adjustment?.id ?? UUID(), name: name,
                                      basisPoints: NSDecimalNumber(decimal: rounded).intValue,
-                                     paymentMethod: method, minimumAmountCents: minimumCents,
+                                     productIDs: productIDs, paymentMethod: method, minimumAmountCents: minimumCents,
                                      active: adjustment?.active ?? true)
         do { try store.savePriceAdjustment(result); dismiss() }
         catch { errorMessage = error.localizedDescription }

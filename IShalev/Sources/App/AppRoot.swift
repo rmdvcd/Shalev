@@ -104,6 +104,7 @@ struct ShalevRootView: View {
             }
         }
         .task {
+            store.currentOperatorName = activeEmployee?.name
             repairSelection()
             if salesEnabled && !inventoryEnabled { inventoryEnabled = true }
             ensureOneModule()
@@ -134,9 +135,13 @@ struct ShalevRootView: View {
         .onChange(of: servicesEnabled) { _, _ in ensureOneModule(); repairSelection() }
         .onChange(of: selectedOperatorID) { oldID, newID in
             if oldID != newID { authenticatedOperatorID = "" }
+            store.currentOperatorName = activeEmployee?.name
             repairSelection()
         }
-        .onChange(of: store.data.employees) { _, _ in repairSelection() }
+        .onChange(of: store.data.employees) { _, _ in
+            store.currentOperatorName = activeEmployee?.name
+            repairSelection()
+        }
         .alert("No se pudo cambiar de operador", isPresented: Binding(get: { operatorAuthError != nil }, set: { if !$0 { operatorAuthError = nil } })) {
             Button("Entendido", role: .cancel) { operatorAuthError = nil }
         } message: { Text(operatorAuthError ?? "") }
