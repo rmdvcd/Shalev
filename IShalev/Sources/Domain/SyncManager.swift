@@ -75,6 +75,7 @@ final class SyncManager: ObservableObject {
         if configuration.link != nil { configuration.role = .secondary }
         role = configuration.role
         store.requiresClosingApproval = role == .secondary
+        store.allowsSaleCorrections = role == .principal
         store.allowsRemoteSaleCorrections = role == .principal
         store.changeHandler = { [weak self] old, new in
             Task { @MainActor in self?.dataChanged(old: old, new: new) }
@@ -86,6 +87,7 @@ final class SyncManager: ObservableObject {
 
     func start() {
         store.requiresClosingApproval = isSecondary
+        store.allowsSaleCorrections = !isSecondary
         store.allowsRemoteSaleCorrections = !isSecondary
         if isSecondary { startMaintenance() }
         else { Task { [weak self] in try? await self?.startPrincipal() } }
@@ -258,7 +260,7 @@ final class SyncManager: ObservableObject {
             role = .secondary
             try persist()
             try store.resetForSecondary(employeeName: code.employeeName)
-            store.requiresClosingApproval = true; store.allowsRemoteSaleCorrections = false
+            store.requiresClosingApproval = true; store.allowsSaleCorrections = false; store.allowsRemoteSaleCorrections = false
             status = "Vinculada; recibiendo catálogo…"
             _ = try await synchronize()
         } catch {
@@ -278,7 +280,7 @@ final class SyncManager: ObservableObject {
         role = .principal
         try persist()
         try store.resetAfterUnlink()
-        store.requiresClosingApproval = false; store.allowsRemoteSaleCorrections = true
+        store.requiresClosingApproval = false; store.allowsSaleCorrections = true; store.allowsRemoteSaleCorrections = true
         status = "App principal"; catalogChanged = false
         try await startPrincipal()
     }
@@ -666,7 +668,7 @@ final class SyncManager: ObservableObject {
         }
         try store.replaceDataForSync(next)
         guard let current = store.linkedApps.first(where: { $0.syncID == employeeID }) else { throw SyncError.invalidMessage }
-        var license = SyncLicense.from(licenseManager.state)
+        var license = SyncLicense.from(licenseManager.state, trialExpiresAt: licenseManager.trialExpirationForSync)
         let activeApps = store.linkedApps.filter(\.syncActive).sorted {
             (($0.linkedAt ?? .distantPast), $0.syncID ?? 0) < (($1.linkedAt ?? .distantPast), $1.syncID ?? 0)
         }

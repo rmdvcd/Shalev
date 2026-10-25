@@ -599,6 +599,7 @@ enum BusinessError: LocalizedError, Equatable {
     case invalidPriceAdjustment
     case closingCountChanged
     case invalidClosingCount
+    case saleCorrectionRequiresPrincipal
 
     var errorDescription: String? {
         switch self {
@@ -631,6 +632,7 @@ enum BusinessError: LocalizedError, Equatable {
         case .invalidPriceAdjustment: "El ajuste necesita un nombre, un porcentaje entre −90 % y +100 %, al menos un artículo y un mínimo mayor que cero."
         case .closingCountChanged: "El inventario cambió mientras contabas. Vuelve a cargar el conteo antes de cerrar."
         case .invalidClosingCount: "Revisa el efectivo, las cantidades contadas y el motivo de las diferencias (de 3 a 160 caracteres)."
+        case .saleCorrectionRequiresPrincipal: "Las ventas solo se pueden anular o modificar en la app principal."
         }
     }
 }
@@ -795,6 +797,7 @@ final class ShalevStore: ObservableObject {
     var currentOperatorName: String?
     /// Lo configura el motor de sincronización; no forma parte de los datos respaldados.
     var requiresClosingApproval = false
+    var allowsSaleCorrections = true
     var allowsRemoteSaleCorrections = false
     var changeHandler: ((AppData, AppData) -> Void)?
 
@@ -1325,6 +1328,7 @@ final class ShalevStore: ObservableObject {
     }
 
     func cancelSale(_ saleID: UUID, reason: String) throws {
+        guard allowsSaleCorrections else { throw BusinessError.saleCorrectionRequiresPrincipal }
         guard let original = data.sales.first(where: { $0.id == saleID }) else { throw BusinessError.unavailableItem("venta") }
         guard !original.isCancelled else { throw BusinessError.saleAlreadyCancelled }
         guard let shift = data.shifts.first(where: { $0.id == original.shiftID }) else { throw BusinessError.turnClosed }
@@ -1349,6 +1353,7 @@ final class ShalevStore: ObservableObject {
     /// corrección en el mismo turno y conserva los precios/costos históricos de los artículos que ya estaban.
     func modifySale(_ saleID: UUID, cart: [CartDraft], payment: PaymentMethod, transactionNumber: String,
                     reason: String, customer: Customer? = nil, customerIsFixed: Bool? = nil) throws -> Sale {
+        guard allowsSaleCorrections else { throw BusinessError.saleCorrectionRequiresPrincipal }
         guard let original = data.sales.first(where: { $0.id == saleID }) else { throw BusinessError.unavailableItem("venta") }
         guard !original.isCancelled else { throw BusinessError.saleAlreadyCancelled }
         guard let shift = data.shifts.first(where: { $0.id == original.shiftID }) else { throw BusinessError.turnClosed }
@@ -1387,7 +1392,7 @@ final class ShalevStore: ObservableObject {
                             unitPriceCents: old.unitPriceCents, unitCostCents: old.unitCostCents)
         }
         _ = try checkedTotals(for: adjustedLines)
-        let replacement = Sale(shiftID: original.shiftID, paymentMethod: payment, lines: adjustedLines,
+        var replacement = Sale(shiftID: original.shiftID, paymentMethod: payment, lines: adjustedLines,
                                transactionNumber: transaction, customer: validCustomer,
                                customerIsFixed: payment == .transfer && (customerIsFixed ?? original.customerIsFixed),
                                paymentCard: paymentCard, paymentPhone: paymentPhone,

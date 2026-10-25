@@ -30,6 +30,25 @@ final class DomainParityTests: XCTestCase {
         Customer(id: id, name: "  Ana   Pérez ", identification: identification, phone: "52123456")
     }
 
+    func testSecondaryRoleCannotCancelOrModifySales() throws {
+        let item = product(), store = makeStore(products: [item])
+        try store.openShift(openingCashCents: 0)
+        let cart = [CartDraft(sourceID: item.id, kind: .product, quantity: 1)]
+        let sale = try store.recordSale(cart, payment: .cash)
+        store.allowsSaleCorrections = false
+        XCTAssertThrowsError(try store.cancelSale(sale.id, reason: "Venta duplicada")) {
+            XCTAssertEqual($0 as? BusinessError, .saleCorrectionRequiresPrincipal)
+        }
+        XCTAssertThrowsError(try store.modifySale(sale.id, cart: cart, payment: .cash, transactionNumber: "", reason: "Cantidad incorrecta")) {
+            XCTAssertEqual($0 as? BusinessError, .saleCorrectionRequiresPrincipal)
+        }
+        XCTAssertEqual(store.data.sales.count, 1)
+        XCTAssertFalse(store.data.sales[0].isCancelled)
+        store.allowsSaleCorrections = true
+        try store.cancelSale(sale.id, reason: "Venta duplicada")
+        XCTAssertTrue(store.data.sales[0].isCancelled)
+    }
+
     func testPriceAdjustmentsOnlyAffectSelectedArticlesAndAccumulate() throws {
         let first = product(name: "Agua")
         let second = product(name: "Refresco")

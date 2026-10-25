@@ -122,7 +122,7 @@ actor SyncEncryptedSession {
     }
 
     func receive() async throws -> [String: Any] {
-        let frame = try await SyncTiming.data(95, socket: socket) { try await socket.readFrame() }
+        let frame = try await SyncTiming.data(95, socket: self.socket) { try await self.socket.readFrame() }
         return try cipher.open(frame)
     }
 

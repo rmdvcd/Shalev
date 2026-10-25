@@ -15,12 +15,14 @@ struct SyncLicense: Codable, Equatable {
     var ranura: Int? = nil
     var permitidas: Int? = nil
 
-    static func from(_ state: GLLicenseState, now: Date = Date()) -> SyncLicense {
+    static func from(_ state: GLLicenseState, now: Date = Date(), trialExpiresAt: Date? = nil) -> SyncLicense {
         switch state {
-        case .trial(let days): SyncLicense(clase: "PRUEBA", venceEn: Int64(now.addingTimeInterval(TimeInterval(days * 86_400)).timeIntervalSince1970 * 1_000))
-        case .active(let type, let expiry, _, _): SyncLicense(clase: "ACTIVA", tipo: type.rawValue, venceEn: Int64(expiry.timeIntervalSince1970 * 1_000))
-        case .perpetual: SyncLicense(clase: "PERPETUA", tipo: "PERPETUA")
-        default: SyncLicense(clase: "BLOQUEADA")
+        case .trial(let days):
+            let expiry = trialExpiresAt ?? now.addingTimeInterval(TimeInterval(days * 86_400))
+            return SyncLicense(clase: "PRUEBA", venceEn: Int64(expiry.timeIntervalSince1970 * 1_000))
+        case .active(let type, let expiry, _, _): return SyncLicense(clase: "ACTIVA", tipo: type.rawValue, venceEn: Int64(expiry.timeIntervalSince1970 * 1_000))
+        case .perpetual: return SyncLicense(clase: "PERPETUA", tipo: "PERPETUA")
+        default: return SyncLicense(clase: "BLOQUEADA")
         }
     }
 

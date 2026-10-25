@@ -328,6 +328,7 @@ final class GLLicenseManager: ObservableObject {
     var savedLicenseID: String? { verifiedInstalled?.id }
     var installedType: GLLicenseType? { verifiedInstalled?.type }
     var installedSecondaries: Int? { verifiedInstalled?.secondaries }
+    var trialExpirationForSync: Date? { vault.trialStart?.addingTimeInterval(7 * 86_400) }
 
     func issueSecondaryPermission(deviceID: String, slot: Int) -> (token: String, publicKey: String, slot: Int, allowed: Int)? {
         let id: String, expiry: Date?, allowed: Int
