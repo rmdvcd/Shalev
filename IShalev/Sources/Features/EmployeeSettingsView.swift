@@ -51,7 +51,7 @@ struct EmployeeSettingsView: View {
                                     Image(systemName: "person.crop.circle.fill").font(.system(size: 26)).foregroundStyle(Color.shalevPrimary)
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(employee.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
-                                        Text("\(employee.hasPIN ? "PIN configurado" : "Falta PIN") · \(employee.permissions.map(\.rawValue).sorted().joined(separator: " · "))")
+                                        Text("\(employee.hasPIN ? "PIN configurado" : "Falta PIN") · \(employee.permissions.count) permiso\(employee.permissions.count == 1 ? "" : "s")")
                                             .font(.system(size: 10)).foregroundStyle(employee.hasPIN ? Color.shalevSecondaryText : Color.shalevError).lineLimit(2)
                                     }
                                     Spacer(minLength: 3)
@@ -120,6 +120,37 @@ struct EmployeeSettingsView: View {
     }
 }
 
+/// Casilla con título y detalle, como el formulario de empleado de Android.
+struct EmployeePermissionRow: View {
+    let permission: EmployeePermission
+    let isOn: Bool
+    let toggle: (Bool) -> Void
+
+    var body: some View {
+        Button { toggle(!isOn) } label: {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: isOn ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 19))
+                    .foregroundStyle(isOn ? Color.shalevPrimary : Color.shalevSecondaryText)
+                    .padding(.top, 1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(permission.rawValue)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.shalevText)
+                    Text(permission.detail)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.shalevSecondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
 @MainActor
 private struct EmployeeEditorView: View {
     @ObservedObject var store: ShalevStore
@@ -146,22 +177,20 @@ private struct EmployeeEditorView: View {
                                      subtitle: "Selecciona las acciones permitidas.")
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 11) {
-                            Text("Nombre").font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                            Text("Nombre del empleado").font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                             TextField("Nombre del empleado", text: $name)
                                 .textInputAutocapitalization(.words)
                                 .padding(12)
                                 .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
                             Divider()
+                            Text("Permisos").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
                             ForEach(EmployeePermission.allCases) { permission in
-                                Toggle(isOn: Binding(get: { permissions.contains(permission) }, set: { enabled in
+                                EmployeePermissionRow(permission: permission, isOn: permissions.contains(permission)) { enabled in
                                     if enabled { permissions.insert(permission) } else { permissions.remove(permission) }
-                                })) {
-                                    Label(permission.rawValue, systemImage: permission.symbol)
-                                        .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevText)
                                 }
+                                if permission != EmployeePermission.allCases.last { Divider().opacity(0.5) }
                             }
                         }
-                        .tint(Color.shalevPrimary)
                     }
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 10) {

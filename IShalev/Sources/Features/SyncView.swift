@@ -324,10 +324,11 @@ private struct SyncLinkedAppRow: View {
                     Text(count.approvedAt == nil ? "Conteo pendiente de aprobación" : "Conteo aprobado; falta recibir el cierre")
                         .font(.system(size: 12))
                         .foregroundStyle(count.approvedAt == nil ? Color.shalevError : Color.shalevSuccess)
+                    ShiftCountSummaryView(count: count, expectedCashCents: sync.store.expectedCashCents(for: shift.id))
                     if count.approvedAt == nil {
                         HStack(spacing: 14) {
-                            Button("Aprobar conteo") { do { try sync.approveClosing(employee.syncID ?? 0) } catch { errorMessage = error.localizedDescription } }
-                            Button("Rechazar", role: .destructive) { do { try sync.rejectClosing(employee.syncID ?? 0) } catch { errorMessage = error.localizedDescription } }
+                            Button("Aprobar cierre") { do { try sync.approveClosing(employee.syncID ?? 0) } catch { errorMessage = error.localizedDescription } }
+                            Button("Rechazar cierre", role: .destructive) { do { try sync.rejectClosing(employee.syncID ?? 0) } catch { errorMessage = error.localizedDescription } }
                         }
                         .font(.system(size: 12, weight: .semibold))
                     }
@@ -368,6 +369,93 @@ private struct SyncLinkedAppRow: View {
     }
 }
 
+/// El mismo desglose que se guarda y se exporta, visible antes de aprobar el conteo de un empleado.
+/// Port de `caja/ResumenConteo.kt`: billetes, otro efectivo, conciliación de inventario, estado y motivo.
+private struct ShiftCountSummaryView: View {
+    let count: ShiftClosingCount
+    let expectedCashCents: Int64
+
+    private struct BillLine: Identifiable {
+        var denomination: Int
+        var quantity: Int
+        var id: Int { denomination }
+    }
+
+    private var billLines: [BillLine] {
+        count.bills.filter { $0.value != 0 }
+            .map { BillLine(denomination: $0.key, quantity: $0.value) }
+            .sorted { $0.denomination < $1.denomination }
+    }
+
+    private var countedCashCents: Int64 { count.cashCents }
+
+    private var differenceText: String {
+        let difference = countedCashCents - expectedCashCents
+        if difference == 0 { return "Cuadra" }
+        return "\(difference > 0 ? "Sobrante" : "Faltante") \(Cup(cents: abs(difference)).formatted)"
+    }
+
+    private func fixed(_ milli: Int64) -> String { FixedNumber.formatMilli(milli) }
+
+    private func signedDifference(_ milli: Int64) -> String {
+        if milli == 0 { return "0" }
+        return "\(milli > 0 ? "+" : "−")\(fixed(abs(milli)))"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("Conteo de cierre")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.shalevText)
+            HStack(spacing: 4) {
+                Text("Esperado \(Cup(cents: expectedCashCents).formatted)")
+                Text("·")
+                Text("Contado \(Cup(cents: countedCashCents).formatted)")
+                Text("·")
+                Text(differenceText)
+                    .foregroundStyle(countedCashCents == expectedCashCents ? Color.shalevSuccess : Color.shalevSecondary)
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(Color.shalevSecondaryText)
+            ForEach(billLines) { line in
+                Text("\(line.denomination) CUP × \(line.quantity) = \(Cup(cents: Int64(line.denomination) * 100 * Int64(line.quantity)).formatted)")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Color.shalevText)
+            }
+            Text("Otro efectivo: \(Cup(cents: count.otherCashCents).formatted)")
+                .font(.system(size: 11))
+                .foregroundStyle(Color.shalevText)
+            if count.inventory.isEmpty {
+                Text("Sin conteo de inventario.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.shalevSecondaryText)
+            } else {
+                ForEach(count.inventory) { line in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("\(line.productName) (\(line.unit))")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color.shalevText)
+                        Text("esperado \(fixed(line.expectedMilli)), contado \(fixed(line.countedMilli)), diferencia \(signedDifference(line.differenceMilli))")
+                            .font(.system(size: 10))
+                            .foregroundStyle(line.differenceMilli == 0 ? Color.shalevSecondaryText : Color.shalevSecondary)
+                    }
+                }
+            }
+            Text(count.approvedAt == nil ? "Pendiente de aprobación de inventario" : "Inventario aprobado por \(count.approvedBy ?? "el dueño")")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(count.approvedAt == nil ? Color.shalevError : Color.shalevSuccess)
+            if !count.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("Motivo: \(count.reason)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.shalevSecondaryText)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(11)
+        .background(Color.shalevSurfaceVariant.opacity(0.55), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
 private struct SyncEmployeeEditor: View {
     @Environment(\.dismiss) private var dismiss
     let sync: SyncManager
@@ -382,36 +470,91 @@ private struct SyncEmployeeEditor: View {
     @State private var phoneID: UUID?
     @State private var errorMessage: String?
 
+    private var cards: [TransferCard] { sync.store.data.settings.profile.availableCards }
+    private var phones: [TransferPhone] { sync.store.data.settings.profile.availablePhones }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Empleado") { TextField("Nombre", text: $name) }
-                Section("Permisos") {
-                    Toggle("Vender productos", isOn: $sellProducts)
-                    Toggle("Vender servicios", isOn: $sellServices)
-                    Toggle("Editar inventario y servicios", isOn: $editInventory)
-                    Toggle("Cambiar precios y preajustes", isOn: $changePrices)
-                    Toggle("Exportar y compartir", isOn: $exportReports)
-                }
-                Section("Cobro por transferencia") {
-                    Picker("Tarjeta", selection: $cardID) {
-                        Text("Predeterminada").tag(UUID?.none)
-                        ForEach(sync.store.data.settings.profile.availableCards) { card in
-                            Text("\(card.alias) · \(card.number)").tag(UUID?.some(card.id))
+            ScrollView {
+                VStack(spacing: 14) {
+                    ShalevScreenTitle(title: employee == nil ? "Agregar app de un empleado" : (employee?.name ?? ""),
+                                      subtitle: "Su app se vincula con un código QR y solo puede hacer lo que marques aquí.")
+                    ShalevCard {
+                        VStack(alignment: .leading, spacing: 11) {
+                            if employee == nil {
+                                Text("* Obligatorio")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Color.shalevSecondaryText)
+                                Text("Nombre del empleado *")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(Color.shalevSecondaryText)
+                                TextField("Nombre del empleado", text: $name)
+                                    .textInputAutocapitalization(.words)
+                                    .padding(12)
+                                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+                            }
+                            Text("Permisos")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Color.shalevText)
+                            EmployeePermissionRow(permission: .sellProducts, isOn: sellProducts) { sellProducts = $0 }
+                            Divider().opacity(0.5)
+                            EmployeePermissionRow(permission: .sellServices, isOn: sellServices) { sellServices = $0 }
+                            Divider().opacity(0.5)
+                            EmployeePermissionRow(permission: .editInventory, isOn: editInventory) { editInventory = $0 }
+                            Divider().opacity(0.5)
+                            EmployeePermissionRow(permission: .changePrices, isOn: changePrices) { changePrices = $0 }
+                            Divider().opacity(0.5)
+                            EmployeePermissionRow(permission: .exportReports, isOn: exportReports) { exportReports = $0 }
                         }
                     }
-                    Picker("Teléfono", selection: $phoneID) {
-                        Text("Predeterminado").tag(UUID?.none)
-                        ForEach(sync.store.data.settings.profile.availablePhones) { phone in
-                            Text("\(phone.alias) · \(phone.number)").tag(UUID?.some(phone.id))
+                    ShalevCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Cobro por transferencia")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Color.shalevText)
+                            Picker("Cobrar en la tarjeta", selection: $cardID) {
+                                Text("La predeterminada").tag(UUID?.none)
+                                ForEach(cards) { card in
+                                    Text("\(card.alias) · \(card.number)").tag(UUID?.some(card.id))
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .tint(Color.shalevPrimary)
+                            .disabled(cards.isEmpty)
+                            if cards.count > 1 {
+                                Divider().opacity(0.5)
+                                Picker("Teléfono del empleado", selection: $phoneID) {
+                                    Text("Lo escribe el empleado").tag(UUID?.none)
+                                    ForEach(phones) { phone in
+                                        Text("\(phone.alias) · \(phone.number)").tag(UUID?.some(phone.id))
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .tint(Color.shalevPrimary)
+                            }
+                            Text("Su app solo recibe esta tarjeta para el QR de cobro. Si no eliges un teléfono, el empleado escribe el suyo al vincular su app.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
+                    Button(action: save) {
+                        Label(employee == nil ? "Crear código" : "Guardar",
+                              systemImage: employee == nil ? "qrcode" : "checkmark.circle.fill")
+                    }
+                    .buttonStyle(ShalevPrimaryButtonStyle())
+                    .disabled(employee == nil && name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    if let errorMessage {
+                        Text(errorMessage).font(.system(size: 12)).foregroundStyle(Color.shalevError)
+                            .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                    }
                 }
+                .padding(18)
+                .padding(.bottom, 16)
             }
-            .navigationTitle(employee == nil ? "Agregar secundaria" : "Permisos")
+            .background(Color.shalevBackground)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancelar") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Guardar", action: save) }
+                ToolbarItem(placement: .topBarLeading) { Button("Cancelar") { dismiss() }.foregroundStyle(Color.shalevSecondaryText) }
             }
             .onAppear {
                 name = employee?.name ?? ""
@@ -429,6 +572,8 @@ private struct SyncEmployeeEditor: View {
     }
 
     private func save() {
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty else { errorMessage = "Escribe el nombre del empleado."; return }
         var permissions = Set<EmployeePermission>()
         if sellProducts { permissions.formUnion([.sellProducts, .viewInventory, .viewRecords, .manageCash]) }
         if sellServices { permissions.formUnion([.sellServices, .viewRecords, .manageCash]) }
@@ -437,10 +582,10 @@ private struct SyncEmployeeEditor: View {
         if exportReports { permissions.insert(.exportReports) }
         do {
             if var employee {
-                employee.name = name; employee.permissions = permissions
+                employee.name = cleanName; employee.permissions = permissions
                 employee.paymentCardID = cardID; employee.paymentPhoneID = phoneID
                 try sync.updateLinkedApp(employee)
-            } else { _ = try sync.addLinkedApp(name: name, permissions: permissions) }
+            } else { _ = try sync.addLinkedApp(name: cleanName, permissions: permissions) }
             dismiss()
         } catch { errorMessage = error.localizedDescription }
     }

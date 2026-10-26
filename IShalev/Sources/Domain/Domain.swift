@@ -481,6 +481,22 @@ enum EmployeePermission: String, Codable, CaseIterable, Identifiable, Hashable {
         case .manageSettings: "gearshape.fill"
         }
     }
+
+    /// Segunda línea de cada permiso, con los textos de Android donde existen.
+    var detail: String {
+        switch self {
+        case .sellProducts: "Abrir su turno y vender productos del inventario"
+        case .sellServices: "Abrir su turno y vender servicios"
+        case .viewInventory: "Consultar el inventario sin modificarlo"
+        case .editInventory: "Crear, cambiar o eliminar productos, insumos y servicios, y sus existencias"
+        case .viewRecords: "Consultar las ventas y los turnos ya registrados"
+        case .manageCash: "Abrir el turno, mover efectivo y cerrar la caja"
+        case .changePrices: "Ajustes de precio y cambios de precio de venta"
+        case .exportReports: "Sacar tablas y PDF del inventario, los servicios y sus registros"
+        case .correctSales: "Anular o corregir ventas ya registradas"
+        case .manageSettings: "Entrar a Ajustes y cambiar la configuración del negocio"
+        }
+    }
 }
 
 struct LocalEmployee: Codable, Identifiable, Equatable {
