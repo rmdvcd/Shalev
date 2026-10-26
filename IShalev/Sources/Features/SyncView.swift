@@ -3,6 +3,8 @@ import AVFoundation
 import CoreImage
 import UIKit
 
+/// Apps vinculadas, con la misma estructura que Android: descripción, red local,
+/// lista de secundarias con su estado y botón flotante para agregar.
 struct SyncView: View {
     @ObservedObject var sync: SyncManager
     @State private var adding = false
@@ -11,24 +13,35 @@ struct SyncView: View {
     @State private var confirmUnlink = false
     @State private var errorMessage: String?
 
-    var body: some View {
-        List {
-            Section(sync.isSecondary ? "App secundaria" : "App principal") {
-                Label(sync.isSecondary ? (sync.link?.businessName ?? "Negocio") : "Este dispositivo guarda la base general",
-                      systemImage: sync.isSecondary ? "point.3.connected.trianglepath" : "server.rack")
-                if sync.isSecondary {
-                    Label(sync.link?.employeeName ?? "Empleado", systemImage: "person")
-                } else {
-                    Label(sync.isListening ? "Disponible en \(sync.addresses.joined(separator: ", ")) : \(sync.port)" : sync.status,
-                          systemImage: "wifi")
-                }
-                Text(sync.status).font(.caption).foregroundStyle(.secondary)
-                if let error = sync.lastError { Text(error).font(.caption).foregroundStyle(.red) }
-            }
+    private var activeEmployees: [LocalEmployee] {
+        sync.linkedApps.filter(\.syncActive)
+    }
 
-            if sync.isSecondary { secondarySections } else { principalSections }
+    private var allowedPermissions: [EmployeePermission] {
+        let allowed = sync.permissions(sync.link?.permissions ?? [])
+        return EmployeePermission.allCases.filter { allowed.contains($0) }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                if sync.isSecondary { secondaryContent } else { principalContent }
+            }
+            .padding(18)
+            .padding(.bottom, 90)
+            .frame(maxWidth: 680)
+            .frame(maxWidth: .infinity)
         }
+        .background(Color.shalevBackground.ignoresSafeArea())
         .navigationTitle("Apps vinculadas")
+        .navigationBarTitleDisplayMode(.inline)
+        .overlay(alignment: .bottomTrailing) {
+            if !sync.isSecondary {
+                ShalevFloatingButton(title: "Agregar app secundaria", symbol: "person.badge.plus") { adding = true }
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 24)
+            }
+        }
         .sheet(isPresented: $adding) {
             SyncEmployeeEditor(sync: sync, employee: nil)
         }
@@ -56,64 +69,202 @@ struct SyncView: View {
         .onAppear { sync.start() }
     }
 
-    @ViewBuilder private var principalSections: some View {
-        Section("Secundarias") {
-            ForEach(sync.linkedApps.filter(\.syncActive)) { employee in
-                SyncLinkedAppRow(sync: sync, employee: employee)
+    // MARK: - App principal
+
+    @ViewBuilder private var principalContent: some View {
+        Text("Esta es la app principal: guarda todos los datos y la licencia. Tus empleados se vinculan con un código QR.")
+            .font(.system(size: 13))
+            .foregroundStyle(Color.shalevText)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+
+        networkCard(title: sync.isListening ? "Red local activa" : "Red local inactiva",
+                    detail: sync.isListening ? "Este teléfono: \(sync.addresses.joined(separator: ", "))" : sync.status,
+                    symbol: sync.isListening ? "key.horizontal.fill" : "wifi.slash")
+
+        Text("Secundarias (\(activeEmployees.count) de 10)")
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(Color.shalevText)
+            .frame(maxWidth: .infinity)
+
+        if activeEmployees.isEmpty {
+            ShalevEmptyState(symbol: "iphone",
+                             title: "Aún no hay apps secundarias",
+                             detail: "Agrega una con el botón + y muestra el QR en el otro teléfono.",
+                             actionTitle: "Agregar app secundaria") { adding = true }
+        } else {
+            VStack(spacing: 0) {
+                ForEach(Array(activeEmployees.enumerated()), id: \.element.id) { index, employee in
+                    SyncLinkedAppRow(sync: sync, employee: employee)
+                    if index < activeEmployees.count - 1 {
+                        Divider().overlay(Color.shalevOutlineVariant.opacity(0.6))
+                    }
+                }
             }
-            Button { adding = true } label: { Label("Agregar app secundaria", systemImage: "person.badge.plus") }
+            .padding(.horizontal, 16)
+            .background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.shalevOutlineVariant.opacity(0.55), lineWidth: 0.7)
+            }
         }
-        Section {
-            Text("La principal puede vender, editar el catálogo y administrar las licencias. Cada QR caduca en 10 minutos, se usa una sola vez y sustituye la clave anterior.")
-                .font(.caption).foregroundStyle(.secondary)
-            if sync.linkedApps.filter(\.syncActive).isEmpty {
-                Button("Usar esta app como secundaria…") { confirmLink = true }
+
+        Text("Cada QR caduca en 10 minutos, se usa una sola vez y sustituye la clave anterior.")
+            .font(.system(size: 12))
+            .foregroundStyle(Color.shalevSecondaryText)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+
+        if activeEmployees.isEmpty {
+            Button {
+                confirmLink = true
+            } label: {
+                Label("Usar esta app como secundaria…", systemImage: "arrow.left.arrow.right")
             }
+            .buttonStyle(ShalevTonalButtonStyle())
         }
     }
 
-    @ViewBuilder private var secondarySections: some View {
-        Section("Estado") {
-            Label(sync.secondaryLicenseState?.title ?? "Licencia de la principal no disponible", systemImage: "key")
-            Label("Pendientes de enviar: \(sync.pendingCount)", systemImage: "arrow.triangle.2.circlepath")
-            if let last = sync.link?.lastSync { Label("Última: \(last.shalevDateTime)", systemImage: "clock") }
-            if sync.catalogChanged { Label("El catálogo cambió en la principal", systemImage: "exclamationmark.circle") }
-            Button {
-                Task { do { _ = try await sync.synchronize() } catch { errorMessage = error.localizedDescription } }
-            } label: {
-                if sync.isBusy { ProgressView().frame(maxWidth: .infinity) } else { Text("Sincronizar ahora") }
+    // MARK: - App secundaria
+
+    @ViewBuilder private var secondaryContent: some View {
+        ShalevCard {
+            VStack(spacing: 4) {
+                Text("Secundaria de \(sync.link?.businessName ?? "tu negocio")")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.shalevText)
+                    .multilineTextAlignment(.center)
+                Text("Empleado: \(sync.link?.employeeName ?? "sin vincular")")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.shalevText)
+                Text(secondarySummary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.shalevSecondaryText)
+                    .multilineTextAlignment(.center)
             }
-            .disabled(sync.isBusy)
+            .frame(maxWidth: .infinity)
         }
-        if sync.closeRequestedByPrincipal {
-            Section { Label("La principal pidió cerrar tu turno. Cuéntalo y ciérralo desde Inicio.", systemImage: "lock.rotation") }
-        }
-        if sync.link?.closeNotice == true {
-            Section {
-                Label("El turno se cerró por una petición de la principal.", systemImage: "checkmark.circle")
-                Button("Entendido") { sync.dismissCloseNotices() }
-            }
-        }
-        if sync.closeRejectedByPrincipal {
-            Section {
-                Label("La principal no aprobó la solicitud de cierre. Puedes seguir vendiendo.", systemImage: "xmark.circle")
-                Button("Entendido") { sync.dismissCloseNotices() }
-            }
-        }
-        Section("Caja") {
-            if sync.link?.closeRequested == true {
-                Label("Solicitud de cierre pendiente de aprobación", systemImage: "clock")
-            } else if sync.store.openShift != nil {
-                Button("Solicitar cierre a la principal") {
-                    Task { do { try await sync.requestSecondaryClose() } catch { errorMessage = error.localizedDescription } }
+
+        networkCard(title: sync.link == nil ? sync.status : "Conectada con la app principal",
+                    detail: sync.lastError ?? "Vender y cerrar funcionan sin red.",
+                    symbol: "key.horizontal.fill")
+
+        Button {
+            Task { do { _ = try await sync.synchronize() } catch { errorMessage = error.localizedDescription } }
+        } label: {
+            Group {
+                if sync.isBusy {
+                    ProgressView().tint(Color.shalevOnPrimary)
+                } else {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 21, weight: .semibold))
                 }
             }
+            .foregroundStyle(Color.shalevOnPrimary)
+            .frame(width: 58, height: 58)
+            .background(Color.shalevPrimary, in: Circle())
+            .shadow(color: Color.shalevPrimary.opacity(0.25), radius: 7, x: 0, y: 3)
         }
-        Section {
-            Text("Vender y cerrar siguen disponibles sin red. Los turnos, ventas y movimientos se reenvían hasta que la principal confirme que los guardó.")
-                .font(.caption).foregroundStyle(.secondary)
-            Button("Desvincular y borrar datos…", role: .destructive) { confirmUnlink = true }
-                .disabled(sync.isBusy)
+        .buttonStyle(.plain)
+        .disabled(sync.isBusy)
+        .accessibilityLabel("Sincronizar ahora")
+
+        if !allowedPermissions.isEmpty {
+            ShalevCard {
+                VStack(alignment: .leading, spacing: 6) {
+                    ShalevSectionHeader(title: "Lo que puedes hacer")
+                    ForEach(allowedPermissions) { permission in
+                        Text("• \(permission.rawValue)")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.shalevText)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+
+        if sync.closeRequestedByPrincipal {
+            noticeCard(symbol: "lock.rotation", title: "La principal pidió cerrar tu turno",
+                       detail: "Cuéntalo y ciérralo desde Inicio.")
+        }
+        if sync.link?.closeNotice == true {
+            noticeCard(symbol: "checkmark.circle", title: "El turno se cerró por una petición de la principal",
+                       detail: "No tienes que hacer nada más.", actionTitle: "Entendido") { sync.dismissCloseNotices() }
+        }
+        if sync.closeRejectedByPrincipal {
+            noticeCard(symbol: "xmark.circle", title: "La principal no aprobó la solicitud de cierre",
+                       detail: "Puedes seguir vendiendo.", actionTitle: "Entendido") { sync.dismissCloseNotices() }
+        }
+        if sync.link?.closeRequested == true {
+            noticeCard(symbol: "clock", title: "Solicitud de cierre pendiente de aprobación",
+                       detail: "La principal la verá al conectarse.")
+        } else if sync.store.openShift != nil {
+            Button {
+                Task { do { try await sync.requestSecondaryClose() } catch { errorMessage = error.localizedDescription } }
+            } label: {
+                Label("Solicitar cierre a la principal", systemImage: "lock.rotation")
+            }
+            .buttonStyle(ShalevTonalButtonStyle())
+        }
+
+        Text("Vender y cerrar siguen disponibles sin red. Los turnos, ventas y movimientos se reenvían hasta que la principal confirme que los guardó.")
+            .font(.system(size: 12))
+            .foregroundStyle(Color.shalevSecondaryText)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+
+        Button {
+            confirmUnlink = true
+        } label: {
+            Label("Desvincular y borrar datos", systemImage: "iphone.slash")
+        }
+        .buttonStyle(ShalevTonalButtonStyle())
+        .disabled(sync.isBusy)
+    }
+
+    private var secondarySummary: String {
+        let sent = sync.pendingCount == 0 ? "Todo enviado" : "\(sync.pendingCount) por enviar"
+        guard let last = sync.link?.lastSync else { return sent }
+        return "\(sent) · Última vez: \(last.shalevDateTime)"
+    }
+
+    private func networkCard(title: String, detail: String, symbol: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 20, weight: .medium))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.shalevText)
+                Text(detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.shalevSecondaryText)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "wifi")
+                .font(.system(size: 18, weight: .medium))
+        }
+        .foregroundStyle(Color.shalevPrimary)
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func noticeCard(symbol: String, title: String, detail: String,
+                            actionTitle: String? = nil, action: (() -> Void)? = nil) -> some View {
+        ShalevCard {
+            VStack(alignment: .leading, spacing: 6) {
+                Label(title, systemImage: symbol)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.shalevText)
+                Text(detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.shalevSecondaryText)
+                if let actionTitle, let action {
+                    Button(actionTitle, action: action)
+                        .buttonStyle(ShalevTonalButtonStyle())
+                }
+            }
         }
     }
 }
@@ -127,47 +278,82 @@ private struct SyncLinkedAppRow: View {
     @State private var errorMessage: String?
 
     private var remoteShift: Shift? { sync.store.data.shifts.first(where: { $0.employeeID == employee.syncID && $0.closedAt == nil }) }
+    private var isConnected: Bool { sync.connectedEmployeeIDs.contains(employee.syncID ?? 0) }
+
+    private var statusLine: String {
+        if isConnected { return "Conectada ahora" }
+        if employee.closeRequestedAt != nil { return "Cierre pedido · se cerrará al conectar" }
+        if employee.lastSyncAt != nil { return "Última vez" }
+        return employee.linkedAt == nil ? "Pendiente de vincular" : "Sin conexión"
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack {
-                Image(systemName: sync.connectedEmployeeIDs.contains(employee.syncID ?? 0) ? "circle.fill" : "circle")
-                    .foregroundStyle(sync.connectedEmployeeIDs.contains(employee.syncID ?? 0) ? .green : .secondary)
-                Text(employee.name).font(.headline)
-                Spacer()
-                if employee.linkedAt == nil { Text("Pendiente").font(.caption).foregroundStyle(.orange) }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "iphone")
+                    .font(.system(size: 19))
+                    .foregroundStyle(Color.shalevPrimary)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(employee.name)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.shalevText)
+                    if let last = employee.lastSyncAt, employee.closeRequestedAt != nil || isConnected {
+                        Text(statusLine == "Última vez" ? "Última vez: \(last.shalevDateTime)" : "\(statusLine) · Última vez: \(last.shalevDateTime)")
+                            .font(.system(size: 12))
+                            .foregroundStyle(isConnected ? Color.shalevSuccess : Color.shalevSecondaryText)
+                    } else {
+                        Text(statusLine)
+                            .font(.system(size: 12))
+                            .foregroundStyle(isConnected ? Color.shalevSuccess : Color.shalevSecondaryText)
+                    }
+                }
+                Spacer(minLength: 8)
+                if employee.linkedAt == nil {
+                    Text("Pendiente")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.shalevError)
+                }
             }
-            Text(employee.lastSyncAt.map { "Última sync \($0.shalevDateTime)" } ?? "Aún no sincroniza")
-                .font(.caption).foregroundStyle(.secondary)
+
             if let shift = remoteShift {
-                Text("Turno abierto \(shift.openedAt.shalevDateTime)").font(.caption)
+                Text("Turno abierto \(shift.openedAt.shalevDateTime)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.shalevSecondaryText)
                 if let count = shift.closingCount {
                     Text(count.approvedAt == nil ? "Conteo pendiente de aprobación" : "Conteo aprobado; falta recibir el cierre")
-                        .font(.caption).foregroundStyle(count.approvedAt == nil ? .orange : .green)
+                        .font(.system(size: 12))
+                        .foregroundStyle(count.approvedAt == nil ? Color.shalevError : Color.shalevSuccess)
                     if count.approvedAt == nil {
-                        HStack {
+                        HStack(spacing: 14) {
                             Button("Aprobar conteo") { do { try sync.approveClosing(employee.syncID ?? 0) } catch { errorMessage = error.localizedDescription } }
                             Button("Rechazar", role: .destructive) { do { try sync.rejectClosing(employee.syncID ?? 0) } catch { errorMessage = error.localizedDescription } }
                         }
+                        .font(.system(size: 12, weight: .semibold))
                     }
                 } else if employee.closeRequestedAt == nil {
                     Button("Pedir cierre") {
                         var updated = employee; updated.closeRequestedAt = Date()
                         do { try sync.updateLinkedApp(updated) } catch { errorMessage = error.localizedDescription }
                     }
+                    .font(.system(size: 12, weight: .semibold))
                 }
             }
             if employee.employeeCloseRequestAt != nil && employee.employeeCloseRequestAt?.timeIntervalSince1970 != 0 {
-                Text("El empleado solicita cerrar").font(.caption).foregroundStyle(.orange)
+                Text("El empleado solicita cerrar")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.shalevError)
             }
-            HStack {
+
+            HStack(spacing: 14) {
                 Button("QR") { showingQR = true }
                 Button("Permisos y cobro") { editing = true }
                 Spacer()
                 Button("Quitar", role: .destructive) { confirmRemove = true }
-            }.font(.subheadline)
+            }
+            .font(.system(size: 12, weight: .semibold))
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 11)
         .sheet(isPresented: $editing) { SyncEmployeeEditor(sync: sync, employee: employee) }
         .sheet(isPresented: $showingQR) { SyncPairingQRView(sync: sync, employee: employee) }
         .alert("¿Quitar \(employee.name)?", isPresented: $confirmRemove) {
