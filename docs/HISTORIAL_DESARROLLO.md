@@ -2186,3 +2186,34 @@ solo cambian pantallas y se añaden filtros que ya existían en Android.
   cerrará al conectar», «Última vez: …») y botón flotante para agregar. En la app secundaria: tarjeta con
   negocio y empleado, resumen de envío y última sincronización, botón circular para sincronizar, «Lo que
   puedes hacer» con sus permisos y los avisos de cierre como tarjetas.
+
+## IShalev — Perfil, Pago electrónico, Precios y Ayuda (2026-10-26)
+
+Tercera pasada de alineación con Android. Se sigue con el mismo criterio: solo cambian pantallas y textos;
+el dominio, la persistencia y la licencia quedan igual.
+
+- **Perfil**
+  - Aviso superior con la explicación de Android y tarjeta con **Nombre**, **Apellidos** y **Carné de
+    identidad (CI)**, con las mismas validaciones (2–80 letras; 5–20 letras o números) y el texto «Solo se
+    envía al pedir la licencia».
+  - «Guardar» se habilita solo cuando hay cambios; al cerrar con cambios pendientes aparece «¿Salir sin
+    guardar?».
+  - **Tu negocio** pasa de Ajustes a Perfil, como en Android: Ventas, Inventario y Servicios en una tarjeta
+    con casillas. Ventas arrastra Inventario, desmarcar Inventario desmarca Ventas y no se puede dejar la app
+    sin ningún módulo.
+- **Pago electrónico**
+  - Dos listas al estilo Android: **Teléfonos** y **Tarjetas y cuentas**, con casilla de selección, fila
+    resaltada para el elemento en uso, lápiz y papelera.
+  - Las tarjetas muestran `•••• 6454` y, debajo, el alias y la sigla del banco estimada por el prefijo
+    (BPA 9205, BANDEC 9225, BANMET 9226), con el aviso de que no se verifica el banco ni la titularidad.
+  - **+** flotante que despliega «Teléfono» y «Tarjeta o cuenta»; hoja de alta/edición con validación
+    (teléfono válido, 12–20 dígitos, duplicados) y confirmación antes de borrar.
+  - Cada cambio se guarda al momento, como en Android.
+- **Precios**
+  - Aviso tonal con la explicación, filas con indicador de activo, porcentaje con signo a la derecha
+    («+5 %», «-10 %») e interruptor; estado vacío con los textos de Android y botón flotante que solo
+    aparece cuando hay productos.
+- **Ayuda**
+  - Se porta el manual completo de Android: secciones con icono, título y detalle, y temas desplegables con
+    los pasos numerados. Los temas de inventario, ventas y servicios se ocultan si el módulo no está activo.
+  - Los esquemas de barra inferior, turno, venta y respaldo se dibujan con formas, sin imágenes.
