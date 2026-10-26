@@ -1841,4 +1841,12 @@ extension Date {
         formatter.timeStyle = .none
         return formatter.string(from: self)
     }
+
+    /// Hora del día con 24 horas, como «Desde las 08:30» en Inicio.
+    var shalevTime: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "es_ES")
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: self)
+    }
 }

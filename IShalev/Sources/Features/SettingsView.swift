@@ -41,32 +41,66 @@ struct SettingsView: View {
     @AppStorage("shalev.module.inventory") private var inventoryEnabled = true
     @AppStorage("shalev.module.services") private var servicesEnabled = true
     @State private var sheet: SettingsSheet?
+    @State private var showSetupWizard = false
     @State private var canUseDeviceAuthentication = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 15) {
-                ShalevScreenTitle(title: "Ajustes", subtitle: store.data.settings.profile.businessName)
+                ShalevScreenTitle(title: "Ajustes")
                     .padding(.top, 8)
                 ShalevCard(padding: 5) {
                     VStack(spacing: 0) {
+                        // Mismo orden que Android. «Completar configuración» solo aparece si falta algo.
+                        if isAdministrator && !pendingSetup.isEmpty {
+                            Button { showSetupWizard = true } label: {
+                                settingsRowLabel(title: "Completar configuración",
+                                                 subtitle: pendingSetupText,
+                                                 symbol: "checklist",
+                                                 badge: "\(pendingSetup.count)")
+                            }
+                            .buttonStyle(.plain)
+                            settingsDivider
+                        }
+                        settingsRow("Perfil", subtitle: "Nombre, apellidos y carné", symbol: "person.crop.circle", sheet: .profile)
                         if isAdministrator {
-                            settingsRow("Licencia", subtitle: licenseManager.state.title, symbol: "checkmark.seal.fill", sheet: .license)
                             settingsDivider
-                            settingsRow("Perfil", subtitle: "Datos del negocio y del titular", symbol: "person.crop.circle", sheet: .profile)
+                            settingsRow("Licencia", subtitle: "Estado, solicitud y activación", symbol: "key.fill", sheet: .license)
+                        }
+                        settingsDivider
+                        settingsRow("Apps vinculadas",
+                                    subtitle: sync.isSecondary ? "Secundaria · Principal" : "Principal · Vincula las apps de tus empleados",
+                                    symbol: "point.3.connected.trianglepath", sheet: .sync)
+                        if isAdministrator {
                             settingsDivider
-                            settingsRow("Pago electrónico", subtitle: "Tarjetas y teléfonos para Transfermóvil", symbol: "creditcard.fill", sheet: .payment)
+                            settingsRow("Pago electrónico", subtitle: "Teléfonos y cuentas para cobrar por transferencia", symbol: "creditcard.fill", sheet: .payment)
                         }
                         if canChangePrices {
-                            if isAdministrator { settingsDivider }
-                            settingsRow("Precios", subtitle: "Descuentos y recargos automáticos", symbol: "dollarsign.circle.fill", sheet: .prices)
+                            settingsDivider
+                            settingsRow("Precios", subtitle: "Por pago o por importe", symbol: "dollarsign.circle.fill", sheet: .prices)
                         }
                         if isAdministrator {
                             settingsDivider
-                            settingsRow("Empleados", subtitle: "Permisos de módulos en este teléfono", symbol: "person.2.fill", sheet: .employees)
+                            settingsRow("Permisos", subtitle: "Perfiles locales y qué puede hacer cada empleado", symbol: "lock.fill", sheet: .employees)
                             settingsDivider
-                            settingsRow("Actualizaciones", subtitle: "Comprobar nuevas publicaciones de IShalev", symbol: "arrow.down.circle.fill", sheet: .updates)
+                            accessLockRow
                         }
+                        if isAdministrator {
+                            settingsDivider
+                            settingsRow("Respaldo", subtitle: "Copia cifrada de todo e importar", symbol: "externaldrive.fill", sheet: .backup)
+                        }
+                        if canExport {
+                            settingsDivider
+                            settingsRow("Exportar", subtitle: "Excel (XLSX), CSV, PDF e imágenes", symbol: "square.and.arrow.up.fill", sheet: .export)
+                        }
+                        if isAdministrator {
+                            settingsDivider
+                            settingsRow("Actualizar", subtitle: "Consultar nuevas publicaciones de IShalev", symbol: "arrow.triangle.2.circlepath", sheet: .updates)
+                        }
+                        settingsDivider
+                        settingsRow("Ayuda", subtitle: "Manual breve de uso", symbol: "questionmark.circle.fill", sheet: .help)
+                        settingsDivider
+                        settingsRow("Soporte", subtitle: "Datos de contacto del desarrollador", symbol: "message.fill", sheet: .support)
                     }
                 }
                 if isAdministrator {
@@ -93,41 +127,16 @@ struct SettingsView: View {
                         .tint(Color.shalevPrimary)
                     }
                 }
-                ShalevCard(padding: 5) {
-                    VStack(spacing: 0) {
-                        settingsRow("Apps vinculadas", subtitle: sync.isSecondary ? "Secundaria · sincronización por red local" : "Principal y secundarias por red local", symbol: "point.3.connected.trianglepath", sheet: .sync)
-                        settingsDivider
-                        if isAdministrator {
-                            settingsRow("Respaldo", subtitle: "Exportar o importar una copia cifrada", symbol: "externaldrive.fill", sheet: .backup)
-                            settingsDivider
-                        }
-                        if canExport {
-                            settingsRow("Exportar", subtitle: "Excel (XLSX), CSV, PDF e imágenes", symbol: "square.and.arrow.up.fill", sheet: .export)
-                            settingsDivider
-                        }
-                        settingsRow("Ayuda", subtitle: "Guía rápida de los flujos principales", symbol: "questionmark.circle.fill", sheet: .help)
-                        settingsDivider
-                        settingsRow("Soporte", subtitle: "Contacto del desarrollador por WhatsApp o SMS", symbol: "message.fill", sheet: .support)
-                    }
-                }
-                ShalevCard(padding: 5) {
-                    settingsRow("Acerca de Shalev", subtitle: "Aplicación nativa para iOS · Versión 1.0", symbol: "info.circle.fill", sheet: .about)
-                }
                 ShalevCard {
                     VStack(alignment: .leading, spacing: 7) {
                         Label("Privacidad", systemImage: "lock.shield.fill")
                             .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                         Text("Shalev guarda los datos en este teléfono y no usa una cuenta, servidor, analítica ni anuncios. El almacenamiento local se cifra con AES-GCM y una clave protegida por el llavero de iOS.")
                             .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
-                        Toggle("Bloquear al salir de Shalev", isOn: $appLockEnabled)
-                            .font(.system(size: 13, weight: .medium))
-                            .disabled(!canUseDeviceAuthentication || !isAdministrator)
-                        if !canUseDeviceAuthentication {
-                            Text("Configura Face ID, Touch ID o un código de acceso en el dispositivo para activar el bloqueo.")
-                                .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
-                        }
                     }
-                    .tint(Color.shalevPrimary)
+                }
+                ShalevCard(padding: 5) {
+                    settingsRow("Acerca de Shalev", subtitle: "Aplicación nativa para iOS · Versión 1.0", symbol: "info.circle.fill", sheet: .about)
                 }
                 .padding(.bottom, 18)
             }
@@ -138,6 +147,9 @@ struct SettingsView: View {
             let context = LAContext()
             var error: NSError?
             canUseDeviceAuthentication = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
+        }
+        .sheet(isPresented: $showSetupWizard) {
+            OnboardingView(store: store) { showSetupWizard = false }
         }
         .sheet(item: $sheet) { route in
             if route == .license {
@@ -175,23 +187,85 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Filas
+
+    private var accessLockRow: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "faceid")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color.shalevPrimary)
+                .frame(width: 42, height: 42)
+                .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 13))
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Acceso con clave")
+                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                Text(lockSubtitle)
+                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 5)
+            Toggle("", isOn: $appLockEnabled)
+                .labelsHidden()
+                .tint(Color.shalevPrimary)
+                .disabled(!canUseDeviceAuthentication)
+                .accessibilityLabel("Bloquear Shalev al salir")
+        }
+        .padding(12)
+    }
+
+    private var lockSubtitle: String {
+        if !canUseDeviceAuthentication {
+            return "Configura Face ID, Touch ID o un código de acceso en el teléfono para usar esta opción."
+        }
+        return appLockEnabled ? "Shalev se bloquea al salir; se abre con Face ID o el código del teléfono."
+            : "Pide Face ID o el código del teléfono al volver a Shalev."
+    }
+
+    /// Pasos que faltan para tener la configuración completa (los mismos datos del asistente inicial).
+    private var pendingSetup: [String] {
+        var pending: [String] = []
+        let profile = store.data.settings.profile
+        let name = profile.businessName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty || name == "Mi negocio" { pending.append("negocio") }
+        if (profile.ownerName).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { pending.append("titular") }
+        if profile.paymentCard == nil && profile.paymentPhone == nil { pending.append("cobro") }
+        return pending
+    }
+
+    private var pendingSetupText: String {
+        pendingSetup.isEmpty ? "Todo listo" : "Faltan \(pendingSetup.count) pasos: \(pendingSetup.joined(separator: ", "))"
+    }
+
     private var settingsDivider: some View { Color.shalevOutlineVariant.opacity(0.65).frame(height: 0.6).padding(.leading, 58) }
 
     private func settingsRow(_ title: String, subtitle: String, symbol: String, sheet route: SettingsSheet) -> some View {
         Button { sheet = route } label: {
-            HStack(spacing: 12) {
-                Image(systemName: symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
-                    .frame(width: 42, height: 42).background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 13))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                    Text(subtitle).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(2)
-                }
-                Spacer(minLength: 5)
-                Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
-            }
-            .padding(12).contentShape(Rectangle())
+            settingsRowLabel(title: title, subtitle: subtitle, symbol: symbol, badge: nil)
         }
         .buttonStyle(.plain)
+    }
+
+    private func settingsRowLabel(title: String, subtitle: String, symbol: String, badge: String?) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                .frame(width: 42, height: 42).background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 13))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                Text(subtitle).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(2)
+            }
+            Spacer(minLength: 5)
+            if let badge {
+                Text(badge)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(minWidth: 20, minHeight: 20)
+                    .background(Color.shalevError, in: Circle())
+                    .accessibilityLabel("\(badge) pasos pendientes")
+            }
+            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
+        }
+        .padding(12)
+        .contentShape(Rectangle())
     }
 }
 
