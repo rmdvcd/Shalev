@@ -1,0 +1,119 @@
+1
+00:00:00,280 --> 00:00:04,680
+Shalev: punto de venta, inventario y servicios
+
+2
+00:00:05,180 --> 00:00:07,180
+Cien por ciento sin internet
+
+3
+00:00:07,788 --> 00:00:10,608
+En Inicio, alertas de stock y caducidad
+
+4
+00:00:11,028 --> 00:00:12,158
+Las ventas del turno y la ganancia neta
+
+5
+00:00:12,598 --> 00:00:14,738
+Y tus rankings
+
+6
+00:00:15,342 --> 00:00:16,502
+Vende en segundos: arma el carrito
+
+7
+00:00:16,952 --> 00:00:18,352
+Cobra en efectivo o por transferencia
+
+8
+00:00:18,352 --> 00:00:22,352
+con el QR de Transfermóvil
+
+9
+00:00:22,782 --> 00:00:25,532
+y verifica el pago con el número de transacción
+
+10
+00:00:26,136 --> 00:00:29,486
+Existencias, insumos y recetas
+
+11
+00:00:29,936 --> 00:00:31,426
+Calcula el costo y para cuántas unidades alcanza
+
+12
+00:00:31,826 --> 00:00:34,556
+Descuenta cada ingrediente al vender
+
+13
+00:00:37,649 --> 00:00:40,699
+Cobra tus servicios
+
+14
+00:00:40,749 --> 00:00:44,329
+Recargos y descuentos automáticos por método de pago
+
+15
+00:00:44,937 --> 00:00:47,537
+Revisa y corrige tus ventas
+
+16
+00:00:47,587 --> 00:00:51,487
+Exporta en PDF o Excel, listo para compartir
+
+17
+00:00:52,096 --> 00:00:53,366
+Trabaja en equipo
+
+18
+00:00:53,866 --> 00:00:58,876
+Hasta 10 empleados por la Wi-Fi del local, sin gastar datos
+
+19
+00:00:59,476 --> 00:01:01,316
+Tus datos viven en tu teléfono
+
+20
+00:01:01,606 --> 00:01:03,156
+Protegidos con huella o PIN
+
+21
+00:01:03,436 --> 00:01:05,396
+Respaldos con contraseña
+
+22
+00:01:05,998 --> 00:01:08,878
+Activa tu licencia en tres pasos
+
+23
+00:01:09,328 --> 00:01:10,538
+1. Revisa tus datos
+
+24
+00:01:10,998 --> 00:01:11,948
+2. Elige el plan y envía la solicitud
+
+25
+00:01:12,348 --> 00:01:14,188
+3. Pega el código y confirma
+
+26
+00:01:14,188 --> 00:01:18,798
+Cuando llegue el código, lo pegas y confirmas
+
+27
+00:01:19,473 --> 00:01:24,423
+Mensual, semestral, anual y perpetua
+
+28
+00:01:24,703 --> 00:01:28,083
+Desde 6 000 CUP, con 7 días de prueba gratis
+
+29
+00:01:28,688 --> 00:01:31,288
+Únete al grupo de Telegram: t.me/spviapp
+
+30
+00:01:31,288 --> 00:01:33,088
+Shalev: vende mejor, controla más
