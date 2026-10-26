@@ -1394,37 +1394,316 @@ extension UTType {
     static let shalevAndroidBackup = UTType(exportedAs: "cu.shalev.android-backup", conformingTo: .data)
 }
 
+private enum HelpCategory: String, CaseIterable, Identifiable {
+    case start, sell, inventory, data, employees, help
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .start: "Empezar"
+        case .sell: "Vender y cobrar"
+        case .inventory: "Inventario"
+        case .data: "Tus datos y tu licencia"
+        case .employees: "Empleados"
+        case .help: "Ayuda"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .start: "Qué es cada botón y cómo dejar Shalev listo"
+        case .sell: "El turno, la venta y el cobro por transferencia"
+        case .inventory: "Productos, insumos y elaborados"
+        case .data: "Respaldo y licencia"
+        case .employees: "Las apps de tus empleados"
+        case .help: "A quién escribir cuando algo no sale"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .start: "checklist"
+        case .sell: "cart.fill"
+        case .inventory: "archivebox.fill"
+        case .data: "externaldrive.fill"
+        case .employees: "iphone"
+        case .help: "questionmark.circle.fill"
+        }
+    }
+}
+
+private enum HelpDiagram {
+    case bar, shift, sale, backup
+}
+
+/// Qué módulos deben estar activos para que el tema se muestre (igual que Android).
+private enum HelpScope {
+    case always
+    case salesOrInventory
+    case salesOrServices
+    case servicesOnly
+}
+
+private struct HelpTopic: Identifiable {
+    let title: String
+    let steps: [String]
+    let category: HelpCategory
+    var diagram: HelpDiagram? = nil
+    var scope: HelpScope = .always
+
+    var id: String { title }
+}
+
 private struct HelpView: View {
-    private let topics: [(String, String, String)] = [
-        ("Abrir un turno", "Desde Inicio, abre un turno e indica el fondo de caja. Sin turno abierto no se habilitan las ventas.", "storefront.fill"),
-        ("Vender y cobrar", "Agrega productos o servicios, elige efectivo o transferencia y confirma la operación. Puedes pegar el SMS de Transfermóvil para leer el importe y el número; Shalev no confirma el pago con el banco.", "cart.fill"),
-        ("Inventario y servicios", "Busca y filtra artículos. En cada ficha puedes editar existencias, precios, mínimos y recetas; también puedes añadir una foto desde la fototeca.", "archivebox.fill"),
-        ("Corregir una venta", "Desde Registros, modifica o anula una venta del turno abierto. Escribe un motivo; la operación original queda en el historial.", "pencil.and.list.clipboard"),
-        ("Empleados", "En Ajustes → Empleados crea perfiles y elige permisos. Los perfiles son locales a este iPhone; volver al administrador exige autenticación del dispositivo.", "person.2.fill"),
-        ("Cerrar caja", "Al cerrar el turno, cuenta el efectivo y compara el resultado con el efectivo esperado.", "checkmark.circle.fill"),
-        ("Respaldos", "Exporta una copia iOS o un archivo .shalev compatible con Android. Al importar, el formato se detecta automáticamente; los respaldos Android sin contraseña también se pueden abrir.", "externaldrive.fill"),
-        ("Actualizaciones", "Comprobar ahora consulta publicaciones iOS en GitHub. La instalación se gestiona por TestFlight, App Store o un canal autorizado.", "arrow.down.circle.fill"),
+    @AppStorage("shalev.module.sales") private var salesEnabled = true
+    @AppStorage("shalev.module.inventory") private var inventoryEnabled = true
+    @AppStorage("shalev.module.services") private var servicesEnabled = true
+    @State private var openTopic: String?
+
+    private static let intro = "Shalev te ayuda a vender, controlar tu inventario y ver cuánto ganas. Elige una sección y toca un tema para ver los pasos."
+
+    private static let topics: [HelpTopic] = [
+        HelpTopic(title: "Primeros pasos", steps: [
+            "Abajo tienes 5 botones: Inicio, Inventario, Servicios, Registros y Ajustes.",
+            "Toca una sección de la barra para cambiar de pantalla.",
+            "En Ajustes → Completar configuración escribe tus datos y elige los avisos.",
+            "Tienes 7 días de prueba gratis. Después hace falta una licencia.",
+            "Opcional: Ajustes → Acceso con clave pide tu huella o el PIN del teléfono al abrir Shalev.",
+        ], category: .start, diagram: .bar),
+
+        HelpTopic(title: "Abrir y cerrar el turno", steps: [
+            "El turno es la jornada de trabajo: sin turno abierto no se puede vender.",
+            "En Inicio toca Abrir turno. Arriba verás el tiempo que lleva abierto.",
+            "Al terminar el día toca Cerrar turno: Shalev guarda un resumen con todo lo vendido.",
+            "Si sales de Shalev con el turno abierto, verás un aviso arriba en la barra del teléfono.",
+        ], category: .sell, diagram: .shift, scope: .salesOrServices),
+
+        HelpTopic(title: "Vender", steps: [
+            "Toca Nueva venta, elige Productos o Servicios (van por separado) y la cantidad.",
+            "Elige cómo te pagan: efectivo o transferencia.",
+            "Revisa el total y confirma. La venta queda en Registros.",
+        ], category: .sell, diagram: .sale, scope: .salesOrServices),
+
+        HelpTopic(title: "Cobrar por transferencia", steps: [
+            "En Ajustes → Pago electrónico agrega tu teléfono y tu tarjeta.",
+            "Toca el que quieras usar para cobrar: queda marcado \"En uso\".",
+            "En la venta por transferencia anota los datos del cliente y el nº de transacción.",
+        ], category: .sell, scope: .salesOrServices),
+
+        HelpTopic(title: "Ver lo vendido", steps: [
+            "En Registros ves ventas, servicios, transferencias, movimientos y turnos.",
+            "Toca Filtrar para elegir las fechas: hoy, 7 días, este mes…",
+            "En ventas, transferencias y servicios también puedes filtrar por importe.",
+            "En Movimientos solo se filtra por fecha: un movimiento no tiene importe.",
+            "Marca con la casilla lo que quieras exportar y toca Compartir.",
+        ], category: .sell, scope: .salesOrServices),
+
+        HelpTopic(title: "Agregar productos", steps: [
+            "Ve a Inventario y toca +.",
+            "Escribe el nombre, el precio de compra, el precio de venta y la cantidad.",
+            "Si ya hay otro con el mismo nombre, escribe en Descripción qué lo distingue (p. ej. Lata 350 ml).",
+            "Toca el botón ✓ (Guardar) arriba a la derecha.",
+        ], category: .inventory, scope: .salesOrInventory),
+
+        HelpTopic(title: "Buscar y filtrar el inventario", steps: [
+            "El buscador encuentra por nombre, categoría o código.",
+            "Toca Filtrar y elige el Estado: Todos, Stock bajo, Stock crítico, Próximos a caducar o Sin existencia.",
+            "También puedes filtrar por Tipo (artículos, elaborados o insumos) y por Categoría.",
+            "El chip bajo el buscador resume el filtro activo; Quitar filtros lo borra.",
+        ], category: .inventory, scope: .salesOrInventory),
+
+        HelpTopic(title: "Insumos y elaborados", steps: [
+            "Los insumos (harina, azúcar…) están en Inventario, en la categoría Insumos.",
+            "Para crear uno: Inventario → + → Escribir y elige la categoría Insumos.",
+            "Si le pones precio de venta a un insumo, también lo puedes vender.",
+            "Crea el producto elaborado con su receta. Al venderlo, sus insumos se descuentan solos.",
+            "Verás para cuántos alcanzan los insumos; si no alcanzan, no se puede vender.",
+        ], category: .inventory, scope: .salesOrInventory),
+
+        HelpTopic(title: "Servicios", steps: [
+            "Sirve para lo que ofreces que no es un producto (cortes de pelo, arreglos, entregas…).",
+            "Ve a Servicios y toca +. Escribe el nombre, el tipo y el importe.",
+            "Si el servicio gasta insumos, agrégalos: se descuentan al venderlo.",
+            "Para venderlo: Nueva venta → Servicios. En Inicio verás los más y menos vendidos.",
+        ], category: .inventory, scope: .servicesOnly),
+
+        HelpTopic(title: "Guardar una copia", steps: [
+            "Ajustes → Respaldo → Exportar y toca Siguiente.",
+            "Opcional: activa Proteger con contraseña, escríbela dos veces y anótala.",
+            "Toca Guardar en el teléfono o Enviar a otra app (Drive, Telegram…).",
+            "Para recuperarla: Respaldo → Elegir archivo (y la contraseña, si la tiene).",
+        ], category: .data, diagram: .backup),
+
+        HelpTopic(title: "Licencia", steps: [
+            "Ajustes → Licencia muestra cuántos días te quedan. Sigue los 3 pasos.",
+            "Paso 1: revisa tus datos. Paso 2: elige el tipo, WhatsApp o SMS, y toca Solicitar. Solo pulsa Enviar.",
+            "Paso 3: copia todo el mensaje que te respondan, toca Pegar y luego Activar.",
+            "Si la activación llega en varios SMS, copia y pega todos.",
+            "Para renovar con lo mismo, toca Renovar igual. Si renuevas antes de que venza no pierdes días.",
+        ], category: .data),
+
+        HelpTopic(title: "Apps vinculadas", steps: [
+            "En tu teléfono: Ajustes → Apps vinculadas → +. Tu licencia dice cuántas secundarias puedes tener.",
+            "En el del empleado: Usar esta app como secundaria, escribe su teléfono y escanea tu código (misma wifi).",
+            "Su teléfono va en su QR de cobro: el SMS de la transferencia le llega a él.",
+            "El empleado no cierra su turno: lo solicita y tú lo apruebas o rechazas. Sin red sigue vendiendo.",
+            "Toca su app para sus permisos, su tarjeta de cobro o «Pedir cierre» de su turno abierto.",
+        ], category: .employees),
+
+        HelpTopic(title: "¿Necesitas ayuda?", steps: [
+            "Ajustes → Soporte: escribe al desarrollador por WhatsApp o SMS.",
+        ], category: .help),
     ]
+
+    private var visibleTopics: [HelpTopic] {
+        HelpView.topics.filter { topic -> Bool in
+            switch topic.scope {
+            case .always: return true
+            case .salesOrInventory: return salesEnabled || inventoryEnabled
+            case .salesOrServices: return salesEnabled || servicesEnabled
+            case .servicesOnly: return servicesEnabled
+            }
+        }
+    }
+
+    private var sections: [(HelpCategory, [HelpTopic])] {
+        HelpCategory.allCases.compactMap { category in
+            let topics = visibleTopics.filter { $0.category == category }
+            return topics.isEmpty ? nil : (category, topics)
+        }
+    }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 13) {
-                ShalevScreenTitle(title: "Ayuda", subtitle: "Guía rápida de uso")
-                ForEach(topics, id: \.0) { topic in
-                    ShalevCard(padding: 14) {
-                        HStack(alignment: .top, spacing: 11) {
-                            Image(systemName: topic.2).foregroundStyle(Color.shalevPrimary).frame(width: 25)
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text(topic.0).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                                Text(topic.1).font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
-                            }
+            VStack(alignment: .leading, spacing: 10) {
+                Text(HelpView.intro)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.shalevText)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(14)
+                    .background(Color.shalevSurfaceVariant, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: section.0.symbol)
+                            .font(.system(size: 18))
+                            .foregroundStyle(Color.shalevPrimary)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(section.0.title)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color.shalevText)
+                            Text(section.0.detail)
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color.shalevSecondaryText)
                         }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.top, 8)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isHeader)
+
+                    ForEach(section.1) { topic in
+                        topicCard(topic)
                     }
                 }
             }
             .padding(18)
+            .frame(maxWidth: 680)
+            .frame(maxWidth: .infinity)
         }
         .background(Color.shalevBackground)
+        .navigationTitle("Ayuda")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func topicCard(_ topic: HelpTopic) -> some View {
+        let expanded = openTopic == topic.id
+        return ShalevCard {
+            VStack(alignment: .leading, spacing: 8) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        openTopic = expanded ? nil : topic.id
+                    }
+                } label: {
+                    HStack(spacing: 9) {
+                        Text(topic.title)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(Color.shalevText)
+                        Spacer(minLength: 8)
+                        Image(systemName: expanded ? "minus" : "plus")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.shalevSecondaryText)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(topic.title)
+                .accessibilityValue(expanded ? "Abierto" : "Cerrado")
+
+                if expanded {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(topic.steps.enumerated()), id: \.offset) { index, step in
+                            Text("\(index + 1). \(step)")
+                                .font(.system(size: 13))
+                                .foregroundStyle(Color.shalevText)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    if let diagram = topic.diagram {
+                        diagramView(diagram).padding(.top, 4)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func diagramView(_ diagram: HelpDiagram) -> some View {
+        switch diagram {
+        case .bar:
+            HStack(spacing: 5) {
+                ForEach(["Inicio", "Inventario", "Servicios", "Registros", "Ajustes"], id: \.self) { label in
+                    Text(label)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(label == "Inicio" ? Color.shalevOnPrimaryContainer : Color.shalevSecondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(label == "Inicio" ? Color.shalevPrimaryContainer : Color.shalevSurfaceVariant,
+                                    in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                }
+            }
+        case .shift:
+            flow(["Turno cerrado", "Abrir turno", "Vender", "Cerrar turno"])
+        case .sale:
+            flow(["Nueva venta", "Productos o Servicios", "Efectivo o transferencia", "Confirmar"])
+        case .backup:
+            flow(["Este teléfono", "Archivo .shalev cifrado", "El teléfono nuevo"])
+        }
+    }
+
+    private func flow(_ steps: [String]) -> some View {
+        VStack(spacing: 4) {
+            ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                Text(step)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.shalevText)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.shalevSurfaceVariant, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                if index < steps.count - 1 {
+                    Text("↓")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.shalevPrimary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
