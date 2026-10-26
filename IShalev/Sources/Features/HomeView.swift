@@ -1,6 +1,28 @@
 import SwiftUI
 import Charts
 
+/// Período de Inicio, con las mismas opciones que Android: el turno abierto (o el último cerrado),
+/// hoy, semana, mes y año. `Turno` es la opción por defecto.
+enum HomePeriod: String, CaseIterable, Identifiable, Equatable {
+    case shift = "Turno"
+    case today = "Hoy"
+    case week = "Esta semana"
+    case month = "Este mes"
+    case year = "Este año"
+
+    var id: String { rawValue }
+
+    var statsPeriod: StatsPeriod? {
+        switch self {
+        case .shift: nil
+        case .today: .today
+        case .week: .week
+        case .month: .month
+        case .year: .year
+        }
+    }
+}
+
 @MainActor
 struct HomeView: View {
     @ObservedObject var store: ShalevStore
@@ -9,6 +31,8 @@ struct HomeView: View {
     let onSellService: () -> Void
     let onShowInventory: () -> Void
     let onShowSettings: () -> Void
+    var licenseBanner: String? = nil
+    var onShowLicense: () -> Void = { }
     var canSellProducts = true
     var canSellServices = true
     var canManageCash = true
@@ -21,14 +45,32 @@ struct HomeView: View {
     var isEmployeeSession = false
     var onSwitchToOwner: () -> Void = { }
 
-    @State private var period: StatsPeriod = .year
+    @State private var period: HomePeriod = .shift
     @State private var expandedCards: Set<String> = []
     @State private var shiftSheet: ShiftSheetAction?
-    @State private var expandedFab = false
+    @State private var showSaleTypeDialog = false
+
+    /// Turno del que habla el período «Turno»: el abierto o, si no hay, el último cerrado.
+    private var referenceShift: Shift? {
+        if let open = store.openShift { return open }
+        return store.data.shifts
+            .filter { $0.closedAt != nil && $0.employeeID == nil }
+            .sorted { ($0.closedAt ?? .distantPast) > ($1.closedAt ?? .distantPast) }
+            .first
+    }
 
     private var periodSales: [Sale] {
-        store.sales(for: period).filter { $0.isService ? canViewServices : canViewSales }
+        let base: [Sale]
+        if let stats = period.statsPeriod {
+            base = store.sales(for: stats)
+        } else if let shift = referenceShift {
+            base = store.data.sales.filter { $0.shiftID == shift.id && !$0.isCancelled }
+        } else {
+            base = []
+        }
+        return base.filter { $0.isService ? canViewServices : canViewSales }
     }
+
     private var monthlySales: [(label: String, cents: Int64)] {
         let calendar = Calendar.current
         let formatter = DateFormatter()
@@ -46,197 +88,77 @@ struct HomeView: View {
             return (formatter.string(from: month).lowercased(), total)
         }
     }
+
     private var revenue: Int64 { periodSales.reduce(0) { $0 + $1.totalCents } }
     private var profit: Int64 { periodSales.reduce(0) { $0 + $1.profitCents } }
-    private var periodTitle: String { period.rawValue }
+    private var cost: Int64 { periodSales.reduce(0) { $0 + $1.costCents } }
+
+    /// Productos e insumos cuentan para las alertas; los elaborados no tienen existencias propias.
+    private var sellableStock: [Product] { store.activeProducts.filter { $0.kind != .prepared } }
+    private var criticalProducts: [Product] {
+        sellableStock.filter { $0.criticalStockMilli > 0 && $0.stockMilli <= $0.criticalStockMilli }
+    }
     private var lowStockProducts: [Product] {
-        store.activeProducts.filter { product in
-            product.kind != .prepared && product.lowStockMilli > 0 && product.stockMilli <= product.lowStockMilli
+        sellableStock.filter { product in
+            product.lowStockMilli > 0 && product.stockMilli <= product.lowStockMilli
                 && (product.criticalStockMilli == 0 || product.stockMilli > product.criticalStockMilli)
         }
-    }
-    private var criticalProducts: [Product] {
-        store.activeProducts.filter { $0.kind != .prepared && $0.criticalStockMilli > 0 && $0.stockMilli <= $0.criticalStockMilli }
     }
     private var expiringProducts: [Product] {
         let today = Calendar.current.startOfDay(for: Date())
         let limit = Calendar.current.date(byAdding: .day, value: 7, to: today) ?? today
-        return store.activeProducts.filter { product in
+        return sellableStock.filter { product in
             guard product.stockMilli > 0, let expiresAt = product.expiresAt else { return false }
             return Calendar.current.startOfDay(for: expiresAt) <= limit
         }.sorted { ($0.expiresAt ?? .distantFuture) < ($1.expiresAt ?? .distantFuture) }
     }
+    private var alertTotal: Int { criticalProducts.count + lowStockProducts.count + expiringProducts.count }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                ShalevScreenTitle(title: "Shalev", isBrand: true)
-                    .padding(.top, 10)
-                if isEmployeeSession {
-                    Button(action: onSwitchToOwner) {
-                        Label("Cambiar a dueño / administrador", systemImage: "person.badge.key.fill")
-                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+        VStack(spacing: 0) {
+            fixedHeader
+            ScrollView {
+                VStack(spacing: 14) {
+                    if canViewInventory { inventoryAlerts }
+                    if canManageBusinessSettings || canChangePrices { accessTiles }
+                    if canViewRecords {
+                        salesAccordion
+                        profitAccordion
                     }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-
-                shiftCard
-
-                if canViewRecords {
-                    Menu {
-                        ForEach(StatsPeriod.allCases) { option in
-                        Button {
-                            period = option
-                            expandedCards.removeAll()
-                        } label: {
-                            if period == option { Label(option.rawValue, systemImage: "checkmark") }
-                            else { Text(option.rawValue) }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 13) {
-                        Image(systemName: "calendar")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(Color.shalevPrimary)
-                            .frame(width: 44, height: 44)
-                            .background(Color.shalevPrimaryContainer, in: Circle())
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Período").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-                            Text(periodTitle).font(.system(size: 16, weight: .semibold)).foregroundStyle(Color.shalevText)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.down").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(Color.shalevSurfaceVariant, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Período: \(periodTitle)")
-
-                if canViewInventory { inventoryAlerts }
-
-                if canManageBusinessSettings || canChangePrices {
-                    HStack(spacing: 12) {
-                        if canManageBusinessSettings {
-                            Button(action: onShowSettings) {
-                                ShalevStatTile(title: "Pago electrónico", value: paymentSummary, symbol: "creditcard.fill")
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Pago electrónico. Abrir Ajustes")
-                        }
-                        if canChangePrices {
-                            Button(action: onShowSettings) {
-                                ShalevStatTile(title: "Precios", value: priceSummary, symbol: "dollarsign", tint: .shalevSecondary)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Precios. Abrir Ajustes")
-                        }
+                    if canViewInventory { inventoryAccordion }
+                    if canViewRecords {
+                        paymentAccordion
+                        topAccordions
                     }
                 }
-
-                accordion(title: "Ventas", value: Cup(cents: revenue).formatted, key: "sales") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Chart {
-                            ForEach(Array(monthlySales.enumerated()), id: \.offset) { _, point in
-                                BarMark(x: .value("Mes", point.label), y: .value("Ventas CUP", Double(point.cents) / 100))
-                                    .foregroundStyle(Color.shalevPrimary)
-                                    .cornerRadius(7)
-                            }
-                        }
-                        .frame(height: 170)
-                        .chartYAxis(.hidden)
-                        .chartLegend(.hidden)
-                        Text("Cada barra muestra las ventas de un mes. Total del período: \(Cup(cents: revenue).formatted)")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Color.shalevSecondaryText)
-                    }
-                }
-
-                accordion(title: "Ganancia neta", value: Cup(cents: profit).formatted, key: "profit") {
-                    metricDescription(title: "Ventas menos costo", amount: Cup(cents: profit).formatted,
-                                      detail: "\(periodSales.count) operaciones registradas en \(periodTitle.lowercased()).")
-                }
-
-                if canViewInventory {
-                    accordion(title: "Inventario", value: "\(store.activeProducts.count) artículos", key: "inventory") {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Chart {
-                                ForEach(InventoryKind.allCases) { kind in
-                                    BarMark(x: .value("Tipo", kind.rawValue),
-                                            y: .value("Artículos", store.activeProducts.filter { $0.kind == kind }.count))
-                                        .foregroundStyle(kind == .ingredient ? Color.shalevTertiary : kind == .prepared ? Color.shalevChartOrange : Color.shalevPrimary)
-                                        .cornerRadius(7)
-                                }
-                            }
-                            .frame(height: 145)
-                            .chartYAxis(.hidden)
-                            .chartLegend(.hidden)
-                            Text("Recuento del catálogo por tipo de artículo.")
-                                .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
-                        }
-                    }
-                }
-
-                accordion(title: "Métodos de pago", value: "\(periodSales.filter { $0.paymentMethod == .cash }.count) en efectivo · \(periodSales.filter { $0.paymentMethod == .transfer }.count) transferencias", key: "payments") {
-                    VStack(spacing: 8) {
-                        summaryRow("Efectivo", amount: Cup(cents: periodSales.filter { $0.paymentMethod == .cash }.reduce(0) { $0 + $1.totalCents }).formatted)
-                        summaryRow("Transferencias", amount: Cup(cents: periodSales.filter { $0.paymentMethod == .transfer }.reduce(0) { $0 + $1.totalCents }).formatted)
-                    }
-                }
-
-                accordion(title: "Top 3", value: periodSales.isEmpty ? "Sin ventas" : "Más vendidos", key: "top") {
-                    topProducts
-                }
-                }
-
+                .padding(.horizontal, 16)
+                .padding(.bottom, 96)
             }
-            .padding(.horizontal, 17)
-            .padding(.bottom, 10)
         }
         .background(Color.shalevBackground)
-        .overlay(alignment: .bottomTrailing) {
-            if canSellProducts || canSellServices {
-                VStack(alignment: .trailing, spacing: 10) {
-                    if expandedFab && canSellProducts && canSellServices {
-                        Button {
-                            expandedFab = false
-                            onNewSale()
-                        } label: {
-                            Label("Nueva venta", systemImage: "cart.fill")
-                                .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                                .padding(.horizontal, 15).frame(height: 44)
-                                .background(Color.shalevSurface, in: Capsule())
-                                .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
-                        }
-                        .buttonStyle(.plain)
-                        Button {
-                            expandedFab = false
-                            onSellService()
-                        } label: {
-                            Label("Vender servicio", systemImage: "scissors")
-                                .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                                .padding(.horizontal, 15).frame(height: 44)
-                                .background(Color.shalevSurface, in: Capsule())
-                                .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
-                        }
-                        .buttonStyle(.plain)
+        .overlay(alignment: .bottom) {
+            if store.openShift != nil, canSellProducts || canManageCash {
+                HStack(spacing: 12) {
+                    if canSellProducts {
+                        ShalevFloatingButton(title: "Nueva venta", symbol: "cart.fill", action: startSale)
                     }
-                    ShalevFloatingButton(title: canSellProducts && canSellServices
-                                         ? (expandedFab ? "Cerrar acciones" : "Acciones de venta")
-                                         : (canSellProducts ? "Nueva venta" : "Vender servicio"),
-                                         symbol: canSellProducts && canSellServices ? (expandedFab ? "xmark" : "plus")
-                                         : (canSellProducts ? "cart.fill" : "scissors")) {
-                        if canSellProducts && canSellServices {
-                            withAnimation(.easeInOut(duration: 0.18)) { expandedFab.toggle() }
-                        } else if canSellProducts { onNewSale() }
-                        else { onSellService() }
+                    Spacer(minLength: 0)
+                    if canManageCash {
+                        ShalevFloatingButton(title: "Movimiento de caja", symbol: "banknote.fill") {
+                            shiftSheet = .cashMovement
+                        }
                     }
                 }
-                .padding(.trailing, 18)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 14)
             }
+        }
+        .confirmationDialog("Nueva venta", isPresented: $showSaleTypeDialog, titleVisibility: .visible) {
+            Button("Productos") { onNewSale() }
+            if canSellServices { Button("Servicios") { onSellService() } }
+            Button("Cancelar", role: .cancel) { }
+        } message: {
+            Text(store.openShift == nil ? "Turno cerrado: ábrelo para vender." : "Elige qué vas a vender.")
         }
         .sheet(item: $shiftSheet) { action in
             Group {
@@ -248,56 +170,133 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Bloque fijo (no se desplaza)
+
+    private var fixedHeader: some View {
+        VStack(spacing: 12) {
+            ShalevScreenTitle(title: "Shalev", isBrand: true)
+                .padding(.top, 10)
+            if isEmployeeSession {
+                Button(action: onSwitchToOwner) {
+                    Label("Cambiar a dueño / administrador", systemImage: "person.badge.key.fill")
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            shiftCard
+            if canViewRecords { periodSelector }
+            if let licenseBanner { licenseBannerView(licenseBanner) }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 12)
+        .background(Color.shalevBackground)
+    }
+
     private var shiftCard: some View {
         ShalevCard(padding: 15) {
-            HStack(spacing: 13) {
-                Image(systemName: "storefront.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(store.openShift == nil ? Color.shalevSecondaryText : Color.shalevSuccess)
-                    .frame(width: 44, height: 44)
-                    .background(Color.shalevSurfaceVariant, in: Circle())
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(store.openShift == nil ? "Turno cerrado" : "Turno abierto")
-                        .font(.system(size: 16, weight: .semibold)).foregroundStyle(Color.shalevText)
-                    Text(store.openShift.map { "Abierto \($0.openedAt.shalevDateTime)" } ?? (canManageCash ? "Ábrelo para vender" : "Sin permisos de caja"))
-                        .font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
-                        .lineLimit(1).minimumScaleFactor(0.8)
-                }
-                Spacer(minLength: 3)
-                if canManageCash {
-                    if store.openShift == nil {
-                        Button { shiftSheet = .open } label: {
-                            Image(systemName: "play.fill")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(Color.shalevOnPrimary)
-                                .frame(width: 46, height: 46)
-                                .background(Color.shalevPrimary, in: Capsule())
+            Button(action: shiftAction) {
+                HStack(spacing: 13) {
+                    Image(systemName: "storefront.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(store.openShift == nil ? Color.shalevSecondaryText : Color.shalevPrimary)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(store.openShift == nil ? "Turno cerrado" : "Turno abierto")
+                            .font(.system(size: 16, weight: .semibold)).foregroundStyle(Color.shalevText)
+                        Text(store.openShift.map { "Desde las \($0.openedAt.shalevTime)" } ?? "Ábrelo para vender")
+                            .font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                        if let shift = store.openShift {
+                            Text("Efectivo esperado: \(Cup(cents: store.expectedCashCents(for: shift.id)).formatted)")
+                                .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                                .lineLimit(1).minimumScaleFactor(0.8)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Abrir turno")
-                    } else {
-                        Menu {
-                            Button("Registrar movimiento de caja", systemImage: "arrow.left.arrow.right") { shiftSheet = .cashMovement }
-                            Button("Cerrar y contar", systemImage: "checkmark.circle") { shiftSheet = .close }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundStyle(Color.shalevPrimary)
-                                .frame(width: 44, height: 44)
-                                .background(Color.shalevPrimaryContainer, in: Circle())
-                        }
-                        .accessibilityLabel("Acciones del turno")
                     }
+                    Spacer(minLength: 3)
+                    Toggle("", isOn: .constant(store.openShift != nil))
+                        .labelsHidden()
+                        .tint(Color.shalevPrimary)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                 }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .disabled(!canManageCash)
+            .accessibilityLabel(store.openShift == nil ? "Abrir turno" : "Cerrar turno")
         }
     }
 
+    private func startSale() {
+        if canSellServices { showSaleTypeDialog = true } else { onNewSale() }
+    }
+
+    private func shiftAction() {
+        guard canManageCash else { return }
+        shiftSheet = store.openShift == nil ? .open : .close
+    }
+
+    private var periodSelector: some View {
+        Menu {
+            ForEach(HomePeriod.allCases) { option in
+                Button {
+                    period = option
+                    expandedCards.removeAll()
+                } label: {
+                    if period == option { Label(option.rawValue, systemImage: "checkmark") }
+                    else { Text(option.rawValue) }
+                }
+            }
+        } label: {
+            HStack(spacing: 13) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Color.shalevPrimary)
+                    .frame(width: 44, height: 44)
+                    .background(Color.shalevPrimaryContainer, in: Circle())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Período").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                    Text(period.rawValue).font(.system(size: 16, weight: .semibold)).foregroundStyle(Color.shalevText)
+                }
+                Spacer()
+                Image(systemName: "chevron.down").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.shalevSurfaceVariant, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Período: \(period.rawValue)")
+    }
+
+    private func licenseBannerView(_ text: String) -> some View {
+        Button(action: onShowLicense) {
+            HStack(spacing: 11) {
+                Image(systemName: "key.fill").font(.system(size: 15, weight: .semibold))
+                Text(text)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                Spacer(minLength: 6)
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(Color.shalevOnPrimaryContainer)
+            .padding(.horizontal, 15)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(text). Abrir licencia")
+    }
+
+    // MARK: - Alertas y accesos
+
     private var inventoryAlerts: some View {
         VStack(spacing: 10) {
-            ShalevSectionHeader(title: "Alertas de inventario", trailing: "\(criticalProducts.count + lowStockProducts.count + expiringProducts.count)")
+            ShalevSectionHeader(title: "Alertas de inventario")
                 .padding(.horizontal, 2)
-            if criticalProducts.isEmpty && lowStockProducts.isEmpty && expiringProducts.isEmpty {
+            if alertTotal == 0 {
                 ShalevCard(padding: 16) {
                     HStack(spacing: 11) {
                         Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.shalevSuccess).font(.system(size: 19))
@@ -310,57 +309,202 @@ struct HomeView: View {
                 }
             } else {
                 Button(action: onShowInventory) {
-                    HStack(spacing: 0) {
-                        alertCount(number: criticalProducts.count, label: "Crítico", tint: .shalevError)
-                        Rectangle().fill(Color.shalevOutlineVariant).frame(width: 1, height: 45)
-                        alertCount(number: lowStockProducts.count, label: "Stock bajo", tint: .shalevSecondary)
-                        Rectangle().fill(Color.shalevOutlineVariant).frame(width: 1, height: 45)
-                        alertCount(number: expiringProducts.count, label: "Caducidad", tint: .shalevTertiary)
+                    HStack(spacing: 8) {
+                        if criticalProducts.count > 0 {
+                            alertCount(number: criticalProducts.count, label: "Stock inventario crítico", tint: .shalevError)
+                        }
+                        if lowStockProducts.count > 0 {
+                            alertCount(number: lowStockProducts.count, label: "Stock inventario bajo", tint: .shalevSecondary)
+                        }
+                        if expiringProducts.count > 0 {
+                            alertCount(number: expiringProducts.count, label: "Próximo a caducar", tint: .shalevTertiary)
+                        }
                     }
                     .padding(.vertical, 12)
+                    .padding(.horizontal, 6)
                     .background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.shalevOutlineVariant.opacity(0.6), lineWidth: 0.7))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Alertas de inventario: \(criticalProducts.count) críticas, \(lowStockProducts.count) bajas y \(expiringProducts.count) caducadas o próximas a caducar. Abrir inventario")
-                if !expiringProducts.isEmpty {
-                    ShalevCard(padding: 12) {
-                        let startOfToday = Calendar.current.startOfDay(for: Date())
-                        VStack(alignment: .leading, spacing: 9) {
-                            Text("Caducidad próxima o vencida")
-                                .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
-                            ForEach(Array(expiringProducts.prefix(4))) { product in
-                                HStack(spacing: 8) {
-                                    Image(systemName: "calendar.badge.exclamationmark").foregroundStyle(Color.shalevTertiary)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(product.name).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevText).lineLimit(1)
-                                        if let expiry = product.expiresAt {
-                                            let isExpired = Calendar.current.startOfDay(for: expiry) < startOfToday
-                                            Text(isExpired ? "Vencido" : "Caduca el \(expiry.shalevDate)")
-                                                .font(.system(size: 11, weight: .medium))
-                                                .foregroundStyle(isExpired ? Color.shalevError : Color.shalevSecondaryText)
-                                        }
-                                    }
-                                    Spacer(minLength: 4)
-                                }
-                            }
-                            if expiringProducts.count > 4 {
-                                Text("Y \(expiringProducts.count - 4) más")
-                                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
-                            }
+                .accessibilityLabel("Alertas de inventario: \(criticalProducts.count) críticas, \(lowStockProducts.count) bajas y \(expiringProducts.count) próximas a caducar. Abrir inventario")
+            }
+        }
+    }
+
+    private func alertCount(number: Int, label: String, tint: Color) -> some View {
+        VStack(spacing: 4) {
+            Text("\(number)").font(.system(size: 20, weight: .bold)).foregroundStyle(tint)
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.shalevSecondaryText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var accessTiles: some View {
+        HStack(alignment: .top, spacing: 12) {
+            if canManageBusinessSettings {
+                Button(action: onShowSettings) {
+                    ShalevStatTile(title: "Pago electrónico", value: paymentSummary, symbol: "creditcard.fill")
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Pago electrónico. Abrir Ajustes")
+            }
+            if canChangePrices {
+                Button(action: onShowSettings) {
+                    ShalevStatTile(title: "Precios", value: priceSummary, symbol: "dollarsign", tint: .shalevSecondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Precios. Abrir Ajustes")
+            }
+        }
+    }
+
+    // MARK: - Acordeones
+
+    private var salesAccordion: some View {
+        accordion(title: "Ventas", value: Cup(cents: revenue).formatted, key: "sales") {
+            VStack(alignment: .leading, spacing: 12) {
+                Chart {
+                    ForEach(Array(monthlySales.enumerated()), id: \.offset) { _, point in
+                        BarMark(x: .value("Mes", point.label), y: .value("Ventas CUP", Double(point.cents) / 100))
+                            .foregroundStyle(Color.shalevPrimary)
+                            .cornerRadius(7)
+                    }
+                }
+                .frame(height: 170)
+                .chartYAxis(.hidden)
+                .chartLegend(.hidden)
+                Text("Cada barra muestra las ventas de un mes. Total del período: \(Cup(cents: revenue).formatted)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.shalevSecondaryText)
+            }
+        }
+    }
+
+    private var profitAccordion: some View {
+        accordion(title: "Ganancia neta", value: Cup(cents: profit).formatted, key: "profit") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    metricBlock(title: "Costo", amount: Cup(cents: cost).formatted)
+                    metricBlock(title: "Ganancia", amount: Cup(cents: profit).formatted)
+                }
+                if revenue > 0 {
+                    let margin = Double(profit) / Double(revenue) * 100
+                    Text("Margen \(String(format: "%.1f", margin)) %")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color.shalevSecondaryText)
+                }
+                Text("\(periodSales.count) operaciones registradas en \(period.rawValue.lowercased()).")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.shalevSecondaryText)
+            }
+        }
+    }
+
+    private func metricBlock(title: String, amount: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+            Text(amount)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(Color.shalevText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var inventoryAccordion: some View {
+        accordion(title: "Inventario", value: "\(store.activeProducts.count) artículos", key: "inventory") {
+            VStack(alignment: .leading, spacing: 10) {
+                Chart {
+                    ForEach(InventoryKind.allCases) { kind in
+                        BarMark(x: .value("Tipo", kind.rawValue),
+                                y: .value("Artículos", store.activeProducts.filter { $0.kind == kind }.count))
+                            .foregroundStyle(kind == .ingredient ? Color.shalevTertiary : kind == .prepared ? Color.shalevChartOrange : Color.shalevPrimary)
+                            .cornerRadius(7)
+                    }
+                }
+                .frame(height: 145)
+                .chartYAxis(.hidden)
+                .chartLegend(.hidden)
+                Text("Recuento del catálogo por tipo de artículo.")
+                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+            }
+        }
+    }
+
+    private var paymentAccordion: some View {
+        let cash = periodSales.filter { $0.paymentMethod == .cash }
+        let transfer = periodSales.filter { $0.paymentMethod == .transfer }
+        return accordion(title: "Métodos de pago",
+                         value: "\(cash.count) en efectivo · \(transfer.count) transferencias",
+                         key: "payments") {
+            VStack(spacing: 8) {
+                summaryRow("Efectivo", amount: Cup(cents: cash.reduce(0) { $0 + $1.totalCents }).formatted)
+                summaryRow("Transferencias", amount: Cup(cents: transfer.reduce(0) { $0 + $1.totalCents }).formatted)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var topAccordions: some View {
+        if !rankedItems.isEmpty {
+            topAccordion(title: "Más vendido", value: topSold.first.map { "\($0.name)" } ?? "Sin ventas",
+                         key: "top_sold", items: topSold, detail: { "\($0.units) u · \(Cup(cents: $0.cents).formatted)" },
+                         amount: { Cup(cents: $0.cents).formatted })
+            topAccordion(title: "Lento movimiento", value: slowMoving.first.map { "\($0.name)" } ?? "Sin ventas",
+                         key: "top_slow", items: slowMoving, detail: { "\($0.units) u vendidas" },
+                         amount: { Cup(cents: $0.cents).formatted })
+            topAccordion(title: "Rentabilidad", value: topProfit.first.map { "\($0.name)" } ?? "Sin ventas",
+                         key: "top_profit", items: topProfit, detail: { "Ganancia \(Cup(cents: $0.profit).formatted)" },
+                         amount: { Cup(cents: $0.profit).formatted })
+        }
+    }
+
+    private func topAccordion(title: String, value: String, key: String, items: [RankedItem],
+                              detail: @escaping (RankedItem) -> String,
+                              amount: @escaping (RankedItem) -> String) -> some View {
+        accordion(title: title, value: value, key: key) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("En \(period.rawValue.lowercased())")
+                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    HStack(spacing: 11) {
+                        medal(position: index + 1)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevText).lineLimit(1)
+                            Text(detail(item)).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
                         }
+                        Spacer(minLength: 6)
+                        Text(amount(item))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Color.shalevText)
+                            .lineLimit(1).minimumScaleFactor(0.8)
                     }
                 }
             }
         }
     }
 
-    private func alertCount(number: Int, label: String, tint: Color) -> some View {
-        VStack(spacing: 3) {
-            Text("\(number)").font(.system(size: 19, weight: .bold)).foregroundStyle(tint)
-            Text(label).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+    private func medal(position: Int) -> some View {
+        var background = Color(red: 0.788, green: 0.541, blue: 0.294)
+        var foreground = Color(red: 0.169, green: 0.086, blue: 0)
+        if position == 1 {
+            background = Color(red: 0.949, green: 0.788, blue: 0.298)
+            foreground = Color(red: 0.239, green: 0.180, blue: 0)
+        } else if position == 2 {
+            background = Color(red: 0.773, green: 0.800, blue: 0.839)
+            foreground = Color(red: 0.122, green: 0.161, blue: 0.200)
         }
-        .frame(maxWidth: .infinity)
+        return Text("\(position)")
+            .font(.system(size: 12, weight: .bold))
+            .foregroundStyle(foreground)
+            .frame(width: 30, height: 30)
+            .background(background, in: Circle())
+            .accessibilityLabel(position == 1 ? "Primer puesto" : position == 2 ? "Segundo puesto" : "Tercer puesto")
     }
 
     private func accordion<Content: View>(title: String, value: String, key: String,
@@ -394,14 +538,6 @@ struct HomeView: View {
         })
     }
 
-    private func metricDescription(title: String, amount: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
-            Text(amount).font(.system(size: 20, weight: .bold)).foregroundStyle(Color.shalevText)
-            Text(detail).font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
-        }
-    }
-
     private func summaryRow(_ title: String, amount: String) -> some View {
         HStack {
             Text(title).font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
@@ -410,51 +546,47 @@ struct HomeView: View {
         }
     }
 
-    private var topProducts: some View {
-        let grouped = topRankedProducts
-        return VStack(spacing: 10) {
-            if grouped.isEmpty {
-                Text("Todavía no hay ventas para mostrar.").font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                ForEach(Array(grouped.enumerated()), id: \.offset) { index, item in
-                    HStack(spacing: 10) {
-                        Text("\(index + 1)")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Color.shalevPrimary)
-                            .frame(width: 26, height: 26)
-                            .background(Color.shalevPrimaryContainer, in: Circle())
-                        Text(item.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevText).lineLimit(1)
-                        Spacer()
-                        Text("\(item.units) u · \(Cup(cents: item.totalCents).formatted)")
-                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
-                    }
-                }
-            }
-        }
-    }
+    // MARK: - Datos derivados
 
-    private var topRankedProducts: [RankedSaleItem] {
-        var totals: [String: (units: Int, cents: Int64)] = [:]
+    private var rankedItems: [RankedItem] {
+        var totals: [String: (units: Int, cents: Int64, profit: Int64)] = [:]
         for sale in periodSales {
             for line in sale.lines {
-                let previous = totals[line.name] ?? (units: 0, cents: 0)
-                totals[line.name] = (units: previous.units + line.quantity, cents: previous.cents + line.subtotalCents)
+                var entry = totals[line.name] ?? (units: 0, cents: 0, profit: 0)
+                entry.units += line.quantity
+                entry.cents += line.subtotalCents
+                entry.profit += line.subtotalCents - line.costCents
+                totals[line.name] = entry
             }
         }
-        let ranked: [RankedSaleItem] = totals.map { entry in
-            RankedSaleItem(name: entry.key, units: entry.value.units, totalCents: entry.value.cents)
-        }
-        let sorted = ranked.sorted { lhs, rhs in
-            if lhs.units != rhs.units { return lhs.units > rhs.units }
-            return lhs.totalCents > rhs.totalCents
-        }
-        return Array(sorted.prefix(3))
+        return totals.map { RankedItem(name: $0.key, units: $0.value.units, cents: $0.value.cents, profit: $0.value.profit) }
+    }
+
+    private var topSold: [RankedItem] {
+        Array(rankedItems.sorted {
+            if $0.units != $1.units { return $0.units > $1.units }
+            return $0.cents > $1.cents
+        }.prefix(3))
+    }
+
+    private var slowMoving: [RankedItem] {
+        Array(rankedItems.sorted {
+            if $0.units != $1.units { return $0.units < $1.units }
+            return $0.cents < $1.cents
+        }.prefix(3))
+    }
+
+    private var topProfit: [RankedItem] {
+        Array(rankedItems.sorted { $0.profit > $1.profit }.prefix(3))
     }
 
     private var paymentSummary: String {
         let phone = store.data.settings.profile.paymentPhone?.number ?? ""
-        return phone.isEmpty ? "Configura tus datos de cobro" : "Tel. \(phone)"
+        let card = store.data.settings.profile.paymentCard?.number.filter(\.isNumber) ?? ""
+        var lines: [String] = []
+        if !phone.isEmpty { lines.append("Tel. \(phone)") }
+        if card.count >= 4 { lines.append("Cuenta •••• \(card.suffix(4))") }
+        return lines.isEmpty ? "Sin configurar" : lines.joined(separator: "\n")
     }
 
     private var priceSummary: String {
@@ -463,10 +595,11 @@ struct HomeView: View {
     }
 }
 
-private struct RankedSaleItem: Identifiable {
+private struct RankedItem: Identifiable {
     var name: String
     var units: Int
-    var totalCents: Int64
+    var cents: Int64
+    var profit: Int64
     var id: String { name }
 }
 

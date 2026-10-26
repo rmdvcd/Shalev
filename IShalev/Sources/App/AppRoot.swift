@@ -66,6 +66,7 @@ struct ShalevRootView: View {
     @State private var selectedSection: MainSection = .home
     @State private var saleMode: SaleMode?
     @State private var showStorageAlert = false
+    @State private var showLicenseSheet = false
     @State private var appUnlocked = false
     @State private var operatorAuthError: String?
 
@@ -95,6 +96,24 @@ struct ShalevRootView: View {
     private var canCorrectSales: Bool { !sync.isSecondary && permits(.correctSales) }
     private var canOpenSettings: Bool {
         sync.isSecondary || isAdministrator || permits(.manageSettings) || canChangePrices || canExport
+    }
+
+    /// Banner de licencia de Inicio: igual que Android, la prueba y las licencias con vencimiento
+    /// muestran el tiempo restante; la perpetua no muestra banner.
+    private var homeLicenseBanner: String? {
+        switch effectiveLicenseState {
+        case .trial(let days):
+            return "Periodo de prueba restante: \(days) \(days == 1 ? "día" : "días")"
+        case .active(let type, let expiresAt, _, _):
+            let days = max(0, Calendar.current.dateComponents([.day], from: Date(), to: expiresAt).day ?? 0)
+            let months = max(0, Calendar.current.dateComponents([.month], from: Date(), to: expiresAt).month ?? 0)
+            if type == .monthly || months < 1 {
+                return "Licencia \(type.title.lowercased()): \(days) \(days == 1 ? "día restante" : "días restantes")"
+            }
+            return "Licencia \(type.title.lowercased()): \(months) \(months == 1 ? "mes restante" : "meses restantes")"
+        default:
+            return nil
+        }
     }
 
     var body: some View {
@@ -183,6 +202,7 @@ struct ShalevRootView: View {
             case .home:
                 HomeView(store: store, sync: sync, onNewSale: { saleMode = .products }, onSellService: { saleMode = .services },
                          onShowInventory: { selectedSection = .inventory }, onShowSettings: { selectedSection = .settings },
+                         licenseBanner: homeLicenseBanner, onShowLicense: { showLicenseSheet = true },
                          canSellProducts: canSellProducts, canSellServices: canSellServices,
                          canManageCash: canManageCash, canViewInventory: canViewInventory,
                          canViewRecords: canViewRecords, canViewSales: effectiveSales, canViewServices: effectiveServices,
@@ -214,6 +234,18 @@ struct ShalevRootView: View {
                              onOpenSettings: { selectedSection = .settings }, canOpenSettings: canOpenSettings)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showLicenseSheet) {
+            NavigationStack {
+                LicenseView(store: store, license: licenseManager, blocking: false)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Cerrar") { showLicenseSheet = false }.foregroundStyle(Color.shalevPrimary)
+                        }
+                    }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .onAppear {
             if store.loadError != nil { showStorageAlert = true }
