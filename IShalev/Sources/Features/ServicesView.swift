@@ -198,6 +198,16 @@ private struct ServiceEditorView: View {
 
     private var ingredients: [Product] { store.activeProducts.filter { $0.kind == .ingredient } }
 
+    /// Tipos ya usados en el catálogo, para no reescribirlos a mano.
+    private var typeSuggestions: [String] {
+        var seen = Set<String>()
+        let current = type.trimmingCharacters(in: .whitespacesAndNewlines)
+        return store.data.services
+            .map { $0.type.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && $0 != current && seen.insert($0).inserted }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -231,20 +241,39 @@ private struct ServiceEditorView: View {
                     }
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 13) {
-                            input("Nombre", text: $name, placeholder: "Ej. Corte de cabello")
-                            input("Tipo", text: $type, placeholder: "Ej. Peluquería")
-                            input("Descripción (opcional, máximo 40)", text: $description, placeholder: "Detalles del servicio")
+                            Text("* Obligatorio")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                            input("Nombre *", text: $name, placeholder: "Corte de pelo")
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Importe (CUP) *")
+                                    .font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                                TextField("0.00", text: $price).keyboardType(.decimalPad).textFieldStyle(ServiceInputStyle())
+                            }
+                            input("Descripción (máximo 40)", text: $description, placeholder: "A domicilio, 30 minutos")
                                 .onChange(of: description) { _, value in if value.count > 40 { description = String(value.prefix(40)) } }
+                            VStack(alignment: .leading, spacing: 7) {
+                                input("Tipo *", text: $type, placeholder: "Peluquería")
+                                if !typeSuggestions.isEmpty {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 7) {
+                                            ForEach(typeSuggestions, id: \.self) { option in
+                                                ShalevFilterChip(title: option, selected: type == option) { type = option }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             Divider()
                             recipeEditor
                         }
                     }
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Importe (CUP)").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-                            TextField("0.00", text: $price).keyboardType(.decimalPad).textFieldStyle(ServiceInputStyle())
-                            Button { save() } label: { Label("Guardar", systemImage: "checkmark") }
-                                .buttonStyle(ShalevPrimaryButtonStyle()).disabled(working)
+                            Button { save() } label: {
+                                Label(service == nil ? "Guardar servicio" : "Guardar cambios", systemImage: "checkmark")
+                            }
+                            .buttonStyle(ShalevPrimaryButtonStyle()).disabled(working)
                             if working { ProgressView().frame(maxWidth: .infinity) }
                         }
                     }
@@ -271,7 +300,7 @@ private struct ServiceEditorView: View {
             .confirmationDialog("¿Eliminar este servicio?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Eliminar", role: .destructive) { delete() }
                 Button("Cancelar", role: .cancel) { }
-            } message: { Text("Las operaciones ya registradas conservarán su historial.") }
+            } message: { Text("Desaparece de Servicios. Las ventas ya registradas no cambian.") }
         }
     }
 

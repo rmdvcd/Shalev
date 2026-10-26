@@ -24,6 +24,22 @@ struct IShalevApp: App {
     }
 }
 
+/// Regla del acceso con clave, igual que `ReglaAcceso` de Android: con la opción activa se pide al abrir la app
+/// desde cero y al volver tras 10 minutos o más en segundo plano. Al volver antes (compartir un PDF, la cámara,
+/// WhatsApp) no se pide. Se mide con el reloj monótono del proceso: si retrocede (reinicio), se pide.
+enum AccessLockRule {
+    static let graceSeconds: TimeInterval = 10 * 60
+
+    static func requiresUnlock(isEnabled: Bool, coldStart: Bool,
+                               backgroundedAt: TimeInterval?, now: TimeInterval) -> Bool {
+        guard isEnabled else { return false }
+        if coldStart { return true }
+        guard let backgroundedAt else { return false }
+        if now < backgroundedAt { return true }
+        return now - backgroundedAt >= graceSeconds
+    }
+}
+
 enum MainSection: String, CaseIterable, Identifiable, Equatable {
     case home = "Inicio"
     case inventory = "Inventario"
@@ -68,6 +84,7 @@ struct ShalevRootView: View {
     @State private var showStorageAlert = false
     @State private var showLicenseSheet = false
     @State private var appUnlocked = false
+    @State private var backgroundedAt: TimeInterval?
     @State private var operatorAuthError: String?
 
     private var activeEmployee: LocalEmployee? {
@@ -153,9 +170,17 @@ struct ShalevRootView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background || phase == .inactive {
-                if appLockEnabled { appUnlocked = false }
+                if appLockEnabled, backgroundedAt == nil {
+                    backgroundedAt = ProcessInfo.processInfo.systemUptime
+                }
                 if !selectedOperatorID.isEmpty { authenticatedOperatorID = "" }
             } else if phase == .active {
+                if AccessLockRule.requiresUnlock(isEnabled: appLockEnabled, coldStart: false,
+                                                 backgroundedAt: backgroundedAt,
+                                                 now: ProcessInfo.processInfo.systemUptime) {
+                    appUnlocked = false
+                }
+                backgroundedAt = nil
                 sync.start()
                 Task {
                     await licenseManager.refresh()

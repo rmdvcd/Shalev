@@ -4,7 +4,7 @@ import LocalAuthentication
 @MainActor
 struct DeviceLockView: View {
     let onUnlock: () -> Void
-    @State private var message = "Usa Face ID, Touch ID o el código de tu dispositivo para continuar."
+    @State private var message = "Desbloquéala con tu huella, tu cara o el PIN del teléfono."
     @State private var isAuthenticating = false
 
     var body: some View {
@@ -15,7 +15,7 @@ struct DeviceLockView: View {
                 .foregroundStyle(Color.shalevPrimary)
                 .frame(width: 100, height: 100)
                 .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 30))
-            Text("Shalev está protegido")
+            Text("Shalev está bloqueada")
                 .font(.system(size: 23, weight: .bold)).foregroundStyle(Color.shalevText)
             Text(message)
                 .font(.system(size: 14)).foregroundStyle(Color.shalevSecondaryText)
@@ -42,11 +42,11 @@ struct DeviceLockView: View {
         let context = LAContext()
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-            message = error?.localizedDescription ?? "Configura un código de acceso en el dispositivo para habilitar el bloqueo."
+            message = "Configura un bloqueo de pantalla en Ajustes del teléfono para usar esta opción."
             return
         }
         isAuthenticating = true
-        message = "Confirma tu identidad para abrir Shalev."
+        message = "Desbloquéala con tu huella, tu cara o el PIN del teléfono."
         context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Desbloquear Shalev") { success, authError in
             Task { @MainActor in
                 isAuthenticating = false

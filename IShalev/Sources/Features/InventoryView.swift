@@ -880,6 +880,10 @@ private struct ProductEditorView: View {
                 VStack(spacing: 14) {
                     ShalevScreenTitle(title: product == nil ? "Agregar artículo" : "Editar artículo",
                                      subtitle: "Los datos se guardan cifrados en este teléfono.")
+                    Text("* Obligatorio")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.shalevSecondaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     if kind != .prepared && !sync.isSecondary {
                     ShalevCard {
                         VStack(spacing: 10) {
@@ -924,20 +928,37 @@ private struct ProductEditorView: View {
                                 }
                             }
                             if kind == .product {
-                                formField("Categoría", text: $category, placeholder: "Ej. Alimentos")
+                                VStack(alignment: .leading, spacing: 7) {
+                                    formField("Categoría *", text: $category, placeholder: "Elige o escribe una nueva")
+                                    if !categorySuggestions.isEmpty {
+                                        ScrollView(.horizontal, showsIndicators: false) {
+                                            HStack(spacing: 7) {
+                                                ForEach(categorySuggestions, id: \.self) { option in
+                                                    ShalevFilterChip(title: option, selected: category == option) {
+                                                        category = option
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             formField("Descripción (opcional, máximo 40)", text: $description, placeholder: "Detalles para identificarlo")
                                 .onChange(of: description) { _, value in if value.count > 40 { description = String(value.prefix(40)) } }
 
                             if kind != .prepared {
                                 Divider()
-                                formField(kind == .ingredient ? "Existencias" : "Cantidad", text: $stock,
-                                          placeholder: "0", keyboard: .decimalPad)
+                                formField(kind == .ingredient ? "Existencias *" : "Cantidad *", text: $stock,
+                                          placeholder: "0", keyboard: .decimalPad,
+                                          help: kind == .ingredient ? "Unidades que tienes" : "Unidades que tienes")
                                 if kind == .ingredient {
                                     formField("Unidad de medida", text: $unit, placeholder: "kg, L, u…")
                                 }
-                                formField("Aviso de stock bajo", text: $lowStock, placeholder: "0", keyboard: .decimalPad)
-                                formField("Aviso de stock crítico", text: $criticalStock, placeholder: "0", keyboard: .decimalPad)
+                                formField("Aviso de stock bajo", text: $lowStock, placeholder: "0", keyboard: .decimalPad, help: "Opcional")
+                                formField("Aviso de stock crítico", text: $criticalStock, placeholder: "0", keyboard: .decimalPad, help: "Opcional")
+                                Text("Vacíos: se usan los niveles de Ajustes.")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Color.shalevSecondaryText)
                                 Toggle("Tiene fecha de caducidad", isOn: $hasExpiry).tint(Color.shalevPrimary)
                                 if hasExpiry {
                                     DatePicker("Caduca el", selection: $expiry, displayedComponents: .date)
@@ -952,11 +973,13 @@ private struct ProductEditorView: View {
 
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 13) {
-                            fieldLabel(kind == .ingredient ? "Precio de venta opcional (CUP)" : "Precio de venta (CUP)")
+                            fieldLabel(kind == .ingredient ? "Precio de venta opcional (CUP)" : "Precio de venta (CUP) *")
                             TextField("0.00", text: $price).keyboardType(.decimalPad).textFieldStyle(ShalevTextFieldStyle())
+                            Text("Por unidad").font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
                             if kind != .prepared {
-                                fieldLabel("Costo por unidad (CUP)")
+                                fieldLabel("Precio de costo (CUP) *")
                                 TextField("0.00", text: $cost).keyboardType(.decimalPad).textFieldStyle(ShalevTextFieldStyle())
+                                Text("Por unidad").font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
                             } else {
                                 Text("El costo se calcula a partir de los insumos de la receta.")
                                     .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
@@ -964,7 +987,7 @@ private struct ProductEditorView: View {
                             Button {
                                 save()
                             } label: {
-                                Label("Guardar", systemImage: "checkmark")
+                                Label(product == nil ? "Guardar producto" : "Guardar cambios", systemImage: "checkmark")
                             }
                             .buttonStyle(ShalevPrimaryButtonStyle())
                             .disabled(working)
@@ -1045,7 +1068,7 @@ private struct ProductEditorView: View {
     }
 
     private func formField(_ label: String, text: Binding<String>, placeholder: String = "", keyboard: UIKeyboardType = .default,
-                           multiline: Bool = false) -> some View {
+                           multiline: Bool = false, help: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             fieldLabel(label)
             if multiline {
@@ -1053,7 +1076,20 @@ private struct ProductEditorView: View {
             } else {
                 TextField(placeholder, text: text).keyboardType(keyboard).textFieldStyle(ShalevTextFieldStyle())
             }
+            if let help {
+                Text(help).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+            }
         }
+    }
+
+    /// Categorías ya usadas en el inventario, sin repetir y sin las reservadas de insumos y elaborados.
+    private var categorySuggestions: [String] {
+        var seen = Set<String>()
+        let reserved: Set<String> = ["Insumos", "Elaborado"]
+        return store.activeProducts
+            .map { $0.category.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && !reserved.contains($0) && seen.insert($0).inserted }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     private func fieldLabel(_ text: String) -> some View {

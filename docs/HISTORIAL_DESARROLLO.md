@@ -2218,6 +2218,38 @@ el dominio, la persistencia y la licencia quedan igual.
     los pasos numerados. Los temas de inventario, ventas y servicios se ocultan si el módulo no está activo.
   - Los esquemas de barra inferior, turno, venta y respaldo se dibujan con formas, sin imágenes.
 
+## IShalev — Respaldo, cierre de caja, acceso con clave y formularios (2026-10-26)
+
+Cuarta pasada de alineación con Android. Sin cambios en el dominio ni en el formato de los respaldos.
+
+- **Respaldo** deja de ser una pantalla de botones sueltos y pasa al asistente de dos tarjetas de Android.
+  - Aviso tonal con «Guarda una copia protegida de todo el negocio» y el recordatorio de que la licencia no
+    viaja en el respaldo.
+  - **Exportar** en tres pasos: «Protégelo (opcional)» con interruptor y contraseña (mínimo 8 caracteres, se
+    repite) y el aviso rojo cuando se apaga; «Elige dónde guardarlo» con el formato (IShalev o `.shalev`) y
+    «Guardar en el teléfono»; «Respaldo listo» con el nombre del archivo, el resumen de lo incluido y
+    «Hacer otro respaldo».
+  - Sin contraseña la copia se guarda en `.shalev`, porque el formato propio de IShalev exige contraseña.
+  - **Importar** en cuatro pasos: elegir archivo, comprobación, contraseña en hoja aparte (solo si el archivo
+    la pide) y confirmación destructiva con el texto de Android.
+- **Cierre de turno** adopta la cabecera «Paso N de 3» con flechas validadas: efectivo, inventario y revisión.
+  - Botón **Cuadra** que rellena el contado hasta el esperado con «Otro efectivo».
+  - El conteo de inventario se agrupa por categoría y muestra la unidad de cada artículo.
+  - Avisos de qué falta para poder continuar en cada paso.
+- **Acceso con clave**
+  - Activarlo o desactivarlo ahora exige confirmar la identidad, y el resultado se avisa («Acceso con clave
+    activado» / «No se pudo confirmar. Inténtalo de nuevo.»).
+  - Se bloquea al abrir la app desde cero y al volver tras **10 minutos** en segundo plano; volver antes (la
+    cámara, compartir un archivo, WhatsApp) ya no bloquea. Antes se bloqueaba con cualquier cambio de escena.
+  - Textos de Android en la pantalla de bloqueo y en la fila de Ajustes.
+- **Formularios de artículo y servicio**
+  - Artículo: «* Obligatorio», categoría con sugerencias del inventario, «Por unidad» bajo los precios,
+    «Unidades que tienes», «Vacíos: se usan los niveles de Ajustes.» y botones «Guardar producto» /
+    «Guardar cambios».
+  - Servicio: orden de Android (Nombre, Importe, Descripción, Tipo), marcas de obligatorio, sugerencias de tipo
+    y el texto de confirmación de borrado.
+- **Sistema de diseño**: nuevo `ShalevStepper` (paso, título, flechas y barra) reutilizable.
+
 ## IShalev — Empleado y aprobación de cierres de secundarias (2026-10-26)
 
 Cierre de la alineación con Android: quedan portados el formulario de empleado y el desglose que el dueño ve
