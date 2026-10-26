@@ -20,6 +20,11 @@ cierre con el **grupo de Telegram <https://t.me/spviapp/1>** y su código QR.
 Las capturas son reales; el zoom, el recuadro naranja y el punto de toque son recursos del montaje para que
 cada función se lea con claridad. Todo se genera con `tools/video_promo/generar_promo_90.py`.
 
+**Narración corregida:** voz masculina latina elegida en audición; en los planes dice «desde seis mil»,
+sin pronunciar «CUP». Se mantienen las imágenes, los precios visibles y los 60 fps.
+`tools/video_promo/actualizar_narracion.py` permite sustituir solo la pista de audio, ajustando cada voz
+al montaje y comprobando que el flujo de video no cambie.
+
 ## Campaña con predominio claro · 23 de octubre de 2026
 
 Nueva entrega en [`campana_social/`](campana_social/README.md): supercollage vertical,

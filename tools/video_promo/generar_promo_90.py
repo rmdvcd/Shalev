@@ -452,7 +452,7 @@ SCENES = [
         [(0.00, 4.95, "Mensual, semestral, anual y perpetua"),
          (5.23, 8.61, "Desde 6 000 CUP, con 7 días de prueba gratis")],
         [],
-        narration="Planes mensual, semestral, anual y perpetua, desde seis mil CUP, con siete días de prueba "
+        narration="Planes mensual, semestral, anual y perpetua, desde seis mil, con siete días de prueba "
                   "gratis y todas las funciones.",
         plans=True,
     ),
