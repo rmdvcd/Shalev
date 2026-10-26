@@ -2131,3 +2131,41 @@ persistencia ni la licencia; el objetivo fue acercar estructura y textos, no por
 - Verificación: `Compilación iOS de IShalev` en verde para los commits `a1b67b5` (Inicio), `8dac2a3`
   (Venta) y `88093c8` (Ajustes); pruebas de dominio y compilación para simulador en los tres. No hubo
   sesión interactiva en simulador: la comprobación visual queda pendiente de Appetize o un iPhone.
+
+## IShalev — Inventario, Registros, Servicios y asistente inicial (2026-10-26)
+
+Segunda pasada de alineación con la app Android. Se conserva el dominio, la persistencia y la licencia;
+solo cambian pantallas y se añaden filtros que ya existían en Android.
+
+- **Inventario**
+  - El filtro deja de ser una fila de fichas y pasa a la barra superior (insignia cuando hay filtros
+    activos), con una hoja por **tipo** (todos, productos, insumos, elaborados) y por **alerta** (stock
+    crítico, stock bajo, sin existencia, próximo a caducar). La búsqueda también mira la descripción.
+  - Contador «N productos» o «N de M productos» y chip para quitar el filtro.
+  - **Selección múltiple**: casilla en cada fila, barra con «N seleccionados», marcar/quitar todo,
+    exportar y eliminar. El botón «+» se oculta mientras hay selección.
+  - **Ficha del artículo** al tocar la fila (antes se abría el formulario directamente): datos, costo,
+    precio, ganancia por unidad y acciones Editar / Compartir (PDF de la ficha) / Eliminar.
+  - Exportación del inventario (o de lo seleccionado) en XLSX, CSV o PDF desde la propia pantalla.
+  - Fila con barra de estado, nombre, aviso (crítico, bajo, sin existencia, vence), existencias con
+    unidad, categoría y, a la derecha, precio de venta con el costo debajo en un tono más suave.
+- **Registros**
+  - Barra superior centrada con **filtrar** (insignia) y exportar, como Android.
+  - Filtro por **fecha** (todo, hoy, 7 días, este mes o rango personalizado) y por **importe** mínimo y
+    máximo, con las mismas validaciones de fechas e importes invertidos. Se aplica a ventas,
+    transferencias, movimientos y turnos; el chip del filtro activo permite quitarlo.
+  - Estados vacíos propios de cada pestaña («Aún no hay ventas», «Aún no hay transferencias»…) y
+    «Sin resultados» con «Quitar filtros» cuando hay búsqueda o filtro.
+- **Servicios**
+  - El filtro por tipo sale de la fila de fichas y pasa a la barra superior, con hoja por tipo y chip
+    del filtro activo; contador centrado.
+- **Asistente inicial**
+  - El formulario único pasa a **cuatro pasos**: bienvenida, módulos del negocio, datos (negocio,
+    titular, Transfermóvil) y resumen. Cabecera con «Paso N de M», barra de progreso, «Atrás» y
+    «Guardar y comenzar».
+  - «Completar configuración» en Ajustes abre el asistente directamente en el paso de datos.
+  - No se portó el paso «tipo de app» (principal/secundaria) ni los pasos de empleados y prueba del
+    asistente Android: en iOS la vinculación se sigue haciendo desde Ajustes → Apps vinculadas y la
+    licencia tiene su propia pantalla.
+- **Verificación:** `Compilación iOS de IShalev` en verde para `0f59151` (Inventario), `a20fa5c`
+  (Registros), `1269093` (asistente) y `8a17a74` (Servicios). Sin sesión interactiva en simulador.
