@@ -40,6 +40,7 @@ struct SettingsView: View {
     @State private var sheet: SettingsSheet?
     @State private var showSetupWizard = false
     @State private var canUseDeviceAuthentication = false
+    @State private var lockMessage: String?
 
     var body: some View {
         ScrollView {
@@ -124,6 +125,9 @@ struct SettingsView: View {
         .sheet(isPresented: $showSetupWizard) {
             OnboardingView(store: store, startAtData: true) { showSetupWizard = false }
         }
+        .alert("Acceso con clave", isPresented: Binding(get: { lockMessage != nil }, set: { if !$0 { lockMessage = nil } })) {
+            Button("Entendido", role: .cancel) { lockMessage = nil }
+        } message: { Text(lockMessage ?? "") }
         .sheet(item: $sheet) { route in
             if route == .license {
                 LicenseView(store: store, license: licenseManager, blocking: false)
@@ -179,21 +183,46 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 5)
-            Toggle("", isOn: $appLockEnabled)
+            Toggle("", isOn: Binding(get: { appLockEnabled }, set: { requestLockChange($0) }))
                 .labelsHidden()
                 .tint(Color.shalevPrimary)
                 .disabled(!canUseDeviceAuthentication)
-                .accessibilityLabel("Bloquear Shalev al salir")
+                .accessibilityLabel("Acceso con clave")
         }
         .padding(12)
     }
 
     private var lockSubtitle: String {
         if !canUseDeviceAuthentication {
-            return "Configura Face ID, Touch ID o un código de acceso en el teléfono para usar esta opción."
+            return "Configura un bloqueo de pantalla en Ajustes del teléfono para usar esta opción."
         }
-        return appLockEnabled ? "Shalev se bloquea al salir; se abre con Face ID o el código del teléfono."
-            : "Pide Face ID o el código del teléfono al volver a Shalev."
+        return appLockEnabled
+            ? "Activado: se pide al abrir Shalev y al volver tras 10 minutos."
+            : "Pide tu huella, tu cara o el PIN del teléfono al abrir Shalev y al volver tras 10 minutos."
+    }
+
+    /// Activar o desactivar exige confirmar la identidad primero, como en Android.
+    private func requestLockChange(_ enabled: Bool) {
+        guard canUseDeviceAuthentication else {
+            lockMessage = "Configura un bloqueo de pantalla en Ajustes del teléfono para usar esta opción."
+            return
+        }
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            lockMessage = "Configura un bloqueo de pantalla en Ajustes del teléfono para usar esta opción."
+            return
+        }
+        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Confirma que eres tú") { success, _ in
+            Task { @MainActor in
+                if success {
+                    appLockEnabled = enabled
+                    lockMessage = enabled ? "Acceso con clave activado" : "Acceso con clave desactivado"
+                } else {
+                    lockMessage = "No se pudo confirmar. Inténtalo de nuevo."
+                }
+            }
+        }
     }
 
     /// Pasos que faltan para tener la configuración completa (los mismos datos del asistente inicial).
