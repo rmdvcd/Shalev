@@ -1,5 +1,25 @@
 # Material de promoción
 
+## Video promocional de 90 segundos · 25 de octubre de 2026
+
+[`video_promo_90/`](video_promo_90/Shalev_promo_90s_guion.md) reemplaza al video manual de 3 minutos para
+difusión: **1:33, 1920 × 1080 a 60 fps**, narración en español, música de fondo original que se atenúa
+sola bajo la voz y subtítulos integrados (también en `.srt`).
+
+| Archivo | Uso |
+|---|---|
+| `Shalev_promo_90s_1080p60.mp4` | Pieza final para YouTube, Facebook, Instagram TV y presentaciones |
+| `Shalev_promo_90s.srt` | Subtítulos para reeditar o publicar aparte |
+| `Shalev_promo_90s_guion.md` | Guion, tiempos, capturas usadas y precios mostrados |
+
+Recorrido: presentación → Inicio y turno → venta y cobro verificado (Transfermóvil) → inventario, insumos y
+recetas → servicios y precios automáticos → registros y exportación → equipo por Wi-Fi local → privacidad y
+respaldo → **activación de la licencia en 3 pasos** → **precios (mensual, semestral, anual, perpetua)** →
+cierre con el **grupo de Telegram <https://t.me/spviapp/1>** y su código QR.
+
+Las capturas son reales; el zoom, el recuadro naranja y el punto de toque son recursos del montaje para que
+cada función se lea con claridad. Todo se genera con `tools/video_promo/generar_promo_90.py`.
+
 ## Campaña con predominio claro · 23 de octubre de 2026
 
 Nueva entrega en [`campana_social/`](campana_social/README.md): supercollage vertical,
