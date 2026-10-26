@@ -42,7 +42,7 @@ Promoción de las funciones clave de Shalev construida con las capturas reales d
 
 **09. Tres pasos y estás trabajando** — Activar la licencia toma tres pasos: revisa tus datos, elige el plan y envía la solicitud. Cuando llegue el código, lo pegas, confirmas, y listo.
 
-**10. Planes claros, sin sorpresas** — Planes mensual, semestral, anual y perpetua, desde seis mil CUP, con siete días de prueba gratis y todas las funciones.
+**10. Planes claros, sin sorpresas** — Planes mensual, semestral, anual y perpetua, desde seis mil, con siete días de prueba gratis y todas las funciones.
 
 **11. Cierre** — «Únete al grupo de Telegram: t.me/spviapp» · «Shalev: vende mejor, controla más».
 
@@ -67,6 +67,21 @@ Cifras tomadas de `MANUAL_USUARIO.md` §14.1 y de `LICENSE_CLIENT.md`. La activa
 - `Shalev_promo_90s_1080p60.mp4`: video final (narración, música, animaciones y subtítulos).
 - `Shalev_promo_90s.srt`: subtítulos para reeditar o publicar aparte.
 - `Shalev_promo_90s_guion.md`: este documento.
+
+## Corrección de narración
+
+- Voz masculina latina (español de México), elegida por el usuario en la audición de Arena; sustituye las diez locuciones originales.
+- En los planes se dice «desde seis mil», sin pronunciar «CUP». Los precios y la moneda visibles no cambian.
+- Se conservan íntegros el flujo H.264 original (1080p60), el montaje, los subtítulos y el cierre. Solo se sustituye la pista de audio, con música original atenuada y efectos reconstruidos.
+- Cada locución se ajusta al tiempo de su escena mediante `atempo`, sin cambiar el tono de la voz.
+
+Para repetir esta actualización con las diez voces nuevas en la caché:
+
+```bash
+.venv/bin/python tools/video_promo/actualizar_narracion.py
+```
+
+El comando comprueba que los fotogramas y los subtítulos no cambien antes de reemplazar el MP4.
 
 ## Cómo se regenera
 
