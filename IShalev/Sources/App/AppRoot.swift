@@ -229,11 +229,10 @@ struct ShalevRootView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             ShalevTabBar(selection: $selectedSection, visibleSections: visibleSections)
         }
-        .sheet(item: $saleMode) { mode in
+        // La venta ocupa toda la pantalla (como en Android), no una hoja parcial.
+        .fullScreenCover(item: $saleMode) { mode in
             SaleComposerView(store: store, mode: mode, onOpenHome: { selectedSection = .home },
                              onOpenSettings: { selectedSection = .settings }, canOpenSettings: canOpenSettings)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showLicenseSheet) {
             NavigationStack {
