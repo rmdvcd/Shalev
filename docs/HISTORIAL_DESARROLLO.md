@@ -2086,3 +2086,48 @@ Primera vez que el repositorio se verifica solo: GitHub Actions ejecuta Gradle r
 - Se añadió `.github/workflows/ios-build.yml` para compilar en runner macOS y publicar una app de simulador como artefacto para Appetize.
 - Revisión estática: nueve fuentes Swift pasan Tree-sitter; `project.pbxproj`, scheme, `Info.plist`, manifiestos de recursos y YAML del workflow pasan parseo estructural. Esto no equivale a type-check ni compilación.
 - **No compilado ni ejecutado:** este entorno no tiene Xcode ni simulador iOS; el primer build queda pendiente del workflow macOS. La licencia GL, la LAN entre teléfonos, captura de SMS/notificaciones, edición/anulación de ventas y exportaciones PDF/Excel Android no se portaron en esta fase. `IShalev/README.md` documenta límites y pasos de compilación/emulación gratuita.
+
+## IShalev — alineación visual con Android: Inicio, Venta y Ajustes (2026-10-26)
+
+Motivo: al ejecutar la build de simulador en Appetize se comprobó que la app iOS se veía y se usaba
+distinto de la Android. Se corrigieron las tres pantallas de mayor impacto sin tocar el dominio, la
+persistencia ni la licencia; el objetivo fue acercar estructura y textos, no portar los iconos.
+
+- **Inicio**
+  - El bloque superior (turno, selector de período y banner de licencia) ya no se desplaza; el resto
+    de la pantalla sí, como en Android.
+  - El turno muestra «Desde las HH:MM» y el efectivo esperado, y toda la fila abre o cierra el turno
+    con un interruptor a la derecha.
+  - El selector de período añade **Turno** (el abierto o el último cerrado) como opción por defecto,
+    además de Hoy, Esta semana, Este mes y Este año.
+  - Banner de licencia en Inicio para la prueba y las licencias con vencimiento; la perpetua no lo
+    muestra. Tocar el banner abre Licencia.
+  - Accesos con el teléfono y la cuenta enmascarada («Cuenta •••• 1234») en Pago electrónico y el
+    número de ajustes activos en Precios.
+  - «Top 3» pasa a tres acordeones independientes (Más vendido, Lento movimiento y Rentabilidad) con
+    medallas oro, plata y bronce; se ocultan si no hay ventas en el período.
+  - **Dos botones flotantes** en las esquinas inferiores (Nueva venta y Movimiento de caja) y solo con
+    el turno abierto. «Nueva venta» pregunta Productos o Servicios cuando ambos módulos están activos.
+- **Venta**
+  - La venta ocupa toda la pantalla en lugar de una hoja: título por paso, total centrado arriba y
+    «Turno abierto · Desde las HH:MM · <operador>».
+  - El recorrido empieza en el **carrito**: cada línea con menos, cantidad, más y papelera; «Agregar
+    artículos» abre el catálogo en otra hoja. Vacío, el carrito muestra el estado vacío y su botón.
+  - El método de pago son dos botones (Efectivo y Transferencia), no un selector segmentado.
+  - Barra de acciones: **Continuar** en el carrito; cancelar y confirmar en el comprobante; cancelar y
+    «Pago recibido» en el QR; volver al QR y «Registrar la venta» en los datos del cliente. La venta
+    en efectivo pasa por el comprobante antes de registrarse.
+- **Ajustes**
+  - Una sola lista con el orden de Android: Completar configuración, Perfil, Licencia, Apps vinculadas,
+    Pago electrónico, Precios, Permisos, Acceso con clave, Respaldo, Actualizar, Ayuda y Soporte.
+  - «Completar configuración» aparece solo si faltan datos (negocio, titular o cobro), con la insignia
+    del número de pasos, y reabre el asistente con los datos actuales.
+  - «Acceso con clave» es una fila con interruptor y explicación, como en Android; se quitó el
+    interruptor de la tarjeta de Privacidad para no duplicarlo.
+  - Se quitó el nombre del negocio como subtítulo bajo «Ajustes» (Android muestra solo el título).
+- **Sin cambios de alcance:** no se añadieron «Avisos de inventario» (iOS no tiene umbrales globales,
+  solo por artículo) ni la selección múltiple, la hoja de filtros y el botón de compartir de Inventario.
+  Los iconos siguen siendo SF Symbols, no los `ShalevIcons` dibujados de Android.
+- Verificación: `Compilación iOS de IShalev` en verde para los commits `a1b67b5` (Inicio), `8dac2a3`
+  (Venta) y `88093c8` (Ajustes); pruebas de dominio y compilación para simulador en los tres. No hubo
+  sesión interactiva en simulador: la comprobación visual queda pendiente de Appetize o un iPhone.
