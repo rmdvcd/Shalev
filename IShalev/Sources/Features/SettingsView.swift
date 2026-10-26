@@ -947,54 +947,54 @@ private struct PriceAdjustmentsView: View {
     @State private var showCreate = false
     @State private var errorMessage: String?
 
+    private var adjustments: [PriceAdjustment] { store.data.settings.priceAdjustments }
+    private var hasProducts: Bool { !store.activeProducts.isEmpty }
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 14) {
-                ShalevScreenTitle(title: "Precios", subtitle: "Descuentos y recargos automáticos")
-                ShalevCard {
-                    VStack(alignment: .leading, spacing: 9) {
-                        Text("Los ajustes activos se aplican al carrito antes de cobrar. Se pueden limitar por método de pago o por un importe mínimo.")
-                            .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
-                        if store.data.settings.priceAdjustments.isEmpty {
-                            Text("No hay ajustes creados.").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevText).padding(.top, 7)
-                        }
-                        ForEach(store.data.settings.priceAdjustments) { adjustment in
-                            HStack(spacing: 10) {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(adjustment.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                                    Text(adjustmentSummary(adjustment)).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+        ZStack(alignment: .bottomTrailing) {
+            ScrollView {
+                VStack(spacing: 12) {
+                    Text("Sube o baja precios al cobrar, según el pago o el importe. El precio guardado no cambia.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.shalevText)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(14)
+                        .background(Color.shalevSurfaceVariant, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                    if adjustments.isEmpty {
+                        ShalevEmptyState(symbol: "percent",
+                                         title: "Aún no hay ajustes de precio",
+                                         detail: hasProducts ? "Ej.: +5 % con transferencia."
+                                                             : "Primero agrega productos en Inventario.")
+                            .padding(.top, 20)
+                    } else {
+                        VStack(spacing: 0) {
+                            ForEach(adjustments) { adjustment in
+                                adjustmentRow(adjustment)
+                                if adjustment.id != adjustments.last?.id {
+                                    Divider().padding(.leading, 16)
                                 }
-                                Spacer()
-                                Text(percentText(adjustment.basisPoints)).font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(adjustment.basisPoints >= 0 ? Color.shalevSecondary : Color.shalevSuccess)
-                                Toggle(adjustment.name, isOn: Binding(get: { adjustment.active }, set: { value in
-                                    var changed = adjustment; changed.active = value
-                                    if sync.isSecondary {
-                                        Task {
-                                            do {
-                                                let row = try AndroidBackupCodec.exportAdjustment(changed, app: store.data)
-                                                _ = try await sync.executeRemote(SyncJSON.message("preajuste_guardar", ["preajuste": row]))
-                                            } catch { errorMessage = error.localizedDescription }
-                                        }
-                                    } else {
-                                        do { try store.savePriceAdjustment(changed) } catch { errorMessage = error.localizedDescription }
-                                    }
-                                }))
-                                .labelsHidden().tint(Color.shalevPrimary)
-                                Button { editor = adjustment } label: { Image(systemName: "pencil.circle.fill").foregroundStyle(Color.shalevPrimary) }
-                                    .accessibilityLabel("Editar ajuste \(adjustment.name)")
                             }
-                            .padding(.vertical, 7)
-                            if adjustment.id != store.data.settings.priceAdjustments.last?.id { Divider() }
                         }
                     }
                 }
-                Button { showCreate = true } label: { Label("Agregar ajuste", systemImage: "plus") }
-                    .buttonStyle(ShalevPrimaryButtonStyle())
+                .padding(.horizontal, 18)
+                .padding(.top, 10)
+                .padding(.bottom, 110)
+                .frame(maxWidth: 680)
+                .frame(maxWidth: .infinity)
             }
-            .padding(18)
+
+            if hasProducts {
+                ShalevFloatingButton(title: "Nuevo ajuste de precios", symbol: "plus") { showCreate = true }
+                    .padding(.trailing, 18)
+                    .padding(.bottom, 22)
+            }
         }
         .background(Color.shalevBackground)
+        .navigationTitle("Precios")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showCreate) {
             PriceAdjustmentEditor(store: store, sync: sync, adjustment: nil)
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
@@ -1008,6 +1008,50 @@ private struct PriceAdjustmentsView: View {
         } message: { Text(errorMessage ?? "") }
     }
 
+    private func adjustmentRow(_ adjustment: PriceAdjustment) -> some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(adjustment.active ? Color.shalevPrimary : Color.shalevOutlineVariant)
+                .frame(width: 4, height: 38)
+
+            Button { editor = adjustment } label: {
+                HStack {
+                    Text(adjustment.name)
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color.shalevText)
+                    Spacer(minLength: 8)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(adjustment.name)
+            .accessibilityHint(adjustmentSummary(adjustment))
+
+            Text(percentText(adjustment.basisPoints))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.shalevText)
+                .accessibilityLabel("Ajuste de \(percentText(adjustment.basisPoints))")
+
+            Toggle(adjustment.name, isOn: Binding(get: { adjustment.active }, set: { value in
+                var changed = adjustment; changed.active = value
+                if sync.isSecondary {
+                    Task {
+                        do {
+                            let row = try AndroidBackupCodec.exportAdjustment(changed, app: store.data)
+                            _ = try await sync.executeRemote(SyncJSON.message("preajuste_guardar", ["preajuste": row]))
+                        } catch { errorMessage = error.localizedDescription }
+                    }
+                } else {
+                    do { try store.savePriceAdjustment(changed) } catch { errorMessage = error.localizedDescription }
+                }
+            }))
+            .labelsHidden()
+            .tint(Color.shalevPrimary)
+            .accessibilityLabel(adjustment.active ? "Activo: \(adjustment.name)" : "Pausado: \(adjustment.name)")
+        }
+        .padding(.vertical, 9)
+    }
+
     private func adjustmentSummary(_ adjustment: PriceAdjustment) -> String {
         let payment = adjustment.paymentMethod?.rawValue ?? "Todos los pagos"
         let minimum = adjustment.minimumAmountCents.map { " · desde \(Cup(cents: $0).formatted)" } ?? ""
@@ -1015,9 +1059,11 @@ private struct PriceAdjustmentsView: View {
             ?? " · todos los artículos (anterior)"
         return "\(payment)\(minimum)\(articles)"
     }
+
     private func percentText(_ basisPoints: Int) -> String {
         let value = Decimal(basisPoints) / Decimal(100)
-        return "\(NSDecimalNumber(decimal: value).stringValue)%"
+        let text = NSDecimalNumber(decimal: value).stringValue
+        return "\(basisPoints > 0 ? "+" : "")\(text) %"
     }
 }
 
