@@ -2169,3 +2169,20 @@ solo cambian pantallas y se añaden filtros que ya existían en Android.
     licencia tiene su propia pantalla.
 - **Verificación:** `Compilación iOS de IShalev` en verde para `0f59151` (Inventario), `a20fa5c`
   (Registros), `1269093` (asistente) y `8a17a74` (Servicios). Sin sesión interactiva en simulador.
+
+### Licencia y Apps vinculadas (2026-10-26)
+
+- **Licencia** deja de ser un formulario largo y pasa a tener la misma estructura que Android: estado y precios
+  fijos arriba y tres pasos con barra de progreso.
+  - **Revisa tus datos**: resumen tomado del Perfil y de Pago electrónico, con «Editar» para abrir el
+    formulario (nombre, apellidos, carné y teléfono) y las mismas validaciones de Android.
+  - **Pide la licencia**: tipo con su precio, selector de apps secundarias (− n +) con el total desglosado,
+    recuperación de la licencia de otro teléfono cuando aplica, envío por WhatsApp o SMS y botón para crear
+    la solicitud cifrada. Si ya hay licencia instalada aparece «Renovar igual» con su precio.
+  - **Activa la licencia**: mensaje, «Pegar» y «Activar» con los mismos avisos de resultado.
+  - En modo bloqueo se añade la tarjeta de aviso y «Contactar soporte», y se oculta «Cerrar».
+- **Apps vinculadas** se reorganiza como en Android: descripción, tarjeta de red local con la dirección del
+  teléfono, «Secundarias (N de 10)», filas con icono, nombre y estado («Conectada ahora», «Cierre pedido · se
+  cerrará al conectar», «Última vez: …») y botón flotante para agregar. En la app secundaria: tarjeta con
+  negocio y empleado, resumen de envío y última sincronización, botón circular para sincronizar, «Lo que
+  puedes hacer» con sus permisos y los avisos de cierre como tarjetas.
