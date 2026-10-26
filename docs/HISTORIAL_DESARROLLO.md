@@ -2217,3 +2217,25 @@ el dominio, la persistencia y la licencia quedan igual.
   - Se porta el manual completo de Android: secciones con icono, título y detalle, y temas desplegables con
     los pasos numerados. Los temas de inventario, ventas y servicios se ocultan si el módulo no está activo.
   - Los esquemas de barra inferior, turno, venta y respaldo se dibujan con formas, sin imágenes.
+
+## IShalev — Empleado y aprobación de cierres de secundarias (2026-10-26)
+
+Cierre de la alineación con Android: quedan portados el formulario de empleado y el desglose que el dueño ve
+antes de aprobar el conteo de una app secundaria. No cambia el protocolo de sincronización ni el esquema.
+
+- **Formulario de «Apps vinculadas»** deja el `Form` genérico y pasa a las tarjetas de Android.
+  - Título «Agregar app de un empleado» (o el nombre del empleado al editar), «* Obligatorio» y «Nombre del
+    empleado».
+  - «Permisos» con casilla, título y detalle de cada uno (`PermisoEmpleado.etiqueta`/`detalle`): vender
+    productos, vender servicios, editar inventario y servicios, cambiar precios y exportar y compartir.
+  - «Cobro por transferencia» con «Cobrar en la tarjeta» («La predeterminada»), «Teléfono del empleado»
+    («Lo escribe el empleado») y el aviso «Su app solo recibe esta tarjeta para el QR de cobro».
+  - Botón «Crear código» al dar de alta y «Guardar» al editar; se exige nombre no vacío.
+- **Aprobar el cierre de una secundaria**
+  - Antes de aprobar se muestra el mismo desglose que se guarda y se exporta (`ResumenConteo` de Android):
+    «Esperado · Contado · Cuadra/Sobrante/Faltante», cada billete como «20 CUP × 3 = 60.00 CUP»,
+    «Otro efectivo», la conciliación por artículo («esperado, contado, diferencia»), «Pendiente de
+    aprobación de inventario» / «Inventario aprobado por …» y el motivo.
+  - Los botones pasan a «Aprobar cierre» y «Rechazar cierre», como en Android.
+- **Perfiles locales de empleado** (función solo de iOS): los permisos usan la misma fila con detalle y la
+  lista resume «PIN configurado · N permisos» en lugar de encadenar todos los nombres.
