@@ -209,7 +209,7 @@ struct ShalevRootView: View {
                          canManageBusinessSettings: isAdministrator, canChangePrices: canChangePrices,
                          isEmployeeSession: !sync.isSecondary && !isAdministrator, onSwitchToOwner: switchToOwner)
             case .inventory:
-                InventoryView(store: store, sync: sync, onSell: { saleMode = .products }, canEdit: canEditInventory, canSell: canSellProducts)
+                InventoryView(store: store, sync: sync, onSell: { saleMode = .products }, canEdit: canEditInventory, canSell: canSellProducts, canExport: canExport)
             case .services:
                 ServicesView(store: store, sync: sync, onSell: { saleMode = .services }, canEdit: canEditInventory, canSell: canSellServices)
             case .records:
