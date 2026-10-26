@@ -2,7 +2,8 @@ import SwiftUI
 import UIKit
 import PhotosUI
 
-private enum InventoryFilter: String, CaseIterable, Identifiable, Equatable {
+/// Filtro de la lista. El tipo (`kind`) y la alerta se combinan, como la hoja de filtros de Android.
+private enum InventoryKindFilter: String, CaseIterable, Identifiable, Equatable {
     case all = "Todos"
     case products = "Productos"
     case ingredients = "Insumos"
@@ -19,18 +20,46 @@ private enum InventoryFilter: String, CaseIterable, Identifiable, Equatable {
     }
 }
 
-private enum ProductSheet: Identifiable {
+private enum InventoryAlertFilter: String, CaseIterable, Identifiable, Equatable {
+    case none = "Sin filtro"
+    case critical = "Stock crítico"
+    case low = "Stock bajo"
+    case expiring = "Próximo a caducar"
+    case zero = "Sin existencia"
+    var id: String { rawValue }
+}
+
+private struct InventoryFilterState: Equatable {
+    var kind: InventoryKindFilter = .all
+    var alert: InventoryAlertFilter = .none
+
+    var isActive: Bool { kind != .all || alert != .none }
+
+    var summary: String {
+        [kind == .all ? nil : kind.rawValue, alert == .none ? nil : alert.rawValue.lowercased()]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+    }
+}
+
+private enum InventorySheet: Identifiable {
     case create
     case edit(Product)
+    case detail(Product)
+
     var id: String {
         switch self {
         case .create: "create"
         case .edit(let product): "edit-\(product.id.uuidString)"
+        case .detail(let product): "detail-\(product.id.uuidString)"
         }
     }
+
     var product: Product? {
-        if case .edit(let product) = self { return product }
-        return nil
+        switch self {
+        case .create: nil
+        case .edit(let product), .detail(let product): product
+        }
     }
 }
 
@@ -41,153 +70,755 @@ struct InventoryView: View {
     let onSell: () -> Void
     var canEdit = true
     var canSell = true
+    var canExport = true
+
     @State private var search = ""
-    @State private var filter: InventoryFilter = .all
-    @State private var sheet: ProductSheet?
+    @State private var filter = InventoryFilterState()
+    @State private var showFilterSheet = false
+    @State private var showExportSheet = false
+    @State private var selection: Set<UUID> = []
+    @State private var sheet: InventorySheet?
+    @State private var confirmDelete: DeleteTarget?
+    @State private var shareFileURL: URL?
+    @State private var showShareSheet = false
+    @State private var message: String?
 
     private var filteredProducts: [Product] {
-        store.activeProducts.filter { product in
-            filter.includes(product) && (search.isEmpty || product.name.localizedCaseInsensitiveContains(search)
-                || product.category.localizedCaseInsensitiveContains(search))
+        let today = Calendar.current.startOfDay(for: Date())
+        let limit = Calendar.current.date(byAdding: .day, value: 7, to: today) ?? today
+        return store.activeProducts.filter { product in
+            guard filter.kind.includes(product) else { return false }
+            switch filter.alert {
+            case .none: break
+            case .critical:
+                guard product.kind != .prepared, product.criticalStockMilli > 0,
+                      product.stockMilli <= product.criticalStockMilli else { return false }
+            case .low:
+                guard product.kind != .prepared, product.lowStockMilli > 0,
+                      product.stockMilli <= product.lowStockMilli,
+                      !(product.criticalStockMilli > 0 && product.stockMilli <= product.criticalStockMilli) else { return false }
+            case .zero:
+                guard product.kind != .prepared, product.stockMilli <= 0 else { return false }
+            case .expiring:
+                guard product.stockMilli > 0, let expiresAt = product.expiresAt,
+                      Calendar.current.startOfDay(for: expiresAt) <= limit else { return false }
+            }
+            return search.isEmpty || product.name.localizedCaseInsensitiveContains(search)
+                || product.category.localizedCaseInsensitiveContains(search)
+                || product.description.localizedCaseInsensitiveContains(search)
         }
     }
 
+    private var visibleSelection: [Product] { filteredProducts.filter { selection.contains($0.id) } }
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                ShalevScreenTitle(title: "Inventario")
-                if canSell {
-                    Button(action: onSell) {
-                        Image(systemName: "cart.fill")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(Color.shalevPrimary)
-                            .frame(width: 42, height: 42)
-                    }
-                    .accessibilityLabel("Nueva venta")
-                }
+            header
+            ShalevSearchField(text: $search, placeholder: "Buscar por nombre, categoría o código")
+                .padding(.horizontal, 16)
+            counterRow
+            if canEdit && selection.isEmpty && !filteredProducts.isEmpty {
+                selectionHint
             }
-            .padding(.horizontal, 17)
-            .padding(.top, 7)
-            .padding(.bottom, 10)
-
-            ShalevSearchField(text: $search)
-                .padding(.horizontal, 17)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(InventoryFilter.allCases) { option in
-                        ShalevFilterChip(title: option.rawValue, selected: filter == option) { filter = option }
-                    }
-                }
-                .padding(.horizontal, 17)
-                .padding(.vertical, 11)
-            }
-
-            Text("\(filteredProducts.count) \(filteredProducts.count == 1 ? "artículo" : "artículos")")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color.shalevSecondaryText)
-                .padding(.bottom, 5)
-
-            if filteredProducts.isEmpty {
-                ScrollView {
-                    ShalevEmptyState(symbol: search.isEmpty ? "shippingbox" : "magnifyingglass",
-                                     title: search.isEmpty ? "Tu inventario está vacío" : "No hay resultados",
-                                     detail: search.isEmpty ? (canEdit ? "Agrega productos, insumos o elaborados para empezar." : "Pide al administrador que agregue artículos al inventario.") : "Prueba con otro nombre o categoría.",
-                                     actionTitle: search.isEmpty ? (canEdit ? "Agregar artículo" : nil) : "Limpiar búsqueda") {
-                        if search.isEmpty { if canEdit { sheet = .create } } else { search = ""; filter = .all }
-                    }
-                    .padding(.horizontal, 20)
-                }
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 1) {
-                        ForEach(filteredProducts) { product in
-                            if canEdit {
-                                Button { sheet = .edit(product) } label: { ProductRow(product: product, store: store) }
-                                    .buttonStyle(.plain)
-                            } else {
-                                ProductRow(product: product, store: store)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 84)
-                }
-            }
+            if !selection.isEmpty { selectionBar }
+            list
         }
         .background(Color.shalevBackground)
         .overlay(alignment: .bottomTrailing) {
-            if canEdit {
-                ShalevFloatingButton(title: "Agregar artículo") { sheet = .create }
+            if canEdit && selection.isEmpty {
+                ShalevFloatingButton(title: "Agregar producto") { sheet = .create }
                     .padding(.trailing, 18)
                     .padding(.bottom, 15)
             }
         }
-        .sheet(item: $sheet) { route in
-            ProductEditorView(store: store, sync: sync, product: route.product)
-                .presentationDetents([.large])
+        .sheet(isPresented: $showFilterSheet) {
+            InventoryFilterSheet(filter: $filter)
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showExportSheet) {
+            InventoryExportSheet(store: store, products: inventoryExportProducts,
+                                 subtitle: exportSubtitle) { url in
+                shareFileURL = url
+                showShareSheet = true
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $sheet) { route in
+            switch route {
+            case .detail(let product):
+                ProductDetailSheet(store: store, productID: product.id, canEdit: canEdit, canExport: canExport,
+                                   onEdit: { sheet = .edit(product) },
+                                   onDelete: { confirmDelete = .one(product) },
+                                   onShare: { share(product) })
+            case .create, .edit:
+                ProductEditorView(store: store, sync: sync, product: route.product)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let shareFileURL { ShareSheet(items: [shareFileURL]) }
+        }
+        .confirmationDialog(deleteTitle, isPresented: Binding(get: { confirmDelete != nil },
+                                                              set: { if !$0 { confirmDelete = nil } }),
+                            titleVisibility: .visible) {
+            Button("Eliminar", role: .destructive) { performDelete() }
+            Button("Cancelar", role: .cancel) { confirmDelete = nil }
+        } message: {
+            Text("Las ventas registradas no cambian.")
+        }
+        .alert("Inventario", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
+            Button("Entendido", role: .cancel) { message = nil }
+        } message: {
+            Text(message ?? "")
+        }
+    }
+
+    // MARK: - Cabecera
+
+    private var header: some View {
+        ZStack {
+            ShalevScreenTitle(title: "Inventario")
+            HStack(spacing: 2) {
+                Spacer()
+                Button { showFilterSheet = true } label: {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: "line.3.horizontal.decrease")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(filter.isActive ? Color.shalevOnPrimary : Color.shalevText)
+                            .frame(width: 42, height: 42)
+                            .background(filter.isActive ? Color.shalevPrimary : .clear, in: Circle())
+                        if filter.isActive {
+                            Circle().fill(Color.shalevSecondary).frame(width: 9, height: 9)
+                                .offset(x: -4, y: 5)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(filter.isActive ? "Filtrar inventario. Filtros activos: \(filter.summary)" : "Filtrar inventario")
+                if canExport {
+                    Button {
+                        showExportSheet = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Color.shalevText)
+                            .frame(width: 42, height: 42)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(filteredProducts.isEmpty && selection.isEmpty)
+                    .opacity(filteredProducts.isEmpty && selection.isEmpty ? 0.4 : 1)
+                    .accessibilityLabel("Exportar inventario")
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 6)
+        .padding(.bottom, 8)
+    }
+
+    private var counterRow: some View {
+        HStack(spacing: 8) {
+            Text(counterText)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.shalevSecondaryText)
+            if filter.isActive {
+                Button { withAnimation(.easeInOut(duration: 0.15)) { filter = InventoryFilterState() } } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                        Text(filter.summary).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                    }
+                    .foregroundStyle(Color.shalevOnPrimary)
+                    .padding(.horizontal, 9)
+                    .frame(height: 26)
+                    .background(Color.shalevPrimary, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Quitar el filtro \(filter.summary)")
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 9)
+        .padding(.bottom, 6)
+    }
+
+    private var counterText: String {
+        let visible = filteredProducts.count
+        let total = store.activeProducts.count
+        return visible == total ? productos(visible) : "\(visible) de \(productos(total))"
+    }
+
+    private func productos(_ count: Int) -> String {
+        count == 1 ? "1 producto" : "\(count) productos"
+    }
+
+    private var selectionHint: some View {
+        Text("Mantén pulsado para seleccionar varios")
+            .font(.system(size: 11))
+            .foregroundStyle(Color.shalevSecondaryText)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.bottom, 4)
+    }
+
+    // MARK: - Selección
+
+    private var selectionBar: some View {
+        HStack(spacing: 10) {
+            Text(selection.count == 1 ? "1 seleccionado" : "\(selection.count) seleccionados")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.shalevText)
+            Spacer(minLength: 4)
+            Button(allVisibleSelected ? "Quitar todo" : "Marcar todo") {
+                if allVisibleSelected { selection.removeAll() } else { selection = Set(filteredProducts.map(\.id)) }
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(Color.shalevPrimary)
+            if canExport {
+                Button { showExportSheet = true } label: {
+                    Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .semibold))
+                }
+                .accessibilityLabel("Exportar la selección")
+            }
+            if canEdit {
+                Button { confirmDelete = .selection(visibleSelection) } label: {
+                    Image(systemName: "trash").font(.system(size: 15, weight: .semibold))
+                }
+                .foregroundStyle(Color.shalevError)
+                .accessibilityLabel("Eliminar la selección")
+            }
+            Button { selection.removeAll() } label: {
+                Image(systemName: "xmark").font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundStyle(Color.shalevSecondaryText)
+            .accessibilityLabel("Limpiar la selección")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(Color.shalevPrimaryContainer)
+        .overlay(alignment: .bottom) { Color.shalevOutlineVariant.opacity(0.6).frame(height: 0.5) }
+    }
+
+    private var allVisibleSelected: Bool {
+        !filteredProducts.isEmpty && filteredProducts.allSatisfy { selection.contains($0.id) }
+    }
+
+    // MARK: - Lista
+
+    @ViewBuilder
+    private var list: some View {
+        if filteredProducts.isEmpty {
+            ScrollView {
+                if store.activeProducts.isEmpty {
+                    ShalevEmptyState(symbol: "shippingbox", title: "Tu inventario está vacío",
+                                     detail: canEdit ? "Toca + para agregar tu primer producto." : "Pide al administrador que agregue artículos al inventario.",
+                                     actionTitle: canEdit ? "Agregar producto" : nil) {
+                        if canEdit { sheet = .create }
+                    }
+                    .padding(.horizontal, 20)
+                } else {
+                    ShalevEmptyState(symbol: "magnifyingglass", title: "Sin resultados",
+                                     detail: "Prueba otra búsqueda o quita los filtros.",
+                                     actionTitle: "Quitar filtros") {
+                        search = ""
+                        filter = InventoryFilterState()
+                    }
+                    .padding(.horizontal, 20)
+                }
+            }
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(filteredProducts) { product in
+                        InventoryRow(product: product,
+                                     store: store,
+                                     marked: selection.contains(product.id),
+                                     canSelect: canEdit,
+                                     alertText: alertText(for: product),
+                                     onToggle: { toggleSelection(product) },
+                                     onOpen: { sheet = .detail(product) })
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
+                .padding(.bottom, canEdit && selection.isEmpty ? 92 : 20)
+            }
+        }
+    }
+
+    private func toggleSelection(_ product: Product) {
+        if selection.contains(product.id) { selection.remove(product.id) }
+        else { selection.insert(product.id) }
+    }
+
+    private func alertText(for product: Product) -> String? {
+        guard product.kind != .prepared else { return nil }
+        if product.stockMilli <= 0 { return "Sin existencia" }
+        if product.criticalStockMilli > 0 && product.stockMilli <= product.criticalStockMilli { return "Crítico" }
+        if product.lowStockMilli > 0 && product.stockMilli <= product.lowStockMilli { return "Bajo" }
+        if let expiresAt = product.expiresAt, product.stockMilli > 0 {
+            let today = Calendar.current.startOfDay(for: Date())
+            let limit = Calendar.current.date(byAdding: .day, value: 7, to: today) ?? today
+            let day = Calendar.current.startOfDay(for: expiresAt)
+            if day < today { return "Vencido" }
+            if day <= limit { return "Vence \(expiresAt.shalevDate)" }
+        }
+        return nil
+    }
+
+    // MARK: - Exportar y eliminar
+
+    private var inventoryExportProducts: [Product] {
+        selection.isEmpty ? filteredProducts : visibleSelection
+    }
+
+    private var exportSubtitle: String {
+        let business = store.data.settings.profile.businessName
+        let scope = selection.isEmpty ? (filter.isActive || !search.isEmpty ? "Filtro aplicado" : "Todo el inventario")
+                                     : "\(selection.count) seleccionados"
+        return "\(business) · \(Date().shalevDate) · \(scope)"
+    }
+
+    private func share(_ product: Product) {
+        let report = ExportReport(
+            title: "Ficha de \(product.name)",
+            subtitle: store.data.settings.profile.businessName,
+            headers: ["Artículo", "Categoría", "Existencias", "Precio CUP"],
+            rows: [[product.name, product.category,
+                    product.kind == .prepared ? "Elaborado" : "\(product.displayStock) \(product.unit)",
+                    Cup(cents: product.priceCents).inputValue]])
+        if let url = try? ShalevExporter.write(report, format: .pdf) {
+            shareFileURL = url
+            showShareSheet = true
+        } else {
+            message = "No se pudo generar el archivo. Inténtalo de nuevo."
+        }
+    }
+
+    private var deleteTitle: String {
+        guard let target = confirmDelete else { return "¿Eliminar?" }
+        switch target {
+        case .one(let product): return "¿Eliminar «\(product.name)»?"
+        case .selection(let products): return "¿Eliminar \(products.count) \(products.count == 1 ? "producto" : "productos")?"
+        }
+    }
+
+    private func performDelete() {
+        guard let target = confirmDelete else { return }
+        let products = target.products
+        var deleted = 0
+        var blocked: [String] = []
+        for product in products {
+            do {
+                try store.deleteProduct(product.id)
+                deleted += 1
+            } catch {
+                blocked.append(product.name)
+            }
+        }
+        confirmDelete = nil
+        sheet = nil
+        selection.subtract(products.map(\.id))
+        var text = deleted == 1 ? "1 eliminado." : "\(deleted) eliminados."
+        if !blocked.isEmpty { text += " En uso (no se borran): \(blocked.joined(separator: ", "))." }
+        message = text
+    }
+}
+
+private enum DeleteTarget {
+    case one(Product)
+    case selection([Product])
+
+    var products: [Product] {
+        switch self {
+        case .one(let product): [product]
+        case .selection(let products): products
         }
     }
 }
 
+/// Fila del inventario: barra de estado, casilla (o foto), nombre, aviso, existencias, categoría y, a la
+/// derecha, el precio de venta con el costo en un tono más suave. Pulsar abre la ficha; la casilla marca.
 @MainActor
-private struct ProductRow: View {
+private struct InventoryRow: View {
     let product: Product
     @ObservedObject var store: ShalevStore
+    let marked: Bool
+    let canSelect: Bool
+    let alertText: String?
+    let onToggle: () -> Void
+    let onOpen: () -> Void
 
-    private var available: Int? { product.kind == .prepared ? store.availableQuantity(kind: .product, sourceID: product.id) : nil }
+    private var available: Int? {
+        product.kind == .prepared ? store.availableQuantity(kind: .product, sourceID: product.id) : nil
+    }
     private var statusColor: Color {
-        if let available { return available == 0 ? .shalevError : .shalevPrimary }
+        if product.kind == .prepared {
+            return (available ?? 0) == 0 ? .shalevError : .shalevPrimary
+        }
+        if product.stockMilli <= 0 { return .shalevError }
         if product.criticalStockMilli > 0 && product.stockMilli <= product.criticalStockMilli { return .shalevError }
         if product.lowStockMilli > 0 && product.stockMilli <= product.lowStockMilli { return .shalevSecondary }
+        if alertText?.hasPrefix("Vence") == true || alertText == "Vencido" { return .shalevTertiary }
         return .shalevPrimary
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Capsule().fill(statusColor).frame(width: 4, height: 56)
-            if let data = product.imageData, let photo = UIImage(data: data) {
-                Image(uiImage: photo)
-                    .resizable().scaledToFill().frame(width: 46, height: 46).clipShape(RoundedRectangle(cornerRadius: 13))
-            } else {
-                Image(systemName: product.kind.symbol)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.shalevPrimary)
-                    .frame(width: 46, height: 46)
-                    .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        HStack(spacing: 11) {
+            Capsule().fill(statusColor).frame(width: 4, height: 54)
+            if canSelect {
+                Button(action: onToggle) {
+                    Image(systemName: marked ? "checkmark.square.fill" : "square")
+                        .font(.system(size: 21, weight: .regular))
+                        .foregroundStyle(marked ? Color.shalevPrimary : Color.shalevOutline)
+                        .frame(width: 30, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(marked ? "Deseleccionar \(product.name)" : "Seleccionar \(product.name)")
             }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(product.name)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.shalevText)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                Text(product.kind == .prepared ? "Alcanza para \(available ?? 0)" : product.displayStock)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(statusColor)
-                Text(product.kind == .prepared ? "Elaborado" : product.category)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color.shalevSecondaryText)
-                    .lineLimit(1)
+            Button(action: onOpen) {
+                HStack(spacing: 11) {
+                    if let data = product.imageData, let photo = UIImage(data: data) {
+                        Image(uiImage: photo)
+                            .resizable().scaledToFill()
+                            .frame(width: 40, height: 40)
+                            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(product.name)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(Color.shalevText)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                        if let alertText {
+                            Text(alertText)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(statusColor)
+                                .lineLimit(2)
+                        }
+                        Text(product.kind == .prepared
+                             ? "Alcanza para \(available ?? 0)"
+                             : "\(product.displayStock) \(product.unit)")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.shalevSecondaryText)
+                        Text(product.kind == .prepared ? "Elaborado" : product.category)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.shalevSecondaryText)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 6)
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text(Cup(cents: product.priceCents).formatted)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color.shalevText)
+                            .lineLimit(1).minimumScaleFactor(0.75)
+                        Text(Cup(cents: store.estimatedCostCents(for: product)).formatted)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color.shalevSecondaryText)
+                            .lineLimit(1).minimumScaleFactor(0.75)
+                    }
+                }
+                .contentShape(Rectangle())
             }
-            Spacer(minLength: 4)
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(Cup(cents: product.priceCents).formatted)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.shalevText)
-                    .lineLimit(1).minimumScaleFactor(0.75)
-                Text(Cup(cents: store.estimatedCostCents(for: product)).formatted)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Color.shalevSecondaryText)
-                    .lineLimit(1).minimumScaleFactor(0.75)
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(product.name). \(alertText ?? product.displayStock). Abrir ficha")
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 6)
+        .background(marked ? Color.shalevPrimaryContainer.opacity(0.65) : Color.shalevSurface,
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.shalevOutlineVariant.opacity(marked ? 0 : 0.45), lineWidth: 0.6))
+    }
+}
+
+/// Ficha del artículo: foto, estado, datos y acciones Editar / Compartir / Eliminar.
+@MainActor
+private struct ProductDetailSheet: View {
+    @ObservedObject var store: ShalevStore
+    let productID: UUID
+    let canEdit: Bool
+    let canExport: Bool
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    let onShare: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    private var product: Product? { store.data.products.first { $0.id == productID && $0.isActive } }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                if let product {
+                    VStack(spacing: 14) {
+                        if let data = product.imageData, let photo = UIImage(data: data) {
+                            Image(uiImage: photo)
+                                .resizable().scaledToFill()
+                                .frame(maxWidth: .infinity).frame(height: 190).clipped()
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                        ShalevCard {
+                            VStack(alignment: .leading, spacing: 10) {
+                                if !product.description.isEmpty {
+                                    detailRow("Descripción", product.description)
+                                }
+                                detailRow("Categoría", product.kind == .prepared ? "Elaborado" : product.category)
+                                detailRow("Tipo", product.kind.rawValue)
+                                if product.kind != .prepared {
+                                    detailRow("Existencias", "\(product.displayStock) \(product.unit)")
+                                    detailRow("Aviso de stock bajo", FixedNumber.formatMilli(product.lowStockMilli))
+                                    detailRow("Aviso de stock crítico", FixedNumber.formatMilli(product.criticalStockMilli))
+                                    if let expiresAt = product.expiresAt {
+                                        detailRow("Caduca el", expiresAt.shalevDate)
+                                    }
+                                } else {
+                                    detailRow("Alcanza para", "\(store.availableQuantity(kind: .product, sourceID: product.id) ?? 0)")
+                                    if !product.uses.isEmpty {
+                                        detailRow("Receta", product.uses.map { use in
+                                            let name = store.data.products.first { $0.id == use.ingredientID }?.name ?? "Insumo"
+                                            return "\(name) \(FixedNumber.formatMilli(use.milliUnits))"
+                                        }.joined(separator: ", "))
+                                    }
+                                }
+                                detailRow("Costo", Cup(cents: store.estimatedCostCents(for: product)).formatted)
+                                detailRow("Precio de venta", Cup(cents: product.priceCents).formatted)
+                                let unitCost = store.estimatedCostCents(for: product)
+                                detailRow("Ganancia por unidad", Cup(cents: product.priceCents - unitCost).formatted,
+                                          tint: product.priceCents < unitCost ? .shalevError : .shalevText)
+                            }
+                        }
+                        HStack(spacing: 10) {
+                            if canEdit {
+                                Button(action: onEdit) { Label("Editar", systemImage: "pencil") }
+                                    .buttonStyle(ShalevTonalButtonStyle())
+                            }
+                            if canExport {
+                                Button(action: onShare) { Label("Compartir", systemImage: "square.and.arrow.up") }
+                                    .buttonStyle(ShalevTonalButtonStyle())
+                            }
+                            if canEdit {
+                                Button(action: onDelete) { Label("Eliminar", systemImage: "trash") }
+                                    .buttonStyle(ShalevTonalButtonStyle())
+                            }
+                        }
+                        .padding(.bottom, 10)
+                    }
+                    .padding(18)
+                } else {
+                    ShalevEmptyState(symbol: "shippingbox", title: "Ya no existe",
+                                     detail: "Este artículo se eliminó o se desactivó en otra app vinculada.")
+                        .padding(20)
+                }
+            }
+            .background(Color.shalevBackground)
+            .navigationTitle(product?.name ?? "Artículo")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Cerrar") { dismiss() }.foregroundStyle(Color.shalevPrimary)
+                }
             }
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 10)
-        .contentShape(Rectangle())
     }
 
+    private func detailRow(_ title: String, _ value: String, tint: Color = .shalevText) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text(title).font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+            Spacer(minLength: 6)
+            Text(value)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(tint)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+}
+
+/// Hoja de filtros: tipo de artículo y alerta, con «Quitar filtros».
+private struct InventoryFilterSheet: View {
+    @Binding var filter: InventoryFilterState
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    ShalevSectionHeader(title: "Tipo")
+                    ShalevCard(padding: 5) {
+                        VStack(spacing: 0) {
+                            ForEach(InventoryKindFilter.allCases) { option in
+                                Button { filter.kind = option } label: {
+                                    HStack {
+                                        Image(systemName: option.symbol)
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .foregroundStyle(Color.shalevPrimary)
+                                            .frame(width: 26)
+                                        Text(option.rawValue)
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundStyle(Color.shalevText)
+                                        Spacer()
+                                        if filter.kind == option {
+                                            Image(systemName: "checkmark").foregroundStyle(Color.shalevPrimary)
+                                        }
+                                    }
+                                    .padding(.horizontal, 12).padding(.vertical, 11)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    ShalevSectionHeader(title: "Alerta")
+                    ShalevCard(padding: 5) {
+                        VStack(spacing: 0) {
+                            ForEach(InventoryAlertFilter.allCases) { option in
+                                Button { filter.alert = option } label: {
+                                    HStack {
+                                        Text(option.rawValue)
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundStyle(Color.shalevText)
+                                        Spacer()
+                                        if filter.alert == option {
+                                            Image(systemName: "checkmark").foregroundStyle(Color.shalevPrimary)
+                                        }
+                                    }
+                                    .padding(.horizontal, 12).padding(.vertical, 11)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+                .padding(18)
+            }
+            .background(Color.shalevBackground)
+            .navigationTitle("Filtrar inventario")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Quitar filtros") { filter = InventoryFilterState() }
+                        .foregroundStyle(Color.shalevPrimary)
+                        .disabled(!filter.isActive)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Aplicar") { dismiss() }.foregroundStyle(Color.shalevPrimary)
+                }
+            }
+        }
+    }
+
+}
+
+/// Hoja de exportación del inventario: elige formato y comparte el archivo generado.
+private struct InventoryExportSheet: View {
+    @ObservedObject var store: ShalevStore
+    let products: [Product]
+    let subtitle: String
+    let onFile: (URL) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("\(products.count) \(products.count == 1 ? "artículo" : "artículos")")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.shalevSecondaryText)
+                ForEach([ExportFormat.xlsx, .csv, .pdf], id: \.fileExtension) { format in
+                    Button {
+                        export(format)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: format.symbol)
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(Color.shalevPrimary)
+                                .frame(width: 42, height: 42)
+                                .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 12))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(format.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                Text(format.detail).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                        }
+                        .padding(12)
+                        .background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer()
+            }
+            .padding(18)
+            .background(Color.shalevBackground)
+            .navigationTitle("Exportar inventario")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Cerrar") { dismiss() }.foregroundStyle(Color.shalevPrimary)
+                }
+            }
+            .alert("No se pudo exportar", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+                Button("Entendido", role: .cancel) { error = nil }
+            } message: { Text(error ?? "") }
+        }
+    }
+
+    private func export(_ format: ExportFormat) {
+        let report = ExportReport(
+            title: "Inventario",
+            subtitle: subtitle,
+            headers: ["Artículo", "Tipo", "Categoría", "Existencias", "Unidad", "Costo CUP", "Precio CUP", "Caducidad"],
+            rows: products.map { product in
+                [product.name, product.kind.rawValue, product.category,
+                 product.kind == .prepared ? "Elaborado" : FixedNumber.formatMilli(product.stockMilli), product.unit,
+                 Cup(cents: store.estimatedCostCents(for: product)).inputValue,
+                 Cup(cents: product.priceCents).inputValue, product.expiresAt?.shalevDate ?? ""]
+            })
+        do {
+            let url = try ShalevExporter.write(report, format: format)
+            dismiss()
+            onFile(url)
+        } catch {
+            self.error = "No se pudo generar el archivo. Inténtalo de nuevo."
+        }
+    }
+}
+
+private extension InventoryKindFilter {
+    var symbol: String {
+        switch self {
+        case .all: "square.grid.2x2"
+        case .products: "shippingbox"
+        case .ingredients: "drop"
+        case .prepared: "fork.knife"
+        }
+    }
+}
+
+private extension ExportFormat {
+    var title: String {
+        switch self {
+        case .xlsx: "Excel (XLSX)"
+        case .csv: "CSV"
+        case .pdf: "PDF"
+        }
+    }
+    var detail: String {
+        switch self {
+        case .xlsx: "Libro con hojas y columnas"
+        case .csv: "Texto separado por punto y coma"
+        case .pdf: "Documento para imprimir o enviar"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .xlsx: "tablecells"
+        case .csv: "text.alignleft"
+        case .pdf: "doc.richtext"
+        }
+    }
 }
 
 @MainActor

@@ -149,7 +149,7 @@ struct SettingsView: View {
             canUseDeviceAuthentication = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
         }
         .sheet(isPresented: $showSetupWizard) {
-            OnboardingView(store: store) { showSetupWizard = false }
+            OnboardingView(store: store, startAtData: true) { showSetupWizard = false }
         }
         .sheet(item: $sheet) { route in
             if route == .license {
