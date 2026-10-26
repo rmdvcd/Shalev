@@ -27,6 +27,7 @@ struct ServicesView: View {
     @State private var search = ""
     @State private var typeFilter: String?
     @State private var sheet: ServiceSheet?
+    @State private var showFilterSheet = false
 
     private var types: [String] { Array(Set(store.activeServices.map(\.type))).sorted() }
     private var services: [ServiceItem] {
@@ -39,31 +40,51 @@ struct ServicesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
+            ZStack {
                 ShalevScreenTitle(title: "Servicios")
-                if canSell {
-                    Button(action: onSell) {
-                        Image(systemName: "cart.fill").font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(Color.shalevPrimary).frame(width: 42, height: 42)
+                HStack(spacing: 2) {
+                    Spacer()
+                    Button { showFilterSheet = true } label: {
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "line.3.horizontal.decrease")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(typeFilter == nil ? Color.shalevText : Color.shalevOnPrimary)
+                                .frame(width: 42, height: 42)
+                                .background(typeFilter == nil ? .clear : Color.shalevPrimary, in: Circle())
+                            if typeFilter != nil {
+                                Circle().fill(Color.shalevSecondary).frame(width: 9, height: 9).offset(x: -4, y: 5)
+                            }
+                        }
                     }
-                    .accessibilityLabel("Vender servicio")
+                    .buttonStyle(.plain)
+                    .disabled(types.isEmpty)
+                    .opacity(types.isEmpty ? 0.4 : 1)
+                    .accessibilityLabel(typeFilter.map { "Filtrar servicios. Filtro activo: \($0)" } ?? "Filtrar servicios")
                 }
             }
-            .padding(.horizontal, 17).padding(.top, 7).padding(.bottom, 10)
+            .padding(.horizontal, 12).padding(.top, 6).padding(.bottom, 8)
             ShalevSearchField(text: $search, placeholder: "Buscar servicios")
-                .padding(.horizontal, 17)
+                .padding(.horizontal, 16)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ShalevFilterChip(title: "Todos", selected: typeFilter == nil) { typeFilter = nil }
-                    ForEach(types, id: \.self) { type in
-                        ShalevFilterChip(title: type, selected: typeFilter == type) { typeFilter = type }
+            HStack(spacing: 8) {
+                Text("\(services.count) \(services.count == 1 ? "servicio" : "servicios")")
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                if let typeFilter {
+                    Button { self.typeFilter = nil } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                            Text(typeFilter).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                        }
+                        .foregroundStyle(Color.shalevOnPrimary)
+                        .padding(.horizontal, 9).frame(height: 26)
+                        .background(Color.shalevPrimary, in: Capsule())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Quitar el filtro \(typeFilter)")
                 }
-                .padding(.horizontal, 17).padding(.vertical, 11)
             }
-            Text("\(services.count) \(services.count == 1 ? "servicio" : "servicios")")
-                .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText).padding(.bottom, 5)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 9).padding(.bottom, 5)
 
             if services.isEmpty {
                 ScrollView {
@@ -96,6 +117,11 @@ struct ServicesView: View {
                 ShalevFloatingButton(title: "Agregar servicio") { sheet = .create }
                     .padding(.trailing, 18).padding(.bottom, 15)
             }
+        }
+        .sheet(isPresented: $showFilterSheet) {
+            ServiceFilterSheet(types: types, selected: $typeFilter)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
         }
         .sheet(item: $sheet) { route in
             ServiceEditorView(store: store, sync: sync, service: route.service)
@@ -365,5 +391,54 @@ private struct ServiceInputStyle: TextFieldStyle {
         configuration.font(.system(size: 14)).foregroundStyle(Color.shalevText)
             .padding(11).background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 11).stroke(Color.shalevOutlineVariant, lineWidth: 1))
+    }
+}
+
+/// Filtro por tipo de servicio, como la hoja de Android.
+private struct ServiceFilterSheet: View {
+    let types: [String]
+    @Binding var selected: String?
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                ShalevCard(padding: 5) {
+                    VStack(spacing: 0) {
+                        option("Todos", isSelected: selected == nil) { selected = nil }
+                        ForEach(types, id: \.self) { type in
+                            option(type, isSelected: selected == type) { selected = type }
+                        }
+                    }
+                }
+                .padding(18)
+            }
+            .background(Color.shalevBackground)
+            .navigationTitle("Filtrar servicios")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Quitar filtro") { selected = nil }
+                        .foregroundStyle(Color.shalevPrimary)
+                        .disabled(selected == nil)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Aplicar") { dismiss() }.foregroundStyle(Color.shalevPrimary)
+                }
+            }
+        }
+    }
+
+    private func option(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(Color.shalevText)
+                Spacer()
+                if isSelected { Image(systemName: "checkmark").foregroundStyle(Color.shalevPrimary) }
+            }
+            .padding(.horizontal, 12).padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
