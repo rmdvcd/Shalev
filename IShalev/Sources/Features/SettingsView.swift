@@ -1210,167 +1210,401 @@ private struct PriceAdjustmentEditor: View {
     }
 }
 
-private enum BackupPasswordMode: String, Identifiable, Equatable {
-    case export, restore
-    var id: String { rawValue }
-}
-
 @MainActor
 private struct BackupSettingsView: View {
     @ObservedObject var store: ShalevStore
-    @State private var passwordSheet: BackupPasswordMode?
+    @Environment(\.dismiss) private var dismiss
+
+    // Exportar
+    @State private var exportStep = 1
+    @State private var protect = true
     @State private var password = ""
     @State private var confirmPassword = ""
-    @State private var exportDocument = ShalevBackupDocument(data: Data())
+    @State private var showExportErrors = false
     @State private var exportFormat: PortableBackupFormat = .ios
+    @State private var exportDocument = ShalevBackupDocument(data: Data())
     @State private var exportContentType: UTType = .shalevBackup
     @State private var showExporter = false
+    @State private var exportDone: String?
+
+    // Importar
+    @State private var importStep = 1
     @State private var showImporter = false
     @State private var pendingBackup: Data?
+    @State private var importNeedsPassword = true
+    @State private var importPassword = ""
+    @State private var importPasswordError: String?
+    @State private var showPasswordSheet = false
     @State private var showRestoreConfirmation = false
-    @State private var alertMessage: String?
+    @State private var result: (title: String, detail: String)?
+
+    private var passwordError: String? {
+        guard protect else { return nil }
+        return password.count < 8 ? "Mínimo 8 caracteres" : nil
+    }
+
+    private var repeatError: String? {
+        guard protect, passwordError == nil else { return nil }
+        return confirmPassword == password ? nil : "Las contraseñas no coinciden"
+    }
+
+    private var exportValid: Bool { passwordError == nil && repeatError == nil }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                ShalevScreenTitle(title: "Respaldo", subtitle: "Copias cifradas para iOS y Android")
-                ShalevCard {
-                    VStack(alignment: .leading, spacing: 11) {
-                        Label("Protege tu copia con una contraseña", systemImage: "lock.fill")
-                            .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
-                        Picker("Formato de exportación", selection: $exportFormat) {
-                            ForEach(PortableBackupFormat.allCases) { format in
-                                Text(format.title).tag(format)
-                            }
-                        }
-                        .font(.system(size: 13, weight: .medium))
-                        Text(exportFormat == .ios
-                             ? "El formato iOS conserva todos los datos propios de IShalev. La importación detecta automáticamente respaldos iOS y Android."
-                             : "El formato .shalev puede abrirse en Shalev para Android. Las fotos se conservan para IShalev como datos adicionales; Android no muestra esos datos adicionales ni los PIN locales.")
-                            .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
-                        Text("La exportación usa AES-GCM y PBKDF2. Guarda la contraseña: no se puede recuperar.")
-                            .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
-                    }
+                VStack(spacing: 5) {
+                    Text("Guarda una copia protegida de todo el negocio.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.shalevText)
+                        .multilineTextAlignment(.center)
+                    Text("La licencia no viaja en el respaldo: en otro teléfono hace falta una licencia nueva.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.shalevSecondaryText)
+                        .multilineTextAlignment(.center)
                 }
-                Button { password = ""; confirmPassword = ""; passwordSheet = .export } label: {
-                    Label("Exportar respaldo cifrado", systemImage: "square.and.arrow.up")
-                }
-                .buttonStyle(ShalevPrimaryButtonStyle())
-                Button { showImporter = true } label: {
-                    Label("Importar respaldo", systemImage: "square.and.arrow.down")
-                }
-                .buttonStyle(ShalevTonalButtonStyle())
-                    .frame(maxWidth: .infinity)
-                Text("Importar reemplaza los datos actuales del dispositivo. Haz primero una copia si quieres conservarlos.")
-                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText).multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(15)
+                .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                exportCard
+                importCard
             }
             .padding(18)
+            .padding(.bottom, 10)
+            .frame(maxWidth: 680)
+            .frame(maxWidth: .infinity)
         }
         .background(Color.shalevBackground)
-        .sheet(item: $passwordSheet) { mode in
-            BackupPasswordSheet(mode: mode, password: $password, confirmPassword: $confirmPassword) {
-                passwordSheet = nil
-                handlePassword(mode)
+        .navigationTitle("Respaldo")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Cerrar") { dismiss() }.foregroundStyle(Color.shalevPrimary)
             }
-            .presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
         }
         .fileExporter(isPresented: $showExporter, document: exportDocument, contentType: exportContentType,
-                      defaultFilename: exportFormat == .ios ? "respaldo-shalev-ios" : "respaldo-shalev-android") { result in
-            if case .failure(let error) = result { alertMessage = error.localizedDescription }
-            password = ""; confirmPassword = ""
-        }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.shalevBackup, .shalevAndroidBackup], allowsMultipleSelection: false) { result in
-            do {
-                guard let url = try result.get().first else { return }
-                let hasAccess = url.startAccessingSecurityScopedResource()
-                defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
-                let backup = try Data(contentsOf: url)
-                pendingBackup = backup
-                password = ""; confirmPassword = ""
-                if AndroidBackupCodec.isAndroidBackup(backup) && !AndroidBackupCodec.requiresPassword(backup) {
-                    showRestoreConfirmation = true
-                } else {
-                    passwordSheet = .restore
-                }
-            } catch {
-                alertMessage = error.localizedDescription
+                      defaultFilename: exportFormat == .ios ? "respaldo-shalev-ios" : "respaldo-shalev-android") { exportResult in
+            switch exportResult {
+            case .success:
+                let name = exportFormat == .ios ? "respaldo-shalev-ios.shalev" : "respaldo-shalev-android.shalev"
+                exportDone = "\(name) guardado.\n\(summaryText).\n\(protect ? "Guárdalo junto con la contraseña: sin ella no se puede abrir." : "Sin contraseña, quien consiga el archivo podrá leer tus ventas y los datos de tus clientes.")"
+                exportStep = 3
+                password = ""
+                confirmPassword = ""
+            case .failure(let error):
+                result = ("No se pudo guardar el respaldo", error.localizedDescription)
             }
         }
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.shalevBackup, .shalevAndroidBackup],
+                      allowsMultipleSelection: false) { picked in
+            handleImport(picked)
+        }
+        .sheet(isPresented: $showPasswordSheet) {
+            ImportPasswordSheet(password: $importPassword, error: $importPasswordError) {
+                showPasswordSheet = false
+                importStep = 4
+                showRestoreConfirmation = true
+            }
+            .presentationDetents([.medium]).presentationDragIndicator(.visible)
+        }
         .confirmationDialog("¿Reemplazar los datos del teléfono?", isPresented: $showRestoreConfirmation, titleVisibility: .visible) {
-            Button("Reemplazar datos", role: .destructive) { restore() }
-            Button("Cancelar", role: .cancel) { pendingBackup = nil; password = "" }
-        } message: { Text("La copia restaurada sustituirá el inventario, las ventas, los turnos y los ajustes actuales.") }
-        .alert("Respaldo", isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
-            Button("Entendido", role: .cancel) { alertMessage = nil }
-        } message: { Text(alertMessage ?? "") }
+            Button("Importar", role: .destructive) { restore() }
+            Button("Cancelar", role: .cancel) { cancelImport() }
+        } message: {
+            Text("Se reemplazarán TODOS los datos de este teléfono: productos, insumos, inventario, turnos, ventas y configuración. No se puede deshacer.")
+        }
+        .alert(result?.title ?? "", isPresented: Binding(get: { result != nil }, set: { if !$0 { result = nil } })) {
+            Button("Aceptar", role: .cancel) { result = nil }
+        } message: { Text(result?.detail ?? "") }
     }
 
-    private func handlePassword(_ mode: BackupPasswordMode) {
-        if mode == .export {
+    // MARK: - Exportar
+
+    private var exportCard: some View {
+        ShalevCard {
+            VStack(alignment: .leading, spacing: 12) {
+                ShalevSectionHeader(title: "Exportar")
+                Text("Se guarda todo lo del negocio.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.shalevSecondaryText)
+
+                ShalevStepper(current: exportStep, total: 3, title: exportTitle,
+                              onBack: exportStep == 2 ? { exportStep = 1 } : nil,
+                              onNext: exportStep == 1 ? advanceExport : nil)
+
+                if exportStep == 1 {
+                    Toggle(isOn: Binding(get: { protect }, set: { protect = $0; showExportErrors = false })) {
+                        Label("Proteger con contraseña", systemImage: "lock.fill")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Color.shalevText)
+                    }
+                    .tint(Color.shalevPrimary)
+
+                    if protect {
+                        backupField("Contraseña", text: $password, secure: true,
+                                    error: showExportErrors ? passwordError : nil,
+                                    help: "Anótala en un lugar seguro: sin ella no se puede recuperar")
+                        backupField("Repite la contraseña", text: $confirmPassword, secure: true,
+                                    error: showExportErrors ? repeatError : nil)
+                    } else {
+                        Text("Sin contraseña, quien consiga este archivo podrá leer tus ventas y los datos de tus clientes sin ninguna clave.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.shalevError)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("Sin contraseña la copia se guarda en formato .shalev, que también abre Android.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.shalevSecondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else if exportStep == 2 {
+                    Text(protect ? "Contraseña lista." : "Ahora elige dónde guardar el respaldo.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.shalevText)
+
+                    if protect {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Formato")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                            Picker("Formato", selection: $exportFormat) {
+                                ForEach(PortableBackupFormat.allCases) { format in
+                                    Text(format.title).tag(format)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            Text(exportFormat == .ios
+                                 ? "El formato IShalev conserva todos los datos propios de la app."
+                                 : "El formato .shalev se puede abrir en Shalev para Android.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                        }
+                    }
+
+                    Button { saveExport() } label: {
+                        Label("Guardar en el teléfono", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(ShalevPrimaryButtonStyle())
+                } else {
+                    Text(exportDone ?? "")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.shalevText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button {
+                        exportStep = 1
+                        exportDone = nil
+                        protect = true
+                        exportFormat = .ios
+                    } label: {
+                        Label("Hacer otro respaldo", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(ShalevTonalButtonStyle())
+                }
+            }
+        }
+    }
+
+    private var exportTitle: String {
+        switch exportStep {
+        case 2: "Elige dónde guardarlo"
+        case 3: "Respaldo listo"
+        default: "Protégelo (opcional)"
+        }
+    }
+
+    private func advanceExport() {
+        showExportErrors = true
+        guard exportValid else { return }
+        if !protect { exportFormat = .android }
+        exportStep = 2
+    }
+
+    private func saveExport() {
+        let finalPassword = protect ? password : ""
+        do {
+            exportDocument = ShalevBackupDocument(data: try store.makeEncryptedBackup(password: finalPassword, format: exportFormat))
+            exportContentType = exportFormat == .ios ? .shalevBackup : .shalevAndroidBackup
+            showExporter = true
+        } catch {
+            result = ("No se pudo guardar el respaldo", "No se pudo completar. Inténtalo de nuevo.")
+        }
+    }
+
+    // MARK: - Importar
+
+    private var importCard: some View {
+        ShalevCard {
+            VStack(alignment: .leading, spacing: 12) {
+                ShalevSectionHeader(title: "Importar")
+                ShalevStepper(current: importStep, total: 4, title: importTitle)
+                Text("Elige un archivo .shalev.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.shalevSecondaryText)
+                Button { showImporter = true } label: {
+                    Label("Elegir archivo", systemImage: "doc.badge.plus")
+                }
+                .buttonStyle(ShalevTonalButtonStyle())
+                if importStep >= 3 {
+                    Text("Paso \(importStep) de 4: \(importTitle.prefix(1).lowercased() + String(importTitle.dropFirst()))")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.shalevSecondaryText)
+                }
+            }
+        }
+    }
+
+    private var importTitle: String {
+        switch importStep {
+        case 2: "Comprobando el archivo"
+        case 3: "Escribe la contraseña del respaldo"
+        case 4: "Pulsa Importar para reemplazar tus datos"
+        default: "Elige el archivo .shalev"
+        }
+    }
+
+    private func handleImport(_ picked: Result<[URL], Error>) {
+        switch picked {
+        case .failure:
+            result = ("No se pudo abrir el archivo", "Vuelve a elegir el archivo o cópialo al teléfono primero. Tus datos no se han tocado.")
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            importStep = 2
+            let hasAccess = url.startAccessingSecurityScopedResource()
+            defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
             do {
-                exportDocument = ShalevBackupDocument(data: try store.makeEncryptedBackup(password: password, format: exportFormat))
-                exportContentType = exportFormat == .ios ? .shalevBackup : .shalevAndroidBackup
-                showExporter = true
-            } catch { alertMessage = error.localizedDescription }
-        } else if pendingBackup != nil {
-            showRestoreConfirmation = true
+                let backup = try Data(contentsOf: url)
+                pendingBackup = backup
+                importPassword = ""
+                importNeedsPassword = !AndroidBackupCodec.isAndroidBackup(backup) || AndroidBackupCodec.requiresPassword(backup)
+                if importNeedsPassword {
+                    importStep = 3
+                    showPasswordSheet = true
+                } else {
+                    importStep = 4
+                    showRestoreConfirmation = true
+                }
+            } catch {
+                importStep = 1
+                result = ("No se pudo abrir el archivo", "Vuelve a elegir el archivo o cópialo al teléfono primero. Tus datos no se han tocado.")
+            }
         }
     }
 
     private func restore() {
-        guard let pendingBackup else { return }
+        guard let pendingBackup else { cancelImport(); return }
         do {
-            try store.restoreEncryptedBackup(pendingBackup, password: password)
-            alertMessage = "Respaldo restaurado correctamente."
-        } catch { alertMessage = error.localizedDescription }
-        self.pendingBackup = nil
-        password = ""; confirmPassword = ""
+            try store.restoreEncryptedBackup(pendingBackup, password: importPassword)
+            result = ("Respaldo importado", "\(summaryText).")
+            importStep = 1
+        } catch {
+            let message = error.localizedDescription
+            if message.localizedCaseInsensitiveContains("contraseña") {
+                importStep = 3
+                importPasswordError = "Contraseña incorrecta"
+                importPassword = ""
+                showPasswordSheet = true
+            } else {
+                importStep = 1
+                result = ("No se pudo importar", "El archivo no es un respaldo de Shalev o está dañado. Tus datos no se han tocado.")
+            }
+        }
+        pendingBackup = nil
+        importPassword = ""
+    }
+
+    private func cancelImport() {
+        pendingBackup = nil
+        importPassword = ""
+        importPasswordError = nil
+        importStep = 1
+    }
+
+    private var summaryText: String {
+        let data = store.data
+        func plural(_ count: Int, _ one: String, _ many: String) -> String { "\(count) \(count == 1 ? one : many)" }
+        return "Respaldo con " + [
+            plural(data.products.count, "producto", "productos"),
+            plural(data.services.count, "servicio", "servicios"),
+            plural(data.sales.count, "venta", "ventas"),
+        ].joined(separator: ", ")
+    }
+
+    private func backupField(_ title: String, text: Binding<String>, secure: Bool,
+                             error: String?, help: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.shalevSecondaryText)
+            Group {
+                if secure {
+                    SecureField(title, text: text)
+                } else {
+                    TextField(title, text: text)
+                }
+            }
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .font(.system(size: 14))
+            .padding(11)
+            .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+            .overlay {
+                RoundedRectangle(cornerRadius: 11)
+                    .stroke(error == nil ? Color.shalevOutlineVariant : Color.shalevError, lineWidth: 1)
+            }
+            if let error {
+                Text(error).font(.system(size: 11)).foregroundStyle(Color.shalevError)
+            } else if let help {
+                Text(help).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+            }
+        }
     }
 }
 
-private struct BackupPasswordSheet: View {
-    let mode: BackupPasswordMode
+@MainActor
+private struct ImportPasswordSheet: View {
     @Binding var password: String
-    @Binding var confirmPassword: String
+    @Binding var error: String?
     let onConfirm: () -> Void
     @Environment(\.dismiss) private var dismiss
-    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                ShalevScreenTitle(title: mode == .export ? "Cifrar respaldo" : "Abrir respaldo",
-                                  subtitle: mode == .export ? "Elige una contraseña de al menos 8 caracteres." : "Escribe la contraseña del archivo.")
-                ShalevCard {
-                    VStack(spacing: 11) {
-                        SecureField("Contraseña", text: $password).textFieldStyle(BackupInputStyle())
-                        if mode == .export {
-                            SecureField("Repite la contraseña", text: $confirmPassword).textFieldStyle(BackupInputStyle())
-                        }
+            VStack(spacing: 14) {
+                Text("Escribe la contraseña con la que se guardó el respaldo.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.shalevSecondaryText)
+                    .multilineTextAlignment(.center)
+                SecureField("Contraseña del respaldo", text: $password)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.system(size: 14))
+                    .padding(11)
+                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 11)
+                            .stroke(error == nil ? Color.shalevOutlineVariant : Color.shalevError, lineWidth: 1)
                     }
+                if let error {
+                    Text(error).font(.system(size: 11)).foregroundStyle(Color.shalevError)
                 }
-                Button(mode == .export ? "Crear copia cifrada" : "Continuar") { validate() }
-                    .buttonStyle(ShalevPrimaryButtonStyle())
+                Button("Continuar") {
+                    guard !password.isEmpty else { error = "Escribe la contraseña del respaldo."; return }
+                    error = nil
+                    onConfirm()
+                }
+                .buttonStyle(ShalevPrimaryButtonStyle())
                 Spacer(minLength: 0)
             }
             .padding(18)
             .background(Color.shalevBackground)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Cancelar") { dismiss() }.foregroundStyle(Color.shalevSecondaryText) } }
-            .alert("Contraseña", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
-                Button("Entendido", role: .cancel) { errorMessage = nil }
-            } message: { Text(errorMessage ?? "") }
+            .navigationTitle("Contraseña del respaldo")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+            }
         }
-    }
-
-    private func validate() {
-        if mode == .export {
-            guard password.count >= 8 else { errorMessage = "Usa una contraseña de al menos 8 caracteres."; return }
-            guard password == confirmPassword else { errorMessage = "Las contraseñas no coinciden."; return }
-        } else {
-            guard !password.isEmpty else { errorMessage = "Escribe la contraseña del respaldo."; return }
-        }
-        onConfirm()
-        dismiss()
     }
 }
 

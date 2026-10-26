@@ -131,6 +131,71 @@ struct ShalevIconButton: View {
     }
 }
 
+/// «Paso N de M» con título, flechas de avance y barra de progreso, como `ShalevStepper` de Android.
+struct ShalevStepper: View {
+    let current: Int
+    let total: Int
+    let title: String
+    var onBack: (() -> Void)? = nil
+    var onNext: (() -> Void)? = nil
+
+    private var fraction: CGFloat {
+        total <= 0 ? 0 : min(1, max(0, CGFloat(current) / CGFloat(total)))
+    }
+
+    var body: some View {
+        VStack(spacing: 9) {
+            HStack(spacing: 10) {
+                Button { onBack?() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(onBack == nil ? Color.shalevOutline : Color.shalevText)
+                        .frame(width: 36, height: 36)
+                        .background(onBack == nil ? Color.clear : Color.shalevSurfaceVariant, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(onBack == nil)
+                .accessibilityLabel("Paso anterior")
+
+                VStack(spacing: 2) {
+                    Text("Paso \(current) de \(total)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.shalevSecondaryText)
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.shalevText)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .combine)
+
+                Button { onNext?() } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(onNext == nil ? Color.shalevSecondaryText : Color.shalevOnPrimary)
+                        .frame(width: 38, height: 38)
+                        .background(onNext == nil ? Color.shalevSurfaceVariant : Color.shalevPrimary, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(onNext == nil)
+                .accessibilityLabel("Paso siguiente")
+            }
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.shalevOutlineVariant.opacity(0.6))
+                    Capsule()
+                        .fill(Color.shalevPrimary)
+                        .frame(width: geometry.size.width * fraction)
+                }
+            }
+            .frame(height: 4)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
 struct ShalevPrimaryButtonStyle: ButtonStyle {
     var destructive = false
     func makeBody(configuration: Configuration) -> some View {
