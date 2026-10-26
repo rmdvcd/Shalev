@@ -23,6 +23,83 @@ private struct MovementRecord: Identifiable {
 }
 
 @MainActor
+/// Período del filtro de Registros, igual que el de Android.
+enum RecordPeriod: String, CaseIterable, Identifiable, Equatable {
+    case all = "Todo"
+    case today = "Hoy"
+    case week = "7 días"
+    case month = "Este mes"
+    case custom = "Personalizado"
+    var id: String { rawValue }
+}
+
+struct RecordsFilterState: Equatable {
+    var period: RecordPeriod = .all
+    var from: Date = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+    var to: Date = Date()
+    var minAmount = ""
+    var maxAmount = ""
+
+    var isActive: Bool { period != .all || !minAmount.isEmpty || !maxAmount.isEmpty }
+
+    var summary: String {
+        var parts: [String] = []
+        switch period {
+        case .all: break
+        case .custom: parts.append("\(from.shalevDate) – \(to.shalevDate)")
+        default: parts.append(period.rawValue)
+        }
+        let minCents = Cup.parse(minAmount)?.cents
+        let maxCents = Cup.parse(maxAmount)?.cents
+        if let minCents, let maxCents { parts.append("\(Cup(cents: minCents).formatted) – \(Cup(cents: maxCents).formatted)") }
+        else if let minCents { parts.append("desde \(Cup(cents: minCents).formatted)") }
+        else if let maxCents { parts.append("hasta \(Cup(cents: maxCents).formatted)") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Error de fechas o importes invertidos, como en Android.
+    var validationError: String? {
+        if period == .custom {
+            let start = Calendar.current.startOfDay(for: from)
+            let end = Calendar.current.startOfDay(for: to)
+            if start > end { return "La fecha «Desde» no puede ser posterior a «Hasta»." }
+        }
+        if let minCents = Cup.parse(minAmount)?.cents, let maxCents = Cup.parse(maxAmount)?.cents, minCents > maxCents {
+            return "El importe mínimo no puede ser mayor que el máximo."
+        }
+        if !minAmount.trimmingCharacters(in: .whitespaces).isEmpty && Cup.parse(minAmount) == nil {
+            return "Escribe un importe válido, por ejemplo 1450 o 1,450.00."
+        }
+        if !maxAmount.trimmingCharacters(in: .whitespaces).isEmpty && Cup.parse(maxAmount) == nil {
+            return "Escribe un importe válido, por ejemplo 1450 o 1,450.00."
+        }
+        return nil
+    }
+
+    func contains(_ date: Date) -> Bool {
+        let calendar = Calendar.current
+        switch period {
+        case .all: return true
+        case .today: return calendar.isDateInToday(date)
+        case .week:
+            let start = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -6, to: Date()) ?? Date())
+            return date >= start
+        case .month:
+            return calendar.isDate(date, equalTo: Date(), toGranularity: .month)
+        case .custom:
+            let start = calendar.startOfDay(for: from)
+            let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: to)) ?? to
+            return date >= start && date < end
+        }
+    }
+
+    func amountMatches(_ cents: Int64) -> Bool {
+        if let minCents = Cup.parse(minAmount)?.cents, cents < minCents { return false }
+        if let maxCents = Cup.parse(maxAmount)?.cents, cents > maxCents { return false }
+        return true
+    }
+}
+
 struct RecordsView: View {
     @ObservedObject var store: ShalevStore
     var canExport = true
@@ -37,6 +114,8 @@ struct RecordsView: View {
     @State private var shareFileURL: URL?
     @State private var showShareSheet = false
     @State private var exportError: String?
+    @State private var filter = RecordsFilterState()
+    @State private var showFilterSheet = false
 
     private var sales: [Sale] {
         store.data.sales.filter { sale in
@@ -69,7 +148,9 @@ struct RecordsView: View {
                            amountCents: movement.amountCents,
                            isNegative: movement.kind == .expense)
         } : []
-        return (inventory + cash).filter { search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) || $0.detail.localizedCaseInsensitiveContains(search) }
+        return (inventory + cash)
+            .filter { filter.contains($0.date) }
+            .filter { search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) || $0.detail.localizedCaseInsensitiveContains(search) }
             .sorted { $0.date > $1.date }
     }
 
@@ -88,6 +169,8 @@ struct RecordsView: View {
 
     private var shifts: [Shift] {
         store.data.shifts.filter { shift in
+            filter.contains(shift.openedAt)
+        }.filter { shift in
             search.isEmpty || shift.openedAt.shalevDate.localizedCaseInsensitiveContains(search)
                 || (shift.closedAt?.shalevDate.localizedCaseInsensitiveContains(search) ?? false)
         }.sorted { $0.openedAt > $1.openedAt }
@@ -109,23 +192,40 @@ struct RecordsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                ShalevScreenTitle(title: "Registros", subtitle: "Operaciones, caja y turnos")
-                Spacer(minLength: 0)
-                if canExport && selectedTab != .customers {
-                    Menu {
-                        Button("Excel (XLSX)", systemImage: "tablecells") { export(.xlsx) }
-                        Button("CSV", systemImage: "text.alignleft") { export(.csv) }
-                        Button("PDF", systemImage: "doc.richtext") { export(.pdf) }
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 17, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
-                            .frame(width: 42, height: 42).background(Color.shalevPrimaryContainer, in: Circle())
+            ZStack {
+                ShalevScreenTitle(title: "Registros")
+                HStack(spacing: 2) {
+                    Spacer()
+                    Button { showFilterSheet = true } label: {
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "line.3.horizontal.decrease")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(filter.isActive ? Color.shalevOnPrimary : Color.shalevText)
+                                .frame(width: 42, height: 42)
+                                .background(filter.isActive ? Color.shalevPrimary : .clear, in: Circle())
+                            if filter.isActive {
+                                Circle().fill(Color.shalevSecondary).frame(width: 9, height: 9)
+                                    .offset(x: -4, y: 5)
+                            }
+                        }
                     }
-                    .accessibilityLabel("Exportar registros")
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(filter.isActive ? "Filtrar registros. Filtros activos: \(filter.summary)" : "Filtrar por fecha e importe")
+                    if canExport && selectedTab != .customers {
+                        Menu {
+                            Button("Excel (XLSX)", systemImage: "tablecells") { export(.xlsx) }
+                            Button("CSV", systemImage: "text.alignleft") { export(.csv) }
+                            Button("PDF", systemImage: "doc.richtext") { export(.pdf) }
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 17, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                .frame(width: 42, height: 42)
+                        }
+                        .accessibilityLabel("Exportar registros")
+                    }
                 }
             }
-            .padding(.horizontal, 17).padding(.top, 8).padding(.bottom, 12)
+            .padding(.horizontal, 12).padding(.top, 6).padding(.bottom, 10)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(visibleTabs) { tab in
@@ -139,6 +239,21 @@ struct RecordsView: View {
             }
             ShalevSearchField(text: $search, placeholder: "Buscar en registros")
                 .padding(.horizontal, 17).padding(.top, 9)
+            if filter.isActive {
+                Button { filter = RecordsFilterState() } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                        Text(filter.summary).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                    }
+                    .foregroundStyle(Color.shalevOnPrimary)
+                    .padding(.horizontal, 10)
+                    .frame(height: 27)
+                    .background(Color.shalevPrimary, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 7)
+                .accessibilityLabel("Quitar el filtro \(filter.summary)")
+            }
 
             if [.sales, .services, .transfers].contains(selectedTab), !sales.isEmpty {
                 HStack {
@@ -202,6 +317,11 @@ struct RecordsView: View {
             case .shift(let shift): ShiftDetailView(shift: shift, store: store)
             case .customer(let customer): CustomerDetailView(store: store, customerID: customer.id)
             }
+        }
+        .sheet(isPresented: $showFilterSheet) {
+            RecordsFilterSheet(filter: $filter)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showShareSheet) {
             if let shareFileURL { ShareSheet(items: [shareFileURL]) }
@@ -272,10 +392,39 @@ struct RecordsView: View {
     }
 
     @ViewBuilder private var emptyState: some View {
+        let filteredOut = !search.isEmpty || filter.isActive
         ShalevEmptyState(symbol: selectedTab == .customers ? "person.2" : selectedTab == .shifts ? "clock" : "doc.text.magnifyingglass",
-                         title: search.isEmpty ? "Sin registros todavía" : "No hay coincidencias",
-                         detail: search.isEmpty ? "Las ventas y los movimientos de caja aparecerán aquí." : "Prueba con otra búsqueda.")
-            .padding(.horizontal, 12)
+                         title: filteredOut ? "Sin resultados" : emptyTitle,
+                         detail: filteredOut ? "Prueba otra búsqueda o quita los filtros." : emptyDetail,
+                         actionTitle: filteredOut ? "Quitar filtros" : nil) {
+            if filteredOut {
+                search = ""
+                filter = RecordsFilterState()
+            }
+        }
+        .padding(.horizontal, 12)
+    }
+
+    private var emptyTitle: String {
+        switch selectedTab {
+        case .sales: "Aún no hay ventas"
+        case .services: "Aún no hay servicios vendidos"
+        case .transfers: "Aún no hay transferencias"
+        case .movements: "Aún no hay movimientos"
+        case .customers: "Aún no hay clientes fijos"
+        case .shifts: "Aún no hay turnos"
+        }
+    }
+
+    private var emptyDetail: String {
+        switch selectedTab {
+        case .sales: "Las ventas de cada turno aparecen aquí."
+        case .services: "Las ventas de servicios aparecen aquí."
+        case .transfers: "Los pagos por Transfermóvil aparecen aquí."
+        case .movements: "Entradas y salidas de existencias y caja aparecen aquí."
+        case .customers: "Se guardan al vender con «cliente fijo»."
+        case .shifts: "Cada apertura y cierre de caja aparece aquí."
+        }
     }
 }
 
@@ -891,5 +1040,92 @@ private struct ShiftDetailView: View {
 
     private func detailRow(_ title: String, _ value: String) -> some View {
         HStack { Text(title).foregroundStyle(Color.shalevSecondaryText); Spacer(); Text(value).fontWeight(.semibold).multilineTextAlignment(.trailing) }
+    }
+}
+
+/// Filtro por fecha e importe, con los mismos mensajes de validación que Android.
+private struct RecordsFilterSheet: View {
+    @Binding var filter: RecordsFilterState
+    @Environment(\.dismiss) private var dismiss
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    ShalevSectionHeader(title: "Fecha")
+                    ShalevCard(padding: 5) {
+                        VStack(spacing: 0) {
+                            ForEach(RecordPeriod.allCases) { option in
+                                Button {
+                                    filter.period = option
+                                } label: {
+                                    HStack {
+                                        Text(option.rawValue)
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundStyle(Color.shalevText)
+                                        Spacer()
+                                        if filter.period == option {
+                                            Image(systemName: "checkmark").foregroundStyle(Color.shalevPrimary)
+                                        }
+                                    }
+                                    .padding(.horizontal, 12).padding(.vertical, 11)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    if filter.period == .custom {
+                        ShalevCard {
+                            VStack(spacing: 10) {
+                                DatePicker("Desde", selection: $filter.from, displayedComponents: .date)
+                                DatePicker("Hasta", selection: $filter.to, displayedComponents: .date)
+                            }
+                            .font(.system(size: 14))
+                        }
+                    }
+                    ShalevSectionHeader(title: "Importe (CUP)")
+                    ShalevCard {
+                        VStack(spacing: 10) {
+                            amountField("Importe mínimo", text: $filter.minAmount)
+                            amountField("Importe máximo", text: $filter.maxAmount)
+                        }
+                    }
+                    if let error {
+                        Text(error).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevError)
+                    }
+                }
+                .padding(18)
+            }
+            .background(Color.shalevBackground)
+            .navigationTitle("Filtrar registros")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Quitar filtros") { filter = RecordsFilterState() }
+                        .foregroundStyle(Color.shalevPrimary)
+                        .disabled(!filter.isActive)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Aplicar") {
+                        if let problem = filter.validationError { error = problem }
+                        else { error = nil; dismiss() }
+                    }
+                    .foregroundStyle(Color.shalevPrimary)
+                }
+            }
+        }
+    }
+
+    private func amountField(_ title: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+            TextField("0.00", text: text)
+                .keyboardType(.decimalPad)
+                .font(.system(size: 15))
+                .padding(11)
+                .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        }
     }
 }
