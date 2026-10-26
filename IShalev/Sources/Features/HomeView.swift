@@ -671,7 +671,8 @@ private struct ShiftClosingSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 14) {
-                    ShalevScreenTitle(title: "Cierre de turno", subtitle: subtitle)
+                    ShalevStepper(current: stageNumber, total: 3, title: stageTitle,
+                                  onBack: stageBack, onNext: stageNext)
                     switch stage {
                     case .cash: cashStep
                     case .inventory: inventoryStep
@@ -689,11 +690,43 @@ private struct ShiftClosingSheet: View {
         }
     }
 
-    private var subtitle: String {
+    private var stageNumber: Int {
         switch stage {
-        case .cash: "1 de 3 · Cuenta cada denominación y otro efectivo."
-        case .inventory: "2 de 3 · Concilia los artículos movidos en este turno."
-        case .review: "3 de 3 · Revisa el resumen antes de cerrar."
+        case .cash: 1
+        case .inventory: 2
+        case .review: 3
+        }
+    }
+
+    private var stageTitle: String {
+        switch stage {
+        case .cash: "Cuenta el efectivo"
+        case .inventory: "Conteo de inventario"
+        case .review: "Revisar cierre"
+        }
+    }
+
+    private var stageBack: (() -> Void)? {
+        switch stage {
+        case .cash:
+            return nil
+        case .inventory:
+            return { stage = .cash }
+        case .review:
+            return { stage = .inventory }
+        }
+    }
+
+    private var stageNext: (() -> Void)? {
+        switch stage {
+        case .cash:
+            guard countedCash != nil else { return nil }
+            return { stage = .inventory }
+        case .inventory:
+            guard canReviewInventory else { return nil }
+            return { stage = .review }
+        case .review:
+            return nil
         }
     }
 
@@ -725,6 +758,17 @@ private struct ShiftClosingSheet: View {
                                 .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 10))
                         }
                     }
+                    HStack(spacing: 10) {
+                        Text("¿No quieres contar billete por billete?").font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                        Spacer(minLength: 6)
+                        Button {
+                            fillToMatchExpected()
+                        } label: {
+                            Text("Cuadra").font(.system(size: 12, weight: .semibold))
+                        }
+                        .buttonStyle(ShalevTonalButtonStyle())
+                        .accessibilityHint("Rellena el efectivo contado con el esperado")
+                    }
                     Divider()
                     HStack {
                         Text("Otro efectivo (CUP)").font(.system(size: 13)).foregroundStyle(Color.shalevText)
@@ -736,8 +780,11 @@ private struct ShiftClosingSheet: View {
                     }
                 }
             }
-            Button { stage = .inventory } label: { Label("Continuar al inventario", systemImage: "arrow.right") }
-                .buttonStyle(ShalevPrimaryButtonStyle()).disabled(countedCash == nil)
+            if countedCash == nil {
+                Text("Escribe el conteo (o toca Cuadra) para continuar.")
+                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                    .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+            }
         }
     }
 
@@ -757,17 +804,26 @@ private struct ShiftClosingSheet: View {
                         if movedArticles.isEmpty {
                             Text("No hubo movimientos de inventario en este turno.").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
                         }
-                        ForEach(movedArticles) { line in
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(line.productName).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
-                                HStack {
-                                    Text("Esperado: \(FixedNumber.formatMilli(line.expectedMilli))")
-                                        .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
-                                    Spacer()
-                                    TextField("Contado", text: stockBinding(line.productID))
-                                        .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
-                                        .frame(width: 105).padding(8)
-                                        .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 10))
+                        ForEach(articleCategories, id: \.self) { category in
+                            Text(category.isEmpty ? "Sin categoría" : category)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Color.shalevPrimary)
+                                .padding(.top, 4)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityAddTraits(.isHeader)
+                            ForEach(movedArticles.filter { $0.category == category }) { line in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(line.productName).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                    HStack {
+                                        Text("Esperado: \(FixedNumber.formatMilli(line.expectedMilli)) \(line.unit)")
+                                            .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                        Spacer()
+                                        TextField("Contado", text: stockBinding(line.productID))
+                                            .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                                            .frame(width: 105).padding(8)
+                                            .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 10))
+                                            .accessibilityLabel("Contado de \(line.productName)")
+                                    }
                                 }
                             }
                         }
@@ -790,11 +846,12 @@ private struct ShiftClosingSheet: View {
                     }
                 }
             }
-            HStack(spacing: 10) {
-                Button { stage = .cash } label: { Label("Atrás", systemImage: "arrow.left") }
-                    .buttonStyle(ShalevTonalButtonStyle())
-                Button { stage = .review } label: { Label("Revisar cierre", systemImage: "arrow.right") }
-                    .buttonStyle(ShalevPrimaryButtonStyle()).disabled(!canReviewInventory)
+            if !inventoryCountSkipped && !canReviewInventory {
+                Text(inventoryInputsValid
+                     ? "Confirma que revisaste las diferencias y escribe el motivo para continuar."
+                     : "Completa todas las existencias contadas para continuar.")
+                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                    .multilineTextAlignment(.center).frame(maxWidth: .infinity)
             }
         }
     }
@@ -827,12 +884,8 @@ private struct ShiftClosingSheet: View {
             }
             Text("Al cerrar no podrás registrar más operaciones en este turno. El resumen quedará congelado.")
                 .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).multilineTextAlignment(.center)
-            HStack(spacing: 10) {
-                Button { stage = .inventory } label: { Label("Atrás", systemImage: "arrow.left") }
-                    .buttonStyle(ShalevTonalButtonStyle())
-                Button(action: finish) { Label("Cerrar turno", systemImage: "checkmark.circle.fill") }
-                    .buttonStyle(ShalevPrimaryButtonStyle())
-            }
+            Button(action: finish) { Label("Cerrar turno", systemImage: "checkmark.circle.fill") }
+                .buttonStyle(ShalevPrimaryButtonStyle())
         }
     }
 
@@ -848,6 +901,23 @@ private struct ShiftClosingSheet: View {
             Spacer()
             Text(value).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText).multilineTextAlignment(.trailing)
         }
+    }
+
+    private var articleCategories: [String] {
+        var seen = Set<String>()
+        return movedArticles.compactMap { seen.insert($0.category).inserted ? $0.category : nil }
+    }
+
+    /// «Cuadra»: deja el contado igual al esperado repartiendo la diferencia en «Otro efectivo».
+    private func fillToMatchExpected() {
+        var billsTotal: Int64 = 0
+        for denomination in ShiftClosingCount.denominations {
+            let text = billCounts[denomination] ?? ""
+            guard let count = FixedNumber.parse(text, multiplier: 1) else { continue }
+            billsTotal += count * Int64(denomination) * 100
+        }
+        let remaining = expectedCash - billsTotal
+        otherCash = remaining > 0 ? Cup(cents: remaining).inputValue : "0"
     }
 
     private func billBinding(_ denomination: Int) -> Binding<String> {
