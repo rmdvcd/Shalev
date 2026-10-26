@@ -58,8 +58,10 @@ El proyecto de Android que lo acompaña sigue en la raíz del repositorio. Las p
 
 ### Verificación registrada
 
-- El run [`40155048824`](https://github.com/rmdvcd/Shalev/actions/runs/40155048824), del commit `f82be0a`, terminó con las pruebas de dominio, la compilación para simulador, el empaquetado y la publicación del artefacto en verde.
-- Ese run publicó la build [`IShalev 1.0.0` en Appetize](https://appetize.io/app/oxa2csfcfvzb6ls57zjavg4x3e). No se ha ejecutado una sesión interactiva de esa build; todavía deben comprobarse los flujos internos, la vinculación LAN y los permisos del simulador.
+- El run [`40155895866`](https://github.com/rmdvcd/Shalev/actions/runs/40155895866), del commit `c2a6cef` (merge de la sincronización LAN), terminó con las pruebas de dominio, la compilación para simulador, el empaquetado y la subida a Appetize en verde.
+- Ese run publicó la build [`IShalev 1.0.0` en Appetize](https://appetize.io/app/kczay4chapvuf53xy6w62fyy7a), comprobada el 26/10/2026: la app carga en el simulador como `IShalev` v1.0.0 sobre iPhone 14 Pro con iOS 17.2, y la versión incrustable responde en `appetize.io/embed/kczay4chapvuf53xy6w62fyy7a`. La sesión interactiva no arranca sola: se inicia con **Tap to Start** en el navegador.
+- Cada ejecución del workflow publica una **app nueva** de Appetize mientras no se configure el secreto `APPETIZE_PUBLIC_KEY`; la URL se anota en el resumen de cada run («Appetize build: …»). Configura ese secreto con la clave pública de una app existente para actualizarla en lugar de crear otra.
+- Los flujos internos (onboarding, activación GL, vinculación LAN y permisos del simulador) siguen pendientes de una sesión interactiva.
 - Estas comprobaciones no sustituyen pruebas en un iPhone físico, activación real con GL ni una sesión de sincronización con Android.
 
 ### 1. GitHub Actions — opción recomendada para compilar
@@ -73,6 +75,8 @@ Para una cuenta personal/hobby, el plan gratuito incluye **500 minutos mensuales
 ### 3. Appetize — ejecutar el simulador en el navegador
 
 Después de compilar, se puede subir el `.app` de simulador (o el ZIP del artefacto de Actions) a Appetize para probarlo desde un navegador. El plan gratuito indicado por Appetize ofrece **30 minutos al mes**, hasta dos dispositivos activos y sesiones de hasta tres minutos. Appetize sirve para **emular/mostrar**, no para compilar el código, y requiere una compilación de simulador; no acepta un `.ipa` de distribución como sustituto. [Planes de Appetize](https://appetize.io/pricing) · [Formato iOS admitido](https://docs.appetize.io/platform/app-management/uploading-apps/ios).
+
+Para ejecutarla, abre `https://appetize.io/app/<publicKey>` o incrusta `https://appetize.io/embed/<publicKey>?device=iphone14pro&osVersion=17.2`; la sesión empieza al pulsar **Tap to Start** y los parámetros `device`/`osVersion` fijan el simulador (iOS 17.2 cubre el objetivo mínimo 17.0).
 
 ### 4. Xcode Cloud — si ya se paga Apple Developer Program
 
