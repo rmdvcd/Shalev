@@ -1330,8 +1330,7 @@ private struct BackupSettingsView: View {
                     .foregroundStyle(Color.shalevSecondaryText)
 
                 ShalevStepper(current: exportStep, total: 3, title: exportTitle,
-                              onBack: exportStep == 2 ? { exportStep = 1 } : nil,
-                              onNext: exportStep == 1 ? advanceExport : nil)
+                              onBack: exportBackAction, onNext: exportNextAction)
 
                 if exportStep == 1 {
                     Toggle(isOn: Binding(get: { protect }, set: { protect = $0; showExportErrors = false })) {
@@ -1402,6 +1401,14 @@ private struct BackupSettingsView: View {
                 }
             }
         }
+    }
+
+    private var exportBackAction: (() -> Void)? {
+        exportStep == 2 ? { exportStep = 1 } : nil
+    }
+
+    private var exportNextAction: (() -> Void)? {
+        exportStep == 1 ? { advanceExport() } : nil
     }
 
     private var exportTitle: String {
@@ -1491,9 +1498,9 @@ private struct BackupSettingsView: View {
     }
 
     private func restore() {
-        guard let pendingBackup else { cancelImport(); return }
+        guard let backup = pendingBackup else { cancelImport(); return }
         do {
-            try store.restoreEncryptedBackup(pendingBackup, password: importPassword)
+            try store.restoreEncryptedBackup(backup, password: importPassword)
             result = ("Respaldo importado", "\(summaryText).")
             importStep = 1
         } catch {
