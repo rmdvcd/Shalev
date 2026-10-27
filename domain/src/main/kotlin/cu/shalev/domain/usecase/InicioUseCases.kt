@@ -127,10 +127,12 @@ class ObtenerResumenGeneral @Inject constructor(
         val manana = clock.now().atZone(zone).toLocalDate().plusDays(1) // 0.21.6: por fecha (cambio de hora a las 00:00)
         val lista = ventas.entre(manana.minusDays(DIAS.toLong()).atStartOfDay(zone).toInstant(), manana.atStartOfDay(zone).toInstant()).validas()
         val inventario = productos.observarTodos().first()
+        // 1.0.1: los insumos con precio de venta cuentan como productos en el Top 3.
+        val ins = insumos.observarTodos().first()
         ResumenGeneral(
-            categorias = Estadisticas.distribucionCategorias(inventario, insumos.observarTodos().first()),
+            categorias = Estadisticas.distribucionCategorias(inventario, ins),
             metodosPago = Estadisticas.distribucionMetodos(lista),
-            top3 = Estadisticas.top3(lista, inventario),
+            top3 = Estadisticas.top3(lista, inventario, ins),
             dias = DIAS,
             servicios = Estadisticas.topServicios(lista, servicios.observarTodos().first()),
             empleados = Estadisticas.topEmpleados(lista),

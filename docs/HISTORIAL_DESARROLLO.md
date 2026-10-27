@@ -1,5 +1,21 @@
 # Shalev - Historial de desarrollo
 
+## 2026-10-27 - Vinculación por datos móviles, cierre automático del cuadro de Actualizar e insumos en las estadísticas (1.0.1)
+
+Tres cambios pedidos por el dueño; `versionName` pasa a **1.0.1** (`versionCode` **54**).
+
+**(1) La vinculación funciona también por datos móviles.** Antes solo se anunciaban las IPv4 privadas (wifi del local o zona wifi) y los textos pedían «la misma wifi»:
+- `RedLocal.utiles()` (nueva, pura y testeada) clasifica las IPv4 activas de la principal: quita loopback y link-local, repite cada dirección una sola vez y las ordena **privadas primero y después las demás (datos móviles)**. El QR `SPVI-VINC1:` lleva todas, y la secundaria prueba por orden: la red local primero y la de datos después.
+- Al vincularse, la secundaria guarda la dirección que funcionó **y las demás del QR como respaldo**, para poder reconectar sin el NSD (mDNS, que solo funciona en la misma red local).
+- Textos de vinculación, ayuda, bloqueo de la secundaria y actualizaciones: donde decía «la misma wifi» ahora se admite «wifi, zona wifi o datos móviles».
+- Límite conocido: sin servidor ni relé (regla de la app), la conexión por datos móviles depende de que la operadora enrute entre los dos teléfonos (en Cuba, CGNAT: puede no funcionar entre abonados); con la misma wifi o zona wifi sigue funcionando como antes.
+
+**(2) El cuadro de «Actualizar» (Ajustes) se cierra solo.** Al terminar de actualizar o de comprobar que estás al día (resultados «Actualizado» y «Estas al día») el cuadro se cierra automáticamente tras 1,5 s (tiempo de leer el resultado), sin que nadie lo toque. «Sin conexión» **no** se cierra solo: se queda a la vista para leerlo y cerrarlo a mano. El cierre automático solo surte efecto si el resultado sigue a la vista; un proceso nuevo abierto entretanto no se cierra (`ProcesoActualizarTest`: `alDiaSeCierraSolo` y `sinConexionNoSeCierraSolo`).
+
+**(3) Los insumos con precio de venta cuentan como productos para las estadísticas.** En el Top 3 de Inicio (Más vendido, Lento movimiento y Rentabilidad) entran también los insumos vendibles: sus líneas de venta se agrupan con id negativo (`IdArticulo.deInsumo`) para no confundirlos con un producto de id igual, y los insumos con `precioVenta` aparecen en el pool de «Lento movimiento»; los de receta (sin precio de venta) siguen sin contar. Una línea vendida de insumo cuenta siempre (al venderlo tenía precio de venta), igual que las líneas de un producto eliminado. `Estadisticas.top3` recibe ahora los insumos (`StockEstadisticasTest` lo cubre).
+
+**Verificación.** Este entorno no tiene JDK, Android SDK ni acceso a Maven/Google: no se pudo ejecutar `shalevTests` ni `shalevCheck`; los tests añadidos/actualizados deben correr en el CI o en el equipo de desarrollo antes de publicar. Al cambiar textos de UI y la versión, las capturas Roborazzi afectadas hay que regrabarlas (`./gradlew :app:recordRoborazziDebug`).
+
 ## 2026-10-22 - Sembrador de datos de demostración (solo depuración) y material de promoción
 
 Se añadió un **sembrador de datos de demostración** para poblar la app instalada en un teléfono sin tocar el APK de release: `data/src/debug/.../seed/Sembrador.kt` (lógica) y `app/src/debug/.../seed/SeedActivity.kt` (pantalla que lo dispara). Se ejecuta con `adb shell am start -n cu.shalev.app.debug/cu.shalev.app.seed.SeedActivity` y está declarado en el manifiesto **de debug**, así que el release sigue sin llevarlo (D-05 de la auditoría de la 0.32.0). El sembrador vacía los datos operativos y de configuración (y la tabla `empleado`, que no viaja en los respaldos) antes de cargar, de modo que se puede repetir.
@@ -2271,3 +2287,7 @@ antes de aprobar el conteo de una app secundaria. No cambia el protocolo de sinc
   - Los botones pasan a «Aprobar cierre» y «Rechazar cierre», como en Android.
 - **Perfiles locales de empleado** (función solo de iOS): los permisos usan la misma fila con detalle y la
   lista resume «PIN configurado · N permisos» en lugar de encadenar todos los nombres.
+
+## IShalev — Capturas de pantalla en la raíz del repositorio (2026-10-27)
+
+La sesión interactiva de Appetize se queda en la pantalla de licencia y no deja recorrer la app, así que se crea **`capturas_IShalev/`** en la raíz con el recorrido visual de IShalev: onboarding (4 pasos), Inicio, cierre de turno, Inventario y su ficha, venta y carrito, QR de Transfermóvil, y (siguiente lote) Servicios, Registros, Ajustes, Licencia, Apps vinculadas, Respaldo y bloqueo del dispositivo. Son **maquetas generadas** fieles al código SwiftUI (paleta `DesignSystem.swift`, textos de las pantallas), no capturas del simulador; el índice y la nota están en `capturas_IShalev/README.md`. No cambia el código de IShalev.

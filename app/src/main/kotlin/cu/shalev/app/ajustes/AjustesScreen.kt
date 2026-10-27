@@ -140,6 +140,7 @@ fun AjustesContent(
     onAccesoClave: (Boolean) -> Unit = {},
 ) {
     // 0.31.0 (P5): el cuadro de «Actualizar» lo abre el propio proceso (barra circular + resultado).
+    // 1.0.1: al terminar con «Actualizado» o «Estas al día» el cuadro se cierra solo (el proceso lo cierra).
     val dialogoActualizaciones = actualizacion.proceso != null
     Scaffold(
         topBar = { ShalevTopBar(title = "Ajustes") },

@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -96,6 +97,30 @@ class ProcesoActualizarTest {
         g.cerrarProceso()
         withTimeout(10_000) { g.estado.first { it.proceso == null } }
         assertTrue(github.llamadas == 1)
+    }
+
+    /** 1.0.1: al comprobar que estás al día el cuadro se cierra solo, sin que nadie lo toque. */
+    @Test fun alDiaSeCierraSolo() = runBlocking {
+        val g = gestor()
+        g.actualizarAhora()
+        withTimeout(10_000) { g.estado.first { it.proceso is ProcesoActualizar.EnCurso } }
+        github.puerta.complete(AppResult.Ok(null)) // no hay versión nueva
+        withTimeout(10_000) { g.estado.first { it.proceso == ProcesoActualizar.AlDia } }
+        withTimeout(10_000) { g.estado.first { it.proceso == null } }
+        assertNull(g.estado.value.proceso)
+    }
+
+    /** 1.0.1: «Sin conexión» NO se cierra solo: el usuario tiene que leerlo y cerrarlo. */
+    @Test fun sinConexionNoSeCierraSolo() = runBlocking {
+        val g = gestor()
+        g.actualizarAhora()
+        withTimeout(10_000) { g.estado.first { it.proceso is ProcesoActualizar.EnCurso } }
+        github.puerta.complete(AppResult.Err(AppError.Red.SinConexion))
+        withTimeout(10_000) { g.estado.first { it.proceso == ProcesoActualizar.SinConexion } }
+        delay(GestorActualizacion.CIERRE_AUTO_MS * 2)
+        assertEquals(ProcesoActualizar.SinConexion, g.estado.value.proceso)
+        g.cerrarProceso()
+        withTimeout(10_000) { g.estado.first { it.proceso == null } }
     }
 
     /** La comprobación se queda esperando hasta que el test la suelta (red lenta). */
