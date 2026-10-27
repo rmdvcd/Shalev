@@ -286,8 +286,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.principal(
             val d = s.principal.direcciones
             val context = LocalContext.current
             ShalevStatusBanner(
-                text = if (d.isEmpty()) "Sin red local" else "Red local activa",
-                detail = if (d.isEmpty()) "Conéctate a una wifi o activa la zona wifi de este teléfono." else "Este teléfono: ${d.joinToString(", ")}",
+                // 1.0.1: la red del teléfono es su wifi, zona wifi o datos móviles (las direcciones van en el QR).
+                text = if (d.isEmpty()) "Sin red" else "Red disponible",
+                detail = if (d.isEmpty()) "Conéctate a una wifi, activa la zona wifi o usa datos móviles." else "Este teléfono: ${d.joinToString(", ")}",
                 tone = if (d.isEmpty()) BannerTone.Aviso else BannerTone.Info,
                 modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag(VinculacionTags.RED),
                 // La app no puede encender la zona wifi: abre la pantalla del sistema (sin permisos).

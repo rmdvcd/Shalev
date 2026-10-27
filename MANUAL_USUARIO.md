@@ -152,7 +152,7 @@ Al deslizar hacia abajo en la app principal verás:
   - **Ganancia Neta:** comparativa visual entre **Venta**, **Costo** y porcentaje de margen.
   - **Inventario:** gráfico circular de distribución de tus existencias por categoría.
   - **Métodos de pago:** proporción cobrada en efectivo frente a transferencia.
-  - **Rankings Top 3 con medallas de oro, plata y bronce:** productos más vendidos, artículos de lento movimiento, mayor rentabilidad y —en los últimos 30 días— los **3 mejores vendedores (empleados)** y los **3 mejores clientes por transferencia**.
+  - **Rankings Top 3 con medallas de oro, plata y bronce:** productos más vendidos, artículos de lento movimiento, mayor rentabilidad y —en los últimos 30 días— los **3 mejores vendedores (empleados)** y los **3 mejores clientes por transferencia**. Los **insumos con precio de venta** cuentan como productos en estos rankings (los de solo receta no).
 
 | <img src="promocion/capturas/shot_inicio_claro.png" alt="Pantalla de Inicio con barra inferior" width="240"/> | <img src="app/capturas/claro/01j_inicio_acordeones_cerrados.png" alt="Inicio con turno abierto y alertas" width="240"/> |
 |:---:|:---:|
@@ -425,15 +425,16 @@ Shalev distingue claramente entre los **documentos internos de administración**
 
 ## 12. Apps vinculadas: trabajar con tus empleados en red local
 
-Si trabajas con dependientes, cajeros o barberos, cada empleado puede instalar Shalev en su propio teléfono como **App Secundaria** y conectarse a tu **App Principal** sin gastar datos móviles ni necesitar internet.
+Si trabajas con dependientes, cajeros o barberos, cada empleado puede instalar Shalev en su propio teléfono como **App Secundaria** y conectarse a tu **App Principal** sin necesitar internet.
 
 ![Trabajo en equipo: App Principal y Apps Secundarias](docs/manual/diagramas/05_arquitectura_apps_vinculadas.svg)
 
 ### 12.1 Qué necesitan ambos teléfonos para conectarse
 
-Solo hace falta estar en la **misma red local**:
+Basta con que los dos teléfonos compartan red (desde la versión 1.0.1 también **datos móviles**):
 - Conectados ambos al **router Wi-Fi del local**, o bien
-- Activando la **Zona Wi-Fi (punto de acceso portátil)** en el teléfono principal del dueño y conectando a ella los teléfonos de los empleados (no hace falta encender los datos móviles).
+- Activando la **Zona Wi-Fi (punto de acceso portátil)** en el teléfono principal del dueño y conectando a ella los teléfonos de los empleados (no hace falta encender los datos móviles), o bien
+- Con los dos teléfonos en **datos móviles** de la operadora (sin wifi de por medio). El código QR lleva las direcciones del teléfono del dueño y la app del empleado prueba con todas; si la operadora no deja conectar entre sus abonados (CGNAT), usa la misma wifi o la zona wifi.
 
 ### 12.2 Cómo vincular el teléfono de un empleado por primera vez
 
@@ -452,11 +453,11 @@ Al tocar el nombre de un empleado en **Ajustes → Apps vinculadas** de la princ
 - **Permisos individuales:** por defecto un empleado nuevo puede **Vender productos**, **Vender servicios** y **Exportar y compartir**. El dueño decide si además le activa **Editar inventario y servicios** o **Cambiar precios**.
 - **Tarjeta de cobro del empleado:** elige a cuál de tus tarjetas bancarias irán las transferencias que cobre ese trabajador. Su código QR combinará **tu tarjeta bancaria** con **el número móvil del propio empleado**, de modo que el dinero cae directo en tu cuenta pero el SMS de confirmación de PAGOxMOVIL le llega al teléfono del empleado para que pueda comprobar el pago al instante sin interrumpirte.
 - **Conexión abierta y sincronización controlada:**
-  - Mientras estén en la misma Wi-Fi, la app del empleado mantiene la conexión abierta y el dueño ve **«Conectada ahora»**.
+  - Mientras estén en la misma red (Wi-Fi, zona wifi o datos móviles), la app del empleado mantiene la conexión abierta y el dueño ve **«Conectada ahora»**.
   - **Sincronización manual:** para ahorrar batería y evitar interrupciones en medio de una cola, el empleado toca el botón central **Sincronizar ahora** en *Apps vinculadas* cuando desea enviar sus ventas pendientes (*«N pendientes de enviar»*) y recibir novedades. Si el dueño cambia precios o productos, la app del empleado le muestra el aviso *«El dueño cambió el catálogo. Sincroniza para recibirlo»*.
   - **Sincronizaciones automáticas esenciales:** ocurren solas al **abrir un turno** (para no vender nunca con precios viejos) y al **solicitar el cierre del turno**.
   - **Barra de avance y avisos sonoros:** mientras viajan los datos verás una barra de progreso en la notificación y en *Apps vinculadas*, acompañada de sonidos diferenciados cuando un empleado se conecta, se desconecta o termina de sincronizar (personalizables en los ajustes de notificaciones de Android).
-  - **¿Y si se va la Wi-Fi o el dueño sale del local?** El empleado **sigue vendiendo con total normalidad** durante todo su turno abierto; solo necesitará volver a sincronizar para cerrar el turno o abrir uno nuevo.
+  - **¿Y si se va la red o el dueño sale del local?** El empleado **sigue vendiendo con total normalidad** durante todo su turno abierto; solo necesitará volver a sincronizar para cerrar el turno o abrir uno nuevo.
 
 ### 12.4 Cómo se cierra el turno de un empleado
 
@@ -554,7 +555,7 @@ Entra en **Ajustes → Licencia**:
 
 Para que disfrutes siempre de las últimas mejoras y que la App Principal y las Secundarias hablen el mismo idioma:
 
-- **Búsqueda manual o semanal:** entra en **Ajustes → Actualizar** cuando tengas conexión; aparecerá un cuadro con progreso circular que te indicará *«Estás al día»*, *«Sin conexión»* o descargará e instalará la nueva versión verificada. Además, Shalev comprueba automáticamente una vez por semana si salió una actualización oficial y la reparte por Wi-Fi local a las apps secundarias de tus empleados.
+- **Búsqueda manual o semanal:** entra en **Ajustes → Actualizar** cuando tengas conexión; aparecerá un cuadro con progreso circular que te indicará *«Estás al día»*, *«Sin conexión»* o descargará e instalará la nueva versión verificada. Al terminar de actualizar o de comprobar que estás al día, el cuadro **se cierra solo**; si fue *«Sin conexión»*, se queda a la vista para que lo leas y lo cierres. Además, Shalev comprueba automáticamente una vez por semana si salió una actualización oficial y la reparte a las apps secundarias de tus empleados.
 - **Respaldo automático antes de instalar:** justo antes de abrir el instalador de una nueva versión, Shalev guarda internamente una copia automática de tus datos y la restaura al abrir la versión actualizada (evita hacer ventas entre la descarga y el final de la instalación).
 - **Plazo de 30 días:** cuando el teléfono detecta una versión nueva, puedes posponerla con *«Más tarde»* durante **30 días** (viendo la fecha límite). Cumplido ese plazo, Shalev pedirá actualizar para continuar, permitiéndote siempre cerrar tu turno abierto y exportar un respaldo antes.
 

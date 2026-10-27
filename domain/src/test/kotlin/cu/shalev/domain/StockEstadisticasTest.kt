@@ -2,6 +2,7 @@ package cu.shalev.domain
 
 import cu.shalev.core.money.Cup
 import cu.shalev.core.quantity.Cantidad
+import cu.shalev.domain.model.ClaseArticulo
 import cu.shalev.domain.model.DetalleVenta
 import cu.shalev.domain.model.Granularidad
 import cu.shalev.domain.model.MetodoPago
@@ -79,6 +80,57 @@ class StockEstadisticasTest {
         assertTrue(Estadisticas.top3(emptyList(), ps).masVendidos.isEmpty())
         val t = Estadisticas.top3(listOf(venta(1, T0, Triple(4, 1, 1L to 0L))), ps)
         assertEquals(listOf(1L, 2L, 3L), t.lentoMovimiento.map { it.productoId })
+    }
+
+    /** 1.0.1: los insumos con precio de venta cuentan como productos para las estadísticas. */
+    @Test fun `top 3 cuenta los insumos con precio de venta como productos`() {
+        val ps = listOf(producto(1, creado = T0.plusSeconds(60)), producto(2))
+        val ins = listOf(
+            cu.shalev.domain.model.Insumo(
+                id = 1, nombre = "Harina", precio = Cup.ofPesos(10),
+                cantidad = cu.shalev.core.quantity.Cantidad.enteras(10), creadoEn = T0, precioVenta = Cup.ofPesos(20),
+            ),
+            cu.shalev.domain.model.Insumo(
+                id = 2, nombre = "Levadura", precio = Cup.ofPesos(5),
+                cantidad = cu.shalev.core.quantity.Cantidad.enteras(4), creadoEn = T0,
+            ), // sin precio de venta: solo receta, no cuenta como producto
+        )
+        val v = Venta(
+            1, 1, T0, MetodoPago.EFECTIVO,
+            listOf(
+                DetalleVenta(productoId = 1, nombre = "P1", categoria = "X", cantidad = 3, precioBase = Cup.ofPesos(10), precioUnitario = Cup.ofPesos(10), costoUnitario = Cup.ofPesos(4)),
+                DetalleVenta(productoId = 1, nombre = "Harina", categoria = "Insumos", cantidad = 2, precioBase = Cup.ofPesos(20), precioUnitario = Cup.ofPesos(20), costoUnitario = Cup.ofPesos(10), clase = ClaseArticulo.INSUMO),
+            ),
+        )
+        val t = Estadisticas.top3(listOf(v), ps, ins)
+        // Más vendido: P1 (3 u) y la Harina (2 u, id negativo del insumo).
+        assertEquals(listOf(1L, -1L), t.masVendidos.map { it.productoId })
+        assertEquals("Harina", t.masVendidos[1].nombre)
+        // Lento movimiento: el producto sin ventas (2) y después la Harina (2 u) y P1 (3 u); la Levadura no entra.
+        assertEquals(listOf(2L, -1L, 1L), t.lentoMovimiento.map { it.productoId })
+        // Rentabilidad: Harina gana 20, P1 gana 18.
+        assertEquals(listOf(-1L, 1L), t.rentabilidad.map { it.productoId })
+    }
+
+    /** 1.0.1: un insumo y un producto con el mismo id son artículos distintos (el insumo va con id negativo). */
+    @Test fun `el id del insumo no se confunde con el de un producto igual`() {
+        val ps = listOf(producto(1))
+        val ins = listOf(
+            cu.shalev.domain.model.Insumo(
+                id = 1, nombre = "Azúcar", precio = Cup.ofPesos(10),
+                cantidad = cu.shalev.core.quantity.Cantidad.enteras(10), creadoEn = T0, precioVenta = Cup.ofPesos(20),
+            ),
+        )
+        val v = Venta(
+            1, 1, T0, MetodoPago.EFECTIVO,
+            listOf(
+                DetalleVenta(productoId = 1, nombre = "P1", categoria = "X", cantidad = 1, precioBase = Cup.ofPesos(10), precioUnitario = Cup.ofPesos(10), costoUnitario = Cup.ofPesos(4)),
+                DetalleVenta(productoId = 1, nombre = "Azúcar", categoria = "Insumos", cantidad = 5, precioBase = Cup.ofPesos(20), precioUnitario = Cup.ofPesos(20), costoUnitario = Cup.ofPesos(10), clase = ClaseArticulo.INSUMO),
+            ),
+        )
+        val t = Estadisticas.top3(listOf(v), ps, ins)
+        assertEquals(listOf(-1L, 1L), t.masVendidos.map { it.productoId }) // Azúcar (5 u) y P1 (1 u)
+        assertEquals(2, t.lentoMovimiento.size) // los dos, sin mezclarse
     }
 
     @Test fun `al guardar una ficha sin tocar la cantidad se conservan las ventas hechas mientras tanto`() {

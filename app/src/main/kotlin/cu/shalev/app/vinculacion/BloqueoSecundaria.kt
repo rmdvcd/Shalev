@@ -72,4 +72,4 @@ fun BloqueoSecundaria(viewModel: VinculacionViewModel = hiltViewModel()) {
 
 private const val TITULO_BLOQUEO = "La licencia de la app principal no está activa"
 private const val DETALLE_BLOQUEO =
-    "Esta app trabaja con la licencia de la app principal. Pide al dueño que la active y luego toca «Sincronizar ahora» con los dos teléfonos en la misma wifi."
+    "Esta app trabaja con la licencia de la app principal. Pide al dueño que la active y luego toca «Sincronizar ahora» con los dos teléfonos en la misma red (wifi, zona wifi o datos móviles)."

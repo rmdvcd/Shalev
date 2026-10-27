@@ -8,10 +8,11 @@ import cu.shalev.core.result.AppError
  */
 object TextosSync {
     const val SIN_PERMISO = "El dueño no te dio permiso para esto. Pídeselo desde su app."
-    const val SIN_RED = "Conéctate a la wifi del local o activa la zona wifi de este teléfono."
+    /** 1.0.1: también por datos móviles (el QR lleva todas las direcciones de la principal). */
+    const val SIN_RED = "Conéctate a una wifi, activa la zona wifi de este teléfono o enciende los datos móviles."
 
     fun sinPrincipal(pendientes: Int): String = buildString {
-        append("No se encuentra la app principal. Conecta los dos teléfonos a la misma wifi.")
+        append("No se encuentra la app principal. Conecta los dos teléfonos a la misma red: wifi, zona wifi o datos móviles.")
         if (pendientes > 0) append(if (pendientes == 1) " Hay 1 envío pendiente." else " Hay $pendientes envíos pendientes.")
     }
 }

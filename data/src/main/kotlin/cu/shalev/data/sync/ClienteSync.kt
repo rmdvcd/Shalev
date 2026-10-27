@@ -305,7 +305,10 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
                     val datos = DatosSecundaria(
                         negocioId = c.negocioId, nombreNegocio = r.nombreNegocio.ifBlank { c.nombreNegocio },
                         empleadoId = c.empleadoId, nombreEmpleado = c.nombreEmpleado, clave = CriptoSync.enc(clave),
-                        direcciones = listOfNotNull(socket.inetAddress?.hostAddress).ifEmpty { c.direcciones }, puerto = socket.port,
+                        // 1.0.1 (datos móviles): la dirección que funcionó va primero y las demás del QR quedan de
+                        // respaldo para reconectar (por datos móviles el NSD no encuentra a la principal).
+                        direcciones = (listOfNotNull(socket.inetAddress?.hostAddress) + c.direcciones).distinct(),
+                        puerto = socket.port,
                     )
                     clave.fill(0)
                     AppResult.Ok(datos)
@@ -521,7 +524,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
         /** 0.32.0: a partir de este tamaño el avance se muestra en la barra (debajo no hay nada que ver). */
         const val FRAME_GRANDE = 1024L * 1024L
 
-        const val TEXTO_SIN_CONEXION = "No se encuentra la app principal en esta red"
+        const val TEXTO_SIN_CONEXION = "No se encuentra la app principal en esta red ni por datos móviles"
         const val TEXTO_CODIGO_INVALIDO = "Este código no es válido. Pide al dueño que genere uno nuevo."
 
         fun textoRechazo(motivo: String): String = when (motivo) {

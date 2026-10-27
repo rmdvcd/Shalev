@@ -1,6 +1,8 @@
 package cu.shalev.domain.service
 
 import cu.shalev.domain.model.nombreCompleto
+import cu.shalev.domain.model.comoProducto
+import cu.shalev.domain.model.IdArticulo
 import cu.shalev.domain.model.TopServicios
 import cu.shalev.domain.model.Servicio
 import cu.shalev.domain.model.ClaseArticulo
@@ -135,22 +137,34 @@ object Estadisticas {
 
     /**
      * Top 3 (Shalev.txt). Vacío si no hay ventas en el período ("no se muestran si no hay datos").
-     *  - Más vendido: unidades ↓; empate → producto más RECIENTE.
-     *  - Lento movimiento: unidades ↑ entre TODOS los productos activos (0 si no se vendió); empate → más ANTIGUO.
+     * 1.0.1: los **insumos con precio de venta** cuentan como productos para las estadísticas; van con id negativo
+     * ([IdArticulo.deInsumo]) para no confundirlos con un producto de id igual, y los de receta (sin precio de
+     * venta) no entran. Una línea vendida de insumo cuenta siempre (al venderlo tenía precio de venta).
+     *  - Más vendido: unidades ↓; empate → artículo más RECIENTE.
+     *  - Lento movimiento: unidades ↑ entre TODOS los artículos activos (0 si no se vendió); empate → más ANTIGUO.
      *  - Rentabilidad: ganancia total (precio − costo congelados × unidades) ↓, solo ganancia > 0;
      *    empate → mayor margen, luego más reciente.
      */
-    fun top3(ventas: List<Venta>, productos: List<Producto>): Top3 {
-        // P29: solo productos del inventario (los insumos vendidos y los servicios tienen otros ids y otros indicadores).
-        val detalles = ventas.flatMap { it.detalles }.filter { it.clase == ClaseArticulo.PRODUCTO }
+    fun top3(ventas: List<Venta>, productos: List<Producto>, insumos: List<Insumo> = emptyList()): Top3 {
+        // P29: solo artículos del inventario (los servicios tienen sus propios indicadores).
+        val detalles = ventas.flatMap { it.detalles }.mapNotNull { d ->
+            when (d.clase) {
+                ClaseArticulo.PRODUCTO -> d to d.productoId
+                ClaseArticulo.INSUMO -> d to IdArticulo.deInsumo(d.productoId)
+                ClaseArticulo.SERVICIO -> null
+            }
+        }
         if (detalles.isEmpty()) return Top3(emptyList(), emptyList(), emptyList())
-        val creado = productos.associate { it.id to it.creadoEn }
+        val catalogo = productos.filterNot { it.eliminado || it.esInsumo } +
+            insumos.filter { it.precioVenta != null }.map { it.comoProducto() }
+        val creado = catalogo.associate { it.id to it.creadoEn }
         fun creadoEn(id: Long) = creado[id] ?: Instant.EPOCH
 
-        val vendidos = detalles.groupBy { it.productoId }.map { (id, ds) ->
+        val vendidos = detalles.groupBy { it.second }.map { (id, pares) ->
+            val ds = pares.map { it.first }
             TopItem(
                 productoId = id,
-                nombre = productos.firstOrNull { it.id == id }?.nombreCompleto ?: ds.last().nombre,
+                nombre = catalogo.firstOrNull { it.id == id }?.nombreCompleto ?: ds.last().nombre,
                 unidades = ds.sumOf { it.cantidad },
                 ingresos = ds.fold(Cup.ZERO) { a, d -> a + d.subtotal },
                 ganancia = ds.fold(Cup.ZERO) { a, d -> a + d.ganancia },
@@ -160,7 +174,7 @@ object Estadisticas {
 
         val mas = vendidos.sortedWith(compareByDescending<TopItem> { it.unidades }.thenByDescending { creadoEn(it.productoId) }).take(3)
 
-        val lento = productos.filterNot { it.eliminado }
+        val lento = catalogo.filterNot { it.eliminado }
             .map { p -> porId[p.id] ?: TopItem(p.id, p.nombreCompleto, 0, Cup.ZERO, Cup.ZERO) }
             .sortedWith(compareBy<TopItem> { it.unidades }.thenBy { creadoEn(it.productoId) })
             .take(3)

@@ -13,9 +13,11 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * P37: red local sin permisos nuevos.
- *  - Direcciones: IPv4 privadas de las interfaces activas (wifi del local o zona wifi de este teléfono).
- *  - Descubrimiento: NSD (mDNS, `_shalev._tcp`) por si la principal cambió de dirección desde que se leyó el QR.
+ * P37: red de las apps vinculadas sin permisos nuevos.
+ *  - Direcciones: IPv4 de las interfaces activas. **1.0.1: también las de datos móviles**, para que la vinculación y
+ *    la conexión funcionen por wifi, zona wifi o datos móviles (antes solo se anunciaban las privadas).
+ *  - Descubrimiento: NSD (mDNS, `_shalev._tcp`) por si la principal cambió de dirección desde que se leyó el QR
+ *    (solo funciona en la misma red local; por datos móviles manda la dirección del QR o la guardada al vincular).
  * Ni NetworkInterface ni NsdManager necesitan permisos aparte de INTERNET (ya declarado).
  */
 @Singleton
@@ -24,15 +26,14 @@ class RedLocal @Inject constructor(@ApplicationContext private val context: Cont
     private val nsd: NsdManager? get() = context.getSystemService(Context.NSD_SERVICE) as? NsdManager
     private var registro: NsdManager.RegistrationListener? = null
 
-    /** IPv4 privadas (192.168.x, 10.x, 172.16–31.x), sin la de loopback ni las de datos móviles (no son privadas). */
+    /** IPv4 útiles de las interfaces activas (ver [utiles]): primero las privadas y después las demás (datos móviles). */
     fun direcciones(): List<String> = runCatching {
-        NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
-            .filter { it.isUp && !it.isLoopback }
-            .flatMap { it.inetAddresses.toList() }
-            .filterIsInstance<Inet4Address>()
-            .filter { it.isSiteLocalAddress }
-            .mapNotNull { it.hostAddress }
-            .distinct()
+        utiles(
+            NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
+                .filter { it.isUp && !it.isLoopback }
+                .flatMap { it.inetAddresses.toList() }
+                .filterIsInstance<Inet4Address>(),
+        )
     }.getOrDefault(emptyList())
 
     fun anunciar(negocioId: String, puerto: Int) {
@@ -102,5 +103,18 @@ class RedLocal @Inject constructor(@ApplicationContext private val context: Cont
     companion object {
         const val TIPO = "_shalev._tcp."
         fun nombreServicio(negocioId: String) = "Shalev-" + negocioId.take(12)
+
+        /**
+         * 1.0.1 (datos móviles): de las IPv4 candidatas deja las útiles para vincular y conectar. Quita la de
+         * loopback y la link-local (169.254.x, no enrutable), repite cada dirección una sola vez y las ordena:
+         * **primero las privadas** (192.168.x, 10.x, 172.16–31.x: wifi del local o zona wifi) y después las demás
+         * (las de datos móviles, que pueden ser públicas). Así el QR lleva todas y la secundaria prueba primero la
+         * red local; por datos móviles se usa la dirección que traiga el QR.
+         */
+        fun utiles(direcciones: List<Inet4Address>): List<String> {
+            val validas = direcciones.filterNot { it.isLoopbackAddress || it.isLinkLocalAddress }.distinctBy { it.hostAddress }
+            val (privadas, otras) = validas.partition { it.isSiteLocalAddress }
+            return (privadas + otras).mapNotNull { it.hostAddress }
+        }
     }
 }

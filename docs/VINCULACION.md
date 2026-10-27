@@ -14,7 +14,9 @@ Una instalación nueva o una actualización es **principal**. Una instalación p
 
 ## Decisiones del usuario (P38)
 
-1. **Transporte: solo red local.** Puede ser la wifi del local o la zona wifi del teléfono principal. No hay servidor, relé ni datos móviles a través de un servidor. Dos teléfonos con datos móviles no se ven directamente: en Cuba hay CGNAT y haría falta un relé.
+1. **Transporte: la red de los dos teléfonos, sin servidor ni relé.** Puede ser la wifi del local, la zona wifi del teléfono principal **o los datos móviles de la operadora (1.0.1)**. No hay servidor ni relé: la conexión es directa entre los dos teléfonos.
+   - **1.0.1 (datos móviles).** Antes solo se anunciaban las IPv4 privadas y los textos pedían «la misma wifi». Ahora el QR `SPVI-VINC1:` lleva **todas** las IPv4 activas de la principal (privadas primero y después las de datos móviles, ver `RedLocal.utiles`), la secundaria prueba por orden y guarda como respaldo las direcciones del QR además de la que funcionó. El descubrimiento NSD (mDNS) sigue solo en la misma red local.
+   - **Límite:** al no haber relé, la conexión por datos móviles depende de que la operadora enrute entre los dos teléfonos (en Cuba, CGNAT: puede no funcionar entre abonados). Con la misma wifi o zona wifi funciona como siempre.
 2. **Permisos configurables por empleado** desde la principal:
    - Vender productos.
    - Vender servicios.
@@ -130,7 +132,7 @@ app/common/PermisosLocales.kt         LocalPermisosApp (oculta botones según pe
 5. **Almacenamiento:**
    - La clave del empleado se guarda en el DataStore cifrado con el Keystore en la secundaria, y en la BD SQLCipher en la principal.
    - Nunca va a logs (`DatosSecundaria.toString()` la oculta), ni al respaldo, ni a la copia de Android (`allowBackup=false`).
-6. **Permisos de Android:** `INTERNET`, que ya estaba, cubre los sockets de red local. NSD no pide permisos. Desde 0.19.2, la principal añade los tres permisos normales del servicio en primer plano (ver §Limitaciones). Las secundarias no los usan.
+6. **Permisos de Android:** `INTERNET`, que ya estaba, cubre los sockets (red local y datos móviles). NSD no pide permisos. Desde 0.19.2, la principal añade los tres permisos normales del servicio en primer plano (ver §Limitaciones). Las secundarias no los usan.
 
 ## Limitaciones
 

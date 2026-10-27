@@ -14,7 +14,9 @@ object VinculacionLogic {
     const val PRINCIPAL_DETALLE =
         "Esta es la app principal: guarda todos los datos y la licencia. Tus empleados se vinculan con un código QR."
     const val SIN_SECUNDARIAS = "Aún no hay apps secundarias"
-    const val SIN_SECUNDARIAS_DETALLE = "Agrega la app de cada empleado. Necesitan estar en la misma wifi que este teléfono."
+    /** 1.0.1: la vinculación y la conexión también funcionan por datos móviles, no solo por la misma wifi. */
+    const val SIN_SECUNDARIAS_DETALLE =
+        "Agrega la app de cada empleado. Necesitan estar en la misma red que este teléfono: wifi, zona wifi o datos móviles."
     const val USAR_COMO_SECUNDARIA = "Usar esta app como secundaria"
     /** 0.27.0 (T9). */
     const val PRINCIPAL_NO_SECUNDARIA = "Esta app es la principal del negocio y no puede pasar a secundaria."
@@ -142,7 +144,7 @@ object VinculacionLogic {
         is AppError.Validacion -> if (e.campo == "telefono") ERROR_TELEFONO else "No se pudo completar. Inténtalo de nuevo."
         AppError.SinPermiso -> "Ya tienes todas las apps secundarias que cubre tu licencia. Para más, solicita una licencia con más secundarias."
         AppError.LicenciaBloqueada -> "Activa la licencia para vincular apps secundarias."
-        AppError.Red.SinConexion -> "Conéctate a la wifi del local o activa la zona wifi de este teléfono."
+        AppError.Red.SinConexion -> "Conéctate a una wifi, activa la zona wifi de este teléfono o enciende los datos móviles."
         is AppError.SinPrincipal -> cu.shalev.app.common.TextosSync.sinPrincipal(e.pendientes)
         is AppError.VinculacionRechazada -> e.motivo
         else -> "No se pudo completar. Inténtalo de nuevo."

@@ -1,6 +1,14 @@
 # Shalev — Verificación real
 
-> **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización Android: **2026-10-21**. La app principal sigue siendo Android. El antiguo Flutter/iOS y la web de escritorio se retiraron; la nueva contraparte SwiftUI vive en `IShalev/` y tiene una sección de verificación independiente al final de este documento.
+> **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización Android: **2026-10-27**. La app principal sigue siendo Android. El antiguo Flutter/iOS y la web de escritorio se retiraron; la nueva contraparte SwiftUI vive en `IShalev/` y tiene una sección de verificación independiente al final de este documento.
+
+## Vinculación por datos móviles, cierre del cuadro de Actualizar e insumos en estadísticas (2026-10-27, 1.0.1)
+
+Tres cambios del dueño (`versionName` **1.0.1**, `versionCode` **54**): el QR de vinculación lleva todas las IPv4 de la principal (privadas primero, datos móviles después) y la secundaria guarda direcciones de respaldo; el cuadro de «Actualizar» se cierra solo con «Actualizado»/«Estas al día»; los insumos con precio de venta cuentan como productos en el Top 3 (detalle en `docs/HISTORIAL_DESARROLLO.md`).
+
+- **`shalevTests` / `shalevCheck`: NO EJECUTADOS en esta pasada.** El entorno de trabajo no tiene JDK, Android SDK ni acceso a Maven Central/Google Maven (solo GitHub/npm/PyPI): `./gradlew` y `tools/verificacion/verificar.sh` no pueden resolver dependencias. Sí se comprobó la **sintaxis** de los 14 archivos Kotlin tocados con Tree-sitter Kotlin (parseo sin errores; no sustituye a la compilación). Los tests nuevos/actualizados (`RedLocalTest` 3, `ProcesoActualizarTest` +2, `StockEstadisticasTest` +2) están escritos y **deben correr en el CI o en el equipo de desarrollo antes de publicar**. No se declara verde nada que no se haya ejecutado.
+- **Capturas Roborazzi pendientes:** los textos de vinculación/ayuda/actualizaciones y el `versionName` cambian, así que las capturas afectadas (Vinculación, Ayuda, Ajustes, bloqueo de secundaria…) hay que regrabarlas con `./gradlew :app:recordRoborazziDebug` en una máquina con Android SDK.
+- **Pruebas de dispositivo pendientes:** vinculación real entre dos teléfonos con **datos móviles** (sin wifi de por medio; en Cuba puede fallar por CGNAT de la operadora), el cierre automático del cuadro de «Actualizar» y los insumos vendibles en el Top 3 de Inicio.
 
 ## Auditoría de interfaz: teclado, icono de «Continuar» y ventanas (2026-10-21, 0.32.0)
 
