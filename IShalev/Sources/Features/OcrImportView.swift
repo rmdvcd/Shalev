@@ -218,12 +218,12 @@ struct OcrImportSheet: View {
 
             if totalPages > 1, let pdfData {
                 HStack(spacing: 12) {
-                    ShalevSpinnerButton(direction: .decrease, label: "Página anterior", enabled: currentPage > 1 && !processing) {
+                    ShalevSpinnerButton(isIncrement: false, label: "Página anterior", enabled: currentPage > 1 && !processing) {
                         Task { await processPDFData(pdfData, title: title, pageOneBased: currentPage - 1) }
                     }
                     Text("Página \(currentPage) de \(totalPages)")
                         .font(.shalev(13, weight: .semibold))
-                    ShalevSpinnerButton(direction: .increase, label: "Página siguiente", enabled: currentPage < totalPages && !processing) {
+                    ShalevSpinnerButton(isIncrement: true, label: "Página siguiente", enabled: currentPage < totalPages && !processing) {
                         Task { await processPDFData(pdfData, title: title, pageOneBased: currentPage + 1) }
                     }
                 }
@@ -331,7 +331,7 @@ struct OcrImportSheet: View {
                         Button("Añadir a la cola") {
                             enqueueCurrentDraft()
                         }
-                        .buttonStyle(ShalevSecondaryButtonStyle())
+                        .buttonStyle(ShalevTonalButtonStyle())
                         .disabled(currentDraft[.name].trimmingCharacters(in: .whitespaces).isEmpty)
 
                         Button("Importar") {
@@ -382,7 +382,11 @@ struct OcrImportSheet: View {
             TextField(field.shortLabel, text: binding)
                 .keyboardType(keyboard)
                 .shalevInputFilter(filter, text: binding)
-                .textFieldStyle(ShalevTextFieldStyle())
+                .font(.shalev(14))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(Color.shalevOutlineVariant, lineWidth: 1))
             if target == .sales && field == .name && !currentDraft[.name].isEmpty {
                 if let m = OcrMapper.matchSaleCandidate(currentDraft[.name], in: salesCandidates) {
                     Text("Coincide con: \(m.name) (máx. \(m.maxAvailable))")

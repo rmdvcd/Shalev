@@ -168,13 +168,22 @@ Shalev es **cliente** del contrato v1 de GL, sin cambiarlo. Detalle completo en 
 - **Actualizaciones:** antes de abrir el instalador Shalev guarda un respaldo completo (sin contraseña, en la carpeta privada de la app; no se exporta ni cuenta para el recordatorio mensual). Si no se puede guardar, no se actualiza. Al abrir la versión nueva se restaura y se borra; si la instalación se cancela, se borra sin restaurar. Las ventas hechas entre el respaldo y la instalación no entran en él. El texto de la actualización ya no menciona el repositorio ni su alojamiento.
 - **Registros → Clientes:** «Editar» y «Quitar de clientes fijos» quedan centrados en el pie de la ficha, siempre a la vista. «Editar» abre una ventana para corregir nombre, carné y teléfono, con las mismas comprobaciones de la venta; no se admite un carné que ya sea de otro cliente y sus compras anteriores quedan con los datos corregidos (carné incluido).
 
+## Novedades de octubre de 2026 (OCR, ampliación de secundarias, blindaje de capacidades y billetes CUP)
+
+| Función | Resumen |
+|---|---|
+| **Escaneo OCR e importación documental** | En **Inventario**, **Servicios** y **Nueva venta** (Android e iOS): reconocimiento de texto local, gratuito e ilimitado (ML Kit Text Recognition v2 en Android y Apple Vision en iOS) más importación directa de **PDF**, **Excel (`.xlsx` / `.csv`)** y **Word (`.docx`)**, con lienzo visual interactivo (toque sobre bloques o arrastre de rectángulo) y mapeo de columnas a campos del formulario |
+| **Ampliar apps secundarias (`amplia`)** | En **Ajustes → Licencia** (Android e iOS) y en GL ([parche listo para `rmdvcd/GL`](docs/gl-ampliar-secundarias.patch)): permite añadir secundarias hasta un total de 10 sobre la licencia vigente sin alterar su vencimiento (`venceEn` o `PERPETUA`), pagando solo las nuevas secundarias a tarifa fija (`1 000 / 5 000 / 9 000 / 17 000 CUP`) |
+| **Blindaje de entradas y capacidades** | Cálculo de topes compartidos entre recetas (`Elaborado`, `Servicio` e `Insumo` vendible) en venta nueva y al modificar ventas, tope de salidas de caja según efectivo disponible y filtros de entrada sincronizados en Android e iOS |
+| **Miniaturas de 13 billetes CUP y spinners `◄` / `►`** | El conteo de efectivo muestra las miniaturas oficiales del BCC para `1, 3, 5, 10, 20, 50, 100, 200, 500, 1 000, 2 000, 5 000 y 20 000 CUP` en lugar de etiquetas de texto, y todos los contadores numéricos usan `◄` y `►` |
+
 ## Novedades de la 0.27.1 (correcciones, [historial](docs/HISTORIAL_DESARROLLO.md))
 
 - La app ya no se cierra en Android 8–13 al abrir Inicio, ni en Android 8–11 al convertir importes y cantidades: usaba APIs de Android 14 y 12.
 - Con letra muy grande ya no se parten palabras ni importes: alertas y accesos de Inicio, arqueo de caja, subtítulos de Ajustes y Exportar.
 - Textos de Ajustes al día: Respaldo y Permisos del teléfono.
 
-## Novedades de la 0.27.0 ([docs/PROMPT_0.27.0.md](docs/PROMPT_0.27.0.md))
+## Novedades de la 0.27.0 ([historial](docs/HISTORIAL_DESARROLLO.md))
 
 | Función | Resumen |
 |---|---|
@@ -199,7 +208,7 @@ Shalev es **cliente** del contrato v1 de GL, sin cambiarlo. Detalle completo en 
 
 Base de datos v10 (`MIGRACION_9_10`): tabla `cliente_fijo` y `transaccion.clienteFijo`.
 
-## Novedades de la 0.26.0 ([docs/PLAN_0.26.md](docs/PLAN_0.26.md))
+## Novedades de la 0.26.0 ([historial](docs/HISTORIAL_DESARROLLO.md))
 
 | Función | Resumen |
 |---|---|
@@ -209,7 +218,7 @@ Base de datos v10 (`MIGRACION_9_10`): tabla `cliente_fijo` y `transaccion.client
 | **Respaldo solo cifrado** | Respaldo guarda solo el archivo `.shalev` con contraseña; se quitó el «Documento PDF» |
 | **Sin exportaciones de texto** | Registros, Inventario, Servicios y las fichas exportan PDF y Excel (e Imagen/Tarjetas en Inventario); solo la licencia se envía como texto |
 | **«+» en la esquina** | El botón «+» va abajo a la derecha en Inventario, Servicios, Precios y Apps vinculadas |
-| **La prueba no se reinicia al reinstalar** | La fecha de inicio de la prueba se guarda cifrada (AES-GCM, clave derivada de ANDROID_ID) en una imagen pequeña en Imágenes/Shalev y en copias en Download y Documents, que quedan al desinstalar. Recién instalada, Shalev pide **una vez** el acceso a fotos para encontrar la de una instalación anterior; gana la fecha más antigua. Una copia ilegible se ignora (no bloquea). La fecha atrasada se detecta además con el reloj monótono del teléfono ([docs/PLAN_ANTIREINSTALACION.md](docs/PLAN_ANTIREINSTALACION.md)) |
+| **La prueba no se reinicia al reinstalar** | La fecha de inicio de la prueba se guarda cifrada (AES-GCM, clave derivada de ANDROID_ID) en una imagen pequeña en Imágenes/Shalev y en copias en Download y Documents, que quedan al desinstalar. Recién instalada, Shalev pide **una vez** el acceso a fotos para encontrar la de una instalación anterior; gana la fecha más antigua. Una copia ilegible se ignora (no bloquea). La fecha atrasada se detecta además con el reloj monótono del teléfono |
 | **Seminegrita** | Importes, precios, cantidades, fechas y totales en seminegrita en la app y en el PDF; en Excel en negrita, con columnas al ancho de su contenido y texto largo en varias líneas |
 
 Base de datos v9 (`MIGRACION_8_9`): empleado con `fondoAsignadoCent`, `fondoAsignadoEn`, `aperturaSolicitadaEn` y `versionCode`. Protocolo v1 ampliado con campos opcionales (compatible con 0.25.x).
@@ -238,7 +247,7 @@ Con esto desaparecen las desviaciones de la 0.25.0 sobre Modificar, el conteo no
 
 Desviaciones documentadas: instalación con `PackageInstaller` (sin FileProvider ni configuración de red propia; OkHttp solo HTTPS); Modificar no cambia el método de pago ni añade artículos (para eso, anular y vender de nuevo); el diálogo de conteo de un cierre pedido por la principal no se puede descartar; la tarjeta de actualización solo aparece en Inicio y Ajustes y nunca interrumpe una venta; la descarga no sigue en segundo plano; el campo de recuperación solo aparece sin licencia instalada; el arqueo se ve en la pestaña Caja (no hay PDF/Excel del turno) y el Excel de ventas añade la columna Estado; una venta de servicios anulada llega a la secundaria en su siguiente sincronización. Protocolo de sincronización: sigue en v1 con campos opcionales (las secundarias 0.24 siguen funcionando).
 
-Para GL: [docs/GL_PROMPT_0.25.md](docs/GL_PROMPT_0.25.md) (recuperación automática y lista de revocadas; pruebas con `tools/licencia/probar_gl.py revocadas …` y `vector_0.25.txt`; dependencias Python en `tools/requirements.txt`).
+Para GL: recuperación automática, lista de revocadas (`tools/licencia/probar_gl.py revocadas …`, dependencias Python en `tools/requirements.txt`) y ampliación de apps secundarias (`amplia`, parche en [docs/gl-ampliar-secundarias.patch](docs/gl-ampliar-secundarias.patch)).
 
 ## Apps Principal y Secundaria (0.19.0)
 
