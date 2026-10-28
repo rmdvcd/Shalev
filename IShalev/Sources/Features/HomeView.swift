@@ -762,13 +762,37 @@ private struct ShiftClosingSheet: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Billetes").font(.shalev(15, weight: .semibold)).foregroundStyle(Color.shalevText)
                     ForEach(ShiftClosingCount.denominations, id: \.self) { denomination in
-                        HStack {
-                            Text("\(denomination) CUP").font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevText)
-                            Spacer()
+                        let currentCount = Int(billCounts[denomination] ?? "") ?? 0
+                        HStack(spacing: 8) {
+                            ShalevBanknoteThumbnail(denomination: denomination)
+                            Spacer(minLength: 4)
+                            ShalevSpinnerButton(
+                                isIncrement: false,
+                                label: "Un billete menos de \(denomination) CUP",
+                                enabled: currentCount > 0,
+                                size: 38,
+                                primaryTint: true
+                            ) {
+                                let next = max(0, currentCount - 1)
+                                billCounts[denomination] = next == 0 ? "" : "\(next)"
+                            }
                             TextField("0", text: billBinding(denomination))
-                                .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
-                                .frame(width: 90).padding(9)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.center)
+                                .frame(width: 72)
+                                .padding(8)
                                 .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 10))
+                                .accessibilityLabel("Cantidad de billetes de \(denomination) CUP")
+                            ShalevSpinnerButton(
+                                isIncrement: true,
+                                label: "Un billete más de \(denomination) CUP",
+                                enabled: currentCount < 999_999,
+                                size: 38,
+                                primaryTint: true
+                            ) {
+                                let next = min(999_999, currentCount + 1)
+                                billCounts[denomination] = "\(next)"
+                            }
                         }
                     }
                     HStack(spacing: 10) {
@@ -934,7 +958,13 @@ private struct ShiftClosingSheet: View {
     }
 
     private func billBinding(_ denomination: Int) -> Binding<String> {
-        Binding(get: { billCounts[denomination] ?? "" }, set: { billCounts[denomination] = $0 })
+        Binding(
+            get: { billCounts[denomination] ?? "" },
+            set: { raw in
+                let filtered = String(raw.filter(\.isWholeNumber).prefix(6))
+                billCounts[denomination] = filtered
+            }
+        )
     }
 
     private func stockBinding(_ productID: UUID) -> Binding<String> {
@@ -988,6 +1018,9 @@ private struct ShiftOperationSheet: View {
 
     private var amount: Int64? { Cup.parse(amountText)?.cents }
     private var expected: Int64 { store.openShift.map { store.expectedCashCents(for: $0.id) } ?? 0 }
+    private var exceedsCash: Bool {
+        action == .cashMovement && movementKind == .expense && (amount ?? 0) > max(0, expected)
+    }
 
     var body: some View {
         NavigationStack {
@@ -1018,17 +1051,27 @@ private struct ShiftOperationSheet: View {
                                     .font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                                 TextField("0.00", text: $amountText)
                                     .keyboardType(.decimalPad)
+                                    .shalevInputFilter(.money, text: $amountText)
                                     .font(.shalev(18, weight: .semibold))
                                     .padding(13)
                                     .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 12))
-                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.shalevOutlineVariant, lineWidth: 1))
-                                Text("Importes en CUP").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
+                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(exceedsCash ? Color.shalevError : Color.shalevOutlineVariant, lineWidth: 1))
+                                if exceedsCash {
+                                    Text("Supera el efectivo disponible en caja (\(Cup(cents: max(0, expected)).formatted)).")
+                                        .font(.shalev(11)).foregroundStyle(Color.shalevError)
+                                } else if action == .cashMovement && movementKind == .expense {
+                                    Text("Disponible en caja: \(Cup(cents: max(0, expected)).formatted)")
+                                        .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
+                                } else {
+                                    Text("Importes en CUP").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
+                                }
                             }
                             if action == .cashMovement {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text("Motivo").font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                                     TextField("Escribe un motivo", text: $reason, axis: .vertical)
                                         .lineLimit(2...4)
+                                        .shalevInputFilter(.text(maxLength: 60), text: $reason)
                                         .padding(12)
                                         .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 12))
                                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.shalevOutlineVariant, lineWidth: 1))
@@ -1036,7 +1079,7 @@ private struct ShiftOperationSheet: View {
                             }
                             Button(action == .open ? "Abrir turno" : action == .close ? "Cerrar turno" : "Guardar movimiento") { submit() }
                                 .buttonStyle(ShalevPrimaryButtonStyle())
-                                .disabled(working)
+                                .disabled(working || exceedsCash)
                             if working { ProgressView("Sincroniza antes de abrir…").frame(maxWidth: .infinity) }
                         }
                     }

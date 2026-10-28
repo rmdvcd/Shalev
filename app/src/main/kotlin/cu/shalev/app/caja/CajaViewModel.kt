@@ -91,6 +91,11 @@ class CajaViewModel @Inject constructor(
 
     fun registrarMovimiento(tipo: TipoMovimientoCaja, importe: Cup, motivo: String) {
         if (local.value.trabajando) return
+        val disponible = state.value.arqueo?.esperado
+        if (tipo == TipoMovimientoCaja.SALIDA && disponible != null && importe > disponible) {
+            mensajes.trySend("El importe supera el efectivo disponible en caja.")
+            return
+        }
         viewModelScope.launch {
             local.update { it.copy(trabajando = true) }
             val r = try { registrar(tipo, importe, motivo) } catch (e: CancellationException) { throw e } catch (e: Exception) { AppResult.Err(AppError.Desconocido()) }

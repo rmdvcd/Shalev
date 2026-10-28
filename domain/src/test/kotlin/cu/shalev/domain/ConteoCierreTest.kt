@@ -10,8 +10,8 @@ class ConteoCierreTest {
     private val linea = LineaConteo(TipoEntidad.PRODUCTO, 1, "Pan", "u", 10, 8, 1000)
 
     @Test fun incluyeTodasLasDenominacionesSolicitadas() {
-        assertEquals(listOf(1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 5000, 20000), BilletesCUP.denominaciones)
-        assertEquals(Cup.ofPesos(35003) + Cup(50), BilletesCUP.total(mapOf(5000 to 3L, 20000 to 1L, 3 to 1L), Cup(50)))
+        assertEquals(listOf(1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 20000), BilletesCUP.denominaciones)
+        assertEquals(Cup.ofPesos(37003) + Cup(50), BilletesCUP.total(mapOf(2000 to 1L, 5000 to 3L, 20000 to 1L, 3 to 1L), Cup(50)))
         assertEquals(Cup.ZERO, BilletesCUP.total(emptyMap()))
     }
     @Test fun rechazaDenominacionesNegativasCantidadesExcesivasYDesbordamiento() {

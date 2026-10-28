@@ -342,7 +342,7 @@ struct ShiftClosingCount: Codable, Equatable {
     var approvedBy: String? = nil
     var approvedAt: Date? = nil
 
-    static let denominations = [1, 3, 5, 10, 20, 50, 100, 200, 500, 1_000, 5_000, 20_000]
+    static let denominations = [1, 3, 5, 10, 20, 50, 100, 200, 500, 1_000, 2_000, 5_000, 20_000]
 
     var cashCents: Int64 {
         bills.reduce(otherCashCents) { total, entry in
@@ -647,6 +647,7 @@ enum BusinessError: LocalizedError, Equatable {
     case closingCountChanged
     case invalidClosingCount
     case saleCorrectionRequiresPrincipal
+    case insufficientCash
 
     var errorDescription: String? {
         switch self {
@@ -680,6 +681,7 @@ enum BusinessError: LocalizedError, Equatable {
         case .closingCountChanged: "El inventario cambió mientras contabas. Vuelve a cargar el conteo antes de cerrar."
         case .invalidClosingCount: "Revisa el efectivo, las cantidades contadas y el motivo de las diferencias (de 3 a 160 caracteres)."
         case .saleCorrectionRequiresPrincipal: "Las ventas solo se pueden anular o modificar en la app principal."
+        case .insufficientCash: "El importe supera el efectivo disponible en caja."
         }
     }
 }
@@ -1258,6 +1260,9 @@ final class ShalevStore: ObservableObject {
         let note = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         guard (1...9_000_000_000_000).contains(amountCents) else { throw BusinessError.invalidAmount }
         guard (3...60).contains(note.count) else { throw BusinessError.invalidReason }
+        if kind == .expense && amountCents > max(0, expectedCashCents(for: shift.id)) {
+            throw BusinessError.insufficientCash
+        }
         var next = data
         next.cashMovements.insert(CashMovement(shiftID: shift.id, kind: kind, amountCents: amountCents,
             reason: note, actorName: actorName), at: 0)
@@ -1278,6 +1283,46 @@ final class ShalevStore: ObservableObject {
         case .service:
             guard let service = data.services.first(where: { $0.id == sourceID && $0.isActive }) else { return nil }
             return service.uses.isEmpty ? Int.max : availableForUses(service.uses, credits: credits)
+        }
+    }
+
+    /// Tope real que puede alcanzar `sourceID` descontando el inventario e insumos compartidos que ya ocupan
+    /// las demás líneas de `cart` (y acreditando las devoluciones de `returningSaleID` al modificar una venta).
+    func maxAllowedQuantity(kind: SaleItemKind, sourceID: UUID, in cart: [UUID: Int], returningSaleID: UUID? = nil) -> Int {
+        var simulated = data
+        if let returningSaleID, let returningSale = simulated.sales.first(where: { $0.id == returningSaleID }) {
+            try? restoreInventory(for: returningSale, in: &simulated, reason: "Simulación")
+        }
+        for (otherID, qty) in cart where otherID != sourceID && qty > 0 {
+            let lineName = ""
+            let line = SaleLine(sourceID: otherID, kind: kind, name: lineName, category: "",
+                                quantity: qty, unitPriceCents: 0, unitCostCents: 0)
+            try? applyInventory(lines: [line], to: &simulated, saleID: UUID(), reason: "Simulación")
+        }
+        func remainingForUses(_ uses: [IngredientUse]) -> Int {
+            guard !uses.isEmpty else { return 0 }
+            let grouped = Dictionary(grouping: uses, by: \.ingredientID)
+            var ceiling = 9_999
+            for (ingredientID, ingredientUses) in grouped {
+                guard let ingredient = simulated.products.first(where: { $0.id == ingredientID && $0.isActive && $0.kind == .ingredient }) else {
+                    return 0
+                }
+                let perUnit = ingredientUses.reduce(Int64(0)) { $0 + $1.milliUnits }
+                guard perUnit > 0 else { return 0 }
+                let units = max(0, ingredient.stockMilli) / perUnit
+                ceiling = min(ceiling, units > Int64(9_999) ? 9_999 : Int(units))
+            }
+            return ceiling
+        }
+        switch kind {
+        case .product:
+            guard let product = simulated.products.first(where: { $0.id == sourceID && $0.isActive }) else { return 0 }
+            if product.kind == .prepared { return remainingForUses(product.uses) }
+            let units = max(0, product.stockMilli) / 1_000
+            return units > Int64(9_999) ? 9_999 : Int(units)
+        case .service:
+            guard let service = simulated.services.first(where: { $0.id == sourceID && $0.isActive }) else { return 0 }
+            return service.uses.isEmpty ? 9_999 : remainingForUses(service.uses)
         }
     }
 
@@ -1309,6 +1354,12 @@ final class ShalevStore: ObservableObject {
                                 unitPriceCents: service.priceCents, unitCostCents: unitCost(for: service.uses))
             }
         }
+        // Verificación conjunta del pool de existencias e insumos compartidos entre todas las líneas del carrito.
+        var simulated = data
+        if let returningSaleID, let returningSale = simulated.sales.first(where: { $0.id == returningSaleID }) {
+            try restoreInventory(for: returningSale, in: &simulated, reason: "Simulación")
+        }
+        try applyInventory(lines: baseLines, to: &simulated, saleID: UUID(), reason: "Simulación")
         let baseTotals = try checkedTotals(for: baseLines)
         let baseTotal = baseTotals.revenue
         let applicable = data.settings.priceAdjustments.filter { adjustment in

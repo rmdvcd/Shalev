@@ -426,9 +426,14 @@ private struct ShiftCountSummaryView: View {
             .font(.shalev(11))
             .foregroundStyle(Color.shalevSecondaryText)
             ForEach(billLines) { line in
-                Text("\(line.denomination) CUP × \(line.quantity) = \(Cup(cents: Int64(line.denomination) * 100 * Int64(line.quantity)).formatted)")
-                    .font(.shalev(11, design: .monospaced))
-                    .foregroundStyle(Color.shalevText)
+                HStack(spacing: 8) {
+                    ShalevBanknoteThumbnail(denomination: line.denomination, width: 62, height: 28)
+                    Text("× \(line.quantity) = \(Cup(cents: Int64(line.denomination) * 100 * Int64(line.quantity)).formatted)")
+                        .font(.shalev(11, design: .monospaced))
+                        .foregroundStyle(Color.shalevText)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(line.denomination) CUP × \(line.quantity) = \(Cup(cents: Int64(line.denomination) * 100 * Int64(line.quantity)).formatted)")
             }
             Text("Otro efectivo: \(Cup(cents: count.otherCashCents).formatted)")
                 .font(.shalev(11))

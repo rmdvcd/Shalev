@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import cu.shalev.app.venta.CampoCliente
 import cu.shalev.app.venta.Carrito
+import cu.shalev.app.venta.CatalogoVenta
 import cu.shalev.app.venta.FormCliente
 import cu.shalev.app.venta.LineaCarrito
 import cu.shalev.app.venta.LineaEditable
@@ -141,11 +142,11 @@ object EdicionVenta {
             val d = originales[k]
             val base = catalogo[k]?.takeUnless { it.eliminado } ?: d?.let { provisional(k, it) } ?: return@mapNotNull null
             val p = if (d != null) base.copy(precioVenta = d.precioUnitario, cantidad = base.cantidad.coerceAtLeast(0) + d.cantidad) else base
-            val tope = alcanza[k]?.let { it + (d?.cantidad ?: 0) } ?: d?.cantidad?.takeIf { p.esElaborado }
+            val tope = alcanza[k]
             when {
-                servicios -> LineaCarrito(p, n, alcanza[k]?.let { it + (d?.cantidad ?: 0) }, ClaseArticulo.SERVICIO)
-                p.esElaborado -> LineaCarrito(p, n, tope ?: 0)
-                else -> LineaCarrito(p, n)
+                servicios -> LineaCarrito(p, n, tope, ClaseArticulo.SERVICIO)
+                p.esElaborado -> LineaCarrito(p, n, tope ?: (d?.cantidad ?: 0))
+                else -> LineaCarrito(p, n, tope)
             }
         }
     }
@@ -230,24 +231,25 @@ class ModificarVentaViewModel @Inject constructor(
     /** Mensaje final tras guardar (la pantalla se cierra). */
     val hecho: Flow<String> = mensajes.receiveAsFlow()
 
-    private val productos: Flow<Pair<Map<Long, Producto>, Map<Long, Long>>> =
+    private val productos: Flow<CatalogoVenta> =
         combine(productosRepo.observarTodos(), observarElaborados(), insumosRepo.observarTodos()) { l, es, xs ->
-            (l.associateBy { it.id } + xs.filter { it.precioVenta != null }.map { it.comoProducto() }.associateBy { it.id }) to
-                es.associate { it.producto.id to it.alcanza }
-        }.catch { emit(emptyMap<Long, Producto>() to emptyMap()) }
+            CatalogoVenta.deProductos(l, es, xs)
+        }.catch { emit(CatalogoVenta(servicios = false)) }
 
-    private val servicios: Flow<Pair<Map<Long, Producto>, Map<Long, Long>>> =
-        observarServicios.disponibles().map { m ->
-            m.mapValues { (_, d) -> Carrito.deServicio(d) } to m.mapNotNull { (id, d) -> d.alcanza?.let { id to it } }.toMap()
-        }.catch { emit(emptyMap<Long, Producto>() to emptyMap()) }
+    private val servicios: Flow<CatalogoVenta> =
+        observarServicios.disponibles().map(CatalogoVenta::deServicios).catch { emit(CatalogoVenta(servicios = true)) }
 
     val state: StateFlow<ModificarVentaUiState> = combine(local, productos, servicios) { l, ps, ss ->
         val v = l.venta ?: return@combine l
-        val (catalogo, alcanza) = if (EdicionVenta.esDeServicios(v)) ss else ps
+        val esServ = EdicionVenta.esDeServicios(v)
+        val cat = if (esServ) ss else ps
+        val devueltos = EdicionVenta.inicial(v)
+        val topes = Carrito.topesCompartidos(l.cantidades, cat, devueltos)
+        val topesParaAnadir = topes.mapValues { (k, topeTotal) -> (topeTotal - (l.cantidades[k] ?: 0L)).coerceAtLeast(0L) }
         l.copy(
-            lineas = EdicionVenta.lineas(v, l.cantidades, catalogo, alcanza),
-            resultados = if (!l.buscando) emptyList() else EdicionVenta.resultados(catalogo, alcanza, EdicionVenta.esDeServicios(v), l.busqueda)
-                .mapNotNull { p -> EdicionVenta.lineas(v, mapOf(p.id to 1L), catalogo, alcanza).firstOrNull() },
+            lineas = EdicionVenta.lineas(v, l.cantidades, cat.articulos, topes),
+            resultados = if (!l.buscando) emptyList() else EdicionVenta.resultados(cat.articulos, topesParaAnadir, esServ, l.busqueda)
+                .mapNotNull { p -> EdicionVenta.lineas(v, mapOf(p.id to 1L), cat.articulos, topes).firstOrNull() },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ModificarVentaUiState())
 

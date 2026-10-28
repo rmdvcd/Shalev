@@ -1,0 +1,579 @@
+From 78d4f054b674e15c051034c860d16875c608720b Mon Sep 17 00:00:00 2001
+From: rmdvcd <339187365+rmdvcd@users.noreply.github.com>
+Date: Wed, 28 Oct 2026 21:42:47 +0000
+Subject: [PATCH] =?UTF-8?q?feat(spvi):=20permitir=20ampliaci=C3=B3n=20de?=
+ =?UTF-8?q?=20apps=20secundarias=20sobre=20licencias=20activas?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../main/java/dev/gl/license/core/AppError.kt |  1 +
+ .../gl/license/domain/model/PrecioTabla.kt    | 13 ++++
+ .../dev/gl/license/domain/model/SpviV2.kt     |  1 +
+ .../domain/usecase/EmitirSpvi2UseCase.kt      | 67 +++++++++++++++++++
+ .../EvaluarSolicitudHistorialUseCase.kt       | 43 ++++++++++++
+ .../presentation/generator/GeneratorScreen.kt |  2 +-
+ .../generator/GeneratorViewModel.kt           | 28 +++++++-
+ .../java/dev/gl/license/security/Spvi23.kt    |  9 +++
+ .../java/dev/gl/license/PrecioTablaTest.kt    | 10 +++
+ .../java/dev/gl/license/RenovacionSpviTest.kt | 53 +++++++++++++++
+ .../dev/gl/license/Spvi23SolicitudTest.kt     | 17 +++++
+ .../termux_license_engine/models.py           | 25 +++++++
+ .../termux_license_engine/parser.py           | 16 ++++-
+ .../termux_license_engine/profiles.json       |  8 ++-
+ .../tests/test_engine.py                      | 26 +++++++
+ 15 files changed, 311 insertions(+), 8 deletions(-)
+
+diff --git a/app/src/main/java/dev/gl/license/core/AppError.kt b/app/src/main/java/dev/gl/license/core/AppError.kt
+index cd200a1..7fdb3da 100644
+--- a/app/src/main/java/dev/gl/license/core/AppError.kt
++++ b/app/src/main/java/dev/gl/license/core/AppError.kt
+@@ -14,6 +14,7 @@ sealed class AppError(val userMessage: String) : Exception(userMessage) {
+     data object DevicePubRequired : AppError("La solicitud debe incluir la clave pública del dispositivo (devicePub).")
+     data object RequestExpired : AppError("La solicitud está fuera del margen permitido (72 horas de antigüedad y 2 horas de desfase futuro como máximo).")
+     data object ClockFailure : AppError("No se pudo comprobar la hora actual para validar la solicitud.")
++    data object AmpliacionInvalida : AppError("La ampliación requiere una licencia vigente del mismo dispositivo y tipo en el registro, con más secundarias (máx. 10).")
+     data object Generic : AppError("No se pudo completar la operación.")
+ }
+ 
+diff --git a/app/src/main/java/dev/gl/license/domain/model/PrecioTabla.kt b/app/src/main/java/dev/gl/license/domain/model/PrecioTabla.kt
+index 321069e..de77425 100644
+--- a/app/src/main/java/dev/gl/license/domain/model/PrecioTabla.kt
++++ b/app/src/main/java/dev/gl/license/domain/model/PrecioTabla.kt
+@@ -17,6 +17,19 @@ object PrecioTabla {
+     fun total(tipo: TipoLicencia, secundarias: Int): Int =
+         base.getValue(tipo) + extraPorSecundaria.getValue(tipo) * secundarias
+ 
++    fun porSecundaria(tipo: TipoLicencia): Int =
++        extraPorSecundaria.getValue(tipo)
++
++    fun ampliacion(tipo: TipoLicencia, adicionales: Int): Int =
++        extraPorSecundaria.getValue(tipo) * adicionales.coerceAtLeast(0)
++
++    fun desgloseAmpliacion(tipo: TipoLicencia, previas: Int, totales: Int): String {
++        val adicionales = (totales - previas).coerceAtLeast(0)
++        val nombre = tipo.name.lowercase().replaceFirstChar { it.uppercase() }
++        return "Ampliación $nombre: +$adicionales secundarias ($previas → $totales) × " +
++            "${miles(porSecundaria(tipo))} = ${miles(ampliacion(tipo, adicionales))} CUP"
++    }
++
+     fun desglose(tipo: TipoLicencia, secundarias: Int?): String {
+         val valor = secundarias ?: return "Secundarias: no indicado (app anterior) · ${miles(total(tipo, 0))} CUP"
+         val nombre = tipo.name.lowercase().replaceFirstChar { it.uppercase() }
+diff --git a/app/src/main/java/dev/gl/license/domain/model/SpviV2.kt b/app/src/main/java/dev/gl/license/domain/model/SpviV2.kt
+index e0ba1ec..7ee60c6 100644
+--- a/app/src/main/java/dev/gl/license/domain/model/SpviV2.kt
++++ b/app/src/main/java/dev/gl/license/domain/model/SpviV2.kt
+@@ -19,4 +19,5 @@ data class SolicitudSpviV2(
+     @SerialName("devicePub") val devicePub: String,
+     @SerialName("secundarias") val secundarias: Int,
+     @SerialName("renueva") val renueva: String? = null,
++    @SerialName("amplia") val amplia: String? = null,
+ )
+diff --git a/app/src/main/java/dev/gl/license/domain/usecase/EmitirSpvi2UseCase.kt b/app/src/main/java/dev/gl/license/domain/usecase/EmitirSpvi2UseCase.kt
+index 7b23b83..8c1f834 100644
+--- a/app/src/main/java/dev/gl/license/domain/usecase/EmitirSpvi2UseCase.kt
++++ b/app/src/main/java/dev/gl/license/domain/usecase/EmitirSpvi2UseCase.kt
+@@ -73,6 +73,73 @@ class EmitirSpvi2UseCase @Inject constructor(
+         }
+         val ahoraSec = ahora.epochSecond
+         val dias = sol.tipo.days()
++        if (sol.amplia != null) {
++            val prevAmplia = try {
++                licencias.getById(sol.amplia)
++            } catch (cancelled: kotlinx.coroutines.CancellationException) {
++                throw cancelled
++            } catch (_: Exception) {
++                return Outcome.Err(AppError.RegistryFailure)
++            } ?: return Outcome.Err(AppError.AmpliacionInvalida)
++
++            val prevSec = (prevAmplia.secundarias ?: 0).coerceAtLeast(0)
++            val prevVenceSec = try {
++                prevAmplia.expiresAtIso?.let { Instant.parse(it).epochSecond }
++            } catch (_: Exception) {
++                return Outcome.Err(AppError.AmpliacionInvalida)
++            }
++            val esPerpetua = prevAmplia.type == dev.gl.license.domain.model.TipoLicencia.PERPETUA ||
++                prevAmplia.status == EstadoLicencia.PERPETUA
++            val vigente = prevAmplia.status != EstadoLicencia.REVOCADA &&
++                prevAmplia.status != EstadoLicencia.VENCIDA &&
++                (esPerpetua || (prevVenceSec != null && prevVenceSec > ahoraSec))
++            if (!vigente ||
++                prevAmplia.deviceId != sol.deviceId ||
++                prevAmplia.type != sol.tipo ||
++                sol.secundarias !in (prevSec + 1)..10
++            ) {
++                return Outcome.Err(AppError.AmpliacionInvalida)
++            }
++            val adicionales = sol.secundarias - prevSec
++            val venceAmpliaSec = if (esPerpetua) null else prevVenceSec
++            val id = idFactory()
++            val lic = Licencia(
++                version = 2,
++                id = id,
++                firstName = sol.nombre,
++                lastName = sol.apellidos,
++                nationalId = sol.ci,
++                channel = sol.via,
++                phone = sol.telefono,
++                deviceId = sol.deviceId,
++                appName = "SPVI",
++                type = prevAmplia.type,
++                requestedAtIso = sol.solicitadaEn,
++                issuedAtIso = Instant.ofEpochSecond(ahoraSec).toString(),
++                expiresAtIso = venceAmpliaSec?.let { Instant.ofEpochSecond(it).toString() },
++                status = if (esPerpetua) EstadoLicencia.PERPETUA else EstadoLicencia.ACTIVA,
++                secundarias = sol.secundarias,
++                precioCobrado = PrecioTabla.ampliacion(prevAmplia.type, adicionales),
++                codigoCorto = null,
++                nonce = CryptoEngine.b64(CryptoEngine.randomBytes(16)),
++                txNumber = cleanTx,
++            )
++            val devicePub33 = try {
++                Spvi23.b64urlD(sol.devicePub)
++            } catch (_: Exception) {
++                return Outcome.Err(AppError.InvalidPayload)
++            }
++            return when (val c = puerta.emitirCodigo(lic, devicePub33)) {
++                is Outcome.Err -> c
++                is Outcome.Ok -> {
++                    val conCodigo = lic.copy(codigoCorto = c.value)
++                    val mensaje = SpviResponseMessage.build(
++                        prevAmplia.type, sol.secundarias, ahoraSec, venceAmpliaSec, id, c.value,
++                    )
++                    Outcome.Ok(SpviEmitida(conCodigo, mensaje, renuevaIgnorada = false))
++                }
++            }
++        }
+         val prev = sol.renueva?.let { licencias.getById(it) }
+         val aplicaRenueva = prev != null &&
+             prev.deviceId == sol.deviceId &&
+diff --git a/app/src/main/java/dev/gl/license/domain/usecase/EvaluarSolicitudHistorialUseCase.kt b/app/src/main/java/dev/gl/license/domain/usecase/EvaluarSolicitudHistorialUseCase.kt
+index 3e2c0ee..1726baf 100644
+--- a/app/src/main/java/dev/gl/license/domain/usecase/EvaluarSolicitudHistorialUseCase.kt
++++ b/app/src/main/java/dev/gl/license/domain/usecase/EvaluarSolicitudHistorialUseCase.kt
+@@ -1,8 +1,12 @@
+ package dev.gl.license.domain.usecase
+ 
++import dev.gl.license.core.AppError
++import dev.gl.license.core.Outcome
+ import dev.gl.license.domain.model.EstadoLicencia
+ import dev.gl.license.domain.model.Licencia
++import dev.gl.license.domain.model.PrecioTabla
+ import dev.gl.license.domain.model.SolicitudLicencia
++import dev.gl.license.domain.model.SolicitudSpviV2
+ import dev.gl.license.domain.model.TipoLicencia
+ import dev.gl.license.domain.repository.LicenciaRepository
+ import dev.gl.license.domain.repository.SecureClock
+@@ -226,4 +230,43 @@ class EvaluarSolicitudHistorialUseCase @Inject constructor(
+ 
+         return EvaluacionHistorial.NuevaSolicitud
+     }
++
++    /**
++     * Valida en seco una solicitud SPVI2 de ampliación de apps secundarias (`amplia != null`)
++     * y devuelve el desglose exacto a cobrar, o `null` si es una solicitud normal / renovación.
++     */
++    suspend fun evaluarAmpliacionSpvi(sol: SolicitudSpviV2): Outcome<String?> {
++        val idAmplia = sol.amplia ?: return Outcome.Ok(null)
++        val ahoraSec = try {
++            Instant.parse(clock.nowIso()).epochSecond
++        } catch (_: Exception) {
++            return Outcome.Err(AppError.ClockFailure)
++        }
++        val prev = try {
++            licencias.getById(idAmplia)
++        } catch (cancelled: kotlinx.coroutines.CancellationException) {
++            throw cancelled
++        } catch (_: Exception) {
++            return Outcome.Err(AppError.RegistryFailure)
++        } ?: return Outcome.Err(AppError.AmpliacionInvalida)
++
++        val prevSec = (prev.secundarias ?: 0).coerceAtLeast(0)
++        val prevVenceSec = try {
++            prev.expiresAtIso?.let { Instant.parse(it).epochSecond }
++        } catch (_: Exception) {
++            return Outcome.Err(AppError.AmpliacionInvalida)
++        }
++        val esPerpetua = prev.type == TipoLicencia.PERPETUA || prev.status == EstadoLicencia.PERPETUA
++        val vigente = prev.status != EstadoLicencia.REVOCADA &&
++            prev.status != EstadoLicencia.VENCIDA &&
++            (esPerpetua || (prevVenceSec != null && prevVenceSec > ahoraSec))
++        if (!vigente ||
++            prev.deviceId != sol.deviceId ||
++            prev.type != sol.tipo ||
++            sol.secundarias !in (prevSec + 1)..10
++        ) {
++            return Outcome.Err(AppError.AmpliacionInvalida)
++        }
++        return Outcome.Ok(PrecioTabla.desgloseAmpliacion(prev.type, prevSec, sol.secundarias))
++    }
+ }
+diff --git a/app/src/main/java/dev/gl/license/presentation/generator/GeneratorScreen.kt b/app/src/main/java/dev/gl/license/presentation/generator/GeneratorScreen.kt
+index 657ffbd..3be905a 100644
+--- a/app/src/main/java/dev/gl/license/presentation/generator/GeneratorScreen.kt
++++ b/app/src/main/java/dev/gl/license/presentation/generator/GeneratorScreen.kt
+@@ -234,7 +234,7 @@ fun GeneratorScreen(
+                         type = request.tipo.name,
+                         requestedAt = request.solicitadaEn,
+                         secundarias = request.secundarias,
+-                        priceBreakdown = PrecioTabla.desglose(request.tipo, request.secundarias),
++                        priceBreakdown = ui.spviPrecioDesglose ?: PrecioTabla.desglose(request.tipo, request.secundarias),
+                         renewalNotice = ui.renuevaAviso,
+                     )
+                     Spacer(Modifier.height(GlDimens.gap))
+diff --git a/app/src/main/java/dev/gl/license/presentation/generator/GeneratorViewModel.kt b/app/src/main/java/dev/gl/license/presentation/generator/GeneratorViewModel.kt
+index c7a3897..981e31a 100644
+--- a/app/src/main/java/dev/gl/license/presentation/generator/GeneratorViewModel.kt
++++ b/app/src/main/java/dev/gl/license/presentation/generator/GeneratorViewModel.kt
+@@ -50,6 +50,7 @@ data class GeneratorUi(
+     val encryptedLicense: String? = null,
+     val shareBody: String? = null,
+     val spvi: SolicitudSpviV2? = null,
++    val spviPrecioDesglose: String? = null,
+     val renuevaAviso: String? = null,
+     val pending: Licencia? = null,
+     val shareLaunched: Boolean = false,
+@@ -131,6 +132,7 @@ class GeneratorViewModel @Inject constructor(
+                 paid = false,
+                 solicitud = null,
+                 spvi = null,
++                spviPrecioDesglose = null,
+                 renuevaAviso = null,
+                 canRegister = false,
+                 shareLaunched = false,
+@@ -149,11 +151,31 @@ class GeneratorViewModel @Inject constructor(
+         rawValidationJob = viewModelScope.launch {
+             if (Spvi23.contieneCodigo(raw)) {
+                 when (val r = abrirSpvi.abrirSolicitud(raw)) {
+-                    is Outcome.Ok -> if (validationGeneration == rawValidationGeneration) {
+-                        _ui.update { it.copy(spvi = r.value, error = null) }
++                    is Outcome.Ok -> {
++                        val desglose = when (val amp = evaluarHistorial.evaluarAmpliacionSpvi(r.value)) {
++                            is Outcome.Ok -> amp.value
++                            is Outcome.Err -> {
++                                if (validationGeneration == rawValidationGeneration) {
++                                    _ui.update { it.copy(spvi = null, spviPrecioDesglose = null, error = amp.error.userMessage) }
++                                }
++                                return@launch
++                            }
++                        }
++                        if (validationGeneration == rawValidationGeneration) {
++                            _ui.update {
++                                it.copy(
++                                    spvi = r.value,
++                                    spviPrecioDesglose = desglose,
++                                    renuevaAviso = if (r.value.amplia != null) {
++                                        "Ampliación de apps secundarias: conserva la fecha de vencimiento de la licencia instalada."
++                                    } else null,
++                                    error = null,
++                                )
++                            }
++                        }
+                     }
+                     is Outcome.Err -> if (validationGeneration == rawValidationGeneration) {
+-                        _ui.update { it.copy(spvi = null, error = r.error.userMessage) }
++                        _ui.update { it.copy(spvi = null, spviPrecioDesglose = null, error = r.error.userMessage) }
+                     }
+                 }
+                 return@launch
+diff --git a/app/src/main/java/dev/gl/license/security/Spvi23.kt b/app/src/main/java/dev/gl/license/security/Spvi23.kt
+index 17fa2b1..1f77468 100644
+--- a/app/src/main/java/dev/gl/license/security/Spvi23.kt
++++ b/app/src/main/java/dev/gl/license/security/Spvi23.kt
+@@ -164,6 +164,15 @@ object Spvi23 {
+         if (dto.renueva != null && !renewalIdRe.matches(dto.renueva)) {
+             return Outcome.Err(AppError.InvalidPayload)
+         }
++        if (dto.amplia != null && !renewalIdRe.matches(dto.amplia)) {
++            return Outcome.Err(AppError.InvalidPayload)
++        }
++        if (dto.renueva != null && dto.amplia != null) {
++            return Outcome.Err(AppError.InvalidPayload)
++        }
++        if (dto.amplia != null && dto.secundarias !in 1..10) {
++            return Outcome.Err(AppError.InvalidPayload)
++        }
+         when (val s = Secundarias.validar(null, dto.deviceId, dto.secundarias)) {
+             is Outcome.Err -> return s
+             is Outcome.Ok -> Unit
+diff --git a/app/src/test/java/dev/gl/license/PrecioTablaTest.kt b/app/src/test/java/dev/gl/license/PrecioTablaTest.kt
+index 4a9e28a..869b5d5 100644
+--- a/app/src/test/java/dev/gl/license/PrecioTablaTest.kt
++++ b/app/src/test/java/dev/gl/license/PrecioTablaTest.kt
+@@ -42,4 +42,14 @@ class PrecioTablaTest {
+     fun formatoPrecioAgrupaMilesAntesDeCUP() {
+         assertThat(PrecioTabla.formatoPrecio(8_000)).isEqualTo("8 000 CUP")
+     }
++
++    @Test
++    fun ampliacionCobraSoloLasSecundariasAdicionalesSegunElTipo() {
++        assertThat(PrecioTabla.ampliacion(TipoLicencia.MENSUAL, 3)).isEqualTo(3_000)
++        assertThat(PrecioTabla.ampliacion(TipoLicencia.SEMESTRAL, 2)).isEqualTo(10_000)
++        assertThat(PrecioTabla.ampliacion(TipoLicencia.ANUAL, 4)).isEqualTo(36_000)
++        assertThat(PrecioTabla.ampliacion(TipoLicencia.PERPETUA, 2)).isEqualTo(34_000)
++        assertThat(PrecioTabla.desgloseAmpliacion(TipoLicencia.MENSUAL, 2, 5))
++            .isEqualTo("Ampliación Mensual: +3 secundarias (2 → 5) × 1 000 = 3 000 CUP")
++    }
+ }
+diff --git a/app/src/test/java/dev/gl/license/RenovacionSpviTest.kt b/app/src/test/java/dev/gl/license/RenovacionSpviTest.kt
+index 1bdf702..4f51a14 100644
+--- a/app/src/test/java/dev/gl/license/RenovacionSpviTest.kt
++++ b/app/src/test/java/dev/gl/license/RenovacionSpviTest.kt
+@@ -168,4 +168,57 @@ class RenovacionSpviTest {
+ 
+         assertThat(result.value.licencia.txNumber).isEqualTo("TX-SPVI")
+     }
++
++    @Test
++    fun ampliacionConservaVencimientoYCobraSoloSecundariasAdicionales() = runTest {
++        val licencias = MemLic()
++        val venceOriginal = ahoraSec + 12 * 86_400L
++        licencias.upsert(anterior("previa", venceSec = venceOriginal))
++
++        val r = emitir(sol().copy(secundarias = 5, amplia = "previa"), licencias) as Outcome.Ok
++
++        assertThat(r.value.licencia.secundarias).isEqualTo(5)
++        assertThat(r.value.licencia.expiresAtIso).isEqualTo(Instant.ofEpochSecond(venceOriginal).toString())
++        assertThat(r.value.licencia.precioCobrado).isEqualTo(3_000)
++    }
++
++    @Test
++    fun ampliacionDePerpetuaConservaEstadoPerpetuoYCobraTarifaPerpetua() = runTest {
++        val licencias = MemLic()
++        licencias.upsert(
++            anterior("perp", venceSec = ahoraSec + 86_400L).copy(
++                type = TipoLicencia.PERPETUA,
++                status = EstadoLicencia.PERPETUA,
++                expiresAtIso = null,
++                secundarias = 1,
++                precioCobrado = 107_000,
++            ),
++        )
++
++        val r = emitir(
++            sol().copy(tipo = TipoLicencia.PERPETUA, secundarias = 3, amplia = "perp"),
++            licencias,
++        ) as Outcome.Ok
++
++        assertThat(r.value.licencia.status).isEqualTo(EstadoLicencia.PERPETUA)
++        assertThat(r.value.licencia.expiresAtIso).isNull()
++        assertThat(r.value.licencia.secundarias).isEqualTo(3)
++        assertThat(r.value.licencia.precioCobrado).isEqualTo(34_000)
++    }
++
++    @Test
++    fun ampliacionRechazaLicenciaVencidaAjenaOSinIncremento() = runTest {
++        val licencias = MemLic()
++        licencias.upsert(anterior("vencida", venceSec = ahoraSec - 60L))
++        licencias.upsert(anterior("ajena", deviceId = "SPVI:otro-99999", venceSec = ahoraSec + 5 * 86_400L))
++        licencias.upsert(anterior("vigente", venceSec = ahoraSec + 5 * 86_400L))
++
++        val rVencida = emitir(sol().copy(secundarias = 4, amplia = "vencida"), licencias) as Outcome.Err
++        val rAjena = emitir(sol().copy(secundarias = 4, amplia = "ajena"), licencias) as Outcome.Err
++        val rIgual = emitir(sol().copy(secundarias = 2, amplia = "vigente"), licencias) as Outcome.Err
++
++        assertThat(rVencida.error).isEqualTo(AppError.AmpliacionInvalida)
++        assertThat(rAjena.error).isEqualTo(AppError.AmpliacionInvalida)
++        assertThat(rIgual.error).isEqualTo(AppError.AmpliacionInvalida)
++    }
+ }
+diff --git a/app/src/test/java/dev/gl/license/Spvi23SolicitudTest.kt b/app/src/test/java/dev/gl/license/Spvi23SolicitudTest.kt
+index fb0674e..13ad105 100644
+--- a/app/src/test/java/dev/gl/license/Spvi23SolicitudTest.kt
++++ b/app/src/test/java/dev/gl/license/Spvi23SolicitudTest.kt
+@@ -50,4 +50,21 @@ class Spvi23SolicitudTest {
+         assertThat(Spvi23.contieneCodigo(oversized)).isFalse()
+         assertThat(Spvi23.extraerCodigo(oversized)).isInstanceOf(Outcome.Err::class.java)
+     }
++
++    @Test
++    fun sellarAbrirAmpliacionYRechazarCombinacionInvalida() {
++        val gl = CryptoEngine.generateEphemeralP256()
++        val valida = dto().copy(secundarias = 5, amplia = "lic-previa-01")
++        val codigo = Spvi23.sellarSolicitud(valida, gl.public)
++        val abierto = Spvi23.abrir(codigo, gl.private)
++        assertThat((abierto as Outcome.Ok).value).isEqualTo(valida)
++
++        val simultanea = dto().copy(secundarias = 5, renueva = "lic-previa-01", amplia = "lic-previa-01")
++        val codigoSimultanea = Spvi23.sellarSolicitud(simultanea, gl.public)
++        assertThat(Spvi23.abrir(codigoSimultanea, gl.private)).isInstanceOf(Outcome.Err::class.java)
++
++        val ceroSec = dto().copy(secundarias = 0, amplia = "lic-previa-01")
++        val codigoCero = Spvi23.sellarSolicitud(ceroSec, gl.public)
++        assertThat(Spvi23.abrir(codigoCero, gl.private)).isInstanceOf(Outcome.Err::class.java)
++    }
+ }
+diff --git a/tools/termux_license_engine/termux_license_engine/models.py b/tools/termux_license_engine/termux_license_engine/models.py
+index ecffbeb..09d63b9 100644
+--- a/tools/termux_license_engine/termux_license_engine/models.py
++++ b/tools/termux_license_engine/termux_license_engine/models.py
+@@ -61,6 +61,7 @@ class AppProfile:
+     recovery_policy: str
+     request_field_labels: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+     recovery_markers: tuple[str, ...] = ()
++    extension_markers: tuple[str, ...] = ()
+     consumer_package: str | None = None
+     consumer_bundle_id: str | None = None
+     provider_kind: str = "manual"
+@@ -90,11 +91,14 @@ class AppProfile:
+ 
+             request_markers = data.get("request_markers", ())
+             recovery_markers = data.get("recovery_markers", ())
++            extension_markers = data.get("extension_markers", ())
+             field_labels = data.get("request_field_labels", {})
+             if not isinstance(request_markers, (list, tuple)):
+                 raise ValueError("request_markers must be a list")
+             if not isinstance(recovery_markers, (list, tuple)):
+                 raise ValueError("recovery_markers must be a list")
++            if not isinstance(extension_markers, (list, tuple)):
++                raise ValueError("extension_markers must be a list")
+             if not isinstance(field_labels, Mapping):
+                 raise ValueError("request_field_labels must be an object")
+             labels: dict[str, tuple[str, ...]] = {}
+@@ -123,6 +127,7 @@ class AppProfile:
+                 recovery_policy=str(data.get("recovery_policy", "manual_only")),
+                 request_field_labels=labels,
+                 recovery_markers=tuple(str(item).strip() for item in recovery_markers if str(item).strip()),
++                extension_markers=tuple(str(item).strip() for item in extension_markers if str(item).strip()),
+                 consumer_package=_optional_string(data.get("consumer_package")),
+                 consumer_bundle_id=_optional_string(data.get("consumer_bundle_id")),
+                 provider_kind=str(data.get("provider_kind", "manual")),
+@@ -193,6 +198,26 @@ class AppProfile:
+             return None
+         return rule.total(secondary_count)
+ 
++    def expected_extension_price(
++        self,
++        plan: str | None,
++        total_secondary_count: int | None,
++        added_secondary_count: int | None,
++    ) -> int | None:
++        if (
++            plan is None
++            or total_secondary_count is None
++            or added_secondary_count is None
++            or added_secondary_count <= 0
++            or total_secondary_count < added_secondary_count
++            or total_secondary_count > self.max_secondaries
++        ):
++            return None
++        rule = self.prices_cup.get(plan.strip().upper())
++        if rule is None:
++            return None
++        return rule.per_secondary_cup * added_secondary_count
++
+ 
+ @dataclass(frozen=True)
+ class ParsedRequest:
+diff --git a/tools/termux_license_engine/termux_license_engine/parser.py b/tools/termux_license_engine/termux_license_engine/parser.py
+index d0ac5a8..9cedf94 100644
+--- a/tools/termux_license_engine/termux_license_engine/parser.py
++++ b/tools/termux_license_engine/termux_license_engine/parser.py
+@@ -104,22 +104,32 @@ def parse_request(message: str, profile: AppProfile) -> ParsedRequest:
+         normalize_for_matching(marker) in normalized
+         for marker in profile.recovery_markers
+     )
++    is_extension = not is_recovery and any(
++        normalize_for_matching(marker) in normalized
++        for marker in profile.extension_markers
++    )
+ 
+     plan_text = _line_value(message, profile.request_field_labels.get("plan", ()))
+     plan = _normalize_plan(plan_text) if plan_text is not None else None
+     secondary_text = _line_value(message, profile.request_field_labels.get("secondaries", ()))
+     secondary_count = _parse_nonnegative_int(secondary_text)
++    added_text = _line_value(message, profile.request_field_labels.get("added_secondaries", ()))
++    added_count = _parse_nonnegative_int(added_text)
+     quoted_text = _line_value(message, profile.request_field_labels.get("price", ()))
+     quoted_amount = parse_cup_amount(quoted_text) if quoted_text is not None else None
+-    expected = profile.expected_price(plan, secondary_count)
++    expected = (
++        profile.expected_extension_price(plan, secondary_count, added_count)
++        if is_extension
++        else profile.expected_price(plan, secondary_count)
++    )
+ 
+     review_code: str | None = None
+     if not is_recovery:
+-        if plan is None or secondary_count is None:
++        if plan is None or secondary_count is None or (is_extension and added_count is None):
+             review_code = "request_fields_missing"
+         elif plan not in profile.prices_cup:
+             review_code = "unknown_plan"
+-        elif secondary_count > profile.max_secondaries:
++        elif secondary_count > profile.max_secondaries or (is_extension and (added_count <= 0 or added_count > secondary_count)):
+             review_code = "secondary_count_out_of_range"
+         elif expected is None:
+             review_code = "price_unavailable"
+diff --git a/tools/termux_license_engine/termux_license_engine/profiles.json b/tools/termux_license_engine/termux_license_engine/profiles.json
+index c7fb017..9d496c6 100644
+--- a/tools/termux_license_engine/termux_license_engine/profiles.json
++++ b/tools/termux_license_engine/termux_license_engine/profiles.json
+@@ -10,11 +10,13 @@
+       "request_protocol": "spvi-r1",
+       "request_markers": [
+         "Solicitud de licencia Shalev",
+-        "Recuperar licencia Shalev"
++        "Recuperar licencia Shalev",
++        "Ampliar secundarias Shalev"
+       ],
+       "request_field_labels": {
+         "plan": ["Tipo"],
+         "secondaries": ["Apps secundarias"],
++        "added_secondaries": ["Secundarias adicionales"],
+         "price": ["Precio"]
+       },
+       "request_token_prefix": "SPVIR1:",
+@@ -43,6 +45,10 @@
+         "Recuperar licencia Shalev",
+         "Licencia anterior:"
+       ],
++      "extension_markers": [
++        "Ampliar secundarias Shalev",
++        "Amplía:"
++      ],
+       "provider_kind": "gl-ui-handoff",
+       "sms_sender_address": null,
+       "sms_amount_pattern": null,
+diff --git a/tools/termux_license_engine/tests/test_engine.py b/tools/termux_license_engine/tests/test_engine.py
+index 2564c5b..6938b09 100644
+--- a/tools/termux_license_engine/tests/test_engine.py
++++ b/tools/termux_license_engine/tests/test_engine.py
+@@ -369,6 +369,32 @@ SPVIR1:RecoveryToken_123
+         )
+         self.assertEqual(completed.state, WorkflowState.COMPLETED)
+ 
++    def test_shalev_secondary_extension_request_quotes_only_added_secondaries(self) -> None:
++        profiles = load_catalog()
++        shalev = profiles["shalev"]
++        msg = (
++            "Ampliar secundarias Shalev\n"
++            "Tipo: Mensual\n"
++            "Apps secundarias actuales: 2\n"
++            "Secundarias adicionales: 3\n"
++            "Apps secundarias: 5\n"
++            "Precio: 3 000 CUP\n"
++            "Amplía: lic-abc-123\n"
++            "\n"
++            "SPVIR1:AbCdEfGh_1234567890-xyz\n"
++        )
++        selected = resolve_profile(msg, [shalev])
++        self.assertEqual(selected.app_id, "shalev")
++        parsed = parse_request(msg, selected)
++        self.assertIsNone(parsed.review_code)
++        self.assertEqual(parsed.plan, "MENSUAL")
++        self.assertEqual(parsed.secondary_count, 5)
++        self.assertEqual(parsed.expected_amount_cup, 3000)
++
++        bad_msg = msg.replace("Precio: 3 000 CUP", "Precio: 11 000 CUP")
++        bad_parsed = parse_request(bad_msg, shalev)
++        self.assertEqual(bad_parsed.review_code, "quote_mismatch")
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+-- 
+2.39.5
+

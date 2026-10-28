@@ -159,6 +159,7 @@ dependencies {
     implementation(libs.camerax.lifecycle)
     implementation(libs.camerax.view)
     implementation(libs.mlkit.barcode)
+    implementation(libs.mlkit.text)          // OCR offline gratuito e ilimitado (modelo latino empaquetado, sin red)
     implementation(libs.coil.compose)
     implementation(libs.zxing.core)          // QR de cobro (solo generación, sin cámara ni red)
     implementation(libs.hilt.android)

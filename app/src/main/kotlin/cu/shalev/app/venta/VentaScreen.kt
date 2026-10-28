@@ -134,6 +134,7 @@ class AccionesVenta(
     val onElegirCliente: (cu.shalev.domain.model.ClienteFijo) -> Unit = {},
     val onClienteFijo: (Boolean) -> Unit = {},
     val onConfigurarCapturaSms: () -> Unit = {},
+    val onImportarOcr: (() -> Unit)? = null,
 )
 
 /**
@@ -177,11 +178,20 @@ fun VentaScreen(
     val cajaVm: cu.shalev.app.caja.CajaViewModel = hiltViewModel()
     val caja by cajaVm.state.collectAsStateWithLifecycle()
     var pedirFondo by rememberSaveable { mutableStateOf(false) }
+    var mostrarOcr by rememberSaveable { mutableStateOf(false) }
     if (pedirFondo) cu.shalev.app.caja.DialogoFondo(
         sugerido = caja.sugerido, trabajando = state.abriendo,
         onConfirmar = { f -> pedirFondo = false; pedirPermisoAviso(); viewModel.abrirTurno(f) },
         onDismiss = { pedirFondo = false },
     )
+    if (mostrarOcr) {
+        cu.shalev.app.ocr.HojaImportarOcr(
+            destino = cu.shalev.app.ocr.DestinoOcr.VENTAS,
+            onDismiss = { mostrarOcr = false },
+            candidatosVenta = viewModel.candidatosOcr(),
+            onAplicarVenta = viewModel::importarDesdeOcr,
+        )
+    }
     VentaContent(
         tipo = tipo,
         state = state,
@@ -189,6 +199,7 @@ fun VentaScreen(
         capturaSmsAutomaticaActiva = capturaSmsAutomaticaActiva,
         acciones = AccionesVenta(
             onAtras = viewModel::atras, onAbrirTurno = { cajaVm.cargarSugerido(); pedirFondo = true }, onElegir = viewModel::elegirProductos,
+            onImportarOcr = { mostrarOcr = true },
             onCantidad = viewModel::cambiarCantidad, onQuitar = viewModel::quitar, onMetodo = viewModel::elegirMetodo,
             onContinuar = viewModel::continuar, onConfirmarEfectivo = viewModel::confirmarEfectivo,
             onDescartar = viewModel::descartar, onCancelarSalir = viewModel::cancelarSalir,
@@ -220,7 +231,22 @@ fun VentaContent(
         PasoVenta.CLIENTE -> TextosVenta.DATOS_CLIENTE
     }
     Scaffold(
-        topBar = { ShalevTopBar(title = titulo, onBack = acciones.onAtras) },
+        topBar = {
+            ShalevTopBar(
+                title = titulo,
+                onBack = acciones.onAtras,
+                actions = {
+                    if (state.paso == PasoVenta.CARRITO && state.permiso is Permiso.Permitido && acciones.onImportarOcr != null) {
+                        cu.shalev.designsystem.component.ShalevIconAction(
+                            cu.shalev.designsystem.icon.ShalevIcons.Ocr,
+                            "Escanear o importar líneas de venta",
+                            onClick = acciones.onImportarOcr,
+                            modifier = Modifier.testTag("venta_ocr"),
+                        )
+                    }
+                },
+            )
+        },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
         bottomBar = { if (state.permiso is Permiso.Permitido) BarraAcciones(state, acciones) },
         // 0.32.0 (A11): con el teclado abierto (paso de datos del cliente) la barra de acciones sube con él.
@@ -334,7 +360,7 @@ internal fun LineaEditable(l: LineaCarrito, onCantidad: (Long, Long) -> Unit, on
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             ShalevIconAction(
-                ShalevIcons.Quitar, "Una menos de ${l.producto.nombreCompleto}", onClick = { onCantidad(id, l.cantidad - 1) },
+                ShalevIcons.Disminuir, "Una menos de ${l.producto.nombreCompleto}", onClick = { onCantidad(id, l.cantidad - 1) },
                 enabled = l.cantidad > 1, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.menos(id)),
             )
             ShalevTextField(
@@ -346,7 +372,7 @@ internal fun LineaEditable(l: LineaCarrito, onCantidad: (Long, Long) -> Unit, on
                 modifier = Modifier.width(ShalevSize.campoCantidad).testTag(VentaTags.cantidad(id)),
             )
             ShalevIconAction(
-                ShalevIcons.Agregar, "Una más de ${l.producto.nombreCompleto}", onClick = { onCantidad(id, l.cantidad + 1) },
+                ShalevIcons.Aumentar, "Una más de ${l.producto.nombreCompleto}", onClick = { onCantidad(id, l.cantidad + 1) },
                 enabled = l.cantidad < l.maximo, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.mas(id)),
             )
             Box(Modifier.weight(1f))

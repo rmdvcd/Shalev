@@ -99,8 +99,21 @@ class LicenciaRepositoryImpl @Inject constructor(
                 // 0.22.0 (L-e): si hay una licencia con vencimiento instalada, la solicitud dice cuál se renueva
                 // (GL hace que la nueva empiece al terminar esa; sin perder días).
                 val m = managerLocked()
-                // 0.25.0 (§3): una recuperación no renueva (son excluyentes): GL reemite la licencia indicada.
-                m.buildRequest(if (input.recupera != null) input.copy(renueva = null) else input.copy(renueva = m.licenciaRenovable()))
+                val ajustada = when {
+                    input.amplia != null -> {
+                        val amp = requireNotNull(m.licenciaAmpliable()) { "No hay una licencia vigente ampliable" }
+                        input.copy(
+                            tipo = amp.tipo,
+                            renueva = null,
+                            recupera = null,
+                            amplia = amp.id,
+                            secundariasPrevias = amp.secundarias,
+                        )
+                    }
+                    input.recupera != null -> input.copy(renueva = null, amplia = null)
+                    else -> input.copy(renueva = m.licenciaRenovable(), amplia = null)
+                }
+                m.buildRequest(ajustada)
             }
         }
     }

@@ -64,7 +64,7 @@ APP=$(resolver app androidx.compose.ui:ui:1.7.6 androidx.compose.foundation:foun
   androidx.lifecycle:lifecycle-runtime-compose:2.8.7 androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7 \
   androidx.navigation:navigation-compose:2.8.5 androidx.core:core-splashscreen:1.0.1 androidx.camera:camera-core:1.4.1 \
   androidx.camera:camera-camera2:1.4.1 androidx.camera:camera-lifecycle:1.4.1 androidx.camera:camera-view:1.4.1 \
-  com.google.mlkit:barcode-scanning:17.3.0 io.coil-kt.coil3:coil-compose:3.0.4 androidx.hilt:hilt-navigation-compose:1.2.0 \
+  com.google.mlkit:barcode-scanning:17.3.0 com.google.mlkit:text-recognition:16.0.1 io.coil-kt.coil3:coil-compose:3.0.4 androidx.hilt:hilt-navigation-compose:1.2.0 \
   com.google.zxing:core:3.5.3 androidx.biometric:biometric:1.1.0 androidx.fragment:fragment-ktx:1.8.5 \
   androidx.lifecycle:lifecycle-process:2.8.7 androidx.profileinstaller:profileinstaller:1.4.1 \
   androidx.room:room-runtime:2.6.1 androidx.room:room-ktx:2.6.1 androidx.datastore:datastore-preferences:1.1.1 \
@@ -84,7 +84,7 @@ mkdir -p "$TC/stub/src/cu/shalev/app" "$TC/stub/src/cu/shalev/designsystem" "$TC
 VN=$(sed -n 's/.*versionName *= *"\([^"]*\)".*/\1/p' "$ROOT/app/build.gradle.kts" | head -1)
 VC=$(sed -n 's/.*versionCode *= *\([0-9]*\).*/\1/p' "$ROOT/app/build.gradle.kts" | head -1)
 cat > "$TC/stub/src/cu/shalev/app/R.java" <<'J'
-package cu.shalev.app; public final class R { public static final class drawable { public static final int ic_stat_shalev = 0x7f010002; } }
+package cu.shalev.app; public final class R { public static final class drawable { public static final int ic_stat_shalev = 0x7f010002; public static final int billete_1 = 0x7f010010; public static final int billete_3 = 0x7f010011; public static final int billete_5 = 0x7f010012; public static final int billete_10 = 0x7f010013; public static final int billete_20 = 0x7f010014; public static final int billete_50 = 0x7f010015; public static final int billete_100 = 0x7f010016; public static final int billete_200 = 0x7f010017; public static final int billete_500 = 0x7f010018; public static final int billete_1000 = 0x7f010019; public static final int billete_2000 = 0x7f01001a; public static final int billete_5000 = 0x7f01001b; public static final int billete_20000 = 0x7f01001c; } }
 J
 cat > "$TC/stub/src/cu/shalev/app/BuildConfig.java" <<J
 package cu.shalev.app; public final class BuildConfig { public static final boolean DEBUG = false; public static final int VERSION_CODE = ${VC:-1}; public static final String VERSION_NAME = "${VN:-0}"; public static final String APPLICATION_ID = "cu.shalev.app"; public static final String GITHUB_REPO = ""; }

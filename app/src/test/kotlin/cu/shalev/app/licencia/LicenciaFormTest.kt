@@ -97,9 +97,28 @@ class LicenciaFormTest {
         assertFalse(vigente.permiteRecuperar())
     }
 
-    @Test fun perpetuaNoOfreceSolicitud() {
-        val l = lic(LicenseState.Perpetual("id"), instalada(TipoLicencia.PERPETUA, null))
-        assertEquals(AccionSolicitud.NINGUNA, l.accionSolicitud())
+    @Test fun perpetuaPermiteAmpliarSecundariasHastaElMaximo() {
+        val conMargen = lic(LicenseState.Perpetual("id", 2), instalada(TipoLicencia.PERPETUA, null).copy(secundarias = 2))
+        assertTrue(conMargen.ampliable())
+        assertEquals(AccionSolicitud.AMPLIAR, conMargen.accionSolicitud())
+
+        val alMaximo = lic(LicenseState.Perpetual("id", 10), instalada(TipoLicencia.PERPETUA, null).copy(secundarias = 10))
+        assertFalse(alMaximo.ampliable())
+        assertEquals(AccionSolicitud.NINGUNA, alMaximo.accionSolicitud())
+    }
+
+    @Test fun modoAmpliacionFijaTipoCalculaImporteYGeneraAmplia() {
+        val inst = InstalledLicense("lic-activa-1", TipoLicencia.SEMESTRAL, ahora.minus(Duration.ofDays(5)), ahora.plus(Duration.ofDays(120)), 2)
+        val activa = lic(LicenseState.Active(TipoLicencia.SEMESTRAL, inst.venceEn!!, inst.id, 2), inst)
+        val form = LicenciaForm().desdePerfil(completo).conModoAmpliacion(true, inst).conSecundarias(5, inst.secundarias + 1)
+        assertTrue(activa.ampliable())
+        assertEquals(AccionSolicitud.AMPLIAR, activa.accionSolicitud(form.ampliandoSecundarias))
+        assertEquals(15_000L, form.precioAmpliacion(inst.secundarias))
+        val inp = form.aInput(activa)
+        assertEquals("lic-activa-1", inp.amplia)
+        assertEquals(2, inp.secundariasPrevias)
+        assertEquals(5, inp.secundarias)
+        assertEquals(TipoLicencia.SEMESTRAL, inp.tipo)
     }
 
     // ---------- Avisos ----------

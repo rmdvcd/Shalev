@@ -20,6 +20,7 @@ struct SaleComposerView: View {
     @State private var cart: [UUID: Int] = [:]
     @State private var payment: PaymentMethod = .cash
     @State private var showCatalog = false
+    @State private var showOcrSheet = false
     @State private var catalogSearch = ""
     @State private var transactionNumber = ""
     @State private var smsAmountCents: Int64?
@@ -98,6 +99,16 @@ struct SaleComposerView: View {
                         .foregroundStyle(Color.shalevPrimary)
                     }
                 }
+                if step == .cart && store.openShift != nil {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { showOcrSheet = true } label: {
+                            Image(systemName: "doc.viewfinder")
+                                .font(.shalev(16, weight: .semibold))
+                                .foregroundStyle(Color.shalevPrimary)
+                        }
+                        .accessibilityLabel("Escanear o importar líneas de venta")
+                    }
+                }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if store.openShift != nil && requiresActionBar { actionBar }
@@ -109,6 +120,13 @@ struct SaleComposerView: View {
                 SaleCatalogSheet(store: store, mode: mode, cart: $cart)
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showOcrSheet) {
+                OcrImportSheet(target: .sales, store: store, salesCandidates: ocrCandidates) { _ in } onApplySales: { result in
+                    applyOcrSalesResult(result)
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
             .onChange(of: payment) { _, method in
                 if method == .cash {
@@ -128,6 +146,40 @@ struct SaleComposerView: View {
         case .cart: !cart.isEmpty
         case .receipt, .qr, .customer: true
         }
+    }
+
+    private var ocrCandidates: [OcrSaleCandidate] {
+        if mode == .products {
+            return store.activeProducts.filter { $0.priceCents > 0 }.map { p in
+                OcrSaleCandidate(
+                    id: p.id,
+                    name: p.name,
+                    isService: false,
+                    maxAvailable: store.maxAllowedQuantity(kind: .product, sourceID: p.id, in: cart)
+                )
+            }
+        }
+        return store.activeServices.filter { $0.priceCents > 0 }.map { s in
+            OcrSaleCandidate(
+                id: s.id,
+                name: s.name,
+                isService: true,
+                maxAvailable: store.maxAllowedQuantity(kind: .service, sourceID: s.id, in: cart)
+            )
+        }
+    }
+
+    private func applyOcrSalesResult(_ result: OcrSalesImportResult) {
+        var next = cart
+        for (id, delta) in result.cartAdditions where delta > 0 {
+            let ceiling = store.maxAllowedQuantity(kind: itemKind, sourceID: id, in: next)
+            let clamped = min((next[id] ?? 0) + delta, ceiling)
+            if clamped > 0 { next[id] = clamped }
+        }
+        cart = next
+        if let name = result.customerName, !name.isEmpty { customerName = name }
+        if let phone = result.customerPhone, !phone.isEmpty { customerPhone = phone }
+        if let ci = result.customerCI, !ci.isEmpty { customerID = ci }
     }
 
     // MARK: - Cabecera del total
@@ -224,8 +276,8 @@ struct SaleComposerView: View {
                         .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.75)
                 }
                 HStack(spacing: 9) {
-                    circleButton(symbol: "minus", label: "Una menos de \(lineName(for: draft))",
-                                 enabled: draft.quantity > 1) { adjust(draft.sourceID, by: -1) }
+                    ShalevSpinnerButton(isIncrement: false, label: "Una menos de \(lineName(for: draft))",
+                                        enabled: draft.quantity > 1, size: 44, primaryTint: true) { adjust(draft.sourceID, by: -1) }
                     Text("\(draft.quantity)")
                         .font(.shalev(15, weight: .semibold))
                         .foregroundStyle(Color.shalevText)
@@ -235,8 +287,8 @@ struct SaleComposerView: View {
                         .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 11).stroke(Color.shalevOutline, lineWidth: 1))
                         .accessibilityLabel("Cantidad de \(lineName(for: draft)): \(draft.quantity)")
-                    circleButton(symbol: "plus", label: "Una más de \(lineName(for: draft))",
-                                 enabled: canIncrease(draft)) { adjust(draft.sourceID, by: 1) }
+                    ShalevSpinnerButton(isIncrement: true, label: "Una más de \(lineName(for: draft))",
+                                        enabled: canIncrease(draft), size: 44, primaryTint: true) { adjust(draft.sourceID, by: 1) }
                     Spacer(minLength: 0)
                     Button { cart.removeValue(forKey: draft.sourceID) } label: {
                         Image(systemName: "trash")
@@ -252,32 +304,19 @@ struct SaleComposerView: View {
         }
     }
 
-    private func circleButton(symbol: String, label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.shalevIcono(16, weight: .bold))
-                .foregroundStyle(enabled ? Color.shalevPrimary : Color.shalevSecondaryText.opacity(0.45))
-                .frame(width: 44, height: 44)
-                .background(Color.shalevPrimaryContainer.opacity(enabled ? 1 : 0.45), in: Circle())
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .accessibilityLabel(label)
-    }
-
     private func availabilityText(_ draft: CartDraft) -> String {
+        let ceiling = store.maxAllowedQuantity(kind: itemKind, sourceID: draft.sourceID, in: cart)
         if itemKind == .product {
-            let available = store.availableQuantity(kind: .product, sourceID: draft.sourceID) ?? 0
             let kind = store.data.products.first(where: { $0.id == draft.sourceID })?.kind
-            return kind == .prepared ? " · Alcanza para \(available)" : ""
+            return kind == .prepared ? " · Alcanza para \(ceiling)" : " · Máx. \(ceiling)"
         }
-        let available = store.availableQuantity(kind: .service, sourceID: draft.sourceID) ?? 0
-        return available == Int.max ? "" : " · Alcanza para \(available)"
+        let service = store.data.services.first(where: { $0.id == draft.sourceID })
+        return (service?.uses.isEmpty ?? true) ? "" : " · Alcanza para \(ceiling)"
     }
 
     private func canIncrease(_ draft: CartDraft) -> Bool {
-        let available = store.availableQuantity(kind: itemKind, sourceID: draft.sourceID) ?? 0
-        return draft.quantity < available
+        let ceiling = store.maxAllowedQuantity(kind: itemKind, sourceID: draft.sourceID, in: cart)
+        return draft.quantity < ceiling
     }
 
     private var paymentSelector: some View {
@@ -643,12 +682,12 @@ private struct SaleCatalogSheet: View {
                                                  detail: search.isEmpty ? "Agrega artículos con precio y existencias en Inventario." : "Prueba con otra búsqueda.")
                             } else {
                                 ForEach(products) { product in
-                                    let available = store.availableQuantity(kind: .product, sourceID: product.id) ?? 0
+                                    let ceiling = store.maxAllowedQuantity(kind: .product, sourceID: product.id, in: cart)
                                     let quantity = cart[product.id, default: 0]
                                     SaleCatalogRow(name: product.name,
-                                                   detail: product.kind == .prepared ? "Alcanza para \(available) · Elaborado" : "\(product.displayStock) · \(product.category)",
+                                                   detail: product.kind == .prepared ? "Alcanza para \(ceiling) · Elaborado" : "\(product.displayStock) · \(product.category)",
                                                    price: Cup(cents: product.priceCents).formatted,
-                                                   quantity: quantity, canAdd: available > quantity,
+                                                   quantity: quantity, canAdd: ceiling > quantity,
                                                    onMinus: { adjust(product.id, by: -1) }, onPlus: { adjust(product.id, by: 1) })
                                 }
                             }
@@ -658,12 +697,12 @@ private struct SaleCatalogSheet: View {
                                                  detail: search.isEmpty ? "Agrega servicios con precio en la pestaña Servicios." : "Prueba con otra búsqueda.")
                             } else {
                                 ForEach(services) { service in
-                                    let available = store.availableQuantity(kind: .service, sourceID: service.id) ?? 0
+                                    let ceiling = store.maxAllowedQuantity(kind: .service, sourceID: service.id, in: cart)
                                     let quantity = cart[service.id, default: 0]
-                                    let stockText = available == Int.max ? service.type : "Alcanza para \(available) · \(service.type)"
+                                    let stockText = service.uses.isEmpty ? service.type : "Alcanza para \(ceiling) · \(service.type)"
                                     SaleCatalogRow(name: service.name, detail: stockText,
                                                    price: Cup(cents: service.priceCents).formatted,
-                                                   quantity: quantity, canAdd: available > quantity,
+                                                   quantity: quantity, canAdd: ceiling > quantity,
                                                    onMinus: { adjust(service.id, by: -1) }, onPlus: { adjust(service.id, by: 1) })
                                 }
                             }
@@ -696,8 +735,8 @@ private struct SaleCatalogSheet: View {
         if next == 0 {
             cart.removeValue(forKey: id)
         } else {
-            let available = store.availableQuantity(kind: kind, sourceID: id) ?? 0
-            guard next <= available else { return }
+            let ceiling = store.maxAllowedQuantity(kind: kind, sourceID: id, in: cart)
+            guard next <= ceiling else { return }
             cart[id] = next
         }
     }
@@ -724,24 +763,24 @@ private struct SaleCatalogRow: View {
             Spacer(minLength: 8)
             HStack(spacing: 9) {
                 if quantity > 0 {
-                    Button(action: onMinus) {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.shalevIcono(22, weight: .semibold))
-                            .shalevToque()
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Quitar una unidad de \(name)")
+                    ShalevSpinnerButton(
+                        isIncrement: false,
+                        label: "Quitar una unidad de \(name)",
+                        enabled: true,
+                        size: 36,
+                        primaryTint: true,
+                        action: onMinus
+                    )
                     Text("\(quantity)").font(.shalev(13, weight: .semibold)).monospacedDigit()
                 }
-                Button(action: onPlus) {
-                    Image(systemName: quantity == 0 ? "plus.circle.fill" : "plus.circle")
-                        .font(.shalevIcono(22, weight: .semibold))
-                        .shalevToque()
-                }
-                .buttonStyle(.plain)
-                .disabled(!canAdd)
-                .opacity(canAdd ? 1 : 0.38)
-                .accessibilityLabel("Añadir \(name)")
+                ShalevSpinnerButton(
+                    isIncrement: true,
+                    label: "Añadir \(name)",
+                    enabled: canAdd,
+                    size: 36,
+                    primaryTint: true,
+                    action: onPlus
+                )
             }
             .foregroundStyle(Color.shalevPrimary)
         }

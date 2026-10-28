@@ -309,6 +309,56 @@ struct ShalevIconButton: View {
     }
 }
 
+/// Botón circular de spinner numérico con símbolos ◄ y ►.
+struct ShalevSpinnerButton: View {
+    let isIncrement: Bool
+    let label: String
+    var enabled: Bool = true
+    var size: CGFloat = 40
+    var primaryTint: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(isIncrement ? "►" : "◄")
+                .font(.shalevIcono(14, weight: .bold))
+                .foregroundStyle(
+                    enabled
+                        ? (primaryTint ? Color.shalevPrimary : Color.shalevText)
+                        : Color.shalevSecondaryText.opacity(0.45)
+                )
+                .frame(width: size, height: size)
+                .background(
+                    (primaryTint ? Color.shalevPrimaryContainer : Color.shalevSurfaceVariant)
+                        .opacity(enabled ? 1 : 0.45),
+                    in: Circle()
+                )
+                .shalevToque()
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(label)
+    }
+}
+
+/// Miniatura enmarcada del billete oficial CUP (anverso) que sustituye a la etiqueta textual.
+struct ShalevBanknoteThumbnail: View {
+    let denomination: Int
+    var width: CGFloat = 86
+    var height: CGFloat = 40
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+        Image("Billete\(denomination)")
+            .resizable()
+            .scaledToFill()
+            .frame(width: width, height: height)
+            .clipShape(shape)
+            .overlay(shape.stroke(Color.shalevOutlineVariant, lineWidth: 0.8))
+            .accessibilityLabel("Billetes de \(denomination) CUP")
+    }
+}
+
 /// «Paso N de M» con título, flechas de avance y barra de progreso, como `ShalevStepper` de Android.
 struct ShalevStepper: View {
     let current: Int
@@ -325,8 +375,8 @@ struct ShalevStepper: View {
         VStack(spacing: 9) {
             HStack(spacing: 10) {
                 Button { onBack?() } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.shalevIcono(14, weight: .semibold))
+                    Text("◄")
+                        .font(.shalevIcono(13, weight: .bold))
                         .foregroundStyle(onBack == nil ? Color.shalevOutline : Color.shalevText)
                         .frame(width: 36, height: 36)
                         .background(onBack == nil ? Color.clear : Color.shalevSurfaceVariant, in: Circle())
@@ -351,8 +401,8 @@ struct ShalevStepper: View {
                 .accessibilityValue("Paso \(current) de \(total): \(title)")
 
                 Button { onNext?() } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.shalevIcono(14, weight: .semibold))
+                    Text("►")
+                        .font(.shalevIcono(13, weight: .bold))
                         .foregroundStyle(onNext == nil ? Color.shalevSecondaryText : Color.shalevOnPrimary)
                         .frame(width: 38, height: 38)
                         .background(onNext == nil ? Color.shalevSurfaceVariant : Color.shalevPrimary, in: Circle())
@@ -604,3 +654,97 @@ struct ShalevQRCode: View {
 }
 
 // El formato de fechas compartido vive en Domain.swift para que también lo usen las pruebas del paquete.
+
+// MARK: - Filtros de entrada equivalentes a `FiltroEntrada` de Android
+
+enum ShalevInputFilter {
+    case text(maxLength: Int = 500)
+    case name(maxLength: Int = 80)
+    case integer(maxDigits: Int = 7)
+    case quantity
+    case signedQuantity
+    case money
+    case phone
+    case ci
+    case card
+    case transaction
+    case percentage
+
+    func sanitize(_ input: String) -> String {
+        switch self {
+        case .text(let maxLength):
+            return String(input.filter { $0 == "\n" || !$0.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) }.prefix(maxLength))
+        case .name(let maxLength):
+            let cleaned = input.map { ch -> Character in
+                ch.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) ? " " : ch
+            }
+            let collapsed = String(cleaned).replacingOccurrences(of: #" {2,}"#, with: " ", options: .regularExpression)
+            return String(collapsed.prefix(maxLength))
+        case .integer(let maxDigits):
+            return String(input.filter { $0 >= "0" && $0 <= "9" }.prefix(maxDigits))
+        case .quantity:
+            return Self.sanitizeDecimal(input, maxDecimals: 3, allowSign: false, maxLength: 12)
+        case .signedQuantity:
+            return Self.sanitizeDecimal(input, maxDecimals: 3, allowSign: true, maxLength: 12)
+        case .money:
+            return Self.sanitizeDecimal(input, maxDecimals: 2, allowSign: false, maxLength: 12)
+        case .phone:
+            var digits = String(input.filter { $0 >= "0" && $0 <= "9" })
+            if digits.count > 8 && digits.hasPrefix("53") { digits = String(digits.dropFirst(2)) }
+            return String(digits.prefix(15))
+        case .ci:
+            return String(input.filter { ($0 >= "0" && $0 <= "9") || ($0 >= "A" && $0 <= "Z") || ($0 >= "a" && $0 <= "z") }.uppercased().prefix(20))
+        case .card:
+            return String(input.filter { $0 >= "0" && $0 <= "9" }.prefix(20))
+        case .transaction:
+            return String(input.filter { ($0 >= "0" && $0 <= "9") || ($0 >= "A" && $0 <= "Z") || ($0 >= "a" && $0 <= "z") }.uppercased().prefix(30))
+        case .percentage:
+            let digits = String(input.filter { $0 >= "0" && $0 <= "9" }.prefix(3))
+            if let v = Int(digits), v > 100 { return "100" }
+            return digits
+        }
+    }
+
+    private static func sanitizeDecimal(_ raw: String, maxDecimals: Int, allowSign: Bool, maxLength: Int) -> String {
+        let trimmed = raw.drop(while: { $0.isWhitespace })
+        var out = ""
+        if allowSign, let first = trimmed.first, first == "-" || first == "+" {
+            out.append(first)
+        }
+        var seenSeparator = false
+        var decimals = 0
+        for ch in trimmed {
+            if ch >= "0" && ch <= "9" {
+                if !seenSeparator {
+                    out.append(ch)
+                } else if decimals < maxDecimals {
+                    out.append(ch)
+                    decimals += 1
+                }
+            } else if (ch == "." || ch == ",") && !seenSeparator {
+                seenSeparator = true
+                out.append(".")
+            }
+        }
+        return String(out.prefix(maxLength))
+    }
+}
+
+private struct ShalevInputFilterModifier: ViewModifier {
+    let filter: ShalevInputFilter
+    @Binding var text: String
+
+    func body(content: Content) -> some View {
+        content.onChange(of: text) { _, newValue in
+            let sanitized = filter.sanitize(newValue)
+            if sanitized != newValue { text = sanitized }
+        }
+    }
+}
+
+extension View {
+    func shalevInputFilter(_ filter: ShalevInputFilter, text: Binding<String>) -> some View {
+        modifier(ShalevInputFilterModifier(filter: filter, text: text))
+    }
+}
+

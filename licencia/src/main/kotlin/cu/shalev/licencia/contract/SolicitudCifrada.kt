@@ -91,18 +91,43 @@ object MensajesLicencia {
     const val AVISO_FRESCURA = "Vale 72 horas: envíala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."
 
     /** Solicitud: datos del solicitante y de lo que pide (todos en claro, decisión del Prompt 64). */
-    fun solicitud(p: RequestPayload, codigo: String): String = if (p.recupera != null) recuperacion(p, codigo) else buildString {
-        appendLine("Solicitud de licencia Shalev")
-        appendLine("Nombre: ${p.nombre} ${p.apellidos}")
-        appendLine("Carné de identidad: ${p.ci}")
-        appendLine("Teléfono: ${p.telefono}")
-        appendLine("Tipo: ${p.tipo.etiqueta}")
-        appendLine("Apps secundarias: ${p.secundarias}")
-        appendLine("Precio: ${Money.cup(p.tipo.precio(p.secundarias))}")
-        p.renueva?.let { appendLine("Renueva: $it") }
-        appendLine(AVISO_FRESCURA)
-        appendLine()
-        append(codigo)
+    fun solicitud(p: RequestPayload, codigo: String, secundariasPrevias: Int = 0): String = when {
+        p.recupera != null -> recuperacion(p, codigo)
+        p.amplia != null -> ampliacion(p, codigo, secundariasPrevias)
+        else -> buildString {
+            appendLine("Solicitud de licencia Shalev")
+            appendLine("Nombre: ${p.nombre} ${p.apellidos}")
+            appendLine("Carné de identidad: ${p.ci}")
+            appendLine("Teléfono: ${p.telefono}")
+            appendLine("Tipo: ${p.tipo.etiqueta}")
+            appendLine("Apps secundarias: ${p.secundarias}")
+            appendLine("Precio: ${Money.cup(p.tipo.precio(p.secundarias))}")
+            p.renueva?.let { appendLine("Renueva: $it") }
+            appendLine(AVISO_FRESCURA)
+            appendLine()
+            append(codigo)
+        }
+    }
+
+    /** Solicitud de ampliación de apps secundarias sobre una licencia activa o perpetua (conserva su vencimiento). */
+    fun ampliacion(p: RequestPayload, codigo: String, secundariasPrevias: Int = 0): String {
+        val previas = secundariasPrevias.coerceIn(0, (p.secundarias - 1).coerceAtLeast(0))
+        val adicionales = (p.secundarias - previas).coerceAtLeast(1)
+        return buildString {
+            appendLine("Ampliar secundarias Shalev")
+            appendLine("Nombre: ${p.nombre} ${p.apellidos}")
+            appendLine("Carné de identidad: ${p.ci}")
+            appendLine("Teléfono: ${p.telefono}")
+            appendLine("Tipo: ${p.tipo.etiqueta}")
+            appendLine("Apps secundarias actuales: $previas")
+            appendLine("Secundarias adicionales: $adicionales")
+            appendLine("Apps secundarias: ${p.secundarias}")
+            appendLine("Precio: ${Money.cup(p.tipo.precioAmpliacion(adicionales))}")
+            appendLine("Amplía: ${p.amplia}")
+            appendLine(AVISO_FRESCURA)
+            appendLine()
+            append(codigo)
+        }
     }
 
     /** 0.25.0: solicitud de recuperación (gratis: tipo, vencimiento y secundarias los decide GL con sus registros). */

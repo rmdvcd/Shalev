@@ -52,7 +52,7 @@ fun ShalevStepper(
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             if (onAtras != null) {
-                ShalevIconAction(ShalevIcons.Atras, ShalevStepperTextos.ATRAS, onClick = onAtras)
+                ShalevIconAction(ShalevIcons.Disminuir, ShalevStepperTextos.ATRAS, onClick = onAtras)
             } else if (conBotones) {
                 Spacer(Modifier.size(ShalevSize.touchTarget))
             }
@@ -69,7 +69,7 @@ fun ShalevStepper(
             }
             if (onSiguiente != null) {
                 ShalevIconAction(
-                    ShalevIcons.Abrir, ShalevStepperTextos.SIGUIENTE, onClick = onSiguiente,
+                    ShalevIcons.Aumentar, ShalevStepperTextos.SIGUIENTE, onClick = onSiguiente,
                     enabled = siguienteHabilitado, style = IconActionStyle.Filled,
                 )
             } else if (conBotones) {

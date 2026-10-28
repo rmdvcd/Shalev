@@ -46,9 +46,17 @@ class CajaConteoUiTest {
         rule.onNodeWithTag("billetes_1").assertExists()
         rule.onNodeWithTag(CajaTags.CONFIRMAR).assertIsNotEnabled() // nada contado: declarar 0 descuadraría la caja
 
-        rule.onNodeWithTag("billetes_1").performTextInput("2")
+        rule.onNodeWithTag("billetes_mas_1").performClick()
+        rule.onNodeWithTag("billetes_mas_1").performClick()
         rule.onNodeWithTag(CajaTags.CONFIRMAR).assertIsEnabled().performClick()
         assertEquals(Cup.ofPesos(2), confirmado)
+    }
+
+    @Test fun incluyeBilleteDe2000YPuedeEscribirseDirectamente() {
+        mostrar()
+        rule.onNodeWithTag("billetes_1").performTextInput("1")
+        rule.onNodeWithTag(CajaTags.CONFIRMAR).assertIsEnabled().performClick()
+        assertEquals(Cup.ofPesos(1), confirmado)
     }
 
     @Test fun omitirPasaAlTotalSueltoYDesdeAhiSeVuelveAlConteo() {

@@ -1,7 +1,16 @@
 package cu.shalev.app.caja
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import cu.shalev.app.R
+import cu.shalev.designsystem.component.IconActionStyle
+import cu.shalev.designsystem.component.ShalevIconAction
 import cu.shalev.designsystem.theme.ShalevTextos
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,12 +28,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import cu.shalev.core.money.Cup
 import cu.shalev.core.money.Money
 import cu.shalev.designsystem.component.FiltroEntrada
@@ -115,6 +129,40 @@ object CajaForm {
         desglose.values.any { it > 0L } || (otro?.centavos ?: 0L) > 0L
 
     fun motivoValido(m: String): Boolean = m.trim().replace(Regex("\\s+"), " ").length in MovimientoCaja.MOTIVO_MIN..MovimientoCaja.MOTIVO_MAX
+}
+
+/** Recurso de miniatura oficial del billete CUP (anverso). */
+@DrawableRes
+fun iconoBilleteCup(denominacion: Int): Int = when (denominacion) {
+    1 -> R.drawable.billete_1
+    3 -> R.drawable.billete_3
+    5 -> R.drawable.billete_5
+    10 -> R.drawable.billete_10
+    20 -> R.drawable.billete_20
+    50 -> R.drawable.billete_50
+    100 -> R.drawable.billete_100
+    200 -> R.drawable.billete_200
+    500 -> R.drawable.billete_500
+    1000 -> R.drawable.billete_1000
+    2000 -> R.drawable.billete_2000
+    5000 -> R.drawable.billete_5000
+    20000 -> R.drawable.billete_20000
+    else -> R.drawable.billete_1
+}
+
+/** Miniatura enmarcada del billete CUP que sustituye a la etiqueta textual de la denominación. */
+@Composable
+fun MiniaturaBilleteCup(denominacion: Int, modifier: Modifier = Modifier) {
+    val forma = RoundedCornerShape(6.dp)
+    Image(
+        painter = painterResource(iconoBilleteCup(denominacion)),
+        contentDescription = "Billetes de $denominacion CUP",
+        contentScale = ContentScale.Crop,
+        modifier = modifier
+            .size(width = 88.dp, height = 40.dp)
+            .clip(forma)
+            .border(BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant), forma),
+    )
 }
 
 /** Color del estado del arqueo: faltante en rojo (error), el resto normal. */
@@ -231,13 +279,51 @@ fun DialogoContado(
             )
             if (porBilletes) {
                 BilletesCUP.denominaciones.forEachIndexed { i, denominacion ->
-                    ShalevTextField(
-                        value = cantidades[i],
-                        onValueChange = { nuevo -> if (nuevo.length <= 6 && nuevo.all { it in '0'..'9' }) cantidades = cantidades.toMutableList().also { it[i] = nuevo } },
-                        label = "Billetes de $denominacion CUP",
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth().testTag("billetes_$denominacion"),
-                    )
+                    val actual = cantidades[i].toLongOrNull() ?: 0L
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        MiniaturaBilleteCup(denominacion)
+                        ShalevIconAction(
+                            ShalevIcons.Disminuir,
+                            "Un billete menos de $denominacion CUP",
+                            onClick = {
+                                val sig = (actual - 1L).coerceAtLeast(0L)
+                                cantidades = cantidades.toMutableList().also { it[i] = if (sig == 0L) "" else sig.toString() }
+                            },
+                            enabled = actual > 0L,
+                            style = IconActionStyle.Tonal,
+                            modifier = Modifier.testTag("billetes_menos_$denominacion"),
+                        )
+                        ShalevTextField(
+                            value = cantidades[i],
+                            onValueChange = { nuevo ->
+                                if (nuevo.length <= 6 && nuevo.all { it in '0'..'9' }) {
+                                    cantidades = cantidades.toMutableList().also { it[i] = nuevo }
+                                }
+                            },
+                            label = null,
+                            placeholder = "0",
+                            clearable = false,
+                            textAlign = TextAlign.Center,
+                            filtro = FiltroEntrada.ENTERO,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f).testTag("billetes_$denominacion"),
+                        )
+                        ShalevIconAction(
+                            ShalevIcons.Aumentar,
+                            "Un billete más de $denominacion CUP",
+                            onClick = {
+                                val sig = (actual + 1L).coerceAtMost(999_999L)
+                                cantidades = cantidades.toMutableList().also { it[i] = sig.toString() }
+                            },
+                            enabled = actual < 999_999L,
+                            style = IconActionStyle.Tonal,
+                            modifier = Modifier.testTag("billetes_mas_$denominacion"),
+                        )
+                    }
                 }
                 ShalevTextField(value = otroTexto, onValueChange = { otroTexto = it.take(16) }, label = "Monedas / otro efectivo (CUP)",
                     filtro = FiltroEntrada.DINERO, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -272,17 +358,23 @@ fun DialogoContado(
 
 /** 0.25.0 (§5.2): entrada o salida de efectivo (pestañas Tipo, Importe y Motivo). */
 @Composable
-fun DialogoMovimientoCaja(trabajando: Boolean, onConfirmar: (TipoMovimientoCaja, Cup, String) -> Unit, onDismiss: () -> Unit) {
+fun DialogoMovimientoCaja(
+    trabajando: Boolean,
+    onConfirmar: (TipoMovimientoCaja, Cup, String) -> Unit,
+    onDismiss: () -> Unit,
+    efectivoDisponible: Cup? = null,
+) {
     var tipo by rememberSaveable { mutableIntStateOf(1) }
     var importe by rememberSaveable { androidx.compose.runtime.mutableStateOf("") }
     var motivo by rememberSaveable { androidx.compose.runtime.mutableStateOf("") }
-    val valor = CajaForm.importe(importe)?.takeIf { it.centavos > 0 }
-    val ok = valor != null && CajaForm.motivoValido(motivo) && !trabajando
     val t = if (tipo == 0) TipoMovimientoCaja.ENTRADA else TipoMovimientoCaja.SALIDA
+    val valor = CajaForm.importe(importe)?.takeIf { it.centavos > 0 }
+    val superaCaja = t == TipoMovimientoCaja.SALIDA && efectivoDisponible != null && valor != null && valor > efectivoDisponible
+    val ok = valor != null && !superaCaja && CajaForm.motivoValido(motivo) && !trabajando
     ShalevDialog(
         title = TextosCaja.MOVIMIENTO_TITULO,
         onDismiss = onDismiss,
-        onConfirm = { if (valor != null) onConfirmar(t, valor, motivo) },
+        onConfirm = { if (valor != null && !superaCaja) onConfirmar(t, valor, motivo) },
         confirmDescription = "Registrar ${TextosCaja.tipo(t).lowercase()}",
         confirmEnabled = ok,
         confirmLoading = trabajando,
@@ -292,7 +384,13 @@ fun DialogoMovimientoCaja(trabajando: Boolean, onConfirmar: (TipoMovimientoCaja,
             ShalevTabs(listOf(ShalevTab(TextosCaja.ENTRADA), ShalevTab(TextosCaja.SALIDA)), tipo, { tipo = it })
             ShalevTextField(
                 value = importe, onValueChange = { importe = it.take(16) }, label = "${TextosCaja.IMPORTE} *",
-                isError = importe.isNotBlank() && valor == null, errorText = TextosCaja.IMPORTE_INVALIDO,
+                isError = (importe.isNotBlank() && valor == null) || superaCaja,
+                errorText = if (superaCaja && efectivoDisponible != null) {
+                    "Supera el efectivo disponible en caja (${Money.format(efectivoDisponible)})."
+                } else TextosCaja.IMPORTE_INVALIDO,
+                supportingText = if (t == TipoMovimientoCaja.SALIDA && efectivoDisponible != null) {
+                    "Disponible en caja: ${Money.format(efectivoDisponible)}"
+                } else null,
                 filtro = FiltroEntrada.DINERO, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth().testTag(CajaTags.IMPORTE),
             )

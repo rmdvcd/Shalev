@@ -89,6 +89,7 @@ enum GLLicenseType: String, CaseIterable, Codable, Identifiable, Hashable {
         }
     }
     func totalPriceCents(secondaries: Int) -> Int64 { (basePriceCUP + Int64(max(0, secondaries)) * secondaryPriceCUP) * 100 }
+    func extensionPriceCents(addedSecondaries: Int) -> Int64 { Int64(max(0, addedSecondaries)) * secondaryPriceCUP * 100 }
 }
 
 enum GLRequestChannel: String, CaseIterable, Identifiable, Codable, Hashable {
@@ -285,9 +286,10 @@ private struct GLRequestPayload: Encodable {
     var secundarias: Int
     var renueva: String?
     var recupera: String?
+    var amplia: String?
 
     enum CodingKeys: String, CodingKey {
-        case v, nombre, apellidos, ci, via, telefono, deviceId, tipo, solicitadaEn, nonce, devicePub, secundarias, renueva, recupera
+        case v, nombre, apellidos, ci, via, telefono, deviceId, tipo, solicitadaEn, nonce, devicePub, secundarias, renueva, recupera, amplia
     }
 
     func encode(to encoder: Encoder) throws {
@@ -306,6 +308,7 @@ private struct GLRequestPayload: Encodable {
         try container.encode(secundarias, forKey: .secundarias)
         try container.encodeIfPresent(renueva, forKey: .renueva)
         try container.encodeIfPresent(recupera, forKey: .recupera)
+        try container.encodeIfPresent(amplia, forKey: .amplia)
     }
 }
 
@@ -348,6 +351,14 @@ final class GLLicenseManager: ObservableObject {
     var renewableLicenseID: String? {
         guard let verified = verifiedInstalled, verified.expiresAt != nil else { return nil }
         return verified.id
+    }
+    var canExtendSecondaries: Bool {
+        switch state {
+        case .active(_, _, _, let slots), .perpetual(_, let slots):
+            return verifiedInstalled != nil && slots < 10
+        default:
+            return false
+        }
     }
     var canRecover: Bool {
         guard verifiedInstalled != nil else { return true }
@@ -411,7 +422,13 @@ final class GLLicenseManager: ObservableObject {
         state = remaining > 0 ? .trial(daysLeft: remaining) : .trialExpired
     }
 
-    func buildRequest(type: GLLicenseType, secondaries: Int, channel: GLRequestChannel, recoveryID: String? = nil) throws -> String {
+    func buildRequest(
+        type: GLLicenseType,
+        secondaries: Int,
+        channel: GLRequestChannel,
+        recoveryID: String? = nil,
+        extendingCurrentSecondaries: Bool = false
+    ) throws -> String {
         guard let identity, let glPublic = GLTrust.ecdhPublicKey, GLTrust.canValidate else {
             throw GLLicenseError.configuration
         }
@@ -420,7 +437,20 @@ final class GLLicenseManager: ObservableObject {
             throw GLLicenseError.invalidRequest
         }
         let recovery = recoveryID?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let recovery, UUID(uuidString: recovery) == nil { throw GLLicenseError.invalidRequest }
+        if let recovery, !recovery.isEmpty, UUID(uuidString: recovery) == nil { throw GLLicenseError.invalidRequest }
+        let normalizedRecovery = (recovery?.isEmpty == false) ? recovery : nil
+        var previousSecondaries = 0
+        var resolvedType = type
+        var extensionID: String? = nil
+        if extendingCurrentSecondaries {
+            guard normalizedRecovery == nil, canExtendSecondaries, let verified = verifiedInstalled,
+                  secondaries > verified.secondaries, secondaries <= 10 else {
+                throw GLLicenseError.invalidRequest
+            }
+            previousSecondaries = verified.secondaries
+            resolvedType = verified.type
+            extensionID = verified.id
+        }
         let nonce = Base64URL.encode(try secureRandom(16))
         let now = Date()
         let payload = GLRequestPayload(
@@ -430,13 +460,14 @@ final class GLLicenseManager: ObservableObject {
             via: channel,
             telefono: phone,
             deviceId: identity.deviceID,
-            tipo: type,
+            tipo: resolvedType,
             solicitadaEn: iso8601Seconds(now),
             nonce: nonce,
             devicePub: Base64URL.encode(identity.compressedPublicKey),
             secundarias: secondaries,
-            renueva: recovery == nil ? renewableLicenseID : nil,
-            recupera: recovery?.lowercased()
+            renueva: (normalizedRecovery == nil && extensionID == nil) ? renewableLicenseID : nil,
+            recupera: normalizedRecovery?.lowercased(),
+            amplia: extensionID
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = []
@@ -448,7 +479,7 @@ final class GLLicenseManager: ObservableObject {
         let nonceValue = try AES.GCM.Nonce(data: iv)
         let sealed = try AES.GCM.seal(plain, using: key, nonce: nonceValue, authenticating: Data("SPVI-R1|".utf8) + epk)
         let code = "SPVIR1:" + Base64URL.encode(epk + sealed.ciphertext + sealed.tag)
-        return requestMessage(payload: payload, code: code)
+        return requestMessage(payload: payload, code: code, previousSecondaries: previousSecondaries)
     }
 
     func activate(message: String, now: Date = Date()) async -> GLActivationResult {
@@ -567,15 +598,32 @@ final class GLLicenseManager: ObservableObject {
         return VerifiedLicense(id: id, type: type, secondaries: Int(body[35]), issuedAt: issued, expiresAt: expiry, stateCode: stateByte)
     }
 
-    private func requestMessage(payload: GLRequestPayload, code: String) -> String {
+    private func requestMessage(payload: GLRequestPayload, code: String, previousSecondaries: Int = 0) -> String {
+        let header: String
+        if payload.recupera != nil {
+            header = "Recuperar licencia Shalev"
+        } else if payload.amplia != nil {
+            header = "Ampliar secundarias Shalev"
+        } else {
+            header = "Solicitud de licencia Shalev"
+        }
         var lines = [
-            payload.recupera == nil ? "Solicitud de licencia Shalev" : "Recuperar licencia Shalev",
+            header,
             "Nombre: \(payload.nombre) \(payload.apellidos)",
             "Carné de identidad: \(payload.ci)",
             "Teléfono: \(payload.telefono)"
         ]
         if let recovery = payload.recupera {
             lines.append("Licencia anterior: \(recovery)")
+        } else if let extensionID = payload.amplia {
+            let prev = max(0, min(previousSecondaries, payload.secundarias - 1))
+            let added = max(1, payload.secundarias - prev)
+            lines.append("Tipo: \(payload.tipo.title)")
+            lines.append("Apps secundarias actuales: \(prev)")
+            lines.append("Secundarias adicionales: \(added)")
+            lines.append("Apps secundarias: \(payload.secundarias)")
+            lines.append("Precio: \(Cup(cents: payload.tipo.extensionPriceCents(addedSecondaries: added)).formatted)")
+            lines.append("Amplía: \(extensionID)")
         } else {
             lines.append("Tipo: \(payload.tipo.title)")
             lines.append("Apps secundarias: \(payload.secundarias)")

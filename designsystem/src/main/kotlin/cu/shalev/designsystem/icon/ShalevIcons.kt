@@ -43,6 +43,10 @@ object ShalevIcons {
     val Editar: ImageVector get() = MaterialSolido.Edit
     val Agregar: ImageVector get() = MaterialSolido.Add
     val Quitar: ImageVector get() = MaterialSolido.Remove
+    /** Botones ◄ y ► de todos los selectores numéricos (spinners) y pasos. */
+    val Disminuir: ImageVector get() = MaterialSolido.ArrowLeft
+    val Aumentar: ImageVector get() = MaterialSolido.ArrowRight
+    val Ocr: ImageVector get() = MaterialSolido.DocumentScanner
     val Camara: ImageVector get() = MaterialSolido.PhotoCamera
     val Configurar: ImageVector get() = MaterialSolido.Checklist
     val Eliminar: ImageVector get() = MaterialSolido.Delete
@@ -217,6 +221,10 @@ internal object MaterialSolido {
 
     // Silueta monocromática de hoja Excel con su X, sin color de marca.
     val Excel: ImageVector by lazy { icono("Excel", "M14 3h8v18h-8v-2h6v-3h-4v-2h4v-3h-4V9h4V5h-6z", "M2 5l12-2v18L2 19V5zm3 3l2.2 4L5 16h2l1.2-2.5L9.5 16h2l-2.3-4 2.3-4h-2l-1.3 2.5L7 8H5z") }
+    /** Triángulos sólidos ◄ y ► para spinners y selectores de paso. */
+    val ArrowLeft: ImageVector by lazy { icono("ArrowLeft", "M 16 5 L 6 12 L 16 19 Z", espejo = true) }
+    val ArrowRight: ImageVector by lazy { icono("ArrowRight", "M 8 5 L 18 12 L 8 19 Z", espejo = true) }
+    val DocumentScanner: ImageVector by lazy { icono("DocumentScanner", "M 7 3 H 4 v 3 H 2 V 1 h 5 v 2 z m 15 3 V 1 h -5 v 2 h 3 v 3 h 2 z M 7 21 H 4 v -3 H 2 v 5 h 5 v -2 z m 13 -3 v 3 h -3 v 2 h 5 v -5 h -2 z M 19 18 c 0 1.1 -.9 2 -2 2 H 7 c -1.1 0 -2 -.9 -2 -2 V 6 c 0 -1.1 .9 -2 2 -2 h 10 c 1.1 0 2 .9 2 2 v 12 z M 15 8 H 9 v 2 h 6 V 8 z m 0 3 H 9 v 2 h 6 v -2 z m 0 3 H 9 v 2 h 6 v -2 z") }
 
     private fun icono(nombre: String, vararg trazados: String, espejo: Boolean = false): ImageVector =
         ImageVector.Builder(

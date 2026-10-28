@@ -9,7 +9,7 @@ let package = Package(
         .target(
             name: "IShalevDomain",
             path: "Sources/Domain",
-            sources: ["Domain.swift", "License.swift", "AndroidBackup.swift", "SyncProtocol.swift", "SyncNetwork.swift", "SyncRepository.swift", "SyncManager.swift"],
+            sources: ["Domain.swift", "License.swift", "AndroidBackup.swift", "SyncProtocol.swift", "SyncNetwork.swift", "SyncRepository.swift", "SyncManager.swift", "OcrDocumentParser.swift"],
             linkerSettings: [.linkedLibrary("z")]
         ),
         .testTarget(

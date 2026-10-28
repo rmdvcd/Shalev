@@ -218,7 +218,10 @@ fun InicioScreen(
     LaunchedEffect(actVm) { actVm.eventos.collect { snackbar.showSnackbar(it) } }
     LaunchedEffect(state.dialogo) { if (state.dialogo == DialogoInicio.AbrirTurno) cajaVm.cargarSugerido() }
     if (caja.dialogoMovimiento) cu.shalev.app.caja.DialogoMovimientoCaja(
-        trabajando = caja.trabajando, onConfirmar = cajaVm::registrarMovimiento, onDismiss = cajaVm::cerrarMovimiento,
+        trabajando = caja.trabajando,
+        onConfirmar = cajaVm::registrarMovimiento,
+        onDismiss = cajaVm::cerrarMovimiento,
+        efectivoDisponible = caja.arqueo?.esperado,
     )
     InicioContent(
         state = state,

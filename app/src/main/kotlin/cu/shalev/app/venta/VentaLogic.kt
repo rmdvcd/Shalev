@@ -2,6 +2,9 @@ package cu.shalev.app.venta
 
 import cu.shalev.domain.model.nombreCompleto
 import cu.shalev.app.common.mensajeSync
+import cu.shalev.core.quantity.Cantidad
+import cu.shalev.domain.model.ElaboradoDisponible
+import cu.shalev.domain.model.Insumo
 import cu.shalev.domain.model.ServicioDisponible
 import cu.shalev.domain.model.IdArticulo
 import cu.shalev.domain.model.ClaseArticulo
@@ -13,6 +16,7 @@ import cu.shalev.core.result.AppError
 import cu.shalev.domain.model.DatosCliente
 import cu.shalev.domain.model.MetodoPago
 import cu.shalev.domain.model.Producto
+import cu.shalev.domain.model.comoProducto
 import cu.shalev.domain.service.LineaSolicitada
 import cu.shalev.domain.validation.Validadores
 
@@ -39,9 +43,67 @@ data class LineaCarrito(
     val maximo: Long get() = when {
         esServicio -> alcanza ?: Carrito.MAX_CANTIDAD
         esElaborado -> alcanza ?: 0
-        else -> producto.cantidad
+        else -> alcanza ?: producto.cantidad
     }
     val subtotalEstimado: Cup get() = producto.precioVenta * cantidad
+}
+
+/**
+ * Catálogo vivo con existencias de insumos y recetas para calcular en tiempo real el tope real de cada artículo,
+ * descontando los insumos que ya ocupan las demás líneas del carrito (evitando sobrepasar la capacidad real).
+ */
+data class CatalogoVenta(
+    val articulos: Map<Long, Producto> = emptyMap(),
+    /** Artículo (Elaborado o Servicio) → mapa (insumoId → milésimas consumidas por unidad). */
+    val recetasMil: Map<Long, Map<Long, Long>> = emptyMap(),
+    /** Artículos cuya receta referencia algún insumo inexistente o con consumo no positivo. */
+    val recetasInvalidas: Set<Long> = emptySet(),
+    /** Existencias actuales de cada insumo en milésimas (insumoId → milésimas). */
+    val insumosMil: Map<Long, Long> = emptyMap(),
+    val servicios: Boolean = false,
+) {
+    companion object {
+        fun deProductos(
+            productos: List<Producto>,
+            elaborados: List<ElaboradoDisponible>,
+            insumos: List<Insumo>,
+        ): CatalogoVenta {
+            val articulos = productos.associateBy { it.id } +
+                insumos.filter { it.precioVenta != null }.map { it.comoProducto() }.associateBy { it.id }
+            val recetasMil = linkedMapOf<Long, Map<Long, Long>>()
+            val invalidas = linkedSetOf<Long>()
+            for (e in elaborados) {
+                if (e.lineas.isEmpty() || e.lineas.any { !it.existe || it.porUnidad <= Cantidad.ZERO }) {
+                    invalidas += e.producto.id
+                } else {
+                    recetasMil[e.producto.id] = e.lineas.groupingBy { it.insumoId }
+                        .fold(0L) { acc, l -> Math.addExact(acc, l.porUnidad.milesimas) }
+                }
+            }
+            val insumosMil = insumos.associate { it.id to it.cantidad.milesimas.coerceAtLeast(0L) }
+            return CatalogoVenta(articulos, recetasMil, invalidas, insumosMil, servicios = false)
+        }
+
+        fun deServicios(disponibles: Map<Long, ServicioDisponible>): CatalogoVenta {
+            val articulos = disponibles.mapValues { (_, d) -> Carrito.deServicio(d) }
+            val recetasMil = linkedMapOf<Long, Map<Long, Long>>()
+            val invalidas = linkedSetOf<Long>()
+            val insumosMil = linkedMapOf<Long, Long>()
+            for ((id, d) in disponibles) {
+                for (l in d.lineas) {
+                    if (l.existe) insumosMil[l.insumoId] = l.disponible.milesimas.coerceAtLeast(0L)
+                }
+                if (d.lineas.isEmpty()) continue
+                if (d.lineas.any { !it.existe || it.porVez <= Cantidad.ZERO }) {
+                    invalidas += id
+                } else {
+                    recetasMil[id] = d.lineas.groupingBy { it.insumoId }
+                        .fold(0L) { acc, l -> Math.addExact(acc, l.porVez.milesimas) }
+                }
+            }
+            return CatalogoVenta(articulos, recetasMil, invalidas, insumosMil, servicios = true)
+        }
+    }
 }
 
 /** Reglas del carrito: puras, sin E/S. El carrito = productoId → cantidad, en orden de selección. */
@@ -113,6 +175,114 @@ object Carrito {
     fun aplanar(c: Map<Long, Long>): LongArray = c.flatMap { (k, v) -> listOf(k, v) }.toLongArray()
     fun restaurar(a: LongArray?): Map<Long, Long> =
         a?.toList()?.chunked(2)?.filter { it.size == 2 && it[1] > 0 }?.associateTo(linkedMapOf()) { it[0] to it[1] } ?: linkedMapOf()
+
+    /**
+     * Calcula el tope real disponible para cada artículo teniendo en cuenta los insumos compartidos por las demás
+     * líneas de [carrito] (Elaborados, Servicios con insumos e Insumos vendibles) y, si se está modificando una venta,
+     * las cantidades originales [devueltos] que volverían al inventario.
+     */
+    fun topesCompartidos(
+        carrito: Map<Long, Long>,
+        catalogo: CatalogoVenta,
+        devueltos: Map<Long, Long> = emptyMap(),
+    ): Map<Long, Long> {
+        val bolsaInsumos = LinkedHashMap<Long, Long>(catalogo.insumosMil)
+        for ((k, cantDevuelta) in devueltos) {
+            if (cantDevuelta <= 0) continue
+            when {
+                IdArticulo.esInsumo(k) -> {
+                    val insId = IdArticulo.insumoId(k)
+                    bolsaInsumos[insId] = (bolsaInsumos[insId] ?: 0L) + cantDevuelta * 1_000L
+                }
+                k in catalogo.recetasMil -> {
+                    for ((insId, porU) in catalogo.recetasMil.getValue(k)) {
+                        bolsaInsumos[insId] = (bolsaInsumos[insId] ?: 0L) + cantDevuelta * porU
+                    }
+                }
+            }
+        }
+
+        val consumoPorLinea = linkedMapOf<Long, Map<Long, Long>>()
+        val consumoTotal = linkedMapOf<Long, Long>()
+        for ((k, cant) in carrito) {
+            if (cant <= 0) continue
+            val mapaLinea: Map<Long, Long> = when {
+                IdArticulo.esInsumo(k) -> mapOf(IdArticulo.insumoId(k) to cant * 1_000L)
+                k in catalogo.recetasMil -> catalogo.recetasMil.getValue(k).mapValues { (_, porU) -> cant * porU }
+                else -> emptyMap()
+            }
+            if (mapaLinea.isNotEmpty()) {
+                consumoPorLinea[k] = mapaLinea
+                for ((insId, gastado) in mapaLinea) {
+                    consumoTotal[insId] = (consumoTotal[insId] ?: 0L) + gastado
+                }
+            }
+        }
+
+        val claves = catalogo.articulos.keys + carrito.keys + devueltos.keys
+        val topes = linkedMapOf<Long, Long>()
+        for (k in claves) {
+            val propio = consumoPorLinea[k].orEmpty()
+            fun librePara(insId: Long): Long {
+                val totalDisp = bolsaInsumos[insId] ?: 0L
+                val reservadoOtros = (consumoTotal[insId] ?: 0L) - (propio[insId] ?: 0L)
+                return (totalDisp - reservadoOtros).coerceAtLeast(0L)
+            }
+            val p = catalogo.articulos[k]
+            when {
+                k in catalogo.recetasInvalidas -> topes[k] = 0L
+                catalogo.servicios -> {
+                    val receta = catalogo.recetasMil[k]
+                    if (receta != null && receta.isNotEmpty()) {
+                        topes[k] = receta.minOf { (insId, porU) -> librePara(insId) / porU }.coerceAtMost(MAX_CANTIDAD)
+                    }
+                }
+                IdArticulo.esInsumo(k) -> {
+                    val insId = IdArticulo.insumoId(k)
+                    if (insId in bolsaInsumos) {
+                        topes[k] = (librePara(insId) / 1_000L).coerceAtMost(MAX_CANTIDAD)
+                    } else if (p != null) {
+                        topes[k] = (p.cantidad.coerceAtLeast(0L) + (devueltos[k] ?: 0L)).coerceAtMost(MAX_CANTIDAD)
+                    }
+                }
+                p?.esElaborado == true -> {
+                    val receta = catalogo.recetasMil[k]
+                    topes[k] = if (receta.isNullOrEmpty()) (devueltos[k] ?: 0L)
+                    else receta.minOf { (insId, porU) -> librePara(insId) / porU }.coerceAtMost(MAX_CANTIDAD)
+                }
+            }
+        }
+        return topes
+    }
+
+    /**
+     * Recorta las cantidades del [carrito] en orden para que ninguna línea supere las existencias ni los insumos
+     * compartidos disponibles. Si el inventario está cargado ([catalogo.articulos] no vacío), descarta las líneas cuyo
+     * tope real es 0.
+     */
+    fun recortarACapacidad(
+        carrito: Map<Long, Long>,
+        catalogo: CatalogoVenta,
+        devueltos: Map<Long, Long> = emptyMap(),
+    ): Map<Long, Long> {
+        if (catalogo.articulos.isEmpty() || carrito.isEmpty()) return carrito
+        val resultado = linkedMapOf<Long, Long>()
+        for ((id, solicitada) in carrito) {
+            if (solicitada <= 0) continue
+            val p = catalogo.articulos[id]?.takeUnless { it.eliminado }
+            val topes = topesCompartidos(resultado, catalogo, devueltos)
+            val tope = when {
+                id in topes -> topes.getValue(id)
+                catalogo.servicios -> MAX_CANTIDAD
+                p != null -> (p.cantidad.coerceAtLeast(0L) + (devueltos[id] ?: 0L)).coerceAtMost(MAX_CANTIDAD)
+                else -> (devueltos[id] ?: 0L).coerceAtMost(MAX_CANTIDAD)
+            }
+            if (tope > 0) {
+                resultado[id] = solicitada.coerceIn(1L, tope)
+            }
+        }
+        return resultado
+    }
 }
 
 /** Formulario de la transferencia (Shalev.txt: Nombre y Apellidos, CI, Teléfono, Número de transacción). */

@@ -229,4 +229,27 @@ class LicenseFlowTest {
         val m = LicenseManager(store, device, deviceId, null, emptyList(), clock)
         assertFalse(m.canRequest)
     }
+
+    @Test fun solicitudDeAmpliacionCifraAmpliaYCobraSoloSecundariasNuevas() {
+        val m = manager()
+        val s = m.buildRequest(
+            input(TipoLicencia.MENSUAL).copy(
+                secundarias = 5,
+                amplia = "3f2a9c0d-1e4b-5a67-8899-aabbccddeeff",
+                secundariasPrevias = 2,
+            ),
+        )
+        val (intro, cifrada) = s.texto.split("\n\n").also { assertEquals(2, it.size) }
+        val req = gl.openRequest(cifrada)
+        assertEquals("3f2a9c0d-1e4b-5a67-8899-aabbccddeeff", req.amplia)
+        assertNull(req.renueva)
+        assertNull(req.recupera)
+        assertEquals(5, req.secundarias)
+        assertTrue(intro.lines().contains("Ampliar secundarias Shalev"))
+        assertTrue(intro.lines().contains("Apps secundarias actuales: 2"))
+        assertTrue(intro.lines().contains("Secundarias adicionales: 3"))
+        assertTrue(intro.lines().contains("Apps secundarias: 5"))
+        assertTrue(intro.lines().contains("Precio: 3,000.00 CUP"))
+        assertTrue(intro.lines().contains("Amplía: 3f2a9c0d-1e4b-5a67-8899-aabbccddeeff"))
+    }
 }

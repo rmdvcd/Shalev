@@ -64,7 +64,17 @@ class LicenciaViewModel @Inject constructor(
                 .collect { (lic, previstos) ->
                     _state.update { s ->
                         var form = if (lic != null && !tipoElegidoPorUsuario) s.form.copy(tipo = lic.tipoSugerido()) else s.form
-                        if (lic != null && !secundariasElegidasPorUsuario) form = form.conSecundarias(lic.secundariasSugeridas(previstos))
+                        if (lic != null && !secundariasElegidasPorUsuario) {
+                            val sugeridas = if (lic.estado is cu.shalev.licencia.LicenseState.Perpetual && lic.ampliable()) {
+                                (lic.instalada?.secundarias ?: 0) + 1
+                            } else {
+                                lic.secundariasSugeridas(previstos)
+                            }
+                            form = form.conSecundarias(sugeridas)
+                        }
+                        if (lic != null && !lic.ampliable() && form.ampliandoSecundarias) {
+                            form = form.copy(ampliandoSecundarias = false)
+                        }
                         s.copy(licencia = lic, form = form)
                     }
                 }
@@ -84,6 +94,16 @@ class LicenciaViewModel @Inject constructor(
     fun renovarIgual(): Boolean {
         val instalada = _state.value.licencia?.instalada ?: return false
         editar { it.igualQue(instalada) }
+        val ok = _state.value.form.valido
+        if (!ok) editar { it.copy(mostrarErrores = true, editando = true) }
+        return ok
+    }
+
+    /** Prepara una solicitud de ampliación de secundarias (+1 inicial) sobre la licencia vigente instalada. */
+    fun ampliarSecundarias(): Boolean {
+        val lic = _state.value.licencia ?: return false
+        val instalada = lic.instalada?.takeIf { lic.ampliable() } ?: return false
+        editar { it.conModoAmpliacion(true, instalada) }
         val ok = _state.value.form.valido
         if (!ok) editar { it.copy(mostrarErrores = true, editando = true) }
         return ok
@@ -112,12 +132,17 @@ class LicenciaViewModel @Inject constructor(
 
     /** Los datos introducidos se guardan en el Perfil al solicitar (Licencia → Perfil, en SolicitarLicencia). */
     fun solicitarLicencia() {
+        val lic = _state.value.licencia
         val f = _state.value.form
         if (!f.valido) { editar { it.copy(mostrarErrores = true, editando = true) }; return }
-        if (!f.recuperaOk) { viewModelScope.launch { eventos.send(LicenciaEvento.Mensaje(TextosRecuperacion.ID_INVALIDO)) }; return }
+        val esAmpliacion = lic?.accionSolicitud(f.ampliandoSecundarias) == AccionSolicitud.AMPLIAR
+        if (!esAmpliacion && !f.recuperaOk) {
+            viewModelScope.launch { eventos.send(LicenciaEvento.Mensaje(TextosRecuperacion.ID_INVALIDO)) }
+            return
+        }
         viewModelScope.launch {
             _state.update { it.copy(ocupado = true) }
-            when (val r = solicitar(f.aInput())) {
+            when (val r = solicitar(f.aInput(lic))) {
                 is AppResult.Ok -> {
                     editar { it.copy(editando = false, mostrarErrores = false) }
                     eventos.send(LicenciaEvento.Enviar(f.via, r.value.texto))
