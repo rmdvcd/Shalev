@@ -180,6 +180,7 @@ private struct EmployeeEditorView: View {
                             Text("Nombre del empleado").font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                             TextField("Nombre del empleado", text: $name)
                                 .textInputAutocapitalization(.words)
+                                .submitLabel(.done)
                                 .padding(12)
                                 .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
                             Divider()

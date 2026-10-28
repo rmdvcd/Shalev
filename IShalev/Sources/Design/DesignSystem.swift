@@ -380,6 +380,7 @@ struct ShalevSearchField: View {
                 .foregroundStyle(Color.shalevText)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .submitLabel(.search)
             if !text.isEmpty {
                 Button { text = "" } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(Color.shalevSecondaryText)

@@ -346,6 +346,7 @@ private struct ServiceEditorView: View {
                 TextField(placeholder, text: text, axis: .vertical).lineLimit(2...4).textFieldStyle(ServiceInputStyle())
             } else {
                 TextField(placeholder, text: text).textFieldStyle(ServiceInputStyle())
+                    .submitLabel(.done)
             }
         }
     }

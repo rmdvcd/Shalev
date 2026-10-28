@@ -431,6 +431,7 @@ struct ExportCenterView: View {
             VStack(alignment: .leading, spacing: 11) {
                 ShalevSectionHeader(title: "Imágenes para compartir")
                 TextField("Comentario opcional en las imágenes", text: $exportComment)
+                    .submitLabel(.done)
                     .padding(11).background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
                 Button(action: exportPriceImages) { Label("Lista de precios en PNG", systemImage: "photo") }
                     .buttonStyle(ShalevTonalButtonStyle())

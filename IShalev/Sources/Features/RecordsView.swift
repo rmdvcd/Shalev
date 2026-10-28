@@ -551,6 +551,7 @@ private struct CustomerDetailView: View {
                                 }
                             TextField("Teléfono", text: $phone)
                                 .keyboardType(.phonePad).textFieldStyle(SaleEditFieldStyle())
+                                .textContentType(.telephoneNumber)
                             Button { save() } label: { Label("Guardar cambios", systemImage: "checkmark") }
                                 .buttonStyle(ShalevPrimaryButtonStyle())
                         }
@@ -864,14 +865,16 @@ private struct SaleEditView: View {
                                 TextField("N.º de transacción", text: $transactionNumber)
                                     .textInputAutocapitalization(.characters)
                                     .textFieldStyle(SaleEditFieldStyle())
+                                    .submitLabel(.done)
                                 Text("Datos del cliente").font(.shalev(12, weight: .semibold)).foregroundStyle(Color.shalevText)
                                 TextField("Nombre y apellidos", text: $customerName)
-                                    .textFieldStyle(SaleEditFieldStyle())
+                                    .textContentType(.name).textFieldStyle(SaleEditFieldStyle())
                                 TextField("Carné cubano de 11 dígitos", text: $customerID)
                                     .keyboardType(.numberPad)
                                     .textFieldStyle(SaleEditFieldStyle())
                                 TextField("Teléfono", text: $customerPhone)
                                     .keyboardType(.phonePad)
+                                    .textContentType(.telephoneNumber)
                                     .textFieldStyle(SaleEditFieldStyle())
                                 Toggle("Cliente fijo", isOn: $customerIsFixed).tint(Color.shalevPrimary)
                             }
@@ -888,6 +891,7 @@ private struct SaleEditView: View {
                                 .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                             TextField("Ej. Cantidad incorrecta", text: $reason)
                                 .textFieldStyle(SaleEditFieldStyle())
+                                .submitLabel(.done)
                                 .onChange(of: reason) { _, value in if value.count > 60 { reason = String(value.prefix(60)) } }
                         }
                     }

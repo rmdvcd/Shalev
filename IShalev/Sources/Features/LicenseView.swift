@@ -650,6 +650,8 @@ struct LicenseView: View {
                 .keyboardType(keyboard)
                 .textInputAutocapitalization(capitalization)
                 .autocorrectionDisabled()
+                .submitLabel(.done)
+                .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
                 .font(.shalev(14))
                 .padding(11)
                 .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))

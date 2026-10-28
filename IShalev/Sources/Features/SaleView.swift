@@ -397,6 +397,7 @@ struct SaleComposerView: View {
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
                     .textFieldStyle(SaleInputStyle())
+                    .submitLabel(.done)
                     .onChange(of: transactionNumber) { _, value in
                         if value.count > 30 { transactionNumber = String(value.prefix(30)) }
                     }
@@ -447,6 +448,7 @@ struct SaleComposerView: View {
                     }
                 TextField("Teléfono", text: $customerPhone)
                     .keyboardType(.phonePad).textFieldStyle(SaleInputStyle())
+                    .textContentType(.telephoneNumber)
                 Toggle("Guardar como cliente fijo", isOn: $customerIsFixed).tint(Color.shalevPrimary)
                 let matches = CustomerValidator.suggestions(store.data.customers, containing: customerName)
                 ForEach(matches) { match in

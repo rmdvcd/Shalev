@@ -402,6 +402,7 @@ private struct ProfileSettingsView: View {
             TextField(placeholder, text: text)
                 .textInputAutocapitalization(capitalization)
                 .autocorrectionDisabled()
+                .submitLabel(.done)
                 .font(.shalev(14))
                 .padding(11)
                 .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
@@ -899,6 +900,7 @@ private struct PaymentEditorSheet: View {
                             .foregroundStyle(Color.shalevSecondaryText)
                         TextField(kind == .phone ? "5123 4567" : "9205 0000 0000 0000", text: $number)
                             .keyboardType(kind == .phone ? .phonePad : .numberPad)
+                            .textContentType(kind == .phone ? .telephoneNumber : nil)
                             .autocorrectionDisabled()
                             .font(.shalev(14))
                             .padding(11)
@@ -938,6 +940,7 @@ private struct PaymentEditorSheet: View {
                             .foregroundStyle(Color.shalevSecondaryText)
                         TextField(kind == .phone ? "Mi móvil" : "Tarjeta del banco", text: $alias)
                             .autocorrectionDisabled()
+                            .submitLabel(.done)
                             .font(.shalev(14))
                             .padding(11)
                             .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
@@ -1582,6 +1585,7 @@ private struct BackupSettingsView: View {
                     TextField(title, text: text)
                 }
             }
+            .submitLabel(.done)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .font(.shalev(14))
@@ -2017,6 +2021,8 @@ private func labeledField(_ title: String, text: Binding<String>, placeholder: S
     VStack(alignment: .leading, spacing: 6) {
         Text(title).font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
         TextField(placeholder, text: text).keyboardType(keyboard).textFieldStyle(SettingsInputStyle())
+            .submitLabel(.done)
+            .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
     }
 }
 

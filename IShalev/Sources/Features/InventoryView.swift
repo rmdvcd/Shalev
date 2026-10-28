@@ -1079,6 +1079,8 @@ private struct ProductEditorView: View {
                 TextField(placeholder, text: text, axis: .vertical).lineLimit(2...4).textFieldStyle(ShalevTextFieldStyle())
             } else {
                 TextField(placeholder, text: text).keyboardType(keyboard).textFieldStyle(ShalevTextFieldStyle())
+                    .submitLabel(.done)
+                    .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
             }
             if let help {
                 Text(help).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
