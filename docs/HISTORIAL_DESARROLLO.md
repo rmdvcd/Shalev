@@ -2322,10 +2322,10 @@ Los dos hallazgos restantes son decisiones pendientes del dueño, no descuidos: 
 
 ### Compilación iOS desbloqueada en GitHub Actions (`macos-15-intel`), Appetize y `IShalev.ipa`
 
-Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por saturación de la cola Apple Silicon de GitHub Actions. Se migró `.github/workflows/ios-build.yml` a **`macos-15-intel`** (Xcode 16.4, cola inmediata) con tres salidas verificadas en verde (run `40735858971`, commit `47a0dc4`):
+Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por saturación de la cola Apple Silicon de GitHub Actions. Se migró `.github/workflows/ios-build.yml` a **`macos-15-intel`** (Xcode 16.4, cola inmediata) con tres salidas verificadas en verde (runs `40735858971` en `47a0dc4` y `40740036716` en `8e7f7da`):
 
 1. **`swift test --package-path IShalev`** en verde.
-2. **Paquete universal de simulador (`ARCHS="arm64 x86_64"`, `IShalev-iOS-Simulator.zip`)** subido automáticamente a Appetize.io (`https://appetize.io/app/whis2dcnlxk2jt3u3priu3qpxm`), ya que Appetize exige un `.app` de simulador comprimido y no admite `.ipa` de dispositivo.
+2. **Paquete universal de simulador (`ARCHS="arm64 x86_64"`, `IShalev-iOS-Simulator.zip`)** subido automáticamente a Appetize.io (`https://appetize.io/app/w3nz2pnc4iwdzjao2evosl7dci`), ya que Appetize exige un `.app` de simulador comprimido y no admite `.ipa` de dispositivo.
 3. **Compilación Release para dispositivo (`generic/platform=iOS`, sin firma) empaquetada como `IShalev.ipa` (4,1 MB)** y publicada como artefacto `IShalev-iOS-IPA`, que verifica además las rutas `#if !targetEnvironment(simulator)` del código.
 
 **Desviación aceptada en las dos apps:** la barra inferior mantiene solo iconos (5 destinos) aunque la HIG pida etiquetas de texto. Decisión del dueño por requisito de producto y paridad; se compensa con nombre y posición por lector de pantalla, iconos inequívocos y selección por relleno e inversión, no solo por color. Queda escrita en `UI_UX_IX.md`.
