@@ -29,7 +29,7 @@ struct EmployeeSettingsView: View {
                         }
                         .pickerStyle(.menu)
                         Text("El operador seleccionado limita los módulos visibles y acciones disponibles en este teléfono.")
-                            .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                     }
                 }
                 ShalevCard {
@@ -38,21 +38,21 @@ struct EmployeeSettingsView: View {
                             ShalevSectionHeader(title: "Perfiles de empleado", trailing: "\(store.employees.count)")
                             Spacer(minLength: 5)
                             Button { editor = EmployeeEditorRoute(employee: nil) } label: {
-                                Image(systemName: "plus.circle.fill").font(.system(size: 22)).foregroundStyle(Color.shalevPrimary)
+                                Image(systemName: "plus.circle.fill").font(.shalev(22)).foregroundStyle(Color.shalevPrimary)
                             }
                             .accessibilityLabel("Agregar empleado")
                         }
                         if store.employees.isEmpty {
                             Text("Aún no hay perfiles. Crea uno y asígnale los módulos que puede usar.")
-                                .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                                .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                         } else {
                             ForEach(store.employees) { employee in
                                 HStack(spacing: 9) {
-                                    Image(systemName: "person.crop.circle.fill").font(.system(size: 26)).foregroundStyle(Color.shalevPrimary)
+                                    Image(systemName: "person.crop.circle.fill").font(.shalev(26)).foregroundStyle(Color.shalevPrimary)
                                     VStack(alignment: .leading, spacing: 3) {
-                                        Text(employee.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                        Text(employee.name).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
                                         Text("\(employee.hasPIN ? "PIN configurado" : "Falta PIN") · \(employee.permissions.count) permiso\(employee.permissions.count == 1 ? "" : "s")")
-                                            .font(.system(size: 10)).foregroundStyle(employee.hasPIN ? Color.shalevSecondaryText : Color.shalevError).lineLimit(2)
+                                            .font(.shalev(10)).foregroundStyle(employee.hasPIN ? Color.shalevSecondaryText : Color.shalevError).lineLimit(2)
                                     }
                                     Spacer(minLength: 3)
                                     Button { editor = EmployeeEditorRoute(employee: employee) } label: {
@@ -73,9 +73,9 @@ struct EmployeeSettingsView: View {
                 ShalevCard {
                     VStack(alignment: .leading, spacing: 7) {
                         Label("Alcance en iOS", systemImage: "info.circle.fill")
-                            .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                            .font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                         Text("Cada empleado usa un PIN propio de 6 a 12 dígitos; se guarda solo un verificador PBKDF2 dentro de los datos cifrados. Cinco intentos fallidos bloquean el perfil durante 15 minutos. Al volver de segundo plano se solicita otra vez. Cambiar al administrador exige Face ID o el código del dispositivo. Los perfiles siguen siendo locales y no se sincronizan con Android.")
-                            .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                     }
                 }
                 .padding(.bottom, 20)
@@ -130,15 +130,15 @@ struct EmployeePermissionRow: View {
         Button { toggle(!isOn) } label: {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: isOn ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 19))
+                    .font(.shalev(19))
                     .foregroundStyle(isOn ? Color.shalevPrimary : Color.shalevSecondaryText)
                     .padding(.top, 1)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(permission.rawValue)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.shalev(13, weight: .medium))
                         .foregroundStyle(Color.shalevText)
                     Text(permission.detail)
-                        .font(.system(size: 11))
+                        .font(.shalev(11))
                         .foregroundStyle(Color.shalevSecondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -177,13 +177,13 @@ private struct EmployeeEditorView: View {
                                      subtitle: "Selecciona las acciones permitidas.")
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 11) {
-                            Text("Nombre del empleado").font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                            Text("Nombre del empleado").font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                             TextField("Nombre del empleado", text: $name)
                                 .textInputAutocapitalization(.words)
                                 .padding(12)
                                 .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
                             Divider()
-                            Text("Permisos").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                            Text("Permisos").font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
                             ForEach(EmployeePermission.allCases) { permission in
                                 EmployeePermissionRow(permission: permission, isOn: permissions.contains(permission)) { enabled in
                                     if enabled { permissions.insert(permission) } else { permissions.remove(permission) }
@@ -198,7 +198,7 @@ private struct EmployeeEditorView: View {
                             Text(employee?.hasPIN == true
                                  ? "El PIN actual está protegido. Deja ambos campos vacíos para conservarlo o escribe uno nuevo para reemplazarlo."
                                  : "Obligatorio para activar este perfil. Usa de 6 a 12 dígitos.")
-                                .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                             SecureField("PIN de 6 a 12 dígitos", text: $pin)
                                 .keyboardType(.numberPad)
                                 .padding(12)
@@ -210,7 +210,7 @@ private struct EmployeeEditorView: View {
                         }
                     }
                     if let errorMessage {
-                        Text(errorMessage).font(.system(size: 12)).foregroundStyle(Color.shalevError)
+                        Text(errorMessage).font(.shalev(12)).foregroundStyle(Color.shalevError)
                     }
                     Button(action: save) { Label("Guardar perfil", systemImage: "checkmark.circle.fill") }
                         .buttonStyle(ShalevPrimaryButtonStyle()).padding(.bottom, 20)
@@ -263,15 +263,15 @@ struct EmployeeSessionLockView: View {
         VStack(spacing: 18) {
             Spacer()
             Image(systemName: employee.hasPIN ? "person.badge.key.fill" : "person.crop.circle.badge.exclamationmark")
-                .font(.system(size: 50, weight: .regular))
+                .font(.shalev(50, weight: .regular))
                 .foregroundStyle(Color.shalevPrimary)
                 .frame(width: 96, height: 96)
                 .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 28))
             Text("Perfil de \(employee.name)")
-                .font(.system(size: 23, weight: .bold)).foregroundStyle(Color.shalevText)
+                .font(.shalev(23, weight: .bold)).foregroundStyle(Color.shalevText)
             if employee.hasPIN {
                 Text(message)
-                    .font(.system(size: 14)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(14)).foregroundStyle(Color.shalevSecondaryText)
                     .multilineTextAlignment(.center).frame(maxWidth: 340)
                 SecureField("PIN de 6 a 12 dígitos", text: $pin)
                     .keyboardType(.numberPad)
@@ -284,17 +284,17 @@ struct EmployeeSessionLockView: View {
                     .disabled(pin.isEmpty)
             } else {
                 Text("Este perfil todavía no tiene PIN. Vuelve al administrador para configurarlo en Ajustes → Empleados.")
-                    .font(.system(size: 14)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(14)).foregroundStyle(Color.shalevSecondaryText)
                     .multilineTextAlignment(.center).frame(maxWidth: 340)
             }
             Button(action: onSwitchToOwner) {
                 Label("Volver al administrador", systemImage: "person.crop.circle.badge.checkmark")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.shalev(13, weight: .semibold))
             }
             .buttonStyle(.plain).foregroundStyle(Color.shalevPrimary)
             Spacer()
             Text("La verificación del PIN se realiza localmente en este dispositivo.")
-                .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                 .padding(.bottom, 20)
         }
         .padding(24)

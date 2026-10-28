@@ -47,10 +47,11 @@ struct ServicesView: View {
                     Button { showFilterSheet = true } label: {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: "line.3.horizontal.decrease")
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(.shalev(17, weight: .semibold))
                                 .foregroundStyle(typeFilter == nil ? Color.shalevText : Color.shalevOnPrimary)
                                 .frame(width: 42, height: 42)
                                 .background(typeFilter == nil ? .clear : Color.shalevPrimary, in: Circle())
+                                .shalevToque()
                             if typeFilter != nil {
                                 Circle().fill(Color.shalevSecondary).frame(width: 9, height: 9).offset(x: -4, y: 5)
                             }
@@ -68,16 +69,17 @@ struct ServicesView: View {
 
             HStack(spacing: 8) {
                 Text("\(services.count) \(services.count == 1 ? "servicio" : "servicios")")
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                 if let typeFilter {
                     Button { self.typeFilter = nil } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
-                            Text(typeFilter).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                            Image(systemName: "xmark").font(.shalev(9, weight: .bold))
+                            Text(typeFilter).font(.shalev(11, weight: .semibold)).lineLimit(1)
                         }
                         .foregroundStyle(Color.shalevOnPrimary)
-                        .padding(.horizontal, 9).frame(height: 26)
+                        .padding(.horizontal, 9).frame(minHeight: 26)
                         .background(Color.shalevPrimary, in: Capsule())
+                        .shalevToque()
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Quitar el filtro \(typeFilter)")
@@ -142,19 +144,19 @@ private struct ServiceRow: View {
                     .frame(width: 48, height: 48).clipped().clipShape(RoundedRectangle(cornerRadius: 14))
             } else {
                 Image(systemName: "scissors")
-                    .font(.system(size: 18, weight: .semibold)).foregroundStyle(Color.shalevTertiary)
+                    .font(.shalev(18, weight: .semibold)).foregroundStyle(Color.shalevTertiary)
                     .frame(width: 48, height: 48).background(Color.shalevTertiaryContainer, in: RoundedRectangle(cornerRadius: 14))
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(service.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1)
+                Text(service.name).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1)
                 let capacity = store.availableQuantity(kind: .service, sourceID: service.id) ?? 0
                 Text(service.uses.isEmpty ? service.type : "Alcanza para \(capacity) · \(service.type)")
-                    .font(.system(size: 12)).foregroundStyle(capacity == 0 && !service.uses.isEmpty ? Color.shalevError : Color.shalevSecondaryText)
+                    .font(.shalev(12)).foregroundStyle(capacity == 0 && !service.uses.isEmpty ? Color.shalevError : Color.shalevSecondaryText)
                     .lineLimit(1)
             }
             Spacer(minLength: 8)
             Text(Cup(cents: service.priceCents).formatted)
-                .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1).minimumScaleFactor(0.78)
+                .font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1).minimumScaleFactor(0.78)
         }
         .padding(13)
         .background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -222,7 +224,7 @@ private struct ServiceEditorView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
                             } else {
                                 Image(systemName: "photo.on.rectangle.angled")
-                                    .font(.system(size: 30)).foregroundStyle(Color.shalevTertiary)
+                                    .font(.shalev(30)).foregroundStyle(Color.shalevTertiary)
                                     .frame(maxWidth: .infinity).frame(height: 95)
                                     .background(Color.shalevSurfaceVariant, in: RoundedRectangle(cornerRadius: 14))
                             }
@@ -242,12 +244,12 @@ private struct ServiceEditorView: View {
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 13) {
                             Text("* Obligatorio")
-                                .font(.system(size: 11))
+                                .font(.shalev(11))
                                 .foregroundStyle(Color.shalevSecondaryText)
                             input("Nombre *", text: $name, placeholder: "Corte de pelo")
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Importe (CUP) *")
-                                    .font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                                    .font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                                 TextField("0.00", text: $price).keyboardType(.decimalPad).textFieldStyle(ServiceInputStyle())
                             }
                             input("Descripción (máximo 40)", text: $description, placeholder: "A domicilio, 30 minutos")
@@ -274,13 +276,13 @@ private struct ServiceEditorView: View {
                                 Label(service == nil ? "Guardar servicio" : "Guardar cambios", systemImage: "checkmark")
                             }
                             .buttonStyle(ShalevPrimaryButtonStyle()).disabled(working)
-                            if working { ProgressView().frame(maxWidth: .infinity) }
+                            if working { ProgressView().accessibilityLabel("Cargando").frame(maxWidth: .infinity) }
                         }
                     }
                     if service != nil {
                         Button(role: .destructive) { confirmDelete = true } label: {
                             Label("Eliminar servicio", systemImage: "trash")
-                                .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevError)
+                                .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevError)
                                 .frame(maxWidth: .infinity, minHeight: 46)
                         }
                         .padding(.horizontal, 20).padding(.bottom, 18)
@@ -306,18 +308,18 @@ private struct ServiceEditorView: View {
 
     private var recipeEditor: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Insumos por servicio").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+            Text("Insumos por servicio").font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
             Text("Si no añades insumos, el servicio no tiene límite de disponibilidad.")
-                .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
             if ingredients.isEmpty {
-                Text("No hay insumos creados todavía.").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                Text("No hay insumos creados todavía.").font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
             } else {
                 ForEach(recipe) { use in
                     HStack {
                         Text(ingredients.first(where: { $0.id == use.ingredientID })?.name ?? "Insumo eliminado")
-                            .font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevText)
+                            .font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevText)
                         Spacer()
-                        Text(FixedNumber.formatMilli(use.milliUnits)).font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                        Text(FixedNumber.formatMilli(use.milliUnits)).font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                         Button { recipe.removeAll { $0.id == use.id } } label: {
                             Image(systemName: "minus.circle.fill").foregroundStyle(Color.shalevError)
                         }
@@ -339,7 +341,7 @@ private struct ServiceEditorView: View {
 
     private func input(_ title: String, text: Binding<String>, placeholder: String, multiline: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+            Text(title).font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
             if multiline {
                 TextField(placeholder, text: text, axis: .vertical).lineLimit(2...4).textFieldStyle(ServiceInputStyle())
             } else {
@@ -417,7 +419,7 @@ private struct ServiceEditorView: View {
 
 private struct ServiceInputStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration.font(.system(size: 14)).foregroundStyle(Color.shalevText)
+        configuration.font(.shalev(14)).foregroundStyle(Color.shalevText)
             .padding(11).background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 11).stroke(Color.shalevOutlineVariant, lineWidth: 1))
     }
@@ -461,7 +463,7 @@ private struct ServiceFilterSheet: View {
     private func option(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
-                Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(Color.shalevText)
+                Text(title).font(.shalev(14, weight: .medium)).foregroundStyle(Color.shalevText)
                 Spacer()
                 if isSelected { Image(systemName: "checkmark").foregroundStyle(Color.shalevPrimary) }
             }

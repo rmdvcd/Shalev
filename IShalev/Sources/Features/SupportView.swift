@@ -20,7 +20,7 @@ struct SupportView: View {
                 ShalevCard {
                     VStack(spacing: 12) {
                         Image(systemName: "person.crop.circle.badge.questionmark")
-                            .font(.system(size: 43)).foregroundStyle(Color.shalevPrimary)
+                            .font(.shalev(43)).foregroundStyle(Color.shalevPrimary)
                             .frame(maxWidth: .infinity).padding(.bottom, 4)
                         contactRow("Desarrollador", "Ing. Ronnie Montero Duarte")
                         Divider()
@@ -35,13 +35,13 @@ struct SupportView: View {
                         Divider()
                         contactRow("Especialidad", "Desarrollo de sistemas y aplicaciones multiplataforma")
                     }
-                    .font(.system(size: 13))
+                    .font(.shalev(13))
                     .textSelection(.enabled)
                 }
                 ShalevCard {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("¿Tienes dudas o problemas? Escribe al desarrollador.")
-                            .font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevText)
+                            .font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevText)
                         Link(destination: whatsapp) {
                             Label("Escribir por WhatsApp", systemImage: "message.fill")
                         }
@@ -51,7 +51,7 @@ struct SupportView: View {
                         }
                         .buttonStyle(ShalevTonalButtonStyle())
                         Text("Nunca te pediremos tus contraseñas ni los datos de tu tarjeta.\nIShalev · \(version)")
-                            .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                             .frame(maxWidth: .infinity).multilineTextAlignment(.center).padding(.top, 3)
                     }
                 }

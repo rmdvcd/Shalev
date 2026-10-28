@@ -11,14 +11,14 @@ struct DeviceLockView: View {
         VStack(spacing: 18) {
             Spacer()
             Image(systemName: "lock.shield.fill")
-                .font(.system(size: 54, weight: .regular))
+                .font(.shalev(54, weight: .regular))
                 .foregroundStyle(Color.shalevPrimary)
                 .frame(width: 100, height: 100)
                 .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 30))
             Text("Shalev está bloqueada")
-                .font(.system(size: 23, weight: .bold)).foregroundStyle(Color.shalevText)
+                .font(.shalev(23, weight: .bold)).foregroundStyle(Color.shalevText)
             Text(message)
-                .font(.system(size: 14)).foregroundStyle(Color.shalevSecondaryText)
+                .font(.shalev(14)).foregroundStyle(Color.shalevSecondaryText)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 340)
             Button(action: authenticate) {
@@ -28,7 +28,7 @@ struct DeviceLockView: View {
             .disabled(isAuthenticating)
             Spacer()
             Text("La autenticación se realiza localmente en iOS.")
-                .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                 .padding(.bottom, 20)
         }
         .padding(24)

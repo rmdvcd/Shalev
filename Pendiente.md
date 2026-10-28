@@ -15,6 +15,17 @@ La versión del código es **0.30.0 (`versionCode 51`)**. Los cambios Android en
 - Capturas Roborazzi ejecutadas el 2026-10-17: 525 capturas, **1 fallo de comparación** en `01f_inicio_dialogo_cerrar_turno.png`, que es del cambio de cierre con conteo ya en `main` (no regenerada aquí); ninguna captura de Registros cambia. Falta decidir si esa captura se regenera con el cambio de cierre. El 2026-10-18 `verifyRoborazziDebug` quedó en **527 capturas en verde**.
 - Publicar los cambios en curso (editar Registros, retirada del OCR y auditoría de UI, 0.31.0): correr CI, subir y regenerar capturas tras decidir lo anterior.
 
+## Auditoría UI · UX · IX (2026-10-28)
+
+Informe: [docs/AUDITORIA_UI_UX_IX_2026-10-28.md](docs/AUDITORIA_UI_UX_IX_2026-10-28.md). Los bloqueantes y altos de IShalev ya están corregidos en esta rama (Dynamic Type en las 483 tipografías, área táctil de 44 pt en 19 controles, Reduce Motion, Reduce Transparency, vibración y etiquetas de VoiceOver). Queda:
+
+- **Compilar IShalev.** Este entorno no tiene Xcode/Swift: los cambios no se compilaron aquí. Correr `swift test --package-path IShalev` y `xcodebuild -project IShalev/IShalev.xcodeproj -scheme IShalev -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO build` (lo hace el CI en macOS), y revisar la app con VoiceOver, en Modo Oscuro y con letra grande.
+- **IX-013 (Alta, IShalev):** portar el reflow de Android (`letraGrande()`) para las categorías de accesibilidad AX2–AX5 y quitar el tope de 1,6× en `ShalevDynamicType.escalaMaxima`.
+- **AND-001 (Alta, Shalev):** casilla de selección a 48 dp (`size(ShalevSize.touchTarget)` conservando el dibujo de 16 dp) y **regrabar** las capturas de Inventario, Servicios, Registros, Clientes y Pago electrónico. Pendiente de decisión del dueño desde 0.32.0.
+- **IX-012 (Media, IShalev):** `@FocusState` + `.submitLabel(.next/.done)` + `.textContentType` en los formularios, para el teclado que avanza y el autocompletado que Android sí tiene.
+- **AND-002 (Media, Shalev):** decidir si los permisos de la primera apertura siguen en lote o pasan a petición just-in-time.
+- **UX-014 / AND-003 (Media, las dos):** decidir si se añade `pull to refresh` en las pantallas con sincronización LAN (en el resto no hay nada que refrescar de la red).
+
 ## Validación en dispositivos antes de publicar
 
 - Instrumentados de Room: `:data:RepositoriosRoomTest` 9/9 y `:data:TurnoRepositoryInstrumentedTest` 8/8 en verde el 2026-10-17 en el teléfono 4bc9f8f3 (Android 15, API 35). Faltan los instrumentados de UI de `:app`.

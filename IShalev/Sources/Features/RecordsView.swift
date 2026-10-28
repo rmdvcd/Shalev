@@ -199,10 +199,11 @@ struct RecordsView: View {
                     Button { showFilterSheet = true } label: {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: "line.3.horizontal.decrease")
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(.shalev(17, weight: .semibold))
                                 .foregroundStyle(filter.isActive ? Color.shalevOnPrimary : Color.shalevText)
                                 .frame(width: 42, height: 42)
                                 .background(filter.isActive ? Color.shalevPrimary : .clear, in: Circle())
+                                .shalevToque()
                             if filter.isActive {
                                 Circle().fill(Color.shalevSecondary).frame(width: 9, height: 9)
                                     .offset(x: -4, y: 5)
@@ -218,8 +219,9 @@ struct RecordsView: View {
                             Button("PDF", systemImage: "doc.richtext") { export(.pdf) }
                         } label: {
                             Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 17, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                .font(.shalev(17, weight: .semibold)).foregroundStyle(Color.shalevText)
                                 .frame(width: 42, height: 42)
+                                .shalevToque()
                         }
                         .accessibilityLabel("Exportar registros")
                     }
@@ -242,13 +244,14 @@ struct RecordsView: View {
             if filter.isActive {
                 Button { filter = RecordsFilterState() } label: {
                     HStack(spacing: 5) {
-                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
-                        Text(filter.summary).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                        Image(systemName: "xmark").font(.shalev(9, weight: .bold))
+                        Text(filter.summary).font(.shalev(11, weight: .semibold)).lineLimit(1)
                     }
                     .foregroundStyle(Color.shalevOnPrimary)
                     .padding(.horizontal, 10)
-                    .frame(height: 27)
+                    .frame(minHeight: 27)
                     .background(Color.shalevPrimary, in: Capsule())
+                    .shalevToque()
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 7)
@@ -257,14 +260,14 @@ struct RecordsView: View {
 
             if [.sales, .services, .transfers].contains(selectedTab), !sales.isEmpty {
                 HStack {
-                    Text("\(sales.count) operaciones").font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                    Text("\(sales.count) operaciones").font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                     Spacer()
-                    Text(Cup(cents: salesTotal).formatted).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                    Text(Cup(cents: salesTotal).formatted).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
                 }
                 .padding(.horizontal, 20).padding(.vertical, 10)
             } else {
                 Text(summaryCount)
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                     .padding(.vertical, 10)
             }
 
@@ -434,25 +437,25 @@ private struct SaleRecordRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: sale.paymentMethod.symbol)
-                .font(.system(size: 17, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                .font(.shalev(17, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                 .frame(width: 44, height: 44).background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 13))
             VStack(alignment: .leading, spacing: 4) {
                 Text(sale.isService ? "Servicio · \(sale.lines.first?.name ?? "")" : (sale.lines.count == 1 ? sale.lines[0].name : "Venta · \(sale.lines.count) artículos"))
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1)
+                    .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1)
                 HStack(spacing: 5) {
                     Text(sale.date.shalevDateTime)
                     Text("·")
                     Text(sale.paymentMethod.rawValue)
                 }
-                .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
             }
             Spacer(minLength: 6)
             VStack(alignment: .trailing, spacing: 4) {
-                Text(Cup(cents: sale.totalCents).formatted).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                Text(Cup(cents: sale.totalCents).formatted).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
                 if sale.isCancelled {
-                    Text("Anulada").font(.system(size: 10, weight: .semibold)).foregroundStyle(Color.shalevError)
+                    Text("Anulada").font(.shalev(10, weight: .semibold)).foregroundStyle(Color.shalevError)
                 } else if sale.paymentMethod == .transfer && !sale.transactionNumber.isEmpty {
-                    Text("N.º \(sale.transactionNumber)").font(.system(size: 10)).foregroundStyle(Color.shalevSecondaryText).lineLimit(1)
+                    Text("N.º \(sale.transactionNumber)").font(.shalev(10)).foregroundStyle(Color.shalevSecondaryText).lineLimit(1)
                 }
             }
         }
@@ -467,16 +470,16 @@ private struct MovementRecordRow: View {
     var body: some View {
         HStack(spacing: 11) {
             Image(systemName: record.amountCents == nil ? "shippingbox" : "arrow.left.arrow.right")
-                .font(.system(size: 15, weight: .semibold)).foregroundStyle(record.isNegative ? Color.shalevSecondary : Color.shalevPrimary)
+                .font(.shalev(15, weight: .semibold)).foregroundStyle(record.isNegative ? Color.shalevSecondary : Color.shalevPrimary)
                 .frame(width: 40, height: 40).background(Color.shalevSurfaceVariant, in: Circle())
             VStack(alignment: .leading, spacing: 3) {
-                Text(record.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1)
-                Text("\(record.detail) · \(record.date.shalevDateTime)").font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(2)
+                Text(record.title).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1)
+                Text("\(record.detail) · \(record.date.shalevDateTime)").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(2)
             }
             Spacer(minLength: 4)
             if let amount = record.amountCents {
                 Text("\(record.isNegative ? "−" : "+")\(Cup(cents: amount).formatted)")
-                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(record.isNegative ? Color.shalevSecondary : Color.shalevSuccess)
+                    .font(.shalev(11, weight: .semibold)).foregroundStyle(record.isNegative ? Color.shalevSecondary : Color.shalevSuccess)
                     .lineLimit(1).minimumScaleFactor(0.75)
             }
         }
@@ -489,15 +492,15 @@ private struct CustomerRecordRow: View {
     let purchaseSummary: String
     var body: some View {
         HStack(spacing: 11) {
-            Image(systemName: "person.crop.circle.fill").font(.system(size: 23)).foregroundStyle(Color.shalevPrimary)
+            Image(systemName: "person.crop.circle.fill").font(.shalev(23)).foregroundStyle(Color.shalevPrimary)
             VStack(alignment: .leading, spacing: 4) {
-                Text(customer.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                Text(customer.name).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
                 Text(maskedID.isEmpty ? customer.phone : "CI · \(maskedID)")
-                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
-                Text(purchaseSummary).font(.system(size: 11, weight: .medium)).foregroundStyle(Color.shalevPrimary)
+                    .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
+                Text(purchaseSummary).font(.shalev(11, weight: .medium)).foregroundStyle(Color.shalevPrimary)
             }
             Spacer()
-            if !customer.phone.isEmpty { Image(systemName: "phone.fill").font(.system(size: 12)).foregroundStyle(Color.shalevTertiary) }
+            if !customer.phone.isEmpty { Image(systemName: "phone.fill").font(.shalev(12)).foregroundStyle(Color.shalevTertiary) }
         }
         .padding(13).background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
     }
@@ -555,20 +558,20 @@ private struct CustomerDetailView: View {
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Compras (\(purchases.count))")
-                                .font(.system(size: 16, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                .font(.shalev(16, weight: .semibold)).foregroundStyle(Color.shalevText)
                             if purchases.isEmpty {
-                                Text("Este cliente todavía no tiene compras.").font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+                                Text("Este cliente todavía no tiene compras.").font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
                             } else {
                                 ForEach(purchases) { sale in
                                     HStack(alignment: .top) {
                                         VStack(alignment: .leading, spacing: 4) {
-                                            Text(sale.date.shalevDateTime).font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                                            Text(sale.date.shalevDateTime).font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                                             Text(sale.lines.map(\.name).joined(separator: ", "))
-                                                .font(.system(size: 13)).foregroundStyle(Color.shalevText).lineLimit(2)
-                                            if sale.isCancelled { Text("Anulada").font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.shalevError) }
+                                                .font(.shalev(13)).foregroundStyle(Color.shalevText).lineLimit(2)
+                                            if sale.isCancelled { Text("Anulada").font(.shalev(11, weight: .semibold)).foregroundStyle(Color.shalevError) }
                                         }
                                         Spacer()
-                                        Text(Cup(cents: sale.totalCents).formatted).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                        Text(Cup(cents: sale.totalCents).formatted).font(.shalev(12, weight: .semibold)).foregroundStyle(Color.shalevText)
                                     }
                                     if sale.id != purchases.last?.id { Divider() }
                                 }
@@ -580,7 +583,7 @@ private struct CustomerDetailView: View {
                     }
                     .buttonStyle(ShalevTonalButtonStyle())
                     Text("Las compras permanecen en Registros, pero dejarán de aparecer en esta ficha.")
-                        .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).multilineTextAlignment(.center)
+                        .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).multilineTextAlignment(.center)
                 }
                 .padding(16)
             }
@@ -616,16 +619,16 @@ private struct ShiftRecordRow: View {
     var body: some View {
         HStack(spacing: 11) {
             Image(systemName: shift.closedAt == nil ? "lock.open.fill" : "checkmark.circle.fill")
-                .font(.system(size: 16, weight: .semibold)).foregroundStyle(shift.closedAt == nil ? Color.shalevSecondary : Color.shalevSuccess)
+                .font(.shalev(16, weight: .semibold)).foregroundStyle(shift.closedAt == nil ? Color.shalevSecondary : Color.shalevSuccess)
                 .frame(width: 42, height: 42).background(Color.shalevSurfaceVariant, in: Circle())
             VStack(alignment: .leading, spacing: 4) {
-                Text("Turno del \(shift.openedAt.shalevDate)").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                Text("Turno del \(shift.openedAt.shalevDate)").font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
                 Text(shift.closedAt.map { "Cerrado \($0.shalevDateTime)" } ?? "En curso · abierto \(shift.openedAt.shalevDateTime)")
-                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(1)
+                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(1)
             }
             Spacer()
             Text(Cup(cents: store.expectedCashCents(for: shift.id)).formatted)
-                .font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1).minimumScaleFactor(0.75)
+                .font(.shalev(11, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1).minimumScaleFactor(0.75)
         }
         .padding(12).background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
     }
@@ -654,16 +657,16 @@ private struct SaleDetailView: View {
                             ForEach(sale.lines) { line in
                                 HStack(alignment: .top) {
                                     VStack(alignment: .leading, spacing: 3) {
-                                        Text(line.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                        Text(line.name).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
                                         Text("\(line.quantity) × \(Cup(cents: line.unitPriceCents).formatted)")
-                                            .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                            .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                                     }
                                     Spacer()
-                                    Text(Cup(cents: line.subtotalCents).formatted).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                    Text(Cup(cents: line.subtotalCents).formatted).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
                                 }
                             }
                             Divider()
-                            HStack { Text("Total").font(.system(size: 15, weight: .semibold)); Spacer(); Text(Cup(cents: sale.totalCents).formatted).font(.system(size: 17, weight: .bold)) }
+                            HStack { Text("Total").font(.shalev(15, weight: .semibold)); Spacer(); Text(Cup(cents: sale.totalCents).formatted).font(.shalev(17, weight: .bold)) }
                                 .foregroundStyle(Color.shalevText)
                         }
                     }
@@ -689,7 +692,7 @@ private struct SaleDetailView: View {
                                 if let reason = sale.cancellationReason { detailRow("Motivo", reason) }
                             }
                         }
-                        .font(.system(size: 13)).foregroundStyle(Color.shalevText)
+                        .font(.shalev(13)).foregroundStyle(Color.shalevText)
                     }
                     if canModify {
                         ShalevCard {
@@ -702,7 +705,7 @@ private struct SaleDetailView: View {
                                 .buttonStyle(ShalevTonalButtonStyle())
                                 if sale.paymentMethod == .transfer {
                                     Text("La transferencia debe devolverse por separado; Shalev no mueve dinero.")
-                                        .font(.system(size: 11)).foregroundStyle(Color.shalevError)
+                                        .font(.shalev(11)).foregroundStyle(Color.shalevError)
                                 }
                             }
                         }
@@ -820,13 +823,13 @@ private struct SaleEditView: View {
                             ForEach(lines) { line in
                                 HStack(spacing: 8) {
                                     VStack(alignment: .leading, spacing: 3) {
-                                        Text(line.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(2)
+                                        Text(line.name).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(2)
                                         Text("\(Cup(cents: line.unitPriceCents).formatted) por unidad")
-                                            .font(.system(size: 10)).foregroundStyle(Color.shalevSecondaryText)
+                                            .font(.shalev(10)).foregroundStyle(Color.shalevSecondaryText)
                                     }
                                     Spacer(minLength: 3)
                                     Stepper(value: quantityBinding(for: line), in: 0...100_000) {
-                                        Text("\(line.quantity)").font(.system(size: 13, weight: .semibold)).monospacedDigit()
+                                        Text("\(line.quantity)").font(.shalev(13, weight: .semibold)).monospacedDigit()
                                     }
                                     .labelsHidden()
                                     .frame(width: 108)
@@ -846,7 +849,7 @@ private struct SaleEditView: View {
                                 }
                             } label: {
                                 Label("Agregar artículo o servicio", systemImage: "plus.circle.fill")
-                                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                                    .font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                                     .frame(maxWidth: .infinity, minHeight: 40)
                             }
                         }
@@ -861,7 +864,7 @@ private struct SaleEditView: View {
                                 TextField("N.º de transacción", text: $transactionNumber)
                                     .textInputAutocapitalization(.characters)
                                     .textFieldStyle(SaleEditFieldStyle())
-                                Text("Datos del cliente").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                Text("Datos del cliente").font(.shalev(12, weight: .semibold)).foregroundStyle(Color.shalevText)
                                 TextField("Nombre y apellidos", text: $customerName)
                                     .textFieldStyle(SaleEditFieldStyle())
                                 TextField("Carné cubano de 11 dígitos", text: $customerID)
@@ -873,23 +876,23 @@ private struct SaleEditView: View {
                                 Toggle("Cliente fijo", isOn: $customerIsFixed).tint(Color.shalevPrimary)
                             }
                             HStack {
-                                Text("Total corregido").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                                Text("Total corregido").font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                                 Spacer()
-                                Text(Cup(cents: editedTotal).formatted).font(.system(size: 17, weight: .bold)).foregroundStyle(Color.shalevText)
+                                Text(Cup(cents: editedTotal).formatted).font(.shalev(17, weight: .bold)).foregroundStyle(Color.shalevText)
                             }
                         }
                     }
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 7) {
                             Text("Motivo de la corrección (3–60 caracteres)")
-                                .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                                .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                             TextField("Ej. Cantidad incorrecta", text: $reason)
                                 .textFieldStyle(SaleEditFieldStyle())
                                 .onChange(of: reason) { _, value in if value.count > 60 { reason = String(value.prefix(60)) } }
                         }
                     }
                     if let errorMessage {
-                        Text(errorMessage).font(.system(size: 12)).foregroundStyle(Color.shalevError)
+                        Text(errorMessage).font(.shalev(12)).foregroundStyle(Color.shalevError)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     Button(action: save) { Label("Guardar corrección", systemImage: "checkmark.circle.fill") }
@@ -951,7 +954,7 @@ private struct SaleEditView: View {
 
 private struct SaleEditFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration.font(.system(size: 14)).padding(11)
+        configuration.font(.shalev(14)).padding(11)
             .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
     }
 }
@@ -997,7 +1000,7 @@ private struct ShiftDetailView: View {
                             if let closedBy = shift.closedBy { detailRow("Cerrado por", closedBy) }
                             if let closed = shift.closedAt { detailRow("Cerrado", closed.shalevDateTime) }
                         }
-                        .font(.system(size: 13)).foregroundStyle(Color.shalevText)
+                        .font(.shalev(13)).foregroundStyle(Color.shalevText)
                     }
                     if let count = shift.closingCount {
                         ShalevCard {
@@ -1005,15 +1008,15 @@ private struct ShiftDetailView: View {
                                 ShalevSectionHeader(title: "Conciliación de inventario")
                                 if count.inventoryCountSkipped == true {
                                     Text("Conteo omitido explícitamente; no se ajustaron existencias.")
-                                        .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                                        .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                                 } else if count.inventory.allSatisfy({ $0.differenceMilli == 0 }) {
-                                    Text("Sin diferencias de inventario.").font(.system(size: 12)).foregroundStyle(Color.shalevSuccess)
+                                    Text("Sin diferencias de inventario.").font(.shalev(12)).foregroundStyle(Color.shalevSuccess)
                                 } else {
                                     ForEach(count.inventory.filter { $0.differenceMilli != 0 }) { discrepancy in
                                         Text("\(discrepancy.productName): \(FixedNumber.formatMilli(discrepancy.expectedMilli)) → \(FixedNumber.formatMilli(discrepancy.countedMilli))")
-                                            .font(.system(size: 12)).foregroundStyle(Color.shalevText)
+                                            .font(.shalev(12)).foregroundStyle(Color.shalevText)
                                     }
-                                    if !count.reason.isEmpty { Text("Motivo: \(count.reason)").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText) }
+                                    if !count.reason.isEmpty { Text("Motivo: \(count.reason)").font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText) }
                                 }
                             }
                         }
@@ -1023,9 +1026,9 @@ private struct ShiftDetailView: View {
                             ShalevSectionHeader(title: "Operaciones", trailing: "\(shiftSales.count)")
                             ForEach(shiftSales) { sale in
                                 HStack {
-                                    Text(sale.isService ? "Servicio" : "Venta").font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+                                    Text(sale.isService ? "Servicio" : "Venta").font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
                                     Spacer()
-                                    Text(Cup(cents: sale.totalCents).formatted).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                    Text(Cup(cents: sale.totalCents).formatted).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
                                 }
                             }
                         }
@@ -1062,7 +1065,7 @@ private struct RecordsFilterSheet: View {
                                 } label: {
                                     HStack {
                                         Text(option.rawValue)
-                                            .font(.system(size: 14, weight: .medium))
+                                            .font(.shalev(14, weight: .medium))
                                             .foregroundStyle(Color.shalevText)
                                         Spacer()
                                         if filter.period == option {
@@ -1082,7 +1085,7 @@ private struct RecordsFilterSheet: View {
                                 DatePicker("Desde", selection: $filter.from, displayedComponents: .date)
                                 DatePicker("Hasta", selection: $filter.to, displayedComponents: .date)
                             }
-                            .font(.system(size: 14))
+                            .font(.shalev(14))
                         }
                     }
                     ShalevSectionHeader(title: "Importe (CUP)")
@@ -1093,7 +1096,7 @@ private struct RecordsFilterSheet: View {
                         }
                     }
                     if let error {
-                        Text(error).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevError)
+                        Text(error).font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevError)
                     }
                 }
                 .padding(18)
@@ -1120,10 +1123,10 @@ private struct RecordsFilterSheet: View {
 
     private func amountField(_ title: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+            Text(title).font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
             TextField("0.00", text: text)
                 .keyboardType(.decimalPad)
-                .font(.system(size: 15))
+                .font(.shalev(15))
                 .padding(11)
                 .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
         }

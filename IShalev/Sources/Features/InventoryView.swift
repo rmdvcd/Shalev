@@ -72,6 +72,7 @@ struct InventoryView: View {
     var canSell = true
     var canExport = true
 
+    @Environment(\.accessibilityReduceMotion) private var reducirMovimiento
     @State private var search = ""
     @State private var filter = InventoryFilterState()
     @State private var showFilterSheet = false
@@ -186,10 +187,11 @@ struct InventoryView: View {
                 Button { showFilterSheet = true } label: {
                     ZStack(alignment: .topTrailing) {
                         Image(systemName: "line.3.horizontal.decrease")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.shalev(17, weight: .semibold))
                             .foregroundStyle(filter.isActive ? Color.shalevOnPrimary : Color.shalevText)
                             .frame(width: 42, height: 42)
                             .background(filter.isActive ? Color.shalevPrimary : .clear, in: Circle())
+                            .shalevToque()
                         if filter.isActive {
                             Circle().fill(Color.shalevSecondary).frame(width: 9, height: 9)
                                 .offset(x: -4, y: 5)
@@ -203,9 +205,10 @@ struct InventoryView: View {
                         showExportSheet = true
                     } label: {
                         Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.shalev(17, weight: .semibold))
                             .foregroundStyle(Color.shalevText)
                             .frame(width: 42, height: 42)
+                            .shalevToque()
                     }
                     .buttonStyle(.plain)
                     .disabled(filteredProducts.isEmpty && selection.isEmpty)
@@ -222,18 +225,19 @@ struct InventoryView: View {
     private var counterRow: some View {
         HStack(spacing: 8) {
             Text(counterText)
-                .font(.system(size: 12, weight: .medium))
+                .font(.shalev(12, weight: .medium))
                 .foregroundStyle(Color.shalevSecondaryText)
             if filter.isActive {
-                Button { withAnimation(.easeInOut(duration: 0.15)) { filter = InventoryFilterState() } } label: {
+                Button { withAnimation(ShalevMotion.cambio(reducirMovimiento, duracion: ShalevMotion.muyCorta)) { filter = InventoryFilterState() } } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
-                        Text(filter.summary).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                        Image(systemName: "xmark").font(.shalev(9, weight: .bold))
+                        Text(filter.summary).font(.shalev(11, weight: .semibold)).lineLimit(1)
                     }
                     .foregroundStyle(Color.shalevOnPrimary)
                     .padding(.horizontal, 9)
-                    .frame(height: 26)
+                    .frame(minHeight: 26)
                     .background(Color.shalevPrimary, in: Capsule())
+                    .shalevToque()
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Quitar el filtro \(filter.summary)")
@@ -256,7 +260,7 @@ struct InventoryView: View {
 
     private var selectionHint: some View {
         Text("Mantén pulsado para seleccionar varios")
-            .font(.system(size: 11))
+            .font(.shalev(11))
             .foregroundStyle(Color.shalevSecondaryText)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.bottom, 4)
@@ -267,29 +271,29 @@ struct InventoryView: View {
     private var selectionBar: some View {
         HStack(spacing: 10) {
             Text(selection.count == 1 ? "1 seleccionado" : "\(selection.count) seleccionados")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.shalev(13, weight: .semibold))
                 .foregroundStyle(Color.shalevText)
             Spacer(minLength: 4)
             Button(allVisibleSelected ? "Quitar todo" : "Marcar todo") {
                 if allVisibleSelected { selection.removeAll() } else { selection = Set(filteredProducts.map(\.id)) }
             }
-            .font(.system(size: 12, weight: .semibold))
+            .font(.shalev(12, weight: .semibold))
             .foregroundStyle(Color.shalevPrimary)
             if canExport {
                 Button { showExportSheet = true } label: {
-                    Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .semibold))
+                    Image(systemName: "square.and.arrow.up").font(.shalev(15, weight: .semibold))
                 }
                 .accessibilityLabel("Exportar la selección")
             }
             if canEdit {
                 Button { confirmDelete = .selection(visibleSelection) } label: {
-                    Image(systemName: "trash").font(.system(size: 15, weight: .semibold))
+                    Image(systemName: "trash").font(.shalev(15, weight: .semibold))
                 }
                 .foregroundStyle(Color.shalevError)
                 .accessibilityLabel("Eliminar la selección")
             }
             Button { selection.removeAll() } label: {
-                Image(systemName: "xmark").font(.system(size: 14, weight: .semibold))
+                Image(systemName: "xmark").font(.shalev(14, weight: .semibold))
             }
             .foregroundStyle(Color.shalevSecondaryText)
             .accessibilityLabel("Limpiar la selección")
@@ -470,9 +474,9 @@ private struct InventoryRow: View {
             if canSelect {
                 Button(action: onToggle) {
                     Image(systemName: marked ? "checkmark.square.fill" : "square")
-                        .font(.system(size: 21, weight: .regular))
+                        .font(.shalev(21, weight: .regular))
                         .foregroundStyle(marked ? Color.shalevPrimary : Color.shalevOutline)
-                        .frame(width: 30, height: 44)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(marked ? "Deseleccionar \(product.name)" : "Seleccionar \(product.name)")
@@ -487,34 +491,34 @@ private struct InventoryRow: View {
                     }
                     VStack(alignment: .leading, spacing: 3) {
                         Text(product.name)
-                            .font(.system(size: 15, weight: .medium))
+                            .font(.shalev(15, weight: .medium))
                             .foregroundStyle(Color.shalevText)
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
                         if let alertText {
                             Text(alertText)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.shalev(12, weight: .semibold))
                                 .foregroundStyle(statusColor)
                                 .lineLimit(2)
                         }
                         Text(product.kind == .prepared
                              ? "Alcanza para \(available ?? 0)"
                              : "\(product.displayStock) \(product.unit)")
-                            .font(.system(size: 12))
+                            .font(.shalev(12))
                             .foregroundStyle(Color.shalevSecondaryText)
                         Text(product.kind == .prepared ? "Elaborado" : product.category)
-                            .font(.system(size: 11))
+                            .font(.shalev(11))
                             .foregroundStyle(Color.shalevSecondaryText)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 6)
                     VStack(alignment: .trailing, spacing: 3) {
                         Text(Cup(cents: product.priceCents).formatted)
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.shalev(14, weight: .semibold))
                             .foregroundStyle(Color.shalevText)
                             .lineLimit(1).minimumScaleFactor(0.75)
                         Text(Cup(cents: store.estimatedCostCents(for: product)).formatted)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.shalev(11, weight: .medium))
                             .foregroundStyle(Color.shalevSecondaryText)
                             .lineLimit(1).minimumScaleFactor(0.75)
                     }
@@ -623,10 +627,10 @@ private struct ProductDetailSheet: View {
 
     private func detailRow(_ title: String, _ value: String, tint: Color = .shalevText) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Text(title).font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+            Text(title).font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
             Spacer(minLength: 6)
             Text(value)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.shalev(13, weight: .semibold))
                 .foregroundStyle(tint)
                 .multilineTextAlignment(.trailing)
         }
@@ -649,11 +653,11 @@ private struct InventoryFilterSheet: View {
                                 Button { filter.kind = option } label: {
                                     HStack {
                                         Image(systemName: option.symbol)
-                                            .font(.system(size: 15, weight: .semibold))
+                                            .font(.shalev(15, weight: .semibold))
                                             .foregroundStyle(Color.shalevPrimary)
                                             .frame(width: 26)
                                         Text(option.rawValue)
-                                            .font(.system(size: 14, weight: .medium))
+                                            .font(.shalev(14, weight: .medium))
                                             .foregroundStyle(Color.shalevText)
                                         Spacer()
                                         if filter.kind == option {
@@ -674,7 +678,7 @@ private struct InventoryFilterSheet: View {
                                 Button { filter.alert = option } label: {
                                     HStack {
                                         Text(option.rawValue)
-                                            .font(.system(size: 14, weight: .medium))
+                                            .font(.shalev(14, weight: .medium))
                                             .foregroundStyle(Color.shalevText)
                                         Spacer()
                                         if filter.alert == option {
@@ -723,7 +727,7 @@ private struct InventoryExportSheet: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 14) {
                 Text("\(products.count) \(products.count == 1 ? "artículo" : "artículos")")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.shalev(13, weight: .semibold))
                     .foregroundStyle(Color.shalevSecondaryText)
                 ForEach([ExportFormat.xlsx, .csv, .pdf], id: \.fileExtension) { format in
                     Button {
@@ -731,16 +735,16 @@ private struct InventoryExportSheet: View {
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: format.symbol)
-                                .font(.system(size: 18, weight: .semibold))
+                                .font(.shalev(18, weight: .semibold))
                                 .foregroundStyle(Color.shalevPrimary)
                                 .frame(width: 42, height: 42)
                                 .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 12))
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(format.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                                Text(format.detail).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                Text(format.title).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                Text(format.detail).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                             }
                             Spacer()
-                            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+                            Image(systemName: "chevron.right").font(.shalev(11, weight: .semibold))
                                 .foregroundStyle(Color.shalevSecondaryText)
                         }
                         .padding(12)
@@ -881,7 +885,7 @@ private struct ProductEditorView: View {
                     ShalevScreenTitle(title: product == nil ? "Agregar artículo" : "Editar artículo",
                                      subtitle: "Los datos se guardan cifrados en este teléfono.")
                     Text("* Obligatorio")
-                        .font(.system(size: 11))
+                        .font(.shalev(11))
                         .foregroundStyle(Color.shalevSecondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     if kind != .prepared && !sync.isSecondary {
@@ -893,7 +897,7 @@ private struct ProductEditorView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
                             } else {
                                 Image(systemName: "photo.on.rectangle.angled")
-                                    .font(.system(size: 30)).foregroundStyle(Color.shalevTertiary)
+                                    .font(.shalev(30)).foregroundStyle(Color.shalevTertiary)
                                     .frame(maxWidth: .infinity).frame(height: 95)
                                     .background(Color.shalevSurfaceVariant, in: RoundedRectangle(cornerRadius: 14))
                             }
@@ -957,12 +961,12 @@ private struct ProductEditorView: View {
                                 formField("Aviso de stock bajo", text: $lowStock, placeholder: "0", keyboard: .decimalPad, help: "Opcional")
                                 formField("Aviso de stock crítico", text: $criticalStock, placeholder: "0", keyboard: .decimalPad, help: "Opcional")
                                 Text("Vacíos: se usan los niveles de Ajustes.")
-                                    .font(.system(size: 11))
+                                    .font(.shalev(11))
                                     .foregroundStyle(Color.shalevSecondaryText)
                                 Toggle("Tiene fecha de caducidad", isOn: $hasExpiry).tint(Color.shalevPrimary)
                                 if hasExpiry {
                                     DatePicker("Caduca el", selection: $expiry, displayedComponents: .date)
-                                        .font(.system(size: 14))
+                                        .font(.shalev(14))
                                 }
                             } else {
                                 Divider()
@@ -975,14 +979,14 @@ private struct ProductEditorView: View {
                         VStack(alignment: .leading, spacing: 13) {
                             fieldLabel(kind == .ingredient ? "Precio de venta opcional (CUP)" : "Precio de venta (CUP) *")
                             TextField("0.00", text: $price).keyboardType(.decimalPad).textFieldStyle(ShalevTextFieldStyle())
-                            Text("Por unidad").font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                            Text("Por unidad").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                             if kind != .prepared {
                                 fieldLabel("Precio de costo (CUP) *")
                                 TextField("0.00", text: $cost).keyboardType(.decimalPad).textFieldStyle(ShalevTextFieldStyle())
-                                Text("Por unidad").font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                Text("Por unidad").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                             } else {
                                 Text("El costo se calcula a partir de los insumos de la receta.")
-                                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                                    .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                             }
                             Button {
                                 save()
@@ -991,14 +995,14 @@ private struct ProductEditorView: View {
                             }
                             .buttonStyle(ShalevPrimaryButtonStyle())
                             .disabled(working)
-                            if working { ProgressView().frame(maxWidth: .infinity) }
+                            if working { ProgressView().accessibilityLabel("Cargando").frame(maxWidth: .infinity) }
                         }
                     }
 
                     if product != nil {
                         Button(role: .destructive) { confirmDelete = true } label: {
                             Label("Eliminar del inventario", systemImage: "trash")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.shalev(14, weight: .semibold))
                                 .foregroundStyle(Color.shalevError)
                                 .frame(maxWidth: .infinity, minHeight: 46)
                         }
@@ -1031,20 +1035,20 @@ private struct ProductEditorView: View {
     private var recipeEditor: some View {
         VStack(alignment: .leading, spacing: 11) {
             Text("Insumos por unidad elaborada")
-                .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
             Text("Al vender este artículo, se descuentan los insumos automáticamente.")
-                .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
             if ingredients.isEmpty {
                 Text("Crea primero los artículos de tipo Insumo.")
-                    .font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
             } else {
                 ForEach(recipe) { use in
                     HStack {
                         Text(ingredients.first(where: { $0.id == use.ingredientID })?.name ?? "Insumo eliminado")
-                            .font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevText)
+                            .font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevText)
                         Spacer()
                         Text(FixedNumber.formatMilli(use.milliUnits))
-                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(12, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
                         Button { recipe.removeAll { $0.id == use.id } } label: {
                             Image(systemName: "minus.circle.fill").foregroundStyle(Color.shalevError)
                         }
@@ -1077,7 +1081,7 @@ private struct ProductEditorView: View {
                 TextField(placeholder, text: text).keyboardType(keyboard).textFieldStyle(ShalevTextFieldStyle())
             }
             if let help {
-                Text(help).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                Text(help).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
             }
         }
     }
@@ -1093,7 +1097,7 @@ private struct ProductEditorView: View {
     }
 
     private func fieldLabel(_ text: String) -> some View {
-        Text(text).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+        Text(text).font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
     }
 
     private func addRecipeIngredient() {
@@ -1216,7 +1220,7 @@ private struct ProductEditorView: View {
 private struct ShalevTextFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
-            .font(.system(size: 15))
+            .font(.shalev(15))
             .foregroundStyle(Color.shalevText)
             .padding(12)
             .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))

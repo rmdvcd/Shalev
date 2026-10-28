@@ -29,7 +29,7 @@ Módulo `:designsystem`. **Regla única: ninguna pantalla define colores, tamañ
 
 | Decisión | Motivo |
 |---|---|
-| **5 destinos en la barra inferior**, solo iconos con resaltado invertido | Requisito de Shalev.txt. El nombre sale en el tooltip y en TalkBack |
+| **5 destinos en la barra inferior**, solo iconos con resaltado invertido | Requisito de Shalev.txt. El nombre sale en el tooltip y en TalkBack. **Desviación documentada** de la regla HIG «etiquetas de texto en la barra inferior» (auditada el 2026-10-28 y aceptada por el dueño en las dos apps): las mitigaciones son nombre y posición por lector de pantalla, SF Symbols/`ShalevIcons` de significado inequívoco y selección por relleno + inversión, no solo por color. Ver [docs/AUDITORIA_UI_UX_IX_2026-10-28.md](docs/AUDITORIA_UI_UX_IX_2026-10-28.md) (UI-009 y AND-005) |
 | **Nada bloquea salvo la licencia** | El asistente se puede omitir paso a paso o entero; lo pendiente se retoma en *Ajustes → Completar configuración* |
 | **Valores recomendados** si se omiten los avisos: 5 (bajo) / 1 (crítico) | El usuario no tiene que entender los umbrales para empezar |
 | **Permisos en contexto:** cámara al hacer una foto o escanear un QR, con explicación previa; internet con consentimiento propio (*Preguntar / Permitidas / Nunca*) | Pedir solo cuando se entiende para qué; siempre hay alternativa manual |
@@ -153,3 +153,32 @@ Botones solo icono (en 0.15.1 también «Nueva venta»), todas las ventanas cent
 - **Avisos solo de insumos:** un Elaborado nunca cuenta como stock bajo ni crítico.
 - **Formulario más corto (Hick):** un Elaborado ya no pide Cantidad ni niveles; Precio de venta cierra el teclado con ✓.
 - **Venta:** el «+» del carrito se desactiva al llegar a lo que alcanza. En modo selección, un Elaborado sin insumos no se puede marcar y se explica por qué.
+
+## Auditoría UI · UX · IX 2026-10-28 (Shalev e IShalev)
+
+Auditoría de **todas las ventanas y componentes de las dos apps**, incluidas las emergentes, contra la skill `ios-ui-ux-ix-design` (HIG, accesibilidad y Liquid Glass). El informe completo, con la evidencia `archivo:línea` de cada hallazgo, está en [docs/AUDITORIA_UI_UX_IX_2026-10-28.md](docs/AUDITORIA_UI_UX_IX_2026-10-28.md).
+
+**Cómo se aplicó el documento en cada plataforma.** En IShalev las reglas se aplican tal cual (es una app iOS). En Shalev se **mapean a su equivalente Android** para no romper Material 3: Safe Areas → `WindowInsets` (edge-to-edge + recorte de notch), Dynamic Type → `fontScale` con `sp`, Reduce Motion → `ANIMATOR_DURATION_SCALE` del sistema, VoiceOver → TalkBack, SF Symbols → `ShalevIcons`. Liquid Glass queda fuera: el `deployment target` de IShalev es iOS 17.0 y el propio documento solo lo aplica con target 26+.
+
+**IShalev: dos incumplimientos bloqueantes corregidos.**
+
+| Pieza nueva (`Sources/Design/DesignSystem.swift`) | Qué resuelve |
+|---|---|
+| `ShalevDynamicType` + `Font.shalev(_:weight:design:)` + `Font.shalevMarca(_:)` | Las **483 tipografías** de la app eran fijas (`.system(size:)`) y no escalaban con Dynamic Type. Ahora la raíz instala la categoría del sistema (`@Environment(\.dynamicTypeSize)`) y cada tamaño base se multiplica por el factor de Apple. Los tamaños en la categoría Large (la del sistema por defecto) **no cambian**, así la interfaz por defecto es idéntica. Tope actual 1,6× (AX1) hasta portar el reflow de `letraGrande()` (pendiente IX-013) |
+| `View.shalevToque(_:)` | **19 controles** estaban por debajo del mínimo táctil de 44 pt (botones de icono 42, chevrons del stepper 36/38, chips de 26–36, casilla 30×44, editar/borrar 34×34). El área mínima se aplica **fuera del dibujo**: crece la zona del dedo, no el icono |
+| `ShalevMotion.cambio(_:duracion:)` | 4 animaciones y el `scaleEffect` del botón primario ignoraban «Reducir movimiento». Ahora, con el ajuste activo, el cambio se aplica de inmediato (equivalente de `MotionDurationScale = 0` en Compose) |
+| `ShalevBarBackground` | Las 3 barras flotantes (pestañas, pie del asistente, pie de la venta) usaban `.ultraThinMaterial` sin mirar «Reducir transparencia»; ahora usan una superficie opaca con el ajuste activo |
+| `ShalevHaptics` (`exito` / `aviso` / `seleccion`) | IShalev no vibraba nunca y Android vibra al leer un código, al terminar una venta y con cada mensaje. Sin permiso nuevo: iOS respeta el ajuste de hápticos del usuario |
+| Etiquetas y valores de VoiceOver | 6 indicadores de progreso mudos, el «Paso N de M» del asistente sin valor accesible y la barra de pestañas sin posición («Pestaña 2 de 5», paridad con las pestañas reales de Android) |
+
+**Shalev: cumple el checklist.** Verificado con evidencia de la fuente del framework, no de memoria: Compose observa `ANIMATOR_DURATION_SCALE` (`WindowRecomposer.android.kt:95-119`) y lo expone como `MotionDurationScale`, cuyo factor 0 resuelve el movimiento en el fotograma siguiente, así «Quitar animaciones» del sistema ya anula todo lo que sale de `ShalevMotion`. Tampoco hay estilos sueltos (0 literales `.sp` y 1 solo `.dp` en `:app`), el contraste AA lo verifica `ContrastTest`, y `deslizarEntreSecciones` descarta los toques que empiezan en las franjas de gestos del sistema para no chocar con «atrás».
+
+**Pendientes (con severidad y criterio de aceptación en el informe).**
+
+1. **IX-013 (Alta, IShalev)** — reflow completo con tamaños de accesibilidad AX2–AX5 (portar el `letraGrande()` de Android) para poder quitar el tope de 1,6×.
+2. **AND-001 (Alta, Shalev)** — la casilla de selección mide 24 dp; el arreglo (`size(ShalevSize.touchTarget)` conservando el dibujo de 16 dp) exige regrabar las capturas Roborazzi afectadas. Pendiente de decisión del dueño desde 0.32.0.
+3. **IX-012 (Media, IShalev)** — formularios sin `@FocusState` ni `.submitLabel`: el teclado no avanza de campo en campo como en Android, y apenas se usa `textContentType` para el autocompletado.
+4. **AND-002 (Media, Shalev)** — los permisos de la primera apertura se piden en lote (cámara, avisos y fotos) en vez de justo a tiempo; cada permiso se explica y «Ahora no» no insiste, pero la regla MUST del documento pide pedirlos en la tarea que los necesita.
+5. **UX-014 / AND-003 (Media, las dos)** — sin `pull to refresh` ni swipe actions en las listas: desviación justificada en una app local sin servidor; solo aplicaría en las pantallas con sincronización LAN.
+
+**Verificación pendiente.** Este entorno no tiene JDK, Android SDK ni Xcode: los cambios de IShalev no se pudieron compilar aquí. Los compila el CI en macOS (`.github/workflows/ios-build.yml`: `swift test` + `xcodebuild` para el simulador). Con la letra del sistema por defecto no debe cambiar ni una captura; con letra grande sí.

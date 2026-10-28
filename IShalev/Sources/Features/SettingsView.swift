@@ -104,9 +104,9 @@ struct SettingsView: View {
                 ShalevCard {
                     VStack(alignment: .leading, spacing: 7) {
                         Label("Privacidad", systemImage: "lock.shield.fill")
-                            .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                            .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                         Text("Shalev guarda los datos en este teléfono y no usa una cuenta, servidor, analítica ni anuncios. El almacenamiento local se cifra con AES-GCM y una clave protegida por el llavero de iOS.")
-                            .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                     }
                 }
                 ShalevCard(padding: 5) {
@@ -171,15 +171,15 @@ struct SettingsView: View {
     private var accessLockRow: some View {
         HStack(spacing: 12) {
             Image(systemName: "faceid")
-                .font(.system(size: 18, weight: .semibold))
+                .font(.shalev(18, weight: .semibold))
                 .foregroundStyle(Color.shalevPrimary)
                 .frame(width: 42, height: 42)
                 .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 13))
             VStack(alignment: .leading, spacing: 3) {
                 Text("Acceso con clave")
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                    .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
                 Text(lockSubtitle)
-                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 5)
@@ -251,22 +251,22 @@ struct SettingsView: View {
 
     private func settingsRowLabel(title: String, subtitle: String, symbol: String, badge: String?) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+            Image(systemName: symbol).font(.shalev(18, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                 .frame(width: 42, height: 42).background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 13))
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                Text(subtitle).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(2)
+                Text(title).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                Text(subtitle).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(2)
             }
             Spacer(minLength: 5)
             if let badge {
                 Text(badge)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.shalev(11, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(minWidth: 20, minHeight: 20)
                     .background(Color.shalevError, in: Circle())
                     .accessibilityLabel("\(badge) pasos pendientes")
             }
-            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
+            Image(systemName: "chevron.right").font(.shalev(11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
         }
         .padding(12)
         .contentShape(Rectangle())
@@ -335,7 +335,7 @@ private struct ProfileSettingsView: View {
         ScrollView {
             VStack(spacing: 14) {
                 Text("Tus datos se usan para pedir la licencia. Solo se guardan en este teléfono, protegidos.")
-                    .font(.system(size: 13))
+                    .font(.shalev(13))
                     .foregroundStyle(Color.shalevText)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -351,7 +351,7 @@ private struct ProfileSettingsView: View {
                         profileField("Carnet de identidad (CI)", text: $identification, placeholder: "85010112345",
                                      error: showErrors ? identificationError : nil, capitalization: .characters)
                         Text("Solo se envía al pedir la licencia")
-                            .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                         Button { save() } label: {
                             Label("Guardar", systemImage: "checkmark")
                         }
@@ -364,7 +364,7 @@ private struct ProfileSettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         ShalevSectionHeader(title: "Tu negocio")
                         Text("Lo que no marques desaparece de la barra inferior, de Inicio y de Registros. No se borra nada.")
-                            .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                         moduleRow("Ventas", detail: "Vender productos del inventario", isOn: salesEnabled,
                                   symbol: "cart.fill") { toggleSales() }
                         moduleRow("Inventario", detail: "Controlar existencias de productos e insumos", isOn: inventoryEnabled,
@@ -398,11 +398,11 @@ private struct ProfileSettingsView: View {
     private func profileField(_ title: String, text: Binding<String>, placeholder: String,
                               error: String?, capitalization: TextInputAutocapitalization = .never) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+            Text(title).font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
             TextField(placeholder, text: text)
                 .textInputAutocapitalization(capitalization)
                 .autocorrectionDisabled()
-                .font(.system(size: 14))
+                .font(.shalev(14))
                 .padding(11)
                 .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
                 .overlay {
@@ -410,7 +410,7 @@ private struct ProfileSettingsView: View {
                         .stroke(error == nil ? Color.shalevOutlineVariant : Color.shalevError, lineWidth: 1)
                 }
             if let error {
-                Text(error).font(.system(size: 11)).foregroundStyle(Color.shalevError)
+                Text(error).font(.shalev(11)).foregroundStyle(Color.shalevError)
             }
         }
     }
@@ -421,15 +421,15 @@ private struct ProfileSettingsView: View {
         return Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: isOn ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 19))
+                    .font(.shalev(19))
                     .foregroundStyle(isOn ? Color.shalevPrimary : Color.shalevSecondaryText)
                 Image(systemName: symbol)
-                    .font(.system(size: 15))
+                    .font(.shalev(15))
                     .foregroundStyle(Color.shalevSecondaryText)
                     .frame(width: 22)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(Color.shalevText)
-                    Text(detail).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                    Text(title).font(.shalev(14, weight: .medium)).foregroundStyle(Color.shalevText)
+                    Text(detail).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                 }
                 Spacer(minLength: 4)
             }
@@ -550,6 +550,7 @@ private func bancoCubano(_ number: String) -> BancoCubano? {
 private struct PaymentSettingsView: View {
     @ObservedObject var store: ShalevStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reducirMovimiento
     @State private var phones: [TransferPhone]
     @State private var cards: [TransferCard]
     @State private var paymentPhoneID: UUID?
@@ -600,7 +601,7 @@ private struct PaymentSettingsView: View {
                     }
 
                     Text("Los logos se estiman por el prefijo; no verifican el banco ni la titularidad.")
-                        .font(.system(size: 11))
+                        .font(.shalev(11))
                         .foregroundStyle(Color.shalevSecondaryText)
                         .padding(.horizontal, 18)
                         .padding(.top, 18)
@@ -642,7 +643,7 @@ private struct PaymentSettingsView: View {
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 16, weight: .semibold))
+            .font(.shalev(16, weight: .semibold))
             .foregroundStyle(Color.shalevText)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 18)
@@ -653,7 +654,7 @@ private struct PaymentSettingsView: View {
 
     private func emptyLine(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 12))
+            .font(.shalev(12))
             .foregroundStyle(Color.shalevSecondaryText)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
@@ -666,15 +667,15 @@ private struct PaymentSettingsView: View {
             Button { select(kind, id) } label: {
                 HStack(spacing: 10) {
                     Image(systemName: selected ? "checkmark.square.fill" : "square")
-                        .font(.system(size: 19))
+                        .font(.shalev(19))
                         .foregroundStyle(selected ? Color.shalevPrimary : Color.shalevSecondaryText)
                     Image(systemName: kind.symbol)
-                        .font(.system(size: 17))
+                        .font(.shalev(17))
                         .foregroundStyle(Color.shalevText)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(title).font(.system(size: 15)).foregroundStyle(Color.shalevText)
+                        Text(title).font(.shalev(15)).foregroundStyle(Color.shalevText)
                         if let subtitle {
-                            Text(subtitle).font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                            Text(subtitle).font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                         }
                     }
                     Spacer(minLength: 6)
@@ -686,15 +687,17 @@ private struct PaymentSettingsView: View {
             .accessibilityAddTraits(selected ? .isSelected : [])
 
             Button { edit(kind, id) } label: {
-                Image(systemName: "pencil").font(.system(size: 16)).foregroundStyle(Color.shalevText)
+                Image(systemName: "pencil").font(.shalev(16)).foregroundStyle(Color.shalevText)
                     .frame(width: 34, height: 34)
+                    .shalevToque()
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Editar \(title)")
 
             Button { askDelete(kind, id, title) } label: {
-                Image(systemName: "trash").font(.system(size: 16)).foregroundStyle(Color.shalevText)
+                Image(systemName: "trash").font(.shalev(16)).foregroundStyle(Color.shalevText)
                     .frame(width: 34, height: 34)
+                    .shalevToque()
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Eliminar \(title)")
@@ -719,7 +722,7 @@ private struct PaymentSettingsView: View {
             }
             ShalevFloatingButton(title: expanded ? "Cerrar acciones" : "Agregar",
                                  symbol: expanded ? "xmark" : "plus") {
-                withAnimation(.easeInOut(duration: 0.18)) { expanded.toggle() }
+                withAnimation(ShalevMotion.cambio(reducirMovimiento)) { expanded.toggle() }
             }
         }
         .padding(.trailing, 18)
@@ -729,17 +732,18 @@ private struct PaymentSettingsView: View {
     private func addPill(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
         HStack(spacing: 8) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.shalev(12, weight: .semibold))
                 .foregroundStyle(Color.shalevText)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
                 .background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             Button(action: action) {
                 Image(systemName: symbol)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.shalev(15, weight: .semibold))
                     .foregroundStyle(Color.shalevPrimary)
                     .frame(width: 40, height: 40)
                     .background(Color.shalevPrimaryContainer, in: Circle())
+                    .shalevToque()
             }
             .buttonStyle(.plain)
             .accessibilityLabel(title)
@@ -891,12 +895,12 @@ private struct PaymentEditorSheet: View {
                 VStack(alignment: .leading, spacing: 12) {
                     VStack(alignment: .leading, spacing: 5) {
                         Text(kind == .phone ? "Número de teléfono" : "Número de tarjeta o cuenta")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.shalev(12, weight: .medium))
                             .foregroundStyle(Color.shalevSecondaryText)
                         TextField(kind == .phone ? "5123 4567" : "9205 0000 0000 0000", text: $number)
                             .keyboardType(kind == .phone ? .phonePad : .numberPad)
                             .autocorrectionDisabled()
-                            .font(.system(size: 14))
+                            .font(.shalev(14))
                             .padding(11)
                             .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
                             .overlay {
@@ -905,21 +909,21 @@ private struct PaymentEditorSheet: View {
                             }
                             .onChange(of: number) { _, _ in touched = true }
                         if let shownError {
-                            Text(shownError).font(.system(size: 11)).foregroundStyle(Color.shalevError)
+                            Text(shownError).font(.shalev(11)).foregroundStyle(Color.shalevError)
                         }
                     }
 
                     if kind == .card, let bank = bancoCubano(number) {
                         HStack(spacing: 10) {
                             Image(systemName: "creditcard.fill")
-                                .font(.system(size: 18))
+                                .font(.shalev(18))
                                 .foregroundStyle(Color.shalevSecondaryText)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(bank.nombre)
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.shalev(14, weight: .medium))
                                     .foregroundStyle(Color.shalevText)
                                 Text("Identificación orientativa por prefijo")
-                                    .font(.system(size: 11))
+                                    .font(.shalev(11))
                                     .foregroundStyle(Color.shalevSecondaryText)
                             }
                             Spacer(minLength: 0)
@@ -930,11 +934,11 @@ private struct PaymentEditorSheet: View {
 
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Nombre para reconocerlo (opcional)")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.shalev(12, weight: .medium))
                             .foregroundStyle(Color.shalevSecondaryText)
                         TextField(kind == .phone ? "Mi móvil" : "Tarjeta del banco", text: $alias)
                             .autocorrectionDisabled()
-                            .font(.system(size: 14))
+                            .font(.shalev(14))
                             .padding(11)
                             .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
                             .overlay {
@@ -984,7 +988,7 @@ private struct PriceAdjustmentsView: View {
             ScrollView {
                 VStack(spacing: 12) {
                     Text("Sube o baja precios al cobrar, según el pago o el importe. El precio guardado no cambia.")
-                        .font(.system(size: 13))
+                        .font(.shalev(13))
                         .foregroundStyle(Color.shalevText)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
@@ -1046,7 +1050,7 @@ private struct PriceAdjustmentsView: View {
             Button { editor = adjustment } label: {
                 HStack {
                     Text(adjustment.name)
-                        .font(.system(size: 15))
+                        .font(.shalev(15))
                         .foregroundStyle(Color.shalevText)
                     Spacer(minLength: 8)
                 }
@@ -1057,7 +1061,7 @@ private struct PriceAdjustmentsView: View {
             .accessibilityHint(adjustmentSummary(adjustment))
 
             Text(percentText(adjustment.basisPoints))
-                .font(.system(size: 13, weight: .semibold))
+                .font(.shalev(13, weight: .semibold))
                 .foregroundStyle(Color.shalevText)
                 .accessibilityLabel("Ajuste de \(percentText(adjustment.basisPoints))")
 
@@ -1132,7 +1136,7 @@ private struct PriceAdjustmentEditor: View {
                             labeledField("Nombre", text: $name, placeholder: "Ej. Descuento en efectivo")
                             labeledField("Porcentaje", text: $percent, placeholder: "10 o -5", keyboard: .decimalPad)
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Método de pago").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                                Text("Método de pago").font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                                 Picker("Método", selection: Binding(get: { method?.rawValue ?? "Todos" }, set: { value in
                                     method = PaymentMethod(rawValue: value)
                                 })) {
@@ -1144,31 +1148,31 @@ private struct PriceAdjustmentEditor: View {
                             labeledField("Importe mínimo (opcional, CUP)", text: $minimum, placeholder: "Sin mínimo", keyboard: .decimalPad)
                             Divider()
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("Artículos incluidos").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                Text("Artículos incluidos").font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
                                 Text("El ajuste solo se aplica a los artículos seleccionados. Si hay varios ajustes para un mismo artículo, se suman.")
-                                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                                 ForEach(store.activeProducts) { product in
                                     Toggle(isOn: Binding(get: { productIDs.contains(product.id) }, set: { selected in
                                         if selected { productIDs.insert(product.id) } else { productIDs.remove(product.id) }
                                     })) {
                                         HStack {
-                                            Text(product.name).font(.system(size: 13)).foregroundStyle(Color.shalevText)
+                                            Text(product.name).font(.shalev(13)).foregroundStyle(Color.shalevText)
                                             Spacer()
                                             Text(Cup(cents: product.priceCents).formatted)
-                                                .font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
+                                                .font(.shalev(11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
                                         }
                                     }
                                     .tint(Color.shalevPrimary)
                                 }
                                 if store.activeProducts.isEmpty {
-                                    Text("Crea primero un artículo en Inventario.").font(.system(size: 12)).foregroundStyle(Color.shalevError)
+                                    Text("Crea primero un artículo en Inventario.").font(.shalev(12)).foregroundStyle(Color.shalevError)
                                 }
                             }
                             Text("Usa porcentaje negativo para un descuento y positivo para un recargo.")
-                                .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                                .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                             Button { save() } label: { Label("Guardar ajuste", systemImage: "checkmark") }
                                 .buttonStyle(ShalevPrimaryButtonStyle()).disabled(working)
-                            if working { ProgressView().frame(maxWidth: .infinity) }
+                            if working { ProgressView().accessibilityLabel("Cargando").frame(maxWidth: .infinity) }
                         }
                     }
                     if adjustment != nil {
@@ -1284,11 +1288,11 @@ private struct BackupSettingsView: View {
             VStack(spacing: 14) {
                 VStack(spacing: 5) {
                     Text("Guarda una copia protegida de todo el negocio.")
-                        .font(.system(size: 13))
+                        .font(.shalev(13))
                         .foregroundStyle(Color.shalevText)
                         .multilineTextAlignment(.center)
                     Text("La licencia no viaja en el respaldo: en otro teléfono hace falta una licencia nueva.")
-                        .font(.system(size: 12))
+                        .font(.shalev(12))
                         .foregroundStyle(Color.shalevSecondaryText)
                         .multilineTextAlignment(.center)
                 }
@@ -1355,7 +1359,7 @@ private struct BackupSettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 ShalevSectionHeader(title: "Exportar")
                 Text("Se guarda todo lo del negocio.")
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
 
                 ShalevStepper(current: exportStep, total: 3, title: exportTitle,
@@ -1364,7 +1368,7 @@ private struct BackupSettingsView: View {
                 if exportStep == 1 {
                     Toggle(isOn: Binding(get: { protect }, set: { protect = $0; showExportErrors = false })) {
                         Label("Proteger con contraseña", systemImage: "lock.fill")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.shalev(14, weight: .medium))
                             .foregroundStyle(Color.shalevText)
                     }
                     .tint(Color.shalevPrimary)
@@ -1377,23 +1381,23 @@ private struct BackupSettingsView: View {
                                     error: showExportErrors ? repeatError : nil)
                     } else {
                         Text("Sin contraseña, quien consiga este archivo podrá leer tus ventas y los datos de tus clientes sin ninguna clave.")
-                            .font(.system(size: 12))
+                            .font(.shalev(12))
                             .foregroundStyle(Color.shalevError)
                             .fixedSize(horizontal: false, vertical: true)
                         Text("Sin contraseña la copia se guarda en formato .shalev, que también abre Android.")
-                            .font(.system(size: 11))
+                            .font(.shalev(11))
                             .foregroundStyle(Color.shalevSecondaryText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 } else if exportStep == 2 {
                     Text(protect ? "Contraseña lista." : "Ahora elige dónde guardar el respaldo.")
-                        .font(.system(size: 13))
+                        .font(.shalev(13))
                         .foregroundStyle(Color.shalevText)
 
                     if protect {
                         VStack(alignment: .leading, spacing: 5) {
                             Text("Formato")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.shalev(12, weight: .medium))
                                 .foregroundStyle(Color.shalevSecondaryText)
                             Picker("Formato", selection: $exportFormat) {
                                 ForEach(PortableBackupFormat.allCases) { format in
@@ -1404,7 +1408,7 @@ private struct BackupSettingsView: View {
                             Text(exportFormat == .ios
                                  ? "El formato IShalev conserva todos los datos propios de la app."
                                  : "El formato .shalev se puede abrir en Shalev para Android.")
-                                .font(.system(size: 11))
+                                .font(.shalev(11))
                                 .foregroundStyle(Color.shalevSecondaryText)
                         }
                     }
@@ -1415,7 +1419,7 @@ private struct BackupSettingsView: View {
                     .buttonStyle(ShalevPrimaryButtonStyle())
                 } else {
                     Text(exportDone ?? "")
-                        .font(.system(size: 13))
+                        .font(.shalev(13))
                         .foregroundStyle(Color.shalevText)
                         .fixedSize(horizontal: false, vertical: true)
                     Button {
@@ -1474,7 +1478,7 @@ private struct BackupSettingsView: View {
                 ShalevSectionHeader(title: "Importar")
                 ShalevStepper(current: importStep, total: 4, title: importTitle)
                 Text("Elige un archivo .shalev.")
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
                 Button { showImporter = true } label: {
                     Label("Elegir archivo", systemImage: "doc.badge.plus")
@@ -1482,7 +1486,7 @@ private struct BackupSettingsView: View {
                 .buttonStyle(ShalevTonalButtonStyle())
                 if importStep >= 3 {
                     Text("Paso \(importStep) de 4: \(importTitle.prefix(1).lowercased() + String(importTitle.dropFirst()))")
-                        .font(.system(size: 11))
+                        .font(.shalev(11))
                         .foregroundStyle(Color.shalevSecondaryText)
                 }
             }
@@ -1569,7 +1573,7 @@ private struct BackupSettingsView: View {
                              error: String?, help: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
-                .font(.system(size: 12, weight: .medium))
+                .font(.shalev(12, weight: .medium))
                 .foregroundStyle(Color.shalevSecondaryText)
             Group {
                 if secure {
@@ -1580,7 +1584,7 @@ private struct BackupSettingsView: View {
             }
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
-            .font(.system(size: 14))
+            .font(.shalev(14))
             .padding(11)
             .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
             .overlay {
@@ -1588,9 +1592,9 @@ private struct BackupSettingsView: View {
                     .stroke(error == nil ? Color.shalevOutlineVariant : Color.shalevError, lineWidth: 1)
             }
             if let error {
-                Text(error).font(.system(size: 11)).foregroundStyle(Color.shalevError)
+                Text(error).font(.shalev(11)).foregroundStyle(Color.shalevError)
             } else if let help {
-                Text(help).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                Text(help).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
             }
         }
     }
@@ -1607,13 +1611,13 @@ private struct ImportPasswordSheet: View {
         NavigationStack {
             VStack(spacing: 14) {
                 Text("Escribe la contraseña con la que se guardó el respaldo.")
-                    .font(.system(size: 13))
+                    .font(.shalev(13))
                     .foregroundStyle(Color.shalevSecondaryText)
                     .multilineTextAlignment(.center)
                 SecureField("Contraseña del respaldo", text: $password)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .font(.system(size: 14))
+                    .font(.shalev(14))
                     .padding(11)
                     .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
                     .overlay {
@@ -1621,7 +1625,7 @@ private struct ImportPasswordSheet: View {
                             .stroke(error == nil ? Color.shalevOutlineVariant : Color.shalevError, lineWidth: 1)
                     }
                 if let error {
-                    Text(error).font(.system(size: 11)).foregroundStyle(Color.shalevError)
+                    Text(error).font(.shalev(11)).foregroundStyle(Color.shalevError)
                 }
                 Button("Continuar") {
                     guard !password.isEmpty else { error = "Escribe la contraseña del respaldo."; return }
@@ -1729,6 +1733,7 @@ private struct HelpView: View {
     @AppStorage("shalev.module.sales") private var salesEnabled = true
     @AppStorage("shalev.module.inventory") private var inventoryEnabled = true
     @AppStorage("shalev.module.services") private var servicesEnabled = true
+    @Environment(\.accessibilityReduceMotion) private var reducirMovimiento
     @State private var openTopic: String?
 
     private static let intro = "Shalev te ayuda a vender, controlar tu inventario y ver cuánto ganas. Elige una sección y toca un tema para ver los pasos."
@@ -1848,7 +1853,7 @@ private struct HelpView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 Text(HelpView.intro)
-                    .font(.system(size: 13))
+                    .font(.shalev(13))
                     .foregroundStyle(Color.shalevText)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -1858,15 +1863,15 @@ private struct HelpView: View {
                 ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: section.0.symbol)
-                            .font(.system(size: 18))
+                            .font(.shalev(18))
                             .foregroundStyle(Color.shalevPrimary)
                             .frame(width: 24)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(section.0.title)
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.shalev(16, weight: .semibold))
                                 .foregroundStyle(Color.shalevText)
                             Text(section.0.detail)
-                                .font(.system(size: 12))
+                                .font(.shalev(12))
                                 .foregroundStyle(Color.shalevSecondaryText)
                         }
                         Spacer(minLength: 0)
@@ -1894,17 +1899,17 @@ private struct HelpView: View {
         return ShalevCard {
             VStack(alignment: .leading, spacing: 8) {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.18)) {
+                    withAnimation(ShalevMotion.cambio(reducirMovimiento)) {
                         openTopic = expanded ? nil : topic.id
                     }
                 } label: {
                     HStack(spacing: 9) {
                         Text(topic.title)
-                            .font(.system(size: 15, weight: .medium))
+                            .font(.shalev(15, weight: .medium))
                             .foregroundStyle(Color.shalevText)
                         Spacer(minLength: 8)
                         Image(systemName: expanded ? "minus" : "plus")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.shalev(13, weight: .semibold))
                             .foregroundStyle(Color.shalevSecondaryText)
                     }
                     .contentShape(Rectangle())
@@ -1917,7 +1922,7 @@ private struct HelpView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(Array(topic.steps.enumerated()), id: \.offset) { index, step in
                             Text("\(index + 1). \(step)")
-                                .font(.system(size: 13))
+                                .font(.shalev(13))
                                 .foregroundStyle(Color.shalevText)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1938,7 +1943,7 @@ private struct HelpView: View {
             HStack(spacing: 5) {
                 ForEach(["Inicio", "Inventario", "Servicios", "Registros", "Ajustes"], id: \.self) { label in
                     Text(label)
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.shalev(9, weight: .medium))
                         .foregroundStyle(label == "Inicio" ? Color.shalevOnPrimaryContainer : Color.shalevSecondaryText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -1961,14 +1966,14 @@ private struct HelpView: View {
         VStack(spacing: 4) {
             ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
                 Text(step)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.shalev(12, weight: .medium))
                     .foregroundStyle(Color.shalevText)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.shalevSurfaceVariant, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 if index < steps.count - 1 {
                     Text("↓")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.shalev(14, weight: .semibold))
                         .foregroundStyle(Color.shalevPrimary)
                 }
             }
@@ -1994,7 +1999,7 @@ private struct AboutView: View {
                 }
                 ShalevCard {
                     Text("IShalev usa una interfaz y almacenamiento nativos de Apple y valida licencias bajo el contrato GL. Puede intercambiar respaldos .shalev con Android; la sincronización por red local entre dispositivos todavía no está disponible.")
-                        .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
+                        .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(18)
@@ -2004,20 +2009,20 @@ private struct AboutView: View {
 
     private func info(_ key: String, _ value: String) -> some View {
         HStack { Text(key).foregroundStyle(Color.shalevSecondaryText); Spacer(); Text(value).fontWeight(.semibold).foregroundStyle(Color.shalevText) }
-            .font(.system(size: 13))
+            .font(.shalev(13))
     }
 }
 
 private func labeledField(_ title: String, text: Binding<String>, placeholder: String, keyboard: UIKeyboardType = .default) -> some View {
     VStack(alignment: .leading, spacing: 6) {
-        Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+        Text(title).font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
         TextField(placeholder, text: text).keyboardType(keyboard).textFieldStyle(SettingsInputStyle())
     }
 }
 
 private struct SettingsInputStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration.font(.system(size: 14)).foregroundStyle(Color.shalevText)
+        configuration.font(.shalev(14)).foregroundStyle(Color.shalevText)
             .padding(11).background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 11).stroke(Color.shalevOutlineVariant, lineWidth: 1))
     }
@@ -2025,7 +2030,7 @@ private struct SettingsInputStyle: TextFieldStyle {
 
 private struct BackupInputStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration.font(.system(size: 15)).padding(12)
+        configuration.font(.shalev(15)).padding(12)
             .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
     }
 }
