@@ -274,13 +274,15 @@ final class DomainParityTests: XCTestCase {
         }
 
         // 1.000 kg de queso compartido entre dos pizzas elaboradas y venta directa.
-        let cheese = Product(name: "Queso", category: "Insumos", kind: .ingredient, priceCents: 30_000,
-                             costCents: 20_000, stockMilli: 1_000, unit: "kg")
+        let cheese = Product(name: "Queso", category: "Insumos", kind: .ingredient,
+                             stockMilli: 1_000, unit: "kg", priceCents: 30_000, costCents: 20_000)
         try store.saveProduct(cheese)
-        let pizzaA = Product(name: "Pizza Napolitana", category: "Elaborado", kind: .prepared, priceCents: 15_000,
-                             costCents: 0, stockMilli: 0, uses: [IngredientUse(ingredientID: cheese.id, milliUnits: 200)])
-        let pizzaB = Product(name: "Pizza Jamón", category: "Elaborado", kind: .prepared, priceCents: 18_000,
-                             costCents: 0, stockMilli: 0, uses: [IngredientUse(ingredientID: cheese.id, milliUnits: 250)])
+        let pizzaA = Product(name: "Pizza Napolitana", category: "Elaborado", kind: .prepared,
+                             stockMilli: 0, priceCents: 15_000, costCents: 0,
+                             uses: [IngredientUse(ingredientID: cheese.id, milliUnits: 200)])
+        let pizzaB = Product(name: "Pizza Jamón", category: "Elaborado", kind: .prepared,
+                             stockMilli: 0, priceCents: 18_000, costCents: 0,
+                             uses: [IngredientUse(ingredientID: cheese.id, milliUnits: 250)])
         try store.saveProduct(pizzaA)
         try store.saveProduct(pizzaB)
 

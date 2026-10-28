@@ -139,13 +139,17 @@ fun InventarioScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var mostrarOcr by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    var mensajeOcr by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
     // CreateDocument fija el tipo MIME al crearse: uno por formato guardable.
     val guardarPdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.PDF.mime)) { viewModel.guardarEn(it?.toString()) }
     val guardarXlsx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.XLSX.mime)) { viewModel.guardarEn(it?.toString()) }
     LaunchedEffect(mensajeInicial) {
         if (mensajeInicial != null) { onMensajeMostrado(); snackbar.showSnackbar(mensajeInicial) }
+    }
+    LaunchedEffect(mensajeOcr) {
+        val m = mensajeOcr
+        if (m != null) { mensajeOcr = null; snackbar.showSnackbar(m) }
     }
     LaunchedEffect(viewModel) {
         viewModel.eventos.collect { e ->
@@ -163,7 +167,7 @@ fun InventarioScreen(
         cu.shalev.app.ocr.HojaImportarOcr(
             destino = cu.shalev.app.ocr.DestinoOcr.INVENTARIO,
             onDismiss = { mostrarOcr = false },
-            onImportadoMensaje = { msg -> scope.launch { snackbar.showSnackbar(msg) } },
+            onImportadoMensaje = { msg -> mensajeOcr = msg },
         )
     }
     InventarioContent(

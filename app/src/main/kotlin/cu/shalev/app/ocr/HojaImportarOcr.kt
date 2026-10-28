@@ -580,11 +580,11 @@ private fun SeccionLienzoVisual(
                 Text("2. Revisa o ajusta los valores asignados", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 for (c in campos) {
                     val filtro = when {
-                        c.esMoneda -> FiltroEntrada.Importe
-                        c.esCantidad -> FiltroEntrada.Cantidad
-                        c == CampoOcr.TELEFONO -> FiltroEntrada.Telefono
-                        c == CampoOcr.CI -> FiltroEntrada.CarneIdentidad
-                        else -> FiltroEntrada.Nombre()
+                        c.esMoneda -> FiltroEntrada.DINERO
+                        c.esCantidad -> FiltroEntrada.DECIMAL
+                        c == CampoOcr.TELEFONO -> FiltroEntrada.TELEFONO
+                        c == CampoOcr.CI -> FiltroEntrada.CARNE
+                        else -> FiltroEntrada.NOMBRE
                     }
                     val teclado = when {
                         c.esMoneda || c.esCantidad -> KeyboardType.Decimal

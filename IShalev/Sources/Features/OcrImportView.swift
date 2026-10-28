@@ -666,12 +666,12 @@ struct OcrImportSheet: View {
                     let product = Product(
                         name: name,
                         category: "Insumos",
-                        description: String(r[.description].prefix(40)),
                         kind: .ingredient,
-                        priceCents: max(0, saleCents),
-                        costCents: max(0, cost),
+                        description: String(r[.description].prefix(40)),
                         stockMilli: max(0, stockMilli),
-                        unit: unitText.isEmpty ? "u" : unitText
+                        unit: unitText.isEmpty ? "u" : unitText,
+                        priceCents: max(0, saleCents),
+                        costCents: max(0, cost)
                     )
                     do {
                         try store.saveProduct(product)
@@ -694,12 +694,12 @@ struct OcrImportSheet: View {
                     let product = Product(
                         name: name,
                         category: catRaw.isEmpty ? "General" : catRaw,
-                        description: String(r[.description].prefix(40)),
                         kind: .product,
-                        priceCents: saleCents,
-                        costCents: max(0, costCents),
+                        description: String(r[.description].prefix(40)),
                         stockMilli: max(0, qtyInt * 1_000),
-                        unit: "u"
+                        unit: "u",
+                        priceCents: saleCents,
+                        costCents: max(0, costCents)
                     )
                     do {
                         try store.saveProduct(product)

@@ -129,11 +129,12 @@ enum class AccionSolicitud(val titulo: String, val boton: String) {
 }
 
 /** Hay una licencia vigente (activa o perpetua, no maestra) con margen para añadir más apps secundarias (< 10). */
-fun Licencia.ampliable(): Boolean =
-    (estado is LicenseState.Active || estado is LicenseState.Perpetual) &&
-        instalada != null &&
-        instalada.id != cu.shalev.licencia.ID_MAESTRA_LICENCIA &&
-        instalada.secundarias < GlContract.SECUNDARIAS_MAX
+fun Licencia.ampliable(): Boolean {
+    val inst = instalada ?: return false
+    return (estado is LicenseState.Active || estado is LicenseState.Perpetual) &&
+        inst.id != cu.shalev.licencia.ID_MAESTRA_LICENCIA &&
+        inst.secundarias < GlContract.SECUNDARIAS_MAX
+}
 
 fun Licencia.accionSolicitud(modoAmpliar: Boolean = false): AccionSolicitud = when {
     estado is LicenseState.Perpetual -> if (ampliable()) AccionSolicitud.AMPLIAR else AccionSolicitud.NINGUNA
