@@ -40,7 +40,7 @@ data class ConteoCierre(
 }
 
 object BilletesCUP {
-    val denominaciones = listOf(1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 5000, 20000)
+    val denominaciones = listOf(1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 20000)
     fun total(cantidades: Map<Int, Long>, otro: Cup = Cup.ZERO): Cup {
         require(!otro.isNegative)
         val centavos = cantidades.entries.fold(otro.centavos) { total, (denominacion, cantidad) ->

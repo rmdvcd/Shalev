@@ -844,11 +844,30 @@ private struct SaleEditView: View {
                                             .font(.shalev(10)).foregroundStyle(Color.shalevSecondaryText)
                                     }
                                     Spacer(minLength: 3)
-                                    Stepper(value: quantityBinding(for: line), in: 0...100_000) {
-                                        Text("\(line.quantity)").font(.shalev(13, weight: .semibold)).monospacedDigit()
+                                    HStack(spacing: 6) {
+                                        ShalevSpinnerButton(
+                                            isIncrement: false,
+                                            label: "Una menos de \(line.name)",
+                                            enabled: line.quantity > 0,
+                                            size: 36,
+                                            primaryTint: true
+                                        ) {
+                                            quantityBinding(for: line).wrappedValue = max(0, line.quantity - 1)
+                                        }
+                                        Text("\(line.quantity)")
+                                            .font(.shalev(13, weight: .semibold))
+                                            .monospacedDigit()
+                                            .frame(minWidth: 28)
+                                        ShalevSpinnerButton(
+                                            isIncrement: true,
+                                            label: "Una más de \(line.name)",
+                                            enabled: canIncrementEditLine(line),
+                                            size: 36,
+                                            primaryTint: true
+                                        ) {
+                                            quantityBinding(for: line).wrappedValue = line.quantity + 1
+                                        }
                                     }
-                                    .labelsHidden()
-                                    .frame(width: 108)
                                 }
                                 .padding(.vertical, 4)
                             }
@@ -856,11 +875,13 @@ private struct SaleEditView: View {
                                 Menu("Agregar producto") {
                                     ForEach(store.activeProducts.filter { $0.priceCents > 0 }) { product in
                                         Button(product.name) { add(product) }
+                                            .disabled(!canAdd(kind: .product, sourceID: product.id))
                                     }
                                 }
                                 Menu("Agregar servicio") {
                                     ForEach(store.activeServices.filter { $0.priceCents > 0 }) { service in
                                         Button(service.name) { add(service) }
+                                            .disabled(!canAdd(kind: .service, sourceID: service.id))
                                     }
                                 }
                             } label: {
@@ -940,14 +961,44 @@ private struct SaleEditView: View {
         }
     }
 
+    private func canAdd(kind: SaleItemKind, sourceID: UUID) -> Bool {
+        var nextCart = cart
+        if let idx = nextCart.firstIndex(where: { $0.kind == kind && $0.sourceID == sourceID }) {
+            guard nextCart[idx].quantity < 100_000 else { return false }
+            nextCart[idx].quantity += 1
+        } else {
+            nextCart.append(CartDraft(sourceID: sourceID, kind: kind, quantity: 1))
+        }
+        return (try? store.previewSale(nextCart, payment: payment, returningSaleID: sale.id)) != nil
+    }
+
+    private func canIncrementEditLine(_ line: SaleLine) -> Bool {
+        canAdd(kind: line.kind, sourceID: line.sourceID)
+    }
+
     private func quantityBinding(for line: SaleLine) -> Binding<Int> {
         Binding(get: { lines.first(where: { $0.id == line.id })?.quantity ?? 0 }, set: { quantity in
             guard let index = lines.firstIndex(where: { $0.id == line.id }) else { return }
-            lines[index].quantity = quantity
+            let clamped = max(0, min(100_000, quantity))
+            if clamped <= lines[index].quantity {
+                lines[index].quantity = clamped
+                return
+            }
+            var candidate = lines
+            candidate[index].quantity = clamped
+            let candidateCart = candidate.filter { $0.quantity > 0 }
+                .map { CartDraft(sourceID: $0.sourceID, kind: $0.kind, quantity: $0.quantity) }
+            if (try? store.previewSale(candidateCart, payment: payment, returningSaleID: sale.id)) != nil {
+                lines[index].quantity = clamped
+            }
         })
     }
 
     private func add(_ product: Product) {
+        guard canAdd(kind: .product, sourceID: product.id) else {
+            errorMessage = "Existencias insuficientes para agregar más unidades de \(product.name)."
+            return
+        }
         if let index = lines.firstIndex(where: { $0.kind == .product && $0.sourceID == product.id }) {
             lines[index].quantity += 1
         } else {
@@ -957,6 +1008,10 @@ private struct SaleEditView: View {
     }
 
     private func add(_ service: ServiceItem) {
+        guard canAdd(kind: .service, sourceID: service.id) else {
+            errorMessage = "Insumos insuficientes para agregar más unidades de \(service.name)."
+            return
+        }
         if let index = lines.firstIndex(where: { $0.kind == .service && $0.sourceID == service.id }) {
             lines[index].quantity += 1
         } else {

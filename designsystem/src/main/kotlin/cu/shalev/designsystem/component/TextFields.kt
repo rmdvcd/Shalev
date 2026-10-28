@@ -49,7 +49,7 @@ import cu.shalev.designsystem.token.ShalevSize
 fun ShalevTextField(
     value: String,
     onValueChange: (String) -> Unit,
-    label: String,
+    label: String? = null,
     modifier: Modifier = Modifier,
     placeholder: String? = null,
     isError: Boolean = false,
@@ -99,14 +99,14 @@ fun ShalevTextField(
             salio = ShalevValidacion.salioTrasEditar(salio, conFoco, f.isFocused, editado)
             conFoco = f.isFocused
         },
-        label = { Text(label) },
+        label = label?.let { { Text(it) } },
         // 0.27.0 (T6): el texto de ejemplo va centrado; el texto escrito y la etiqueta conservan su alineación.
         placeholder = placeholder?.let { { Text(it, color = cs.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) } },
         leadingIcon = leadingIcon?.let { { Icon(it, contentDescription = null) } },
         trailingIcon = if (showClear) {
             {
                 IconButton(onClick = { cambiar("") }) {
-                    Icon(ShalevIcons.Limpiar, contentDescription = "Limpiar $label", modifier = Modifier.size(ShalevSize.iconSmall))
+                    Icon(ShalevIcons.Limpiar, contentDescription = "Limpiar ${label ?: "campo"}", modifier = Modifier.size(ShalevSize.iconSmall))
                 }
             }
         } else null,

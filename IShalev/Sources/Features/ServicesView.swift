@@ -28,6 +28,8 @@ struct ServicesView: View {
     @State private var typeFilter: String?
     @State private var sheet: ServiceSheet?
     @State private var showFilterSheet = false
+    @State private var showOcrSheet = false
+    @State private var ocrMessage: String?
 
     private var types: [String] { Array(Set(store.activeServices.map(\.type))).sorted() }
     private var services: [ServiceItem] {
@@ -44,6 +46,17 @@ struct ServicesView: View {
                 ShalevScreenTitle(title: "Servicios")
                 HStack(spacing: 2) {
                     Spacer()
+                    if canEdit {
+                        Button { showOcrSheet = true } label: {
+                            Image(systemName: "doc.viewfinder")
+                                .font(.shalev(17, weight: .semibold))
+                                .foregroundStyle(Color.shalevText)
+                                .frame(width: 42, height: 42)
+                                .shalevToque()
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Escanear o importar servicios")
+                    }
                     Button { showFilterSheet = true } label: {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: "line.3.horizontal.decrease")
@@ -128,6 +141,17 @@ struct ServicesView: View {
         .sheet(item: $sheet) { route in
             ServiceEditorView(store: store, sync: sync, service: route.service)
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showOcrSheet) {
+            OcrImportSheet(target: .services, store: store) { importedMsg in
+                ocrMessage = importedMsg
+            }
+            .presentationDetents([.large]).presentationDragIndicator(.visible)
+        }
+        .alert("Importación completada", isPresented: Binding(get: { ocrMessage != nil }, set: { if !$0 { ocrMessage = nil } })) {
+            Button("Entendido", role: .cancel) { ocrMessage = nil }
+        } message: {
+            Text(ocrMessage ?? "")
         }
     }
 }
@@ -257,7 +281,10 @@ private struct ServiceEditorView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Importe (CUP) *")
                                     .font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-                                TextField("0.00", text: $price).keyboardType(.decimalPad).textFieldStyle(ServiceInputStyle())
+                                TextField("0.00", text: $price)
+                                    .keyboardType(.decimalPad)
+                                    .shalevInputFilter(.money, text: $price)
+                                    .textFieldStyle(ServiceInputStyle())
                             }
                             input("Descripción (máximo 40)", text: $description, placeholder: "A domicilio, 30 minutos",
                                   focus: .description, submit: .next) { focusedField = .type }

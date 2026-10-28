@@ -151,25 +151,24 @@ class VentaViewModel @Inject constructor(
      * - Productos: productos + insumos vendibles (id negativo) + «Alcanza para N» de cada Elaborado (P26).
      * - Servicios (P29): cada servicio adaptado a fila de carrito; tope = lo que alcanzan sus insumos (sin insumos, ninguno).
      */
-    private val productos: StateFlow<Pair<Map<Long, Producto>, Map<Long, Long>>> =
+    private val productos: StateFlow<CatalogoVenta> =
         (if (esServicio) {
-            observarServicios.disponibles().map { m ->
-                m.mapValues { (_, d) -> Carrito.deServicio(d) } to m.mapNotNull { (id, d) -> d.alcanza?.let { id to it } }.toMap()
-            }
+            observarServicios.disponibles().map(CatalogoVenta::deServicios)
         } else {
             combine(productosRepo.observarTodos(), observarElaborados(), insumosRepo.observarTodos()) { l, es, xs ->
-                (l.associateBy { it.id } + xs.filter { it.precioVenta != null }.map { it.comoProducto() }.associateBy { it.id }) to
-                    es.associate { it.producto.id to it.alcanza }
+                CatalogoVenta.deProductos(l, es, xs)
             }
         })
-            .catch { emit(emptyMap<Long, Producto>() to emptyMap()) }
-            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap<Long, Producto>() to emptyMap())
+            .catch { emit(CatalogoVenta(servicios = esServicio)) }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, CatalogoVenta(servicios = esServicio))
     private val perfil: StateFlow<Perfil?> = perfilRepo.perfil.catch { emit(Perfil()) }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** El QR se deriva del Perfil VIVO: al volver de Pago electrónico ya refleja la tarjeta/móvil nuevos. */
-    val state: StateFlow<VentaUiState> = combine(local, permiso, carrito, productos, perfil) { l, p, c, ps, pf ->
+    val state: StateFlow<VentaUiState> = combine(local, permiso, carrito, productos, perfil) { l, p, c, cat, pf ->
+        val ajustado = Carrito.recortarACapacidad(c, cat)
+        val topes = Carrito.topesCompartidos(ajustado, cat)
         l.copy(
-            permiso = p, lineas = Carrito.lineas(c, ps.first, ps.second, servicios = esServicio),
+            permiso = p, lineas = Carrito.lineas(ajustado, cat.articulos, topes, servicios = esServicio),
             qr = if (l.metodo == MetodoPago.TRANSFERENCIA && pf != null) PagoQr.transfermovil(pf) else null,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VentaUiState(tipo = tipo))
@@ -243,19 +242,69 @@ class VentaViewModel @Inject constructor(
 
     /** Resultado del Inventario en modo venta. */
     fun recibirSeleccion(ids: List<Long>) {
-        guardar(Carrito.desdeSeleccion(ids, carrito.value))
+        val cat = productos.value
+        val deseado = Carrito.desdeSeleccion(ids, carrito.value)
+        val ajustado = Carrito.recortarACapacidad(deseado, cat)
+        guardar(ajustado)
         local.update { it.copy(paso = PasoVenta.CARRITO, cotizacion = null, error = null) }
+        if (ajustado.size < deseado.size) {
+            emitir(EventoVenta.Mensaje("Algunos artículos seleccionados ya no tienen insumos o existencias suficientes."))
+        }
     }
 
     fun cambiarCantidad(id: Long, cantidad: Long) {
-        val max = state.value.lineas.firstOrNull { it.producto.id == id }?.maximo
-        guardar(Carrito.cambiar(carrito.value, id, cantidad, max))
+        val cat = productos.value
+        val base = Carrito.recortarACapacidad(carrito.value, cat)
+        val topes = Carrito.topesCompartidos(base, cat)
+        val max = topes[id] ?: cat.articulos[id]?.let { if (esServicio) Carrito.MAX_CANTIDAD else it.cantidad } ?: state.value.lineas.firstOrNull { it.producto.id == id }?.maximo
+        guardar(Carrito.recortarACapacidad(Carrito.cambiar(base, id, cantidad, max), cat))
         local.update { it.copy(error = null) }
     }
 
     fun quitar(id: Long) {
         guardar(Carrito.quitar(carrito.value, id))
         local.update { it.copy(error = null) }
+    }
+
+    /** Artículos o servicios activos con sus topes reales disponibles para el asistente OCR de Ventas. */
+    fun candidatosOcr(): List<cu.shalev.app.ocr.CandidatoVentaOcr> {
+        val cat = productos.value
+        val base = Carrito.recortarACapacidad(carrito.value, cat)
+        val topes = Carrito.topesCompartidos(base, cat)
+        return cat.articulos.values.map { p ->
+            cu.shalev.app.ocr.CandidatoVentaOcr(
+                id = p.id,
+                nombre = p.nombre,
+                esServicio = esServicio,
+                topeDisponible = topes[p.id],
+            )
+        }
+    }
+
+    /** Incorpora líneas y datos de cliente leídos desde OCR / Excel / Word / PDF respetando las existencias compartidas. */
+    fun importarDesdeOcr(resultado: cu.shalev.app.ocr.ResultadoVentaOcr) {
+        val cat = productos.value
+        val nuevo = LinkedHashMap(carrito.value)
+        for (l in resultado.lineas) {
+            if (cat.articulos.containsKey(l.articuloId) && l.cantidad > 0L) {
+                nuevo[l.articuloId] = ((nuevo[l.articuloId] ?: 0L) + l.cantidad).coerceAtMost(Carrito.MAX_CANTIDAD)
+            }
+        }
+        val ajustado = Carrito.recortarACapacidad(nuevo, cat)
+        guardar(ajustado)
+        local.update { s ->
+            var cli = s.cliente
+            resultado.clienteNombre?.takeIf { it.isNotBlank() }?.let { cli = cli.con(CampoCliente.NOMBRE, it) }
+            resultado.clienteTelefono?.takeIf { it.isNotBlank() }?.let { cli = cli.con(CampoCliente.TELEFONO, it) }
+            resultado.clienteCi?.takeIf { it.isNotBlank() }?.let { cli = cli.con(CampoCliente.CI, it) }
+            s.copy(
+                paso = PasoVenta.CARRITO,
+                cotizacion = null,
+                error = null,
+                cliente = cli,
+            )
+        }
+        emitir(EventoVenta.Mensaje("Líneas importadas al carrito (${ajustado.size})."))
     }
 
     fun elegirMetodo(m: MetodoPago) = local.update { it.copy(metodo = m, error = null) }

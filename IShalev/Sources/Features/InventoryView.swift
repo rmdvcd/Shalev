@@ -77,6 +77,7 @@ struct InventoryView: View {
     @State private var filter = InventoryFilterState()
     @State private var showFilterSheet = false
     @State private var showExportSheet = false
+    @State private var showOcrSheet = false
     @State private var selection: Set<UUID> = []
     @State private var sheet: InventorySheet?
     @State private var confirmDelete: DeleteTarget?
@@ -162,6 +163,13 @@ struct InventoryView: View {
         .sheet(isPresented: $showShareSheet) {
             if let shareFileURL { ShareSheet(items: [shareFileURL]) }
         }
+        .sheet(isPresented: $showOcrSheet) {
+            OcrImportSheet(target: .inventory, store: store) { importedMsg in
+                message = importedMsg
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
         .confirmationDialog(deleteTitle, isPresented: Binding(get: { confirmDelete != nil },
                                                               set: { if !$0 { confirmDelete = nil } }),
                             titleVisibility: .visible) {
@@ -184,6 +192,17 @@ struct InventoryView: View {
             ShalevScreenTitle(title: "Inventario")
             HStack(spacing: 2) {
                 Spacer()
+                if canEdit {
+                    Button { showOcrSheet = true } label: {
+                        Image(systemName: "doc.viewfinder")
+                            .font(.shalev(17, weight: .semibold))
+                            .foregroundStyle(Color.shalevText)
+                            .frame(width: 42, height: 42)
+                            .shalevToque()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Escanear o importar inventario")
+                }
                 Button { showFilterSheet = true } label: {
                     ZStack(alignment: .topTrailing) {
                         Image(systemName: "line.3.horizontal.decrease")
@@ -969,15 +988,19 @@ private struct ProductEditorView: View {
                                 Divider()
                                 formField(kind == .ingredient ? "Existencias *" : "Cantidad *", text: $stock,
                                           placeholder: "0", keyboard: .decimalPad,
-                                          help: kind == .ingredient ? "Unidades que tienes" : "Unidades que tienes")
+                                          help: kind == .ingredient ? "Unidades que tienes" : "Unidades enteras que tienes")
+                                    .shalevInputFilter(kind == .ingredient ? .quantity : .integer(maxDigits: 7), text: $stock)
                                 if kind == .ingredient {
                                     formField("Unidad de medida", text: $unit, placeholder: "kg, L, u…",
                                               focus: .unit, submit: .done) {
                                         focusedField = nil
                                     }
+                                    .shalevInputFilter(.name(maxLength: 12), text: $unit)
                                 }
                                 formField("Aviso de stock bajo", text: $lowStock, placeholder: "0", keyboard: .decimalPad, help: "Opcional")
+                                    .shalevInputFilter(kind == .ingredient ? .quantity : .integer(maxDigits: 7), text: $lowStock)
                                 formField("Aviso de stock crítico", text: $criticalStock, placeholder: "0", keyboard: .decimalPad, help: "Opcional")
+                                    .shalevInputFilter(kind == .ingredient ? .quantity : .integer(maxDigits: 7), text: $criticalStock)
                                 Text("Vacíos: se usan los niveles de Ajustes.")
                                     .font(.shalev(11))
                                     .foregroundStyle(Color.shalevSecondaryText)
@@ -996,11 +1019,17 @@ private struct ProductEditorView: View {
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 13) {
                             fieldLabel(kind == .ingredient ? "Precio de venta opcional (CUP)" : "Precio de venta (CUP) *")
-                            TextField("0.00", text: $price).keyboardType(.decimalPad).textFieldStyle(ShalevTextFieldStyle())
+                            TextField("0.00", text: $price)
+                                .keyboardType(.decimalPad)
+                                .shalevInputFilter(.money, text: $price)
+                                .textFieldStyle(ShalevTextFieldStyle())
                             Text("Por unidad").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                             if kind != .prepared {
                                 fieldLabel("Precio de costo (CUP) *")
-                                TextField("0.00", text: $cost).keyboardType(.decimalPad).textFieldStyle(ShalevTextFieldStyle())
+                                TextField("0.00", text: $cost)
+                                    .keyboardType(.decimalPad)
+                                    .shalevInputFilter(.money, text: $cost)
+                                    .textFieldStyle(ShalevTextFieldStyle())
                                 Text("Por unidad").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                             } else {
                                 Text("El costo se calcula a partir de los insumos de la receta.")

@@ -30,6 +30,7 @@ struct LicenseView: View {
     @State private var phone = ""
     @State private var type: GLLicenseType = .monthly
     @State private var secondaries = 0
+    @State private var extendingSecondaries = false
     @State private var channel: GLRequestChannel = .whatsapp
     @State private var recoveryID = ""
     @State private var activationText = ""
@@ -168,25 +169,68 @@ struct LicenseView: View {
         }
     }
 
+    private var isExtensionFlow: Bool {
+        license.canExtendSecondaries && (license.state.isPerpetual || extendingSecondaries)
+    }
+
+    private var minSecondaries: Int {
+        isExtensionFlow ? min(10, (license.installedSecondaries ?? 0) + 1) : 0
+    }
+
     private var showsRenewal: Bool {
-        license.installedType != nil && !license.state.isPerpetual && step != .request
+        ((license.installedType != nil && !license.state.isPerpetual) || license.canExtendSecondaries) && step != .request
     }
 
     private var renewalButton: some View {
         VStack(spacing: 6) {
-            Button {
-                if let installedType = license.installedType {
-                    type = installedType
-                    secondaries = min(10, max(0, license.installedSecondaries ?? 0))
+            HStack(spacing: 10) {
+                if license.installedType != nil && !license.state.isPerpetual {
+                    Button {
+                        extendingSecondaries = false
+                        if let installedType = license.installedType {
+                            type = installedType
+                            secondaries = min(10, max(0, license.installedSecondaries ?? 0))
+                        }
+                        requestMessage = nil
+                        if validForm {
+                            editingData = false
+                            step = .request
+                        } else {
+                            showErrors = true
+                            editingData = true
+                            step = .data
+                        }
+                    } label: {
+                        Label("Renovar igual", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(ShalevTonalButtonStyle())
                 }
-                step = .request
-                requestMessage = nil
-            } label: {
-                Label("Renovar igual", systemImage: "arrow.clockwise")
+                if license.canExtendSecondaries {
+                    Button {
+                        extendingSecondaries = true
+                        if let installedType = license.installedType {
+                            type = installedType
+                        }
+                        let currentSlots = license.installedSecondaries ?? 0
+                        secondaries = min(10, max(currentSlots + 1, secondaries))
+                        recoveryID = ""
+                        requestMessage = nil
+                        if validForm {
+                            editingData = false
+                            step = .request
+                        } else {
+                            showErrors = true
+                            editingData = true
+                            step = .data
+                        }
+                    } label: {
+                        Label("Ampliar secundarias", systemImage: "plus.circle")
+                    }
+                    .buttonStyle(ShalevTonalButtonStyle())
+                }
             }
-            .buttonStyle(ShalevTonalButtonStyle())
 
-            if let installedType = license.installedType {
+            if let installedType = license.installedType, !license.state.isPerpetual {
                 let installedSlots = min(10, max(0, license.installedSecondaries ?? 0))
                 Text("\(installedType.title) · \(slotsLabel(installedSlots)) · \(Cup(cents: installedType.totalPriceCents(secondaries: installedSlots)).formatted)")
                     .font(.shalev(12))
@@ -395,31 +439,56 @@ struct LicenseView: View {
             ShalevCard {
                 VStack(alignment: .leading, spacing: 12) {
                     ShalevSectionHeader(title: requestTitle)
-                    if license.state.isPerpetual {
-                        Text("Tu licencia no vence. No necesitas renovarla.")
+                    if license.state.isPerpetual && !license.canExtendSecondaries {
+                        Text("Tu licencia perpetua ya incluye el máximo de apps secundarias (10).")
                             .font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
                     } else {
-                        Text("Tipo de licencia")
-                            .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-                        VStack(spacing: 8) {
-                            ForEach(GLLicenseType.allCases) { option in
-                                typeChip(option)
+                        if !license.state.isPerpetual && license.canExtendSecondaries {
+                            HStack(spacing: 8) {
+                                ShalevFilterChip(title: "Renovar o cambiar", selected: !extendingSecondaries) {
+                                    extendingSecondaries = false
+                                    requestMessage = nil
+                                }
+                                ShalevFilterChip(title: "Ampliar secundarias", selected: extendingSecondaries) {
+                                    extendingSecondaries = true
+                                    if let installedType = license.installedType { type = installedType }
+                                    secondaries = min(10, max((license.installedSecondaries ?? 0) + 1, secondaries))
+                                    recoveryID = ""
+                                    requestMessage = nil
+                                }
                             }
                         }
 
-                        Text("Apps secundarias (empleados)")
+                        if isExtensionFlow, let installedType = license.installedType {
+                            let currentSlots = license.installedSecondaries ?? 0
+                            Text("Plan actual: \(installedType.title) · Apps secundarias actuales: \(currentSlots)")
+                                .font(.shalev(12, weight: .medium))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        } else {
+                            Text("Tipo de licencia")
+                                .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                            VStack(spacing: 8) {
+                                ForEach(GLLicenseType.allCases) { option in
+                                    typeChip(option)
+                                }
+                            }
+                        }
+
+                        Text(isExtensionFlow ? "Nuevo total de apps secundarias" : "Apps secundarias (empleados)")
                             .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                        let shownSecondaries = min(10, max(minSecondaries, secondaries))
                         HStack(spacing: 16) {
-                            quantityButton("minus", enabled: secondaries > 0, label: "Una secundaria menos") {
-                                secondaries = max(0, secondaries - 1)
+                            ShalevSpinnerButton(isIncrement: false, label: "Una secundaria menos", enabled: shownSecondaries > minSecondaries) {
+                                secondaries = max(minSecondaries, shownSecondaries - 1)
                                 requestMessage = nil
                             }
-                            Text("\(secondaries)")
+                            Text("\(shownSecondaries)")
                                 .font(.shalev(22, weight: .semibold))
                                 .foregroundStyle(Color.shalevText)
                                 .frame(minWidth: 34)
-                            quantityButton("plus", enabled: secondaries < 10, label: "Una secundaria más") {
-                                secondaries = min(10, secondaries + 1)
+                            ShalevSpinnerButton(isIncrement: true, label: "Una secundaria más", enabled: shownSecondaries < 10) {
+                                secondaries = min(10, shownSecondaries + 1)
                                 requestMessage = nil
                             }
                         }
@@ -431,7 +500,7 @@ struct LicenseView: View {
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
 
-                        if license.canRecover {
+                        if !isExtensionFlow && license.canRecover {
                             Text("¿Ya tenías licencia en otro teléfono?")
                                 .font(.shalev(13, weight: .semibold))
                                 .foregroundStyle(Color.shalevText)
@@ -458,7 +527,13 @@ struct LicenseView: View {
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
 
-                        if license.installedType != nil {
+                        if isExtensionFlow {
+                            Text("Conserva el vencimiento actual de tu licencia y cobra solo las secundarias añadidas.")
+                                .font(.shalev(12))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity)
+                        } else if license.installedType != nil {
                             Text("Si renuevas antes de que venza no pierdes días: la nueva licencia empieza cuando termine la actual.")
                                 .font(.shalev(12))
                                 .foregroundStyle(Color.shalevSecondaryText)
@@ -490,7 +565,7 @@ struct LicenseView: View {
                     }
                 }
             }
-            if !license.state.isPerpetual {
+            if !(license.state.isPerpetual && !license.canExtendSecondaries) {
                 Text("Cuando recibas la respuesta, actívala en el paso siguiente.")
                     .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
@@ -526,20 +601,6 @@ struct LicenseView: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(type == option ? .isSelected : [])
-    }
-
-    private func quantityButton(_ symbol: String, enabled: Bool, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.shalev(16, weight: .semibold))
-                .foregroundStyle(enabled ? Color.shalevText : Color.shalevOutline)
-                .frame(width: 40, height: 40)
-                .background(enabled ? Color.shalevSurfaceVariant : Color.shalevSurfaceVariant.opacity(0.45), in: Circle())
-                .shalevToque()
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .accessibilityLabel(label)
     }
 
     private func channelButton(_ option: GLRequestChannel, symbol: String, tint: Color) -> some View {
@@ -596,12 +657,14 @@ struct LicenseView: View {
     // MARK: - Textos
 
     private var requestTitle: String {
+        if isExtensionFlow { return "Ampliar apps secundarias" }
         if license.state.isPerpetual { return "Licencia perpetua" }
         return license.installedType == nil ? "Solicitar licencia" : "Renovar o cambiar licencia"
     }
 
     private var requestButtonTitle: String {
-        license.installedType == nil ? "Solicitar" : "Solicitar renovación"
+        if isExtensionFlow { return "Solicitar ampliación" }
+        return license.installedType == nil ? "Solicitar" : "Solicitar renovación"
     }
 
     private func slotsLabel(_ count: Int) -> String {
@@ -613,6 +676,14 @@ struct LicenseView: View {
     }
 
     private var totalText: String {
+        if isExtensionFlow, let installedType = license.installedType {
+            let currentSlots = license.installedSecondaries ?? 0
+            let targetSlots = min(10, max(minSecondaries, secondaries))
+            let added = max(1, targetSlots - currentSlots)
+            let unit = Cup(cents: installedType.secondaryPriceCUP * 100).formatted
+            let total = Cup(cents: installedType.extensionPriceCents(addedSecondaries: added)).formatted
+            return "Ampliación: \(total) (+\(added) × \(unit))"
+        }
         let base = Cup(cents: type.basePriceCUP * 100).formatted
         let secondary = Cup(cents: type.secondaryPriceCUP * 100).formatted
         if secondaries == 0 { return "Total: \(base)" }
@@ -639,7 +710,7 @@ struct LicenseView: View {
 
     private var validForm: Bool {
         validName(firstName) && validName(lastName) && validCI(identification) && normalizePhone(phone) != nil
-            && (recoveryID.isBlank || normalizedRecoveryID != nil)
+            && (isExtensionFlow || recoveryID.isBlank || normalizedRecoveryID != nil)
     }
 
     private func inputField(_ title: String, text: Binding<String>, placeholder: String,
@@ -707,7 +778,13 @@ struct LicenseView: View {
         identification = license.requestProfile.identification
         phone = license.requestProfile.phone
         if let installedType = license.installedType { type = installedType }
-        if let count = license.installedSecondaries { secondaries = min(10, max(0, count)) }
+        if let count = license.installedSecondaries {
+            if license.state.isPerpetual && license.canExtendSecondaries {
+                secondaries = min(10, count + 1)
+            } else {
+                secondaries = min(10, max(0, count))
+            }
+        }
         editingData = firstName.isBlank || lastName.isBlank || identification.isBlank || phone.isBlank
     }
 
@@ -728,8 +805,15 @@ struct LicenseView: View {
             try store.saveProfile(profile)
             requestProfile.firstName = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
             requestProfile.lastName = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
-            requestMessage = try license.buildRequest(type: type, secondaries: secondaries, channel: channel,
-                                                       recoveryID: normalizedRecoveryID)
+            let effectiveType = isExtensionFlow ? (license.installedType ?? type) : type
+            let effectiveSecondaries = isExtensionFlow ? min(10, max(minSecondaries, secondaries)) : secondaries
+            requestMessage = try license.buildRequest(
+                type: effectiveType,
+                secondaries: effectiveSecondaries,
+                channel: channel,
+                recoveryID: isExtensionFlow ? nil : normalizedRecoveryID,
+                extendingCurrentSecondaries: isExtensionFlow
+            )
         } catch {
             alertMessage = "Revisa los datos y vuelve a intentarlo."
         }

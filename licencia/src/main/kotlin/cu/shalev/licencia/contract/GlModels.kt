@@ -31,6 +31,9 @@ enum class TipoLicencia(val etiqueta: String, val precioCup: Long, val precioSec
 
     /** 0.21.0 (C4): precio base + un importe fijo por cada app secundaria (P46). */
     fun precio(secundarias: Int): Long = precioCup + secundarias.coerceAtLeast(0) * precioSecundariaCup
+
+    /** Tarifa fija por ampliar apps secundarias adicionales sobre una licencia vigente del mismo tipo. */
+    fun precioAmpliacion(adicionales: Int): Long = adicionales.coerceAtLeast(0) * precioSecundariaCup
 }
 
 @Serializable
@@ -75,6 +78,14 @@ data class RequestPayload(
     @OptIn(ExperimentalSerializationApi::class)
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val recupera: String? = null,
+    /**
+     * ID de la licencia instalada y vigente cuyas apps secundarias se AMPLÍAN hasta [secundarias] (≤ 10),
+     * conservando el vencimiento original y cobrando únicamente las secundarias adicionales.
+     * Excluyente con [renueva] y [recupera].
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val amplia: String? = null,
 )
 
 /**

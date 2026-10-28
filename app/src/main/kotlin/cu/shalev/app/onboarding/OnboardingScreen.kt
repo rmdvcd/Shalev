@@ -374,7 +374,7 @@ private fun CampoNivelUi(
     forzar: Boolean, sumar: (CampoNivel, Int) -> Unit, acciones: OnboardingAcciones, decimal: Boolean,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-        ShalevIconAction(ShalevIcons.Quitar, "Restar 1 a $etiqueta", onClick = { sumar(campo, -1) }, style = IconActionStyle.Tonal)
+        ShalevIconAction(ShalevIcons.Disminuir, "Restar 1 a $etiqueta", onClick = { sumar(campo, -1) }, style = IconActionStyle.Tonal)
         ShalevTextField(
             filtro = if (decimal) FiltroEntrada.DECIMAL else FiltroEntrada.ENTERO,
             value = form.valor(campo), onValueChange = { acciones.onNivel(campo, it) }, label = etiqueta,
@@ -382,7 +382,7 @@ private fun CampoNivelUi(
             keyboardOptions = KeyboardOptions(keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number),
             modifier = Modifier.weight(1f),
         )
-        ShalevIconAction(ShalevIcons.Agregar, "Sumar 1 a $etiqueta", onClick = { sumar(campo, 1) }, style = IconActionStyle.Tonal)
+        ShalevIconAction(ShalevIcons.Aumentar, "Sumar 1 a $etiqueta", onClick = { sumar(campo, 1) }, style = IconActionStyle.Tonal)
     }
 }
 
@@ -457,7 +457,7 @@ private fun PasoEmpleados(state: OnboardingUiState, acciones: OnboardingAcciones
         modifier = Modifier.fillMaxWidth(),
     ) {
         ShalevIconAction(
-            ShalevIcons.Quitar, "Un empleado menos", onClick = { acciones.onEmpleados(state.empleados - 1) },
+            ShalevIcons.Disminuir, "Un empleado menos", onClick = { acciones.onEmpleados(state.empleados - 1) },
             enabled = state.empleados > 0, style = IconActionStyle.Tonal,
         )
         Text(
@@ -465,7 +465,7 @@ private fun PasoEmpleados(state: OnboardingUiState, acciones: OnboardingAcciones
             modifier = Modifier.testTag(OnboardingTags.EMPLEADOS).semantics { contentDescription = TextosTour.empleados(state.empleados) },
         )
         ShalevIconAction(
-            ShalevIcons.Agregar, "Un empleado más", onClick = { acciones.onEmpleados(state.empleados + 1) },
+            ShalevIcons.Aumentar, "Un empleado más", onClick = { acciones.onEmpleados(state.empleados + 1) },
             enabled = state.empleados < cu.shalev.domain.model.Vinculacion.SECUNDARIAS_MAX, style = IconActionStyle.Tonal,
         )
     }

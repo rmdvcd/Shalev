@@ -41,9 +41,14 @@ data class LicenciaForm(
      * revoca la anterior y emite gratis la misma (vencimiento y secundarias) para este teléfono.
      */
     val recupera: String = "",
+    /** Solicitud de ampliación de apps secundarias sobre la licencia activa instalada (conservando vencimiento). */
+    val ampliandoSecundarias: Boolean = false,
 ) {
     /** 0.21.0 (C4): precio total = base del tipo + importe por cada secundaria. */
     val precio: Long get() = tipo.precio(secundarias)
+
+    /** Importe a cobrar cuando se amplían apps secundarias sobre una licencia con [previas] secundarias. */
+    fun precioAmpliacion(previas: Int): Long = tipo.precioAmpliacion((secundarias - previas).coerceAtLeast(1))
 
     val nombreOk: Boolean get() = Validators.nombre(nombre)
     val apellidosOk: Boolean get() = Validators.nombre(apellidos)
@@ -54,11 +59,42 @@ data class LicenciaForm(
     val idRecupera: String? get() = recupera.takeIf { it.isNotBlank() }?.let { cu.shalev.licencia.contract.IdLicencia.extraer(it) }
     val recuperaOk: Boolean get() = recupera.isBlank() || idRecupera != null
 
-    fun aInput(): SolicitudInput =
-        SolicitudInput(nombre.trim(), apellidos.trim(), ci.trim(), telefono.trim(), tipo, via, secundarias, recupera = idRecupera)
+    fun aInput(lic: Licencia? = null): SolicitudInput {
+        val inst = lic?.instalada
+        if (lic != null && inst != null && lic.accionSolicitud(ampliandoSecundarias) == AccionSolicitud.AMPLIAR) {
+            val total = secundarias.coerceIn(inst.secundarias + 1, GlContract.SECUNDARIAS_MAX)
+            return SolicitudInput(
+                nombre = nombre.trim(),
+                apellidos = apellidos.trim(),
+                ci = ci.trim(),
+                telefono = telefono.trim(),
+                tipo = inst.tipo,
+                via = via,
+                secundarias = total,
+                amplia = inst.id,
+                secundariasPrevias = inst.secundarias,
+            )
+        }
+        return SolicitudInput(nombre.trim(), apellidos.trim(), ci.trim(), telefono.trim(), tipo, via, secundarias, recupera = idRecupera)
+    }
 
-    /** 0.21.0 (C4): cambia el nº de secundarias dentro de 0..[GlContract.SECUNDARIAS_MAX]. */
-    fun conSecundarias(n: Int): LicenciaForm = copy(secundarias = n.coerceIn(0, GlContract.SECUNDARIAS_MAX))
+    /** 0.21.0 (C4): cambia el nº de secundarias dentro de [minimo]..[GlContract.SECUNDARIAS_MAX]. */
+    fun conSecundarias(n: Int, minimo: Int = 0): LicenciaForm =
+        copy(secundarias = n.coerceIn(minimo.coerceIn(0, GlContract.SECUNDARIAS_MAX), GlContract.SECUNDARIAS_MAX))
+
+    /** Activa o desactiva el modo de ampliación de secundarias ajustando tipo y mínimo de secundarias. */
+    fun conModoAmpliacion(activar: Boolean, instalada: LicenciaInstalada?): LicenciaForm {
+        if (!activar || instalada == null || instalada.secundarias >= GlContract.SECUNDARIAS_MAX) {
+            return copy(ampliandoSecundarias = false)
+        }
+        val minTotal = (instalada.secundarias + 1).coerceAtMost(GlContract.SECUNDARIAS_MAX)
+        return copy(
+            tipo = instalada.tipo,
+            secundarias = secundarias.coerceIn(minTotal, GlContract.SECUNDARIAS_MAX),
+            recupera = "",
+            ampliandoSecundarias = true,
+        )
+    }
 
     /**
      * Copia los datos del Perfil (sincronía Perfil → Licencia). Perfil vacío o incompleto = formulario
@@ -88,11 +124,21 @@ data class LicenciaForm(
 enum class AccionSolicitud(val titulo: String, val boton: String) {
     SOLICITAR("Solicitar licencia", "Solicitar"),
     ACTUALIZAR("Renovar o cambiar licencia", "Solicitar renovación"),
+    AMPLIAR("Ampliar apps secundarias", "Solicitar ampliación"),
     NINGUNA("Licencia perpetua", ""),
 }
 
-fun Licencia.accionSolicitud(): AccionSolicitud = when {
-    estado is LicenseState.Perpetual -> AccionSolicitud.NINGUNA
+/** Hay una licencia vigente (activa o perpetua, no maestra) con margen para añadir más apps secundarias (< 10). */
+fun Licencia.ampliable(): Boolean {
+    val inst = instalada ?: return false
+    return (estado is LicenseState.Active || estado is LicenseState.Perpetual) &&
+        inst.id != cu.shalev.licencia.ID_MAESTRA_LICENCIA &&
+        inst.secundarias < GlContract.SECUNDARIAS_MAX
+}
+
+fun Licencia.accionSolicitud(modoAmpliar: Boolean = false): AccionSolicitud = when {
+    estado is LicenseState.Perpetual -> if (ampliable()) AccionSolicitud.AMPLIAR else AccionSolicitud.NINGUNA
+    ampliable() && modoAmpliar -> AccionSolicitud.AMPLIAR
     instalada != null -> AccionSolicitud.ACTUALIZAR
     else -> AccionSolicitud.SOLICITAR
 }
@@ -155,12 +201,15 @@ fun Licencia.permiteRecuperar(): Boolean = instalada == null || estado is Licens
 fun Licencia.renovable(): Boolean = instalada?.venceEn != null && estado !is LicenseState.Perpetual
 
 /** 0.22.0 (L-e): «Renovar igual»: mismo tipo y secundarias que la licencia instalada (el usuario aún puede cambiarlos). */
-fun LicenciaForm.igualQue(instalada: LicenciaInstalada): LicenciaForm = copy(tipo = instalada.tipo).conSecundarias(instalada.secundarias)
+fun LicenciaForm.igualQue(instalada: LicenciaInstalada): LicenciaForm =
+    copy(tipo = instalada.tipo, ampliandoSecundarias = false).conSecundarias(instalada.secundarias)
 
 /** 0.22.0: textos de la renovación y del QR (puros, probados en JVM). */
 object TextosRenovacion {
     const val BOTON = "Renovar igual"
+    const val BOTON_AMPLIAR = "Ampliar secundarias"
     const val SIN_PERDER_DIAS = "Si renuevas antes de que venza no pierdes días: la nueva licencia empieza cuando termine la actual."
+    const val CONSERVA_VENCIMIENTO = "Conserva el vencimiento actual de tu licencia y cobra solo las secundarias añadidas."
     fun detalle(i: LicenciaInstalada): String =
         "${i.tipo.etiqueta} · ${TextosLicencia.secundarias(i.secundarias)} · ${Money.cup(i.tipo.precio(i.secundarias))}"
 }

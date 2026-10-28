@@ -16,6 +16,10 @@ final class LicenseContractTests: XCTestCase {
         XCTAssertEqual(GLLicenseType.annual.totalPriceCents(secondaries: 2), 6_800_000)
         XCTAssertEqual(GLLicenseType.perpetual.totalPriceCents(secondaries: 1), 10_700_000)
         XCTAssertEqual(GLLicenseType.monthly.totalPriceCents(secondaries: -3), 600_000)
+        XCTAssertEqual(GLLicenseType.monthly.extensionPriceCents(addedSecondaries: 3), 300_000)
+        XCTAssertEqual(GLLicenseType.semiannual.extensionPriceCents(addedSecondaries: 2), 1_000_000)
+        XCTAssertEqual(GLLicenseType.annual.extensionPriceCents(addedSecondaries: 4), 3_600_000)
+        XCTAssertEqual(GLLicenseType.perpetual.extensionPriceCents(addedSecondaries: 2), 3_400_000)
     }
 
     func testLicenseProfileValidationAndPhoneNormalization() {

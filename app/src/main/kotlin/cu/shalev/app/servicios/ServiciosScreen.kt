@@ -107,6 +107,7 @@ class AccionesServicios(
     val onContinuarVenta: () -> Unit = {},
     val onAtras: () -> Unit = {},
     val onAyuda: (() -> Unit)? = null,
+    val onImportarOcr: (() -> Unit)? = null,
 )
 
 @Composable
@@ -121,10 +122,16 @@ fun ServiciosScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
+    var mostrarOcr by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    var mensajeOcr by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
     val guardarPdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.PDF.mime)) { viewModel.guardarEn(it?.toString()) }
     val guardarXlsx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.XLSX.mime)) { viewModel.guardarEn(it?.toString()) }
     LaunchedEffect(mensajeInicial) {
         if (mensajeInicial != null) { onMensajeMostrado(); snackbar.showSnackbar(mensajeInicial) }
+    }
+    LaunchedEffect(mensajeOcr) {
+        val m = mensajeOcr
+        if (m != null) { mensajeOcr = null; snackbar.showSnackbar(m) }
     }
     LaunchedEffect(viewModel) {
         viewModel.eventos.collect { e ->
@@ -140,11 +147,19 @@ fun ServiciosScreen(
             }
         }
     }
+    if (mostrarOcr) {
+        cu.shalev.app.ocr.HojaImportarOcr(
+            destino = cu.shalev.app.ocr.DestinoOcr.SERVICIOS,
+            onDismiss = { mostrarOcr = false },
+            onImportadoMensaje = { msg -> mensajeOcr = msg },
+        )
+    }
     ServiciosContent(
         state = state,
         snackbar = snackbar,
         acciones = AccionesServicios(
             onAyuda = { onNavigate(Route.Ayuda) },
+            onImportarOcr = { mostrarOcr = true },
             onBuscar = viewModel::buscar, onFiltro = viewModel::aplicarFiltro, onQuitarFiltros = viewModel::quitarFiltros,
             onReintentar = viewModel::reintentar, onAlternar = viewModel::alternar, onSeleccionarTodo = viewModel::seleccionarTodo,
             onLimpiarSeleccion = viewModel::limpiarSeleccion, onAbrirFicha = viewModel::abrirFicha, onCerrarFicha = viewModel::cerrarFicha,
@@ -171,6 +186,10 @@ fun ServiciosContent(
                     BotonFiltro(state.filtro.activos, TextosServicios.FILTRAR, onClick = { acciones.onHoja(HojaServicios.FILTRO) }, modifier = Modifier.testTag(ServiciosTags.FILTRO), enabled = state.tipos.isNotEmpty() || state.filtro.activos > 0)
                 })
             } else ShalevTopBar(title = TextosServicios.TITULO, actions = {
+                if (LocalPermisosApp.current.editarInventario && acciones.onImportarOcr != null) ShalevIconAction(
+                    ShalevIcons.Ocr, "Escanear o importar servicios", onClick = acciones.onImportarOcr,
+                    modifier = Modifier.testTag("servicios_ocr"),
+                )
                 BotonFiltro(state.filtro.activos, TextosServicios.FILTRAR, onClick = { acciones.onHoja(HojaServicios.FILTRO) }, modifier = Modifier.testTag(ServiciosTags.FILTRO), enabled = state.tipos.isNotEmpty() || state.filtro.activos > 0)
                 if (LocalPermisosApp.current.exportar) ShalevIconAction(
                     ShalevIcons.Compartir, TextosServicios.EXPORTAR, onClick = { acciones.onHoja(HojaServicios.EXPORTAR) },

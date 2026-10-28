@@ -1,9 +1,10 @@
 # Especificación del contrato Shalev ⇄ GL (referencia oficial, 0.24.0+)
 
 Texto aportado por el usuario en el Prompt 70 y comprobado contra el código de Shalev y el vector dorado
-(`tools/licencia/vector_0.23.txt`, reproducido byte a byte por una implementación independiente en Python).
+(`GoldenVectorTest.kt` y `tools/licencia/probar_gl.py`, reproducido byte a byte en Kotlin, Swift y Python).
 Única corrección respecto al original: el punto 2a (fin del código `SPVI2:`), marcado con **[corregido]**.
-Las ampliaciones de la 0.25.0 (recuperación y lista de revocaciones) están en `docs/GL_PROMPT_0.25.md`.
+Las ampliaciones posteriores cubren recuperación (`recupera`), lista firmada de revocaciones (`revocadas.json`) y
+ampliación de apps secundarias (`amplia`, parche para `rmdvcd/GL` en `docs/gl-ampliar-secundarias.patch`).
 Las mitigaciones del sistema de licencias de GL (clave maestra solo en builds de depuración, sub-tokens de las apps
 secundarias y AAD canónica del envelope v1) están en `LICENSE_CLIENT.md` §10–§11.
 
@@ -47,14 +48,18 @@ Primitivas (implementa exactamente así en tu lenguaje).
 
 1) SOLICITUD (Shalev → GL). Cada solicitud genera un par efímero P-256 NUEVO
 (el dispositivo tiene su par estable devicePriv/devicePub).
-  a) JSON UTF-8 del plano ("renueva" SOLO si es renovación):
+  a) JSON UTF-8 del plano ("renueva", "recupera" y "amplia" son mutuamente excluyentes):
      {"v":2,"nombre":"…","apellidos":"…","ci":"…","via":"WHATSAPP"|"SMS",
       "telefono":"+53…","deviceId":"SPVI:…","tipo":"MENSUAL"|"SEMESTRAL"|
       "ANUAL"|"PERPETUA","solicitadaEn":"ISO-8601 UTC",
       "nonce":"…","devicePub":"<pública comprimida 33 B en Base64url>",
-      "secundarias":0..10,"renueva":"<licenseId previo>"}
+      "secundarias":0..10,"renueva":"<licenseId previo>",
+      "recupera":"<licenseId previo>","amplia":"<licenseId vigente>"}
      nonce ≥ 128 bits aleatorios en Base64url. NO incluyas "appName" ni
-     "licenciaCorta".
+     "licenciaCorta". En ampliación de secundarias ("amplia"), "secundarias" es
+     el nuevo total deseado (actuales + adicionales, entre 1 y 10), la fecha
+     "venceEn" (o PERPETUA) se conserva intacta y el precio cobra solo las
+     secundarias adicionales a tarifa fija (1 000 / 5 000 / 9 000 / 17 000 CUP).
   b) epk = efímera pública comprimida (33 B).
      ikm = ECDH(efímera privada, pública ECDH de GL).
      okm = HKDF-SHA256(ikm, salt = epk, info = UTF-8("SPVI-R1"), 44).
@@ -110,7 +115,7 @@ Primitivas (implementa exactamente así en tu lenguaje).
      <renglón en blanco>
      SPVI2:…(210 caracteres)
 
-3) VECTOR DORADO (claves de PRUEBA): ver tools/licencia/vector_0.23.txt
+3) VECTOR DORADO (claves de PRUEBA): ver `GoldenVectorTest.kt` y `LicenseContractTests.swift`
    deviceId = SPVI:golden0000000001
    devicePub = AiuZGHe7sUgbFLfqufeF1BMCvKuYZQuJKYSxnIoc0zMK
    licenseId = 7c9e6679-7425-40de-944b-e07fc1f90ae7, MENSUAL, ACTIVA, 2 secundarias,

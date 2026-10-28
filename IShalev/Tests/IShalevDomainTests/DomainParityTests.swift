@@ -263,4 +263,37 @@ final class DomainParityTests: XCTestCase {
         XCTAssertEqual(decoded.shifts[0].closingCount?.cashCents, 12_300)
         XCTAssertEqual(decoded.shifts[0].closingCount?.bills[100], 1)
     }
+
+    func testSharedIngredientCapacityAndCashOutflowGuards() throws {
+        let store = ShalevStore(storage: MemoryStorage())
+        try store.openShift(openingCashCents: 20_000) // 200 CUP
+
+        // Salida de efectivo mayor al disponible en caja es rechazada.
+        XCTAssertThrowsError(try store.recordCashMovement(kind: .expense, amountCents: 25_000, reason: "Pago proveedor")) {
+            XCTAssertEqual($0 as? BusinessError, .insufficientCash)
+        }
+
+        // 1.000 kg de queso compartido entre dos pizzas elaboradas y venta directa.
+        let cheese = Product(name: "Queso", category: "Insumos", kind: .ingredient,
+                             stockMilli: 1_000, unit: "kg", priceCents: 30_000, costCents: 20_000)
+        try store.saveProduct(cheese)
+        let pizzaA = Product(name: "Pizza Napolitana", category: "Elaborado", kind: .prepared,
+                             stockMilli: 0, priceCents: 15_000, costCents: 0,
+                             uses: [IngredientUse(ingredientID: cheese.id, milliUnits: 200)])
+        let pizzaB = Product(name: "Pizza Jamón", category: "Elaborado", kind: .prepared,
+                             stockMilli: 0, priceCents: 18_000, costCents: 0,
+                             uses: [IngredientUse(ingredientID: cheese.id, milliUnits: 250)])
+        try store.saveProduct(pizzaA)
+        try store.saveProduct(pizzaB)
+
+        let cart: [UUID: Int] = [pizzaA.id: 3] // usa 600 g, quedan 400 g
+        XCTAssertEqual(store.maxAllowedQuantity(kind: .product, sourceID: pizzaA.id, in: cart), 5)
+        XCTAssertEqual(store.maxAllowedQuantity(kind: .product, sourceID: pizzaB.id, in: cart), 1)
+        XCTAssertEqual(store.maxAllowedQuantity(kind: .product, sourceID: cheese.id, in: cart), 0)
+
+        XCTAssertThrowsError(try store.previewSale([
+            CartDraft(sourceID: pizzaA.id, kind: .product, quantity: 3),
+            CartDraft(sourceID: pizzaB.id, kind: .product, quantity: 2),
+        ], payment: .cash))
+    }
 }

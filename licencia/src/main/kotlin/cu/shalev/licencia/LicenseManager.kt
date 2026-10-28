@@ -99,6 +99,10 @@ data class SolicitudInput(
     val renueva: String? = null,
     /** 0.25.0: id de la licencia que se RECUPERA (teléfono nuevo o reinstalado). Excluyente con [renueva]. */
     val recupera: String? = null,
+    /** ID de la licencia vigente cuyas apps secundarias se amplían. Excluyente con [renueva] y [recupera]. */
+    val amplia: String? = null,
+    /** Secundarias actuales de la licencia que se amplía (para el texto legible de [MensajesLicencia.ampliacion]). */
+    val secundariasPrevias: Int = 0,
 )
 
 /**
@@ -205,7 +209,15 @@ class LicenseManager(
         require(input.secundarias in 0..GlContract.SECUNDARIAS_MAX) { "Número de apps secundarias inválido" }
         require(input.renueva == null || input.renueva.length in 1..64) { "Licencia a renovar inválida" }
         require(input.recupera == null || IdLicencia.extraer(input.recupera) == input.recupera.trim().lowercase()) { "Licencia a recuperar inválida" }
-        require(input.renueva == null || input.recupera == null) { "Renovar y recuperar son excluyentes" }
+        require(input.amplia == null || input.amplia.length in 1..64) { "Licencia a ampliar inválida" }
+        require(listOf(input.renueva, input.recupera, input.amplia).count { it != null } <= 1) {
+            "Renovar, recuperar y ampliar son excluyentes"
+        }
+        require(
+            input.amplia == null ||
+                (input.secundariasPrevias in 0 until GlContract.SECUNDARIAS_MAX &&
+                    input.secundarias in (input.secundariasPrevias + 1)..GlContract.SECUNDARIAS_MAX),
+        ) { "La ampliación debe incrementar las apps secundarias actuales (máx. ${GlContract.SECUNDARIAS_MAX})" }
 
         val nonce = B64.urlNoPad(ByteArray(16).also(random::nextBytes))
         val payload = RequestPayload(
@@ -222,11 +234,12 @@ class LicenseManager(
             secundarias = input.secundarias,
             renueva = input.renueva,
             recupera = input.recupera?.trim()?.lowercase(),
+            amplia = input.amplia,
         )
         val plain = GlJson.encoder.encodeToString(RequestPayload.serializer(), payload).toByteArray(Charsets.UTF_8)
         val codigo = SolicitudCifrada.sellar(plain, gl)
         plain.fill(0)
-        return SolicitudGenerada(MensajesLicencia.solicitud(payload, codigo), codigo)
+        return SolicitudGenerada(MensajesLicencia.solicitud(payload, codigo, input.secundariasPrevias), codigo)
     }
 
     /**
@@ -234,6 +247,17 @@ class LicenseManager(
      * vencimiento (activa o vencida). null si no hay licencia, si es perpetua o si no verifica.
      */
     suspend fun licenciaRenovable(): String? = evaluate().license?.takeIf { it.venceEn != null }?.id
+
+    /**
+     * Licencia instalada y vigente cuyas apps secundarias aún admiten ampliación (< [GlContract.SECUNDARIAS_MAX]).
+     * Excluye la clave maestra de desarrollo (`ID_MAESTRA`), que ya trae el máximo y no proviene de GL.
+     */
+    suspend fun licenciaAmpliable(): InstalledLicense? {
+        val ev = evaluate()
+        val lic = ev.license ?: return null
+        val vigente = ev.state is LicenseState.Active || ev.state is LicenseState.Perpetual
+        return lic.takeIf { vigente && it.id != ID_MAESTRA_LICENCIA && it.secundarias < GlContract.SECUNDARIAS_MAX }
+    }
 
     /**
      * Procesa el mensaje de licencia pegado, compartido o leído de un QR. Acepta, en este orden:

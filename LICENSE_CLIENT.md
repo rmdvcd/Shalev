@@ -152,11 +152,12 @@ La tabla registra decisiones de versiones anteriores; **no** describe el payload
 | Destino +5351815604 (D4) | No | No |
 | Envelope estricto (D2.6) | No (alineación) | No |
 | Migrar (O5) | No | No |
-| Campo opcional `secundarias` en solicitud y licencia (0.21.0, C4) | No (campo extra al final; el payload de la licencia se lee con `ignoreUnknownKeys`) | **Sí:** GL debe copiarlo de la solicitud a la licencia y cobrar por él (hoy en `docs/GL_PROMPT_0.25.md`) |
-| Licencia corta + QR, `licenciaCorta` (0.22.0, L-b/L-c) | No (forma adicional; la larga sigue igual) | **Sí:** GL la emite si la solicitud trae `licenciaCorta` (sustituida en la 0.23; ver `docs/GL_PROMPT_0.25.md`) |
+| Campo opcional `secundarias` en solicitud y licencia (0.21.0, C4) | No (campo extra al final; el payload de la licencia se lee con `ignoreUnknownKeys`) | **Sí:** GL copia `secundarias` de la solicitud a la licencia y cobra según la tarifa vigente |
+| Licencia corta + QR, `licenciaCorta` (0.22.0, L-b/L-c) | No (forma adicional; la larga sigue igual) | **Sí:** sustituida en la 0.23 por `SPVI2:` |
 | Renovación sin perder días, `renueva` (0.22.0, L-e) | No (campo extra al final) | **Sí:** GL calcula `venceEn = max(ahora, venceEn anterior) + duración` con SUS registros |
 | `licenseId` fuera del envelope (N1) | No | Resuelto: GL lo pone en la línea «ID:» (solo afecta a la larga ya instalada) |
-| **Solicitud `SPVIR1` + licencia corta cifrada `Shalev2` únicas, mensaje «datos + renglón + código», solo texto (0.23.0; QR quitado en la 0.23.1)** | **Sí:** solicitud `v = 2` y la larga deja de activarse; las claves de GL no cambian | **Sí:** `docs/GL_PROMPT_0.23.md` |
+| **Solicitud `SPVIR1` + licencia corta cifrada `SPVI2` únicas, mensaje «datos + renglón + código», solo texto (0.23.0; QR quitado en la 0.23.1)** | **Sí:** solicitud `v = 2` y la larga deja de activarse; las claves de GL no cambian | **Sí:** ver `docs/GL_ESPECIFICACION.md` |
+| **Ampliación de apps secundarias (`amplia`) sobre una licencia instalada (1.0.2)** | No (campo opcional `amplia` mutuamente excluyente con `renueva` y `recupera`; `secundarias` lleva el nuevo total `1..10`) | **Sí:** GL conserva el `venceEn` (o `PERPETUA`) de la licencia original y cobra tarifa fija por secundaria añadida (`1 000 / 5 000 / 9 000 / 17 000 CUP` según tipo); ver `docs/gl-ampliar-secundarias.patch` |
 
 ## 9. Pruebas
 

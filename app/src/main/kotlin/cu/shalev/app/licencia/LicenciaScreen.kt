@@ -79,9 +79,10 @@ class LicenciaAcciones(
     val onPegar: () -> Unit,
     /** Solo en el bloqueo: abre Soporte desde el aviso (fuera del bloqueo, Soporte está en Ajustes). */
     val onSoporte: (() -> Unit)? = null,
-    /** 0.22.0 (L-c): leer el QR de la licencia con la cámara o desde una imagen. */
     /** 0.22.0 (L-e): mismo tipo y secundarias que la instalada; true = datos válidos (salta a «Pide la licencia»). */
     val onRenovarIgual: () -> Boolean = { false },
+    /** Prepara la ampliación de apps secundarias de la licencia vigente; true = datos válidos (salta al paso 2). */
+    val onAmpliarSecundarias: () -> Boolean = { false },
 )
 
 /**
@@ -151,6 +152,7 @@ fun LicenciaScreen(
                 onPegar = { clipboard.getText()?.text?.let { t -> viewModel.editar { it.copy(mensajeLicencia = t) } } },
                 onSoporte = onSoporte,
                 onRenovarIgual = viewModel::renovarIgual,
+                onAmpliarSecundarias = viewModel::ampliarSecundarias,
             ),
             modifier = Modifier.padding(padding).consumeWindowInsets(padding),
         )
@@ -170,6 +172,7 @@ object LicenciaTags {
     const val FORM_DATOS = "licencia.form"
     const val STEPPER = "licencia.stepper"
     const val RENOVAR_IGUAL = "licencia.renovar_igual"
+    const val AMPLIAR_SECUNDARIAS = "licencia.ampliar_secundarias"
     const val SIN_PERDER_DIAS = "licencia.sin_perder_dias"
     const val RECUPERA = "licencia.recupera"
     const val PRECIOS = "licencia.precios"
@@ -187,7 +190,7 @@ fun LicenciaContent(
 ) {
     val lic = state.licencia ?: return ShalevLoading(modifier)
     val form = state.form
-    val accion = lic.accionSolicitud()
+    val accion = lic.accionSolicitud(form.ampliandoSecundarias)
     Column(
         modifier.fillMaxSize().shalevContentWidth().imePadding().verticalScroll(rememberScrollState()).padding(ShalevSpacing.md),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
@@ -210,16 +213,29 @@ fun LicenciaContent(
         var paso by rememberSaveable { mutableStateOf(pasoInicialLicencia(form)) }
         // 0.22.0 (L-e): renovar con lo mismo en un toque (tipo y secundarias de la instalada).
         val instalada = lic.instalada
-        if (lic.renovable() && instalada != null && paso != PasoLicencia.SOLICITAR) {
-            ShalevSecondaryButton(
-                text = TextosRenovacion.BOTON, icon = ShalevIcons.Reintentar,
-                onClick = { paso = if (acciones.onRenovarIgual()) PasoLicencia.SOLICITAR else PasoLicencia.DATOS },
-                modifier = Modifier.testTag(LicenciaTags.RENOVAR_IGUAL),
-            )
-            ShalevSecondaryText(
-                ShalevTextos.resaltar(TextosRenovacion.detalle(instalada), Money.cup(instalada.tipo.precio(instalada.secundarias))),
-                textAlign = TextAlign.Center,
-            )
+        if ((lic.renovable() || lic.ampliable()) && instalada != null && paso != PasoLicencia.SOLICITAR) {
+            ShalevButtonRow {
+                if (lic.renovable()) {
+                    ShalevSecondaryButton(
+                        text = TextosRenovacion.BOTON, icon = ShalevIcons.Reintentar,
+                        onClick = { paso = if (acciones.onRenovarIgual()) PasoLicencia.SOLICITAR else PasoLicencia.DATOS },
+                        modifier = Modifier.testTag(LicenciaTags.RENOVAR_IGUAL),
+                    )
+                }
+                if (lic.ampliable()) {
+                    ShalevSecondaryButton(
+                        text = TextosRenovacion.BOTON_AMPLIAR, icon = ShalevIcons.Aumentar,
+                        onClick = { paso = if (acciones.onAmpliarSecundarias()) PasoLicencia.SOLICITAR else PasoLicencia.DATOS },
+                        modifier = Modifier.testTag(LicenciaTags.AMPLIAR_SECUNDARIAS),
+                    )
+                }
+            }
+            if (lic.renovable()) {
+                ShalevSecondaryText(
+                    ShalevTextos.resaltar(TextosRenovacion.detalle(instalada), Money.cup(instalada.tipo.precio(instalada.secundarias))),
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
 
         lic.avisos().forEach { aviso ->
@@ -254,34 +270,60 @@ fun LicenciaContent(
         when (paso) {
             PasoLicencia.DATOS -> DatosCard(state, acciones)
             PasoLicencia.SOLICITAR -> {
-                // P28: sin tarjeta «Costos»: los chips de tipo ya muestran cada precio (y el actual lo dice el estado).
                 ShalevCard(title = accion.titulo) {
                     if (accion == AccionSolicitud.NINGUNA) {
-                        ShalevSecondaryText("Tu licencia no vence. No necesitas renovarla.")
+                        ShalevSecondaryText("Tu licencia perpetua ya incluye el máximo de apps secundarias (${cu.shalev.licencia.contract.GlContract.SECUNDARIAS_MAX}).")
                     } else {
-                        ShalevSecondaryText("Tipo de licencia")
-                        // 0.28.0: un tipo debajo del otro, a todo lo ancho.
-                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-                            TipoLicencia.entries.forEach { t ->
+                        if (lic.renovable() && lic.ampliable() && instalada != null) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs, Alignment.CenterHorizontally),
+                                verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
                                 ShalevChip(
-                                    label = t.etiqueta, supportingLabel = Money.cup(t.precioCup), supportingEsDato = true,
-                                    selected = form.tipo == t, onClick = { acciones.onEditar { it.copy(tipo = t) } },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    label = "Renovar o cambiar",
+                                    selected = accion != AccionSolicitud.AMPLIAR,
+                                    onClick = { acciones.onEditar { it.conModoAmpliacion(false, instalada) } },
+                                )
+                                ShalevChip(
+                                    label = "Ampliar secundarias",
+                                    selected = accion == AccionSolicitud.AMPLIAR,
+                                    onClick = { acciones.onEditar { it.conModoAmpliacion(true, instalada) } },
                                 )
                             }
                         }
-                        // 0.21.0 (C4): cuántas apps secundarias (empleados) cubre; cada una suma un importe fijo.
-                        SelectorSecundarias(form, acciones)
-                        // 0.25.0 (§3): recuperar la licencia de otro teléfono; 0.25.1 (C): también con la instalada vencida.
-                        if (lic.permiteRecuperar()) {
-                            ShalevSecondaryText(TextosRecuperacion.TITULO)
-                            ShalevTextField(
-                                filtro = FiltroEntrada.LIBRE,
-                                value = form.recupera, onValueChange = { v -> acciones.onEditar { it.copy(recupera = v.take(200)) } },
-                                label = TextosRecuperacion.CAMPO, supportingText = TextosRecuperacion.DETALLE,
-                                isError = !form.recuperaOk, errorText = TextosRecuperacion.ID_INVALIDO,
-                                modifier = Modifier.fillMaxWidth().testTag(LicenciaTags.RECUPERA),
+                        if (accion == AccionSolicitud.AMPLIAR && instalada != null) {
+                            ShalevSecondaryText(
+                                "Plan actual: ${instalada.tipo.etiqueta} · Apps secundarias actuales: ${instalada.secundarias}",
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth(),
                             )
+                            SelectorSecundarias(form, acciones, previasAmpliacion = instalada.secundarias)
+                        } else {
+                            ShalevSecondaryText("Tipo de licencia")
+                            // 0.28.0: un tipo debajo del otro, a todo lo ancho.
+                            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+                                TipoLicencia.entries.forEach { t ->
+                                    ShalevChip(
+                                        label = t.etiqueta, supportingLabel = Money.cup(t.precioCup), supportingEsDato = true,
+                                        selected = form.tipo == t, onClick = { acciones.onEditar { it.copy(tipo = t) } },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            }
+                            // 0.21.0 (C4): cuántas apps secundarias (empleados) cubre; cada una suma un importe fijo.
+                            SelectorSecundarias(form, acciones)
+                            // 0.25.0 (§3): recuperar la licencia de otro teléfono; 0.25.1 (C): también con la instalada vencida.
+                            if (lic.permiteRecuperar()) {
+                                ShalevSecondaryText(TextosRecuperacion.TITULO)
+                                ShalevTextField(
+                                    filtro = FiltroEntrada.LIBRE,
+                                    value = form.recupera, onValueChange = { v -> acciones.onEditar { it.copy(recupera = v.take(200)) } },
+                                    label = TextosRecuperacion.CAMPO, supportingText = TextosRecuperacion.DETALLE,
+                                    isError = !form.recuperaOk, errorText = TextosRecuperacion.ID_INVALIDO,
+                                    modifier = Modifier.fillMaxWidth().testTag(LicenciaTags.RECUPERA),
+                                )
+                            }
                         }
                         ShalevSecondaryText("Enviar por")
                         ShalevButtonRow {
@@ -299,7 +341,12 @@ fun LicenciaContent(
                             if (form.via == Via.WHATSAPP) "Se abrirá WhatsApp con tu solicitud de licencia."
                             else "Se abrirá Mensajes con tu solicitud de licencia.",
                         )
-                        if (lic.renovable()) {
+                        if (accion == AccionSolicitud.AMPLIAR) {
+                            ShalevSecondaryText(
+                                TextosRenovacion.CONSERVA_VENCIMIENTO, textAlign = TextAlign.Center,
+                                modifier = Modifier.testTag(LicenciaTags.SIN_PERDER_DIAS),
+                            )
+                        } else if (lic.renovable()) {
                             ShalevSecondaryText(
                                 TextosRenovacion.SIN_PERDER_DIAS, textAlign = TextAlign.Center,
                                 modifier = Modifier.testTag(LicenciaTags.SIN_PERDER_DIAS),
@@ -434,38 +481,53 @@ private fun PreciosLicenciaCard() {
     }
 }
 
-/** 0.21.0 (C4): selector − [n] + de secundarias con el precio total actualizado al momento. */
+/** 0.21.0 (C4): selector ◄ [n] ► de secundarias con el precio total actualizado al momento. */
 @Composable
-private fun SelectorSecundarias(form: LicenciaForm, acciones: LicenciaAcciones) {
-    ShalevSecondaryText(TextosLicencia.SECUNDARIAS)
+private fun SelectorSecundarias(form: LicenciaForm, acciones: LicenciaAcciones, previasAmpliacion: Int? = null) {
+    val minimo = previasAmpliacion?.let { (it + 1).coerceAtMost(cu.shalev.licencia.contract.GlContract.SECUNDARIAS_MAX) } ?: 0
+    val mostradas = form.secundarias.coerceIn(minimo, cu.shalev.licencia.contract.GlContract.SECUNDARIAS_MAX)
+    ShalevSecondaryText(if (previasAmpliacion != null) "Nuevo total de apps secundarias" else TextosLicencia.SECUNDARIAS)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs, Alignment.CenterHorizontally),
         modifier = Modifier.fillMaxWidth(),
     ) {
         ShalevIconAction(
-            ShalevIcons.Quitar, "Una secundaria menos", onClick = { acciones.onEditar { it.conSecundarias(it.secundarias - 1) } },
-            enabled = form.secundarias > 0, style = IconActionStyle.Tonal, modifier = Modifier.testTag(LicenciaTags.SECUNDARIAS_MENOS),
+            ShalevIcons.Disminuir, "Una secundaria menos", onClick = { acciones.onEditar { it.conSecundarias(mostradas - 1, minimo) } },
+            enabled = mostradas > minimo, style = IconActionStyle.Tonal, modifier = Modifier.testTag(LicenciaTags.SECUNDARIAS_MENOS),
         )
         Text(
-            form.secundarias.toString(), style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.testTag(LicenciaTags.SECUNDARIAS).semantics { contentDescription = TextosLicencia.secundarias(form.secundarias) },
+            mostradas.toString(), style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.testTag(LicenciaTags.SECUNDARIAS).semantics { contentDescription = TextosLicencia.secundarias(mostradas) },
         )
         ShalevIconAction(
-            ShalevIcons.Agregar, "Una secundaria más", onClick = { acciones.onEditar { it.conSecundarias(it.secundarias + 1) } },
-            enabled = form.secundarias < cu.shalev.licencia.contract.GlContract.SECUNDARIAS_MAX, style = IconActionStyle.Tonal,
+            ShalevIcons.Aumentar, "Una secundaria más", onClick = { acciones.onEditar { it.conSecundarias(mostradas + 1, minimo) } },
+            enabled = mostradas < cu.shalev.licencia.contract.GlContract.SECUNDARIAS_MAX, style = IconActionStyle.Tonal,
             modifier = Modifier.testTag(LicenciaTags.SECUNDARIAS_MAS),
         )
     }
-    ShalevSecondaryText(
-        // 0.28.0: los importes («Total: 1 500.00 CUP…») van en seminegrita.
-        ShalevTextos.resaltar(
-            TextosLicencia.precioTotal(form),
-            Money.cup(form.tipo.precioCup), Money.cup(form.precio), Money.cup(form.tipo.precioSecundariaCup),
-        ),
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().testTag(LicenciaTags.PRECIO_TOTAL),
-    )
+    if (previasAmpliacion != null) {
+        val adicionales = (mostradas - previasAmpliacion).coerceAtLeast(1)
+        val totalAmp = form.tipo.precioAmpliacion(adicionales)
+        ShalevSecondaryText(
+            ShalevTextos.resaltar(
+                TextosLicencia.precioAmpliacion(form.tipo, previasAmpliacion, mostradas),
+                Money.cup(totalAmp), Money.cup(form.tipo.precioSecundariaCup),
+            ),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().testTag(LicenciaTags.PRECIO_TOTAL),
+        )
+    } else {
+        ShalevSecondaryText(
+            // 0.28.0: los importes («Total: 1 500.00 CUP…») van en seminegrita.
+            ShalevTextos.resaltar(
+                TextosLicencia.precioTotal(form),
+                Money.cup(form.tipo.precioCup), Money.cup(form.precio), Money.cup(form.tipo.precioSecundariaCup),
+            ),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().testTag(LicenciaTags.PRECIO_TOTAL),
+        )
+    }
 }
 
 /** 0.21.0 (C4): textos del selector de secundarias (puros, probados en JVM). */
@@ -479,4 +541,8 @@ object TextosLicencia {
     fun precioTotal(f: LicenciaForm): String =
         if (f.secundarias == 0) "Total: ${Money.cup(f.tipo.precioCup)}"
         else "Total: ${Money.cup(f.precio)} (${Money.cup(f.tipo.precioCup)} + ${f.secundarias} × ${Money.cup(f.tipo.precioSecundariaCup)})"
+    fun precioAmpliacion(t: TipoLicencia, previas: Int, totales: Int): String {
+        val adicionales = (totales - previas).coerceAtLeast(1)
+        return "Ampliación: ${Money.cup(t.precioAmpliacion(adicionales))} (+$adicionales × ${Money.cup(t.precioSecundariaCup)})"
+    }
 }

@@ -123,6 +123,7 @@ class AccionesInventario(
     val onAtras: () -> Unit = {},
     /** P18 (A23): «Ayuda» desde el estado vacío. */
     val onAyuda: (() -> Unit)? = null,
+    val onImportarOcr: (() -> Unit)? = null,
 )
 
 @Composable
@@ -138,11 +139,17 @@ fun InventarioScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
+    var mostrarOcr by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    var mensajeOcr by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
     // CreateDocument fija el tipo MIME al crearse: uno por formato guardable.
     val guardarPdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.PDF.mime)) { viewModel.guardarEn(it?.toString()) }
     val guardarXlsx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.XLSX.mime)) { viewModel.guardarEn(it?.toString()) }
     LaunchedEffect(mensajeInicial) {
         if (mensajeInicial != null) { onMensajeMostrado(); snackbar.showSnackbar(mensajeInicial) }
+    }
+    LaunchedEffect(mensajeOcr) {
+        val m = mensajeOcr
+        if (m != null) { mensajeOcr = null; snackbar.showSnackbar(m) }
     }
     LaunchedEffect(viewModel) {
         viewModel.eventos.collect { e ->
@@ -156,11 +163,19 @@ fun InventarioScreen(
             }
         }
     }
+    if (mostrarOcr) {
+        cu.shalev.app.ocr.HojaImportarOcr(
+            destino = cu.shalev.app.ocr.DestinoOcr.INVENTARIO,
+            onDismiss = { mostrarOcr = false },
+            onImportadoMensaje = { msg -> mensajeOcr = msg },
+        )
+    }
     InventarioContent(
         state = state,
         snackbar = snackbar,
         acciones = AccionesInventario(
             onAyuda = { onNavigate(Route.Ayuda) },
+            onImportarOcr = { mostrarOcr = true },
             onBuscar = viewModel::buscar, onFiltro = viewModel::aplicarFiltro, onQuitarFiltros = viewModel::quitarFiltros,
             onReintentar = viewModel::reintentar, onAlternar = viewModel::alternar, onSeleccionarTodo = viewModel::seleccionarTodo,
             onLimpiarSeleccion = viewModel::limpiarSeleccion, onAbrirFicha = viewModel::abrirFicha, onCerrarFicha = viewModel::cerrarFicha,
@@ -189,6 +204,10 @@ fun InventarioContent(
                     BotonFiltro(state.filtro.activos, TextosInventario.FILTRAR, onClick = { acciones.onHoja(HojaInventario.FILTRO) }, modifier = Modifier.testTag(InventarioTags.FILTRO))
                 })
             } else ShalevTopBar(title = TextosInventario.TITULO, actions = {
+                if (LocalPermisosApp.current.editarInventario && acciones.onImportarOcr != null) ShalevIconAction(
+                    ShalevIcons.Ocr, "Escanear o importar inventario", onClick = acciones.onImportarOcr,
+                    modifier = Modifier.testTag("inventario_ocr"),
+                )
                 BotonFiltro(state.filtro.activos, TextosInventario.FILTRAR, onClick = { acciones.onHoja(HojaInventario.FILTRO) }, modifier = Modifier.testTag(InventarioTags.FILTRO))
                 if (LocalPermisosApp.current.exportar) ShalevIconAction(
                     ShalevIcons.Compartir, TextosInventario.EXPORTAR, onClick = { acciones.onHoja(HojaInventario.EXPORTAR) },

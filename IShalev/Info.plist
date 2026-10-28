@@ -33,7 +33,7 @@
         <string>_shalev._tcp</string>
     </array>
     <key>NSCameraUsageDescription</key>
-    <string>Shalev usa la cámara para escanear el código QR de vinculación con la app principal.</string>
+    <string>Shalev usa la cámara para escanear códigos QR de vinculación, apuntes manuscritos y fotos de inventario, servicios o ventas.</string>
     <key>UIAppFonts</key>
     <array>
         <string>Orbitron-Bold.ttf</string>
