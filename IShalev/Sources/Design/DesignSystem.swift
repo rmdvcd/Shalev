@@ -54,21 +54,21 @@ extension Color {
 final class ShalevDynamicType {
     static let shared = ShalevDynamicType()
 
-    /// Tope de escala; equivale a «Accesibilidad 1». Por encima, las filas, tarjetas y barras de altura
-    /// fija se rompen y en iOS todavía no hay disposiciones alternativas como el `letraGrande()` de
-    /// Android. Quitar el tope es el pendiente IX-013 de la auditoría UI/UX/IX.
-    static let escalaMaxima: CGFloat = 1.6
-
     /// Factor de la categoría Large (por defecto, hasta que la raíz instala la del usuario).
     private(set) var factor: CGFloat = 1
+
+    /// Equivalente del `letraGrande()` de Android (`ShalevFontScale.GRANDE = 1.3f`):
+    /// verdadero desde `xxxLarge` (1,35×) y en todas las categorías de accesibilidad (`AX1`–`AX5`).
+    private(set) var letraGrande: Bool = false
 
     private init() {}
 
     func actualizar(_ categoria: DynamicTypeSize) {
-        factor = min(Self.escalaMaxima, Self.factorDe(categoria))
+        factor = Self.factorDe(categoria)
+        letraGrande = categoria >= .xxxLarge
     }
 
-    /// Factores de Apple para el estilo `.body` en cada categoría de contenido.
+    /// Factores de Apple para el estilo `.body` en cada categoría de contenido (sin tope artificial).
     static func factorDe(_ categoria: DynamicTypeSize) -> CGFloat {
         switch categoria {
         case .xSmall: 0.82
@@ -92,13 +92,25 @@ final class ShalevDynamicType {
     static func escalado(_ size: CGFloat) -> CGFloat {
         (size * shared.factor * 2).rounded() / 2
     }
+
+    /// Escala moderada (hasta 1,35×) para glifos dentro de botones circulares o barras de navegación,
+    /// igual que las barras nativas de iOS y los iconos `24.dp` de Android, evitando que el símbolo
+    /// desborde su círculo en `AX1`–`AX5`.
+    static func escaladoIcono(_ size: CGFloat) -> CGFloat {
+        (size * min(1.35, shared.factor) * 2).rounded() / 2
+    }
 }
 
 extension Font {
     /// Tipografía de Shalev: el tamaño es el del design system (categoría Large) y **escala con Dynamic
-    /// Type**, incluidos los tamaños de accesibilidad. Sustituye a `.system(size:)`, que es fijo.
+    /// Type**, incluidos los tamaños de accesibilidad `AX1`–`AX5`. Sustituye a `.system(size:)`, que es fijo.
     static func shalev(_ size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> Font {
         .system(size: ShalevDynamicType.escalado(size), weight: weight, design: design)
+    }
+
+    /// Glifo SF Symbol dentro de un contenedor circular o barra cromática de tamaño acotado.
+    static func shalevIcono(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
+        .system(size: ShalevDynamicType.escaladoIcono(size), weight: weight)
     }
 
     /// Fuente de marca (Orbitron) escalada con Dynamic Type.
@@ -187,7 +199,44 @@ struct ShalevCard<Content: View>: View {
     }
 }
 
+/// Equivalente en iOS del `apilar = letraGrande()` de `ShalevListItem` en Android:
+/// en tamaños ordinarios coloca el dato a la derecha (`HStack`), y desde `xxxLarge` / `AX1`–`AX5`
+/// lo apila debajo del bloque principal (`VStack`) para que ni el nombre ni el importe se recorten.
+struct ShalevFilaAdaptable<Principal: View, Valor: View>: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    var espaciadoHorizontal: CGFloat = 8
+    var espaciadoVertical: CGFloat = 4
+    let principal: Principal
+    let valor: Valor
+
+    init(espaciadoHorizontal: CGFloat = 8, espaciadoVertical: CGFloat = 4,
+         @ViewBuilder principal: () -> Principal,
+         @ViewBuilder valor: () -> Valor) {
+        self.espaciadoHorizontal = espaciadoHorizontal
+        self.espaciadoVertical = espaciadoVertical
+        self.principal = principal()
+        self.valor = valor()
+    }
+
+    var body: some View {
+        if dynamicTypeSize >= .xxxLarge {
+            VStack(alignment: .leading, spacing: espaciadoVertical) {
+                principal
+                valor
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            HStack(spacing: espaciadoHorizontal) {
+                principal
+                Spacer(minLength: 6)
+                valor
+            }
+        }
+    }
+}
+
 struct ShalevScreenTitle: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: String
     var subtitle: String? = nil
     var isBrand: Bool = false
@@ -197,7 +246,8 @@ struct ShalevScreenTitle: View {
             Text(title)
                 .font(isBrand ? .shalevMarca(23) : .shalev(21, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color.shalevText)
-                .lineLimit(2)
+                .lineLimit(dynamicTypeSize >= .xxxLarge ? nil : 2)
+                .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.82)
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle)
@@ -216,16 +266,24 @@ struct ShalevSectionHeader: View {
     let title: String
     var trailing: String? = nil
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .font(.shalev(16, weight: .semibold))
-                .foregroundStyle(Color.shalevText)
-                .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 8)
-            if let trailing {
+        if let trailing {
+            ShalevFilaAdaptable(espaciadoHorizontal: 8, espaciadoVertical: 2) {
+                Text(title)
+                    .font(.shalev(16, weight: .semibold))
+                    .foregroundStyle(Color.shalevText)
+                    .accessibilityAddTraits(.isHeader)
+            } valor: {
                 Text(trailing)
                     .font(.shalev(12, weight: .medium))
                     .foregroundStyle(Color.shalevSecondaryText)
+            }
+        } else {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.shalev(16, weight: .semibold))
+                    .foregroundStyle(Color.shalevText)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 8)
             }
         }
     }
@@ -240,7 +298,7 @@ struct ShalevIconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.shalev(17, weight: .semibold))
+                .font(.shalevIcono(17, weight: .semibold))
                 .foregroundStyle(isSelected ? Color.shalevOnPrimary : Color.shalevText)
                 .frame(width: 42, height: 42)
                 .background(isSelected ? Color.shalevPrimary : Color.clear, in: Circle())
@@ -268,7 +326,7 @@ struct ShalevStepper: View {
             HStack(spacing: 10) {
                 Button { onBack?() } label: {
                     Image(systemName: "chevron.left")
-                        .font(.shalev(14, weight: .semibold))
+                        .font(.shalevIcono(14, weight: .semibold))
                         .foregroundStyle(onBack == nil ? Color.shalevOutline : Color.shalevText)
                         .frame(width: 36, height: 36)
                         .background(onBack == nil ? Color.clear : Color.shalevSurfaceVariant, in: Circle())
@@ -294,7 +352,7 @@ struct ShalevStepper: View {
 
                 Button { onNext?() } label: {
                     Image(systemName: "chevron.right")
-                        .font(.shalev(14, weight: .semibold))
+                        .font(.shalevIcono(14, weight: .semibold))
                         .foregroundStyle(onNext == nil ? Color.shalevSecondaryText : Color.shalevOnPrimary)
                         .frame(width: 38, height: 38)
                         .background(onNext == nil ? Color.shalevSurfaceVariant : Color.shalevPrimary, in: Circle())
@@ -328,7 +386,9 @@ struct ShalevPrimaryButtonStyle: ButtonStyle {
         configuration.label
             .font(.shalev(15, weight: .semibold))
             .foregroundStyle(Color.shalevOnPrimary)
+            .multilineTextAlignment(.center)
             .padding(.horizontal, 18)
+            .padding(.vertical, 10)
             .frame(minHeight: 48)
             .frame(maxWidth: .infinity)
             .background(destructive ? Color.shalevError : Color.shalevPrimary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -342,7 +402,9 @@ struct ShalevTonalButtonStyle: ButtonStyle {
         configuration.label
             .font(.shalev(14, weight: .semibold))
             .foregroundStyle(Color.shalevOnTertiaryContainer)
+            .multilineTextAlignment(.center)
             .padding(.horizontal, 15)
+            .padding(.vertical, 9)
             .frame(minHeight: 44)
             .background(Color.shalevTertiaryContainer, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             .opacity(configuration.isPressed ? 0.8 : 1)
@@ -425,7 +487,7 @@ struct ShalevEmptyState: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: symbol)
-                .font(.shalev(29, weight: .regular))
+                .font(.shalevIcono(29, weight: .regular))
                 .foregroundStyle(Color.shalevPrimary)
                 .frame(width: 70, height: 70)
                 .background(Color.shalevPrimaryContainer, in: Circle())
@@ -458,7 +520,7 @@ struct ShalevFloatingButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.shalev(19, weight: .semibold))
+                .font(.shalevIcono(19, weight: .semibold))
                 .foregroundStyle(Color.shalevOnPrimary)
                 .frame(minWidth: 58, minHeight: 58)
                 .background(Color.shalevPrimary, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
@@ -470,6 +532,7 @@ struct ShalevFloatingButton: View {
 }
 
 struct ShalevStatTile: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: String
     let value: String
     let symbol: String
@@ -478,18 +541,22 @@ struct ShalevStatTile: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: symbol)
-                .font(.shalev(21, weight: .semibold))
+                .font(.shalevIcono(21, weight: .semibold))
                 .foregroundStyle(tint)
-            Text(title).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
+            Text(title)
+                .font(.shalev(13, weight: .semibold))
+                .foregroundStyle(Color.shalevText)
+                .multilineTextAlignment(.center)
             Text(value)
                 .font(.shalev(13, weight: .medium))
                 .foregroundStyle(Color.shalevSecondaryText)
                 .multilineTextAlignment(.center)
-                .lineLimit(2)
+                .lineLimit(dynamicTypeSize >= .xxxLarge ? nil : 2)
                 .minimumScaleFactor(0.82)
         }
         .frame(maxWidth: .infinity, minHeight: 116)
         .padding(.horizontal, 10)
+        .padding(.vertical, 10)
         .background(Color.shalevSurfaceVariant, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityElement(children: .combine)
     }

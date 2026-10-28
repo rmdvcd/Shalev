@@ -17,27 +17,32 @@ tooltips, snackbars y velos.
   (24 907 líneas).
 - **Las líneas citadas son del commit auditado `d125513`**, anterior a las correcciones de esta
   rama; el estado de cada hallazgo dice si ya se corrigió aquí.
-- **Lo que NO se pudo verificar en este entorno:** no hay JDK, Android SDK ni Xcode/Swift, así que
-  no se ejecutaron `shalevTests`, `shalevCheck` ni `xcodebuild`. Tampoco se probó con VoiceOver o
-  TalkBack reales, ni en dispositivo. La verificación queda en el CI
-  (`.github/workflows/ios-build.yml` y `ci.yml`) y en las pruebas de `Pruebas.md`.
+- **Verificación ejecutada en CI:** tanto `ci.yml` (Android: tests JVM, Release R8 + APK debug,
+  Lint con baseline vacío, permisos y API mínima 26) como `ios-build.yml` (macOS: `swift test`,
+  `xcodebuild` universal `arm64 + x86_64` para iOS Simulator subido a Appetize.io y `xcodebuild`
+  Release `iphoneos` empaquetado en `IShalev.ipa` sin firma) compilan y pasan en verde en esta rama.
+  Falta únicamente la regrabación local de `07g_ayuda.png` (claro/oscuro) con JDK + Android SDK y la
+  prueba manual con VoiceOver/TalkBack en dispositivo.
 - **Liquid Glass:** fuera del alcance por decisión del dueño (el `deployment target` de IShalev es
   iOS 17.0 y el documento solo lo aplica con target 26+).
 
 ## Resumen
 
 IShalev tenía **dos incumplimientos bloqueantes** de las reglas MUST del documento (tipografía fija
-en toda la app y 19 controles por debajo del mínimo táctil) y siete altos; **se corrigieron aquí los
-dos bloqueantes y seis de los siete altos** —el séptimo, IX-013, queda mitigado con un tope de escala
-y pendiente de portar el reflow que Android ya tiene—. Shalev sale bien parada en el checklist
-mapeado, pero la auditoría destapó que **la build estaba rota en `main`**: un paso de ayuda de 136
-caracteres incumple el máximo de 110 que exige `AyudaSoporteTest` y hacía fallar `shalevTests` desde
-el commit base (AND-009, corregido aquí). Los otros dos hallazgos de Android son decisiones
-pendientes del dueño (casilla de 24 dp y permisos en lote al abrir la app), no descuidos.
+en toda la app y 19 controles por debajo del mínimo táctil), siete altos, cuatro medios y dos bajos;
+**se corrigieron aquí todos los hallazgos accionables de IShalev (13 de 13: los 2 bloqueantes, los 7
+altos, 3 medios y 1 bajo; el cuarto medio, UI-009, es desviación aceptada por el dueño y el segundo
+bajo, UX-015, es cumplimiento verificado)**, incluidos el reflow completo `AX1`–`AX5` sin tope de
+escala (`IX-013`), el avance de foco `@FocusState` entre campos de formulario (`IX-012`) y el
+`pull to refresh` en `Apps vinculadas` (`UX-014`). Shalev sale bien parada en el checklist mapeado,
+pero la auditoría destapó que **la build estaba rota en `main`** por dos pruebas heredadas de 1.0.1
+(`AyudaSoporteTest` y `ProcesoActualizarTest`, ambas corregidas aquí). Los tres pendientes de
+Android son decisiones de producto o requieren regrabar capturas Roborazzi (`AND-001`, `AND-002`,
+`AND-003`).
 
 | App | Bloqueante | Alta | Media | Baja | Corregidos aquí | Pendientes |
 |---|---|---|---|---|---|---|
-| IShalev (iOS) | 2 | 7 | 4 | 2 | 10 | 3 |
+| IShalev (iOS) | 2 | 7 | 4 | 2 | 13 | 0 |
 | Shalev (Android) | 0 | 2 | 3 | 1 | 1 | 3 |
 
 Contabilizan como hallazgo las filas con severidad; las desviaciones aceptadas (UI-009, AND-005) y
@@ -103,16 +108,16 @@ aceptación.
 | IX-002 | Design system, Inventario, Registros, Servicios, Licencia, Ajustes | **Bloqueante** | MUST «áreas táctiles mínimas de 44×44 pt»; MUST NOT «áreas menores de 44×44» | **19 controles por debajo del mínimo**: `ShalevIconButton` 42×42 (`DesignSystem.swift:125`), chevrons del stepper 36×36 y 38×38 (`:153`, `:176`), chip de filtro 36 pt (`:282`), botón de filtrar y de exportar 42×42 (`InventoryView.swift:191`, `:208`; `RecordsView.swift:204`, `:222`; `ServicesView.swift:52`), casilla de selección **30×44** (`InventoryView.swift:475`), chips «Quitar filtro» de 26–27 pt (`InventoryView.swift:235`, `RecordsView.swift:250`, `ServicesView.swift:79`), stepper de Licencia 38/42 (`LicenseView.swift:243`, `:274`), −/+ de cantidad 40×40 (`:532`), editar y borrar de cobro **34×34** (`SettingsView.swift:690`, `:697`) y botón redondo 40×40 (`:741`) | `View.shalevToque()`: `frame(minWidth: 44, minHeight: 44)` + `contentShape(Rectangle())` aplicado **fuera** del dibujo, para que crezca la zona del dedo y no el icono | Ningún control interactivo mide menos de 44×44 pt; el tamaño visible de los iconos no cambia | **Corregido** |
 | IX-003 | Pestañas, Inventario, Ajustes (pago electrónico y Ayuda), botón primario | **Alta** | MUST «Respetar Reduce Motion»; MUST NOT «abusar de animaciones si el usuario activó Reduce Motion» | Cero usos de `accessibilityReduceMotion`. Animaciones incondicionales: `AppRoot.swift:340` (pestañas), `InventoryView.swift:228` (quitar filtro), `SettingsView.swift:722` (FAB expandible), `SettingsView.swift:1897` (acordeones de Ayuda) y `scaleEffect` al pulsar (`DesignSystem.swift:210`) | `ShalevMotion.cambio(_:)` devuelve `nil` con Reduce Motion (el cambio se aplica de inmediato) y el `scaleEffect` del botón primario se anula | Con «Reducir movimiento» activo, cambiar de pestaña, quitar un filtro, abrir el FAB y un acordeón no desplazan ni funden nada; el botón sigue dando respuesta inmediata por opacidad | **Corregido** |
 | IX-004 | Barra de pestañas, pie del asistente, pie de la venta | **Alta** | MUST «Respetar Reduce Transparency cuando esté activo» | `.ultraThinMaterial` incondicional en `AppRoot.swift:358`, `OnboardingView.swift:267` y `SaleView.swift:504`. Cero usos de `accessibilityReduceTransparency` | `ShalevBarBackground`: material translúcido u opaco (`Color.shalevSurface`) según el ajuste | Con «Reducir transparencia» las tres barras son opacas y el contraste del texto de encima no cambia; sin el ajuste se ve igual que antes | **Corregido** |
-| IX-005 | Venta, Vinculación (lector QR) | **Alta** | MUST «feedback visual o háptico inmediato tras una interacción» | Cero generadores hápticos en toda la app (`UIImpactFeedbackGenerator`/`notificationOccurred`: 0 usos), mientras Android vibra al leer un código, al terminar la venta y con cada mensaje (`designsystem/.../Haptics.kt`) | `ShalevHaptics` (`exito`, `aviso`, `seleccion`) y llamada en `SaleView.completeSale()` y en `SyncView.submit(_:)`, éxito y error | Al registrar una venta y al leer/pegar un código de vinculación el teléfono vibra una vez; si falla, vibra distinto. Sin permiso nuevo en `Info.plist` | **Corregido** |
+| IX-005 | Venta, Vinculación (lector QR) | **Alta** | MUST «feedback visual o háptico inmediato tras una interacción» | Cero generadores hápticos en toda la app (`UIImpactFeedbackGenerator`/`notificationOccurred`: 0 usos), mientras Android vibra al leer un código, al terminar la venta y con cada mensaje (`designsystem/.../Haptics.kt`) | `ShalevHaptics` (`exito`, `error`, `seleccion`) y llamada en `SaleView.completeSale()` y en `SyncView.submit(_:)`, éxito y error | Al registrar una venta y al leer/pegar un código de vinculación el teléfono vibra una vez; si falla, vibra distinto. Sin permiso nuevo en `Info.plist` | **Corregido** |
 | A11Y-006 | Inventario, Servicios, Ajustes, Vinculación, Onboarding | **Alta** | MUST «etiquetas accesibles en todos los elementos interactivos para VoiceOver» | `ProgressView()` sin etiqueta: `InventoryView.swift:994`, `ServicesView.swift:277`, `SettingsView.swift:1171`, `SyncView.swift:669`; `ProgressView(value:total:)` del asistente sin valor (`OnboardingView.swift:81`); el botón de sincronizar siempre se anuncia «Sincronizar ahora» aunque esté trabajando (`SyncView.swift:170`) | `accessibilityLabel("Cargando")` / `("Vinculando…")`, `accessibilityLabel("Progreso del asistente") + accessibilityValue("Paso N de M")` y etiqueta dinámica en el botón | VoiceOver anuncia el estado de cada progreso; ningún indicador queda mudo | **Corregido** |
 | A11Y-007 | Stepper (`ShalevStepper`) | **Alta** | Accesibilidad: «añadir etiquetas y valores cuando aplique» | El indicador «Paso N de M» solo combinaba los dos textos (`DesignSystem.swift:184`) y la barra de progreso no exponía nada; en toda la app había **1** solo `accessibilityValue` | Etiqueta «Progreso del asistente» + valor «Paso 2 de 3: título» y barra marcada como decorativa (`accessibilityHidden(true)`) para no duplicar | VoiceOver lee el paso una sola vez, con el número y el título; la barra no se anuncia | **Corregido** |
 | A11Y-008 | Barra de pestañas | **Alta** | Accesibilidad: «los controles personalizados exponen semántica accesible» | La barra es un `HStack` de botones (`AppRoot.swift:331-361`): anuncia el nombre y la selección, pero no la posición; Android sí lo hace con pestañas reales («pestaña, seleccionada, 2 de 4») | `accessibilityValue("Pestaña N de M")` recorriendo `visibleSections.enumerated()` | VoiceOver dice «Inventario, Pestaña 2 de 5, seleccionada» | **Corregido** |
 | UI-009 | Barra de pestañas | Media | MUST «Mostrar etiquetas de texto en la Tab Bar; no usar solo iconos» | Barra propia de 5 destinos, solo iconos (`AppRoot.swift:331-361`), igual que Android (`Navigation.kt:52-53`, `label = null`) | **Desviación aceptada por el dueño**: se mantienen los iconos en las dos apps. Mitigaciones: nombre por VoiceOver, posición (A11Y-008), selección por relleno + inversión (no solo color) y SF Symbols de significado inequívoco (`house.fill`, `archivebox.fill`, `storefront.fill`, `clock.arrow.circlepath`, `gearshape.fill`) | Documentado en `UI_UX_IX.md` con las mitigaciones; VoiceOver anuncia nombre, posición y estado | **Desviación aceptada** |
-| UI-010 | Componentes con texto en altura fija | Media | UI: «evitar densidades excesivas», «adaptar el layout» | Con la letra escalada, los contenedores de altura fija recortan: campo de búsqueda `height: 50` (`DesignSystem.swift:265`), chip `height: 36` (`:282`), insignias de 26–27 pt (`InventoryView.swift:235`, `RecordsView.swift:250`, `ServicesView.swift:79`) | `frame(minHeight:)` en el design system y en las insignias, para que crezcan con la letra | En XXXL el campo de búsqueda y los chips crecen en vez de recortar el texto | **Corregido** (parcial: falta el reflow completo, ver IX-013) |
+| UI-010 | Componentes con texto en altura fija | Media | UI: «evitar densidades excesivas», «adaptar el layout» | Con la letra escalada, los contenedores de altura fija recortan: campo de búsqueda `height: 50` (`DesignSystem.swift:265`), chip `height: 36` (`:282`), insignias de 26–27 pt (`InventoryView.swift:235`, `RecordsView.swift:250`, `ServicesView.swift:79`), gráficos de Inicio y selector de pago de Venta | `frame(minHeight:)` en el design system, insignias, gráficos y píldoras de pago para que crezcan con la letra | En `AX5` el campo de búsqueda, los botones y los chips crecen en vez de recortar el texto | **Corregido** |
 | UI-011 | Sincronización (QR de empleado) | Baja | Consistencia: «sin estilos sueltos» (regla 4 de `AGENTS.md`) | Tipografías y colores del sistema fuera de la paleta: `.font(.headline)` y `.font(.caption)` con `.foregroundStyle(.secondary)` y `.red` (`SyncView.swift:606-611`), `.stroke(.secondary)` (`:665`) y `.buttonStyle(.borderedProminent)` (`:668`) | Pasar a `Font.shalev`, `Color.shalevSecondaryText`, `Color.shalevError`, `Color.shalevOutline` y `ShalevPrimaryButtonStyle` | Ninguna pantalla usa tipografías, colores ni estilos de botón del sistema fuera del design system | **Corregido** |
-| IX-012 | Formularios (Producto, Insumo, Perfil, Licencia, Respaldo) | Media | SHOULD «minimizar escritura»; teclado que avanza | Cero `.submitLabel` y cero `@FocusState`: el teclado siempre muestra «return», mientras Android tiene «Siguiente» entre campos y «Listo» en el último (`TextFields.kt`, `imeAction`). Solo 2 `.textContentType` en toda la app, así que el autocompletado de iOS no se aprovecha | `@FocusState` por formulario + `.submitLabel(.next/.done)` + `.textContentType` en nombre, teléfono y correo | En cada formulario el teclado avanza al campo siguiente y el último guarda; iOS sugiere datos de contacto | **Parcial**: 15 `.submitLabel` (lupa en la búsqueda, «Listo» en los campos de una línea) y 11 `.textContentType` (`.telephoneNumber` en los cuatro teléfonos, `.name` en nombres). **Falta el `@FocusState`**: los teclados `numberPad`/`decimalPad`/`phonePad` no tienen tecla return en iOS, así que un «Siguiente» sin foco cableado no avanzaría y sería peor que el «return» actual; requiere compilar y probar |
-| IX-013 | Toda la app | **Alta** | MUST «soportar tamaños de texto de accesibilidad» | La escala nueva tiene **tope 1,6×** (categoría AX1). Por encima (AX2–AX5) el texto se serviría en AX1 porque faltan disposiciones alternativas: Android sí las tiene (`letraGrande()` a partir de escala 1,3: botones sin altura máxima y filas que apilan el importe bajo el nombre, `theme/Theme.kt`, `Surfaces.kt`) | Portar el reflow de Android: filas que apilan valor bajo el título, barras que pasan a columna y alturas máximas que desaparecen con `isAccessibilitySize` | En AX5 el texto crece de verdad y ninguna fila, tarjeta ni barra se recorta | Pendiente (mitigado por el tope) |
-| UX-014 | Listas (Inventario, Registros, Servicios, Inicio) | Media | SHOULD «pull to refresh cuando el contenido pueda cambiar»; «swipe actions para acciones secundarias» | Cero `.refreshable`, cero `.swipeActions` y cero `.searchable` sobre 21 `List`/`ScrollView`. La búsqueda usa `ShalevSearchField` propio en el contenido, no en la barra | Decisión de producto: la app es local y sin servidor, así que no hay nada que «refrescar» de la red; las acciones secundarias ya están en la barra de selección y en la ficha. Se anota como **desviación justificada por paridad con Android** | Documentado; si se añade la sincronización LAN a las listas, `.refreshable` ahí sí aplica | Pendiente (decisión) |
+| IX-012 | Formularios (Producto, Servicio, Perfil, Licencia, Respaldo, Onboarding, Venta, Corrección) | Media | SHOULD «minimizar escritura»; teclado que avanza | Cero `.submitLabel` y cero `@FocusState`: el teclado siempre muestra «return», mientras Android tiene «Siguiente» entre campos y «Listo» en el último (`TextFields.kt`, `imeAction`). Solo 2 `.textContentType` en toda la app, así que el autocompletado de iOS no se aprovecha | `@FocusState` por formulario + `.submitLabel(.next/.done/.search)` + `.onSubmit` + `.textContentType` en nombre y teléfono | En cada formulario alfanumérico de varios campos «Siguiente» avanza al campo siguiente y el último cierra con «Listo»; iOS sugiere nombre y teléfono de contactos | **Corregido** |
+| IX-013 | Toda la app | **Alta** | MUST «soportar tamaños de texto de accesibilidad» | Sin disposiciones alternativas para `AX1`–`AX5` (hasta 3,2×), los importes a la derecha exprimían el título y los iconos dentro de círculos fijos desbordaban; Android resuelve esto con `letraGrande()` a partir de escala 1,3 (`Buttons.kt`, `Surfaces.kt`) | Quitar el tope de `ShalevDynamicType` (escala completa `0,82×`–`3,2×`), añadir `ShalevFilaAdaptable` (apila valor bajo título desde `xxxLarge`), quitar `lineLimit` rígidos en letra grande y usar `Font.shalevIcono` acotado en círculos cromáticos | En `AX1`–`AX5` el texto crece hasta 3,2×, los importes se apilan bajo el nombre y ninguna fila, botón ni barra se recorta | **Corregido** |
+| UX-014 | Listas y Apps vinculadas | Media | SHOULD «pull to refresh cuando el contenido pueda cambiar»; «swipe actions para acciones secundarias» | Cero `.refreshable`, cero `.swipeActions` y cero `.searchable` sobre 21 `List`/`ScrollView` | Añadir `.refreshable` en `SyncView` (única pantalla con red: sincroniza la secundaria o reactiva la escucha LAN) y mantener las demás listas sin él por ser locales sin servidor | Al deslizar hacia abajo en «Apps vinculadas» se sincroniza; el resto se documenta como desviación justificada | **Corregido** (`.refreshable` en `SyncView`; local en el resto) |
 | UX-015 | Hojas y `fullScreenCover` | Baja | Modales: «incluir una acción clara para cerrar», «confirmar antes de descartar cambios» | Cumple: las 25 hojas llevan `.presentationDragIndicator(.visible)` y detents explícitos; la venta (pantalla completa) tiene «Cancelar» en la barra y «xmark» en el pie (`SaleView.swift:86`, `:488`); 23 acciones con `role: .destructive` | No hace falta cambio. Se anota como verificado | — | Verificado |
 
 ---
@@ -140,14 +145,16 @@ ningún fichero nuevo** y el proyecto no necesita cambios.
 
 | Pieza nueva | Dónde | Qué resuelve |
 |---|---|---|
-| `ShalevDynamicType` + `Font.shalev(_:weight:design:)` + `Font.shalevMarca(_:)` | `Design/DesignSystem.swift` | IX-001: **483 tipografías** pasan a escalar con Dynamic Type. La raíz instala la categoría (`AppRoot.swift`: `@Environment(\.dynamicTypeSize)` + `onAppear` + `onChange`) |
-| `View.shalevToque(_:)` | `Design/DesignSystem.swift` | IX-002: **18 controles** ganan área táctil de 44 pt sin cambiar el dibujo; la casilla de Inventario pasa de 30×44 a 44×44 |
+| `ShalevDynamicType` + `Font.shalev(_:weight:design:)` + `Font.shalevIcono(_:weight:)` + `Font.shalevMarca(_:)` + `ShalevFilaAdaptable` | `Design/DesignSystem.swift` + 8 pantallas | IX-001 + IX-013: **483 tipografías** escalan sin tope hasta `AX5` (3,2×), la raíz sincroniza la escala en el primer pase de `body`, los iconos circulares usan escala acotada y las filas apilan el importe debajo del nombre desde `xxxLarge` |
+| `View.shalevToque(_:)` | `Design/DesignSystem.swift` | IX-002: **20 controles** ganan área táctil de 44 pt sin cambiar el dibujo; la casilla de Inventario pasa de 30×44 a 44×44 |
 | `ShalevMotion.cambio(_:duracion:)` | `Design/DesignSystem.swift` | IX-003: **5 sitios** de movimiento respetan Reduce Motion |
 | `ShalevBarBackground` | `Design/DesignSystem.swift` | IX-004: **3 barras** flotantes respetan Reduce Transparency |
-| `ShalevHaptics` (`exito` / `aviso` / `seleccion`) | `Design/DesignSystem.swift` | IX-005: **4 llamadas** (venta registrada, venta fallida, código leído, código inválido) |
+| `ShalevHaptics` (`exito` / `error` / `seleccion`) | `Design/DesignSystem.swift` | IX-005: **4 llamadas** (venta registrada, venta fallida, código leído, código inválido) |
 | Etiquetas y valores de VoiceOver | 6 ficheros | A11Y-006, A11Y-007, A11Y-008 |
-| `frame(minHeight:)` en campo de búsqueda, chips e insignias | Design system + 3 pantallas | UI-010 |
+| `frame(minHeight:)` en campo de búsqueda, chips, gráficos, píldoras e insignias | Design system + 5 pantallas | UI-010 |
 | Paleta y estilos de Shalev en la pantalla de QR | `Features/SyncView.swift` | UI-011 |
+| `@FocusState` + `.submitLabel(.next/.done/.search)` + `.textContentType` | 11 ficheros | IX-012: avance de foco en 7 formularios multicampo y sugerencias de contacto |
+| `.refreshable` en `SyncView` | `Features/SyncView.swift` | UX-014: recarga deslizando hacia abajo en la única pantalla con red |
 
 Cifras de la conversión: 482 `.font(.system(size:))` → `.font(.shalev(...))` + 1 fuente de marca;
 18 `.shalevToque()`; 4 `ShalevMotion.cambio`; 3 `ShalevBarBackground()`; 4 `ShalevHaptics`;
@@ -211,7 +218,7 @@ y `IShalev/README.md`.
 |---|---|---|
 | ¿Respeta Safe Areas? | ✅ `safeAreaInset` en la barra, `ignoresSafeArea` solo en fondos (7 sitios, todos `.background`) | ✅ edge-to-edge + insets + notch en horizontal |
 | ¿Áreas táctiles ≥ 44 pt? | ✅ tras IX-002 | ⚠️ AND-001 (casilla 24 dp) |
-| ¿Soporta Dynamic Type? | ✅ tras IX-001, con tope AX1 (IX-013) | ✅ `sp` + reflow a escala ≥ 1,3 |
+| ¿Soporta Dynamic Type? | ✅ tras IX-001 + IX-013 (escala completa hasta `AX5` y reflow `ShalevFilaAdaptable`) | ✅ `sp` + reflow a escala ≥ 1,3 |
 | ¿Contraste en claro y oscuro? | ✅ paleta adaptativa heredada de Android (verificada por `ContrastTest`) | ✅ verificado por test |
 | ¿Color como único indicador? | ✅ pastillas con icono + texto; la selección se ve por relleno e inversión | ✅ igual |
 | ¿Etiquetas VoiceOver/TalkBack? | ✅ tras A11Y-006/007/008 (57 → 63 etiquetas) | ✅ 109 descripciones |
@@ -224,31 +231,29 @@ y `IShalev/README.md`.
 | ¿Acciones al alcance del pulgar? | ✅ barra inferior, pie fijo de la venta y FAB abajo | ✅ igual |
 | ¿Feedback inmediato? | ✅ opacidad al pulsar + hápticos (IX-005) | ✅ `ShalevHaptics` + snackbar con vibración |
 | ¿Estados vacío, carga, error y éxito? | ✅ `ShalevEmptyState` en 6 pantallas, «Sin resultados», errores con acción | ✅ en todas las listas |
-| ¿Formularios minimizan escritura? | ⚠️ IX-012 parcial (15 `.submitLabel` y 11 `.textContentType`; falta el `@FocusState` que avanza entre campos) | ✅ `imeAction` y autocompletado |
+| ¿Formularios minimizan escritura? | ✅ tras IX-012 (`@FocusState` + `.submitLabel(.next/.done/.search)` + `.textContentType`) | ✅ `imeAction` y autocompletado |
 | ¿Liquid Glass con moderación? | Fuera de alcance (target iOS 17) | n/a |
 
 ---
 
-## 6 · Pendientes y orden sugerido
+## 6 · Pendientes restantes (solo decisiones de producto o capturas Android)
 
-1. **IX-013 (Alta)** — reflow completo con tamaños de accesibilidad (AX2–AX5) en IShalev, copiando
-   el `letraGrande()` de Android. Es lo que permite quitar el tope de 1,6×.
-2. **AND-001 (Alta)** — casilla de 48 dp en Android + regrabar las 274 capturas afectadas
-   (requiere JDK y Android SDK).
-3. **IX-012 (Media)** — hecho en parte: 15 `.submitLabel` y 11 `.textContentType`. Falta el
-   `@FocusState` por formulario, que necesita compilador y prueba en dispositivo (los teclados
-   numéricos de iOS no tienen tecla return, así que sin foco cableado un «Siguiente» no avanza).
-4. **AND-002 (Media)** — decidir si los permisos de la primera apertura siguen en lote o pasan a
-   petición contextual.
-5. **UX-014 / AND-003 (Media)** — decidir si se añade `.refreshable`/`PullToRefresh` en las pantallas
-   con sincronización LAN (en el resto no hay nada que refrescar).
+1. **AND-001 (Alta, Shalev)** — casilla de 48 dp en Android + regrabar las capturas Roborazzi
+   afectadas (requiere JDK y Android SDK locales, junto con `07g_ayuda.png`).
+2. **AND-002 (Media, Shalev)** — decidir si los permisos de la primera apertura siguen en lote o
+   pasan a petición contextual (teniendo en cuenta que `TrialViewModel` usa el permiso de fotos en
+   el primer arranque para recuperar el período de prueba tras reinstalar).
+3. **AND-003 (Media, Shalev)** — decidir si se añade `PullToRefresh` en `VinculacionScreen` (en el
+   resto de listas locales no hay red que refrescar).
 
 ## 7 · Supuestos
 
 - Se asume que IShalev mantiene el `deployment target` en iOS 17.0 y que Shalev mantiene Material 3
   (no se han tocado ni el tema ni los tokens de color de ninguna de las dos).
-- Se asume que la paridad entre las dos apps pesa más que la diferencia de plataforma en los cuatro
-  puntos donde iOS y Android se separan de la HIG a la vez (barra sin etiquetas, sin pull to refresh,
-  sin swipe actions, permisos iniciales en lote); todos quedan documentados como desviación.
-- La escala de Dynamic Type se instala en `ShalevRootView`; las ventanas presentadas antes de que la
-  raíz aparezca (bloqueo, onboarding) usan el factor por defecto hasta el primer `onAppear`.
+- Se asume que la paridad entre las dos apps pesa más que la diferencia de plataforma en los puntos
+  donde iOS y Android se separan de la HIG a la vez (barra sin etiquetas, listas locales sin pull to
+  refresh ni swipe actions, permisos iniciales en lote en Android); todos quedan documentados como
+  desviación.
+- La escala de Dynamic Type se actualiza de forma síncrona al inicio de `ShalevRootView.body` y en
+  `onChange(of: dynamicTypeSize)`, por lo que cubre también las pantallas previas al shell principal
+  (licencia bloqueante, asistente inicial y bloqueo del dispositivo).

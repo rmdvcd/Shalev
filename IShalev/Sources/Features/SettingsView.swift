@@ -41,6 +41,7 @@ struct SettingsView: View {
     @State private var showSetupWizard = false
     @State private var canUseDeviceAuthentication = false
     @State private var lockMessage: String?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         ScrollView {
@@ -250,23 +251,24 @@ struct SettingsView: View {
     }
 
     private func settingsRowLabel(title: String, subtitle: String, symbol: String, badge: String?) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol).font(.shalev(18, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+        let apilar = dynamicTypeSize >= .xxxLarge
+        return HStack(spacing: 12) {
+            Image(systemName: symbol).font(.shalevIcono(18, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                 .frame(width: 42, height: 42).background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 13))
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                Text(subtitle).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(2)
+                Text(subtitle).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(apilar ? nil : 2)
             }
             Spacer(minLength: 5)
             if let badge {
                 Text(badge)
-                    .font(.shalev(11, weight: .bold))
+                    .font(.shalevIcono(11, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(minWidth: 20, minHeight: 20)
                     .background(Color.shalevError, in: Circle())
                     .accessibilityLabel("\(badge) pasos pendientes")
             }
-            Image(systemName: "chevron.right").font(.shalev(11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
+            Image(systemName: "chevron.right").font(.shalevIcono(11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
         }
         .padding(12)
         .contentShape(Rectangle())
@@ -287,6 +289,8 @@ private struct ProfileSettingsView: View {
     @State private var showErrors = false
     @State private var confirmDiscard = false
     @State private var message: String?
+    private enum ProfileFocus: Hashable { case firstName, lastName, ci }
+    @FocusState private var focusedField: ProfileFocus?
 
     init(store: ShalevStore) {
         self.store = store
@@ -345,11 +349,14 @@ private struct ProfileSettingsView: View {
                 ShalevCard {
                     VStack(alignment: .leading, spacing: 12) {
                         profileField("Nombre", text: $firstName, placeholder: "Nombre",
-                                     error: showErrors ? nameError : nil, capitalization: .words)
+                                     error: showErrors ? nameError : nil, capitalization: .words,
+                                     focus: .firstName, submit: .next) { focusedField = .lastName }
                         profileField("Apellidos", text: $lastName, placeholder: "Apellidos",
-                                     error: showErrors ? lastNameError : nil, capitalization: .words)
+                                     error: showErrors ? lastNameError : nil, capitalization: .words,
+                                     focus: .lastName, submit: .next) { focusedField = .ci }
                         profileField("Carnet de identidad (CI)", text: $identification, placeholder: "85010112345",
-                                     error: showErrors ? identificationError : nil, capitalization: .characters)
+                                     error: showErrors ? identificationError : nil, capitalization: .characters,
+                                     focus: .ci, submit: .done) { focusedField = nil }
                         Text("Solo se envía al pedir la licencia")
                             .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                         Button { save() } label: {
@@ -396,13 +403,17 @@ private struct ProfileSettingsView: View {
     }
 
     private func profileField(_ title: String, text: Binding<String>, placeholder: String,
-                              error: String?, capitalization: TextInputAutocapitalization = .never) -> some View {
+                              error: String?, capitalization: TextInputAutocapitalization = .never,
+                              focus: ProfileFocus, submit: SubmitLabel,
+                              onSubmit: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title).font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
             TextField(placeholder, text: text)
                 .textInputAutocapitalization(capitalization)
                 .autocorrectionDisabled()
-                .submitLabel(.done)
+                .focused($focusedField, equals: focus)
+                .submitLabel(submit)
+                .onSubmit(onSubmit)
                 .font(.shalev(14))
                 .padding(11)
                 .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
@@ -1273,6 +1284,8 @@ private struct BackupSettingsView: View {
     @State private var showPasswordSheet = false
     @State private var showRestoreConfirmation = false
     @State private var result: (title: String, detail: String)?
+    private enum BackupFocus: Hashable { case password, confirm }
+    @FocusState private var focusedField: BackupFocus?
 
     private var passwordError: String? {
         guard protect else { return nil }
@@ -1379,9 +1392,11 @@ private struct BackupSettingsView: View {
                     if protect {
                         backupField("Contraseña", text: $password, secure: true,
                                     error: showExportErrors ? passwordError : nil,
-                                    help: "Anótala en un lugar seguro: sin ella no se puede recuperar")
+                                    help: "Anótala en un lugar seguro: sin ella no se puede recuperar",
+                                    focus: .password, submit: .next) { focusedField = .confirm }
                         backupField("Repite la contraseña", text: $confirmPassword, secure: true,
-                                    error: showExportErrors ? repeatError : nil)
+                                    error: showExportErrors ? repeatError : nil,
+                                    focus: .confirm, submit: .done) { focusedField = nil }
                     } else {
                         Text("Sin contraseña, quien consiga este archivo podrá leer tus ventas y los datos de tus clientes sin ninguna clave.")
                             .font(.shalev(12))
@@ -1573,7 +1588,9 @@ private struct BackupSettingsView: View {
     }
 
     private func backupField(_ title: String, text: Binding<String>, secure: Bool,
-                             error: String?, help: String? = nil) -> some View {
+                             error: String?, help: String? = nil,
+                             focus: BackupFocus, submit: SubmitLabel,
+                             onSubmit: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.shalev(12, weight: .medium))
@@ -1585,7 +1602,9 @@ private struct BackupSettingsView: View {
                     TextField(title, text: text)
                 }
             }
-            .submitLabel(.done)
+            .focused($focusedField, equals: focus)
+            .submitLabel(submit)
+            .onSubmit(onSubmit)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .font(.shalev(14))
@@ -1621,6 +1640,7 @@ private struct ImportPasswordSheet: View {
                 SecureField("Contraseña del respaldo", text: $password)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .submitLabel(.done)
                     .font(.shalev(14))
                     .padding(11)
                     .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))

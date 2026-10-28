@@ -433,29 +433,33 @@ struct RecordsView: View {
 
 private struct SaleRecordRow: View {
     let sale: Sale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
+        let apilar = dynamicTypeSize >= .xxxLarge
         HStack(spacing: 12) {
             Image(systemName: sale.paymentMethod.symbol)
-                .font(.shalev(17, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                .font(.shalevIcono(17, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                 .frame(width: 44, height: 44).background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 13))
-            VStack(alignment: .leading, spacing: 4) {
-                Text(sale.isService ? "Servicio · \(sale.lines.first?.name ?? "")" : (sale.lines.count == 1 ? sale.lines[0].name : "Venta · \(sale.lines.count) artículos"))
-                    .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1)
-                HStack(spacing: 5) {
-                    Text(sale.date.shalevDateTime)
-                    Text("·")
-                    Text(sale.paymentMethod.rawValue)
+            ShalevFilaAdaptable(espaciadoHorizontal: 6, espaciadoVertical: 4) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(sale.isService ? "Servicio · \(sale.lines.first?.name ?? "")" : (sale.lines.count == 1 ? sale.lines[0].name : "Venta · \(sale.lines.count) artículos"))
+                        .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(apilar ? nil : 1)
+                    HStack(spacing: 5) {
+                        Text(sale.date.shalevDateTime)
+                        Text("·")
+                        Text(sale.paymentMethod.rawValue)
+                    }
+                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                 }
-                .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
-            }
-            Spacer(minLength: 6)
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(Cup(cents: sale.totalCents).formatted).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
-                if sale.isCancelled {
-                    Text("Anulada").font(.shalev(10, weight: .semibold)).foregroundStyle(Color.shalevError)
-                } else if sale.paymentMethod == .transfer && !sale.transactionNumber.isEmpty {
-                    Text("N.º \(sale.transactionNumber)").font(.shalev(10)).foregroundStyle(Color.shalevSecondaryText).lineLimit(1)
+            } valor: {
+                VStack(alignment: apilar ? .leading : .trailing, spacing: 4) {
+                    Text(Cup(cents: sale.totalCents).formatted).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                    if sale.isCancelled {
+                        Text("Anulada").font(.shalev(10, weight: .semibold)).foregroundStyle(Color.shalevError)
+                    } else if sale.paymentMethod == .transfer && !sale.transactionNumber.isEmpty {
+                        Text("N.º \(sale.transactionNumber)").font(.shalev(10)).foregroundStyle(Color.shalevSecondaryText).lineLimit(apilar ? nil : 1)
+                    }
                 }
             }
         }
@@ -467,20 +471,24 @@ private struct SaleRecordRow: View {
 
 private struct MovementRecordRow: View {
     let record: MovementRecord
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var body: some View {
+        let apilar = dynamicTypeSize >= .xxxLarge
         HStack(spacing: 11) {
             Image(systemName: record.amountCents == nil ? "shippingbox" : "arrow.left.arrow.right")
-                .font(.shalev(15, weight: .semibold)).foregroundStyle(record.isNegative ? Color.shalevSecondary : Color.shalevPrimary)
+                .font(.shalevIcono(15, weight: .semibold)).foregroundStyle(record.isNegative ? Color.shalevSecondary : Color.shalevPrimary)
                 .frame(width: 40, height: 40).background(Color.shalevSurfaceVariant, in: Circle())
-            VStack(alignment: .leading, spacing: 3) {
-                Text(record.title).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1)
-                Text("\(record.detail) · \(record.date.shalevDateTime)").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(2)
-            }
-            Spacer(minLength: 4)
-            if let amount = record.amountCents {
-                Text("\(record.isNegative ? "−" : "+")\(Cup(cents: amount).formatted)")
-                    .font(.shalev(11, weight: .semibold)).foregroundStyle(record.isNegative ? Color.shalevSecondary : Color.shalevSuccess)
-                    .lineLimit(1).minimumScaleFactor(0.75)
+            ShalevFilaAdaptable(espaciadoHorizontal: 6, espaciadoVertical: 4) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(record.title).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(apilar ? nil : 1)
+                    Text("\(record.detail) · \(record.date.shalevDateTime)").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(apilar ? nil : 2)
+                }
+            } valor: {
+                if let amount = record.amountCents {
+                    Text("\(record.isNegative ? "−" : "+")\(Cup(cents: amount).formatted)")
+                        .font(.shalev(11, weight: .semibold)).foregroundStyle(record.isNegative ? Color.shalevSecondary : Color.shalevSuccess)
+                        .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.75)
+                }
             }
         }
         .padding(12).background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
@@ -544,6 +552,7 @@ private struct CustomerDetailView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             TextField("Nombre y apellidos", text: $name)
                                 .textContentType(.name).textFieldStyle(SaleEditFieldStyle())
+                                .submitLabel(.done)
                             TextField("Carné cubano de 11 dígitos", text: $identification)
                                 .keyboardType(.numberPad).textFieldStyle(SaleEditFieldStyle())
                                 .onChange(of: identification) { _, value in
@@ -617,19 +626,23 @@ private struct CustomerDetailView: View {
 private struct ShiftRecordRow: View {
     let shift: Shift
     @ObservedObject var store: ShalevStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var body: some View {
+        let apilar = dynamicTypeSize >= .xxxLarge
         HStack(spacing: 11) {
             Image(systemName: shift.closedAt == nil ? "lock.open.fill" : "checkmark.circle.fill")
-                .font(.shalev(16, weight: .semibold)).foregroundStyle(shift.closedAt == nil ? Color.shalevSecondary : Color.shalevSuccess)
+                .font(.shalevIcono(16, weight: .semibold)).foregroundStyle(shift.closedAt == nil ? Color.shalevSecondary : Color.shalevSuccess)
                 .frame(width: 42, height: 42).background(Color.shalevSurfaceVariant, in: Circle())
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Turno del \(shift.openedAt.shalevDate)").font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                Text(shift.closedAt.map { "Cerrado \($0.shalevDateTime)" } ?? "En curso · abierto \(shift.openedAt.shalevDateTime)")
-                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(1)
+            ShalevFilaAdaptable(espaciadoHorizontal: 8, espaciadoVertical: 4) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Turno del \(shift.openedAt.shalevDate)").font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                    Text(shift.closedAt.map { "Cerrado \($0.shalevDateTime)" } ?? "En curso · abierto \(shift.openedAt.shalevDateTime)")
+                        .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(apilar ? nil : 1)
+                }
+            } valor: {
+                Text(Cup(cents: store.expectedCashCents(for: shift.id)).formatted)
+                    .font(.shalev(11, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(apilar ? nil : 1).minimumScaleFactor(0.75)
             }
-            Spacer()
-            Text(Cup(cents: store.expectedCashCents(for: shift.id)).formatted)
-                .font(.shalev(11, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1).minimumScaleFactor(0.75)
         }
         .padding(12).background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
     }
@@ -776,6 +789,8 @@ private struct SaleEditView: View {
     @State private var customerIsFixed: Bool
     @State private var reason = ""
     @State private var errorMessage: String?
+    private enum EditFocus: Hashable { case transaction, customerName, reason }
+    @FocusState private var focusedField: EditFocus?
 
     init(sale: Sale, store: ShalevStore, onSaved: @escaping () -> Void) {
         self.sale = sale
@@ -865,10 +880,15 @@ private struct SaleEditView: View {
                                 TextField("N.º de transacción", text: $transactionNumber)
                                     .textInputAutocapitalization(.characters)
                                     .textFieldStyle(SaleEditFieldStyle())
-                                    .submitLabel(.done)
+                                    .focused($focusedField, equals: .transaction)
+                                    .submitLabel(.next)
+                                    .onSubmit { focusedField = .customerName }
                                 Text("Datos del cliente").font(.shalev(12, weight: .semibold)).foregroundStyle(Color.shalevText)
                                 TextField("Nombre y apellidos", text: $customerName)
                                     .textContentType(.name).textFieldStyle(SaleEditFieldStyle())
+                                    .focused($focusedField, equals: .customerName)
+                                    .submitLabel(.next)
+                                    .onSubmit { focusedField = .reason }
                                 TextField("Carné cubano de 11 dígitos", text: $customerID)
                                     .keyboardType(.numberPad)
                                     .textFieldStyle(SaleEditFieldStyle())
@@ -878,9 +898,9 @@ private struct SaleEditView: View {
                                     .textFieldStyle(SaleEditFieldStyle())
                                 Toggle("Cliente fijo", isOn: $customerIsFixed).tint(Color.shalevPrimary)
                             }
-                            HStack {
+                            ShalevFilaAdaptable(espaciadoHorizontal: 8, espaciadoVertical: 4) {
                                 Text("Total corregido").font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-                                Spacer()
+                            } valor: {
                                 Text(Cup(cents: editedTotal).formatted).font(.shalev(17, weight: .bold)).foregroundStyle(Color.shalevText)
                             }
                         }
@@ -891,7 +911,9 @@ private struct SaleEditView: View {
                                 .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                             TextField("Ej. Cantidad incorrecta", text: $reason)
                                 .textFieldStyle(SaleEditFieldStyle())
+                                .focused($focusedField, equals: .reason)
                                 .submitLabel(.done)
+                                .onSubmit { focusedField = nil }
                                 .onChange(of: reason) { _, value in if value.count > 60 { reason = String(value.prefix(60)) } }
                         }
                     }

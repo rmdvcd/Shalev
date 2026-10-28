@@ -453,6 +453,7 @@ private struct InventoryRow: View {
     let alertText: String?
     let onToggle: () -> Void
     let onOpen: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var available: Int? {
         product.kind == .prepared ? store.availableQuantity(kind: .product, sourceID: product.id) : nil
@@ -489,38 +490,41 @@ private struct InventoryRow: View {
                             .frame(width: 40, height: 40)
                             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                     }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(product.name)
-                            .font(.shalev(15, weight: .medium))
-                            .foregroundStyle(Color.shalevText)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                        if let alertText {
-                            Text(alertText)
-                                .font(.shalev(12, weight: .semibold))
-                                .foregroundStyle(statusColor)
-                                .lineLimit(2)
+                    let apilar = dynamicTypeSize >= .xxxLarge
+                    ShalevFilaAdaptable(espaciadoHorizontal: 8, espaciadoVertical: 4) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(product.name)
+                                .font(.shalev(15, weight: .medium))
+                                .foregroundStyle(Color.shalevText)
+                                .lineLimit(apilar ? nil : 2)
+                                .multilineTextAlignment(.leading)
+                            if let alertText {
+                                Text(alertText)
+                                    .font(.shalev(12, weight: .semibold))
+                                    .foregroundStyle(statusColor)
+                                    .lineLimit(apilar ? nil : 2)
+                            }
+                            Text(product.kind == .prepared
+                                 ? "Alcanza para \(available ?? 0)"
+                                 : "\(product.displayStock) \(product.unit)")
+                                .font(.shalev(12))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                            Text(product.kind == .prepared ? "Elaborado" : product.category)
+                                .font(.shalev(11))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                                .lineLimit(apilar ? nil : 1)
                         }
-                        Text(product.kind == .prepared
-                             ? "Alcanza para \(available ?? 0)"
-                             : "\(product.displayStock) \(product.unit)")
-                            .font(.shalev(12))
-                            .foregroundStyle(Color.shalevSecondaryText)
-                        Text(product.kind == .prepared ? "Elaborado" : product.category)
-                            .font(.shalev(11))
-                            .foregroundStyle(Color.shalevSecondaryText)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 6)
-                    VStack(alignment: .trailing, spacing: 3) {
-                        Text(Cup(cents: product.priceCents).formatted)
-                            .font(.shalev(14, weight: .semibold))
-                            .foregroundStyle(Color.shalevText)
-                            .lineLimit(1).minimumScaleFactor(0.75)
-                        Text(Cup(cents: store.estimatedCostCents(for: product)).formatted)
-                            .font(.shalev(11, weight: .medium))
-                            .foregroundStyle(Color.shalevSecondaryText)
-                            .lineLimit(1).minimumScaleFactor(0.75)
+                    } valor: {
+                        VStack(alignment: apilar ? .leading : .trailing, spacing: 3) {
+                            Text(Cup(cents: product.priceCents).formatted)
+                                .font(.shalev(14, weight: .semibold))
+                                .foregroundStyle(Color.shalevText)
+                                .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.75)
+                            Text(Cup(cents: store.estimatedCostCents(for: product)).formatted)
+                                .font(.shalev(11, weight: .medium))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                                .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.75)
+                        }
                     }
                 }
                 .contentShape(Rectangle())
@@ -852,6 +856,8 @@ private struct ProductEditorView: View {
     @State private var errorMessage: String?
     @State private var confirmDelete = false
     @State private var working = false
+    private enum ProductFocus: Hashable { case name, category, description, unit }
+    @FocusState private var focusedField: ProductFocus?
 
     init(store: ShalevStore, sync: SyncManager, product: Product?) {
         self.store = store
@@ -918,7 +924,10 @@ private struct ProductEditorView: View {
                     }
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 13) {
-                            formField("Nombre", text: $name, placeholder: "Ej. Agua mineral")
+                            formField("Nombre", text: $name, placeholder: "Ej. Agua mineral",
+                                      focus: .name, submit: .next) {
+                                focusedField = kind == .product ? .category : .description
+                            }
                             VStack(alignment: .leading, spacing: 6) {
                                 fieldLabel("Tipo")
                                 Picker("Tipo", selection: $kind) {
@@ -933,7 +942,10 @@ private struct ProductEditorView: View {
                             }
                             if kind == .product {
                                 VStack(alignment: .leading, spacing: 7) {
-                                    formField("Categoría *", text: $category, placeholder: "Elige o escribe una nueva")
+                                    formField("Categoría *", text: $category, placeholder: "Elige o escribe una nueva",
+                                              focus: .category, submit: .next) {
+                                        focusedField = .description
+                                    }
                                     if !categorySuggestions.isEmpty {
                                         ScrollView(.horizontal, showsIndicators: false) {
                                             HStack(spacing: 7) {
@@ -947,7 +959,10 @@ private struct ProductEditorView: View {
                                     }
                                 }
                             }
-                            formField("Descripción (opcional, máximo 40)", text: $description, placeholder: "Detalles para identificarlo")
+                            formField("Descripción (opcional, máximo 40)", text: $description, placeholder: "Detalles para identificarlo",
+                                      focus: .description, submit: kind == .ingredient ? .next : .done) {
+                                focusedField = kind == .ingredient ? .unit : nil
+                            }
                                 .onChange(of: description) { _, value in if value.count > 40 { description = String(value.prefix(40)) } }
 
                             if kind != .prepared {
@@ -956,7 +971,10 @@ private struct ProductEditorView: View {
                                           placeholder: "0", keyboard: .decimalPad,
                                           help: kind == .ingredient ? "Unidades que tienes" : "Unidades que tienes")
                                 if kind == .ingredient {
-                                    formField("Unidad de medida", text: $unit, placeholder: "kg, L, u…")
+                                    formField("Unidad de medida", text: $unit, placeholder: "kg, L, u…",
+                                              focus: .unit, submit: .done) {
+                                        focusedField = nil
+                                    }
                                 }
                                 formField("Aviso de stock bajo", text: $lowStock, placeholder: "0", keyboard: .decimalPad, help: "Opcional")
                                 formField("Aviso de stock crítico", text: $criticalStock, placeholder: "0", keyboard: .decimalPad, help: "Opcional")
@@ -1072,14 +1090,22 @@ private struct ProductEditorView: View {
     }
 
     private func formField(_ label: String, text: Binding<String>, placeholder: String = "", keyboard: UIKeyboardType = .default,
-                           multiline: Bool = false, help: String? = nil) -> some View {
+                           multiline: Bool = false, help: String? = nil,
+                           focus: ProductFocus? = nil, submit: SubmitLabel = .done,
+                           onSubmit: (() -> Void)? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             fieldLabel(label)
             if multiline {
                 TextField(placeholder, text: text, axis: .vertical).lineLimit(2...4).textFieldStyle(ShalevTextFieldStyle())
+            } else if let focus {
+                TextField(placeholder, text: text).keyboardType(keyboard).textFieldStyle(ShalevTextFieldStyle())
+                    .focused($focusedField, equals: focus)
+                    .submitLabel(submit)
+                    .onSubmit { onSubmit?() }
+                    .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
             } else {
                 TextField(placeholder, text: text).keyboardType(keyboard).textFieldStyle(ShalevTextFieldStyle())
-                    .submitLabel(.done)
+                    .submitLabel(submit)
                     .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
             }
             if let help {

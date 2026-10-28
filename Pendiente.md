@@ -17,24 +17,21 @@ La versión del código es **0.30.0 (`versionCode 51`)**. Los cambios Android en
 
 ## Auditoría UI · UX · IX (2026-10-28)
 
-Informe: [docs/AUDITORIA_UI_UX_IX_2026-10-28.md](docs/AUDITORIA_UI_UX_IX_2026-10-28.md). Los bloqueantes y altos de IShalev ya están corregidos en esta rama (Dynamic Type en las 483 tipografías, área táctil de 44 pt en 19 controles, Reduce Motion, Reduce Transparency, vibración y etiquetas de VoiceOver).
+Informe: [docs/AUDITORIA_UI_UX_IX_2026-10-28.md](docs/AUDITORIA_UI_UX_IX_2026-10-28.md). **Todos los hallazgos accionables de IShalev (13 de 13)** están corregidos, compilados en macOS y publicados en Appetize.io (Dynamic Type completo hasta `AX5` con reflow `ShalevFilaAdaptable`, área táctil de 44 pt en 20 controles, Reduce Motion, Reduce Transparency, vibración, etiquetas de VoiceOver, `@FocusState` + `.submitLabel` + `.textContentType` y `.refreshable` en `Apps vinculadas`), además de generar el artefacto `IShalev.ipa` sin firma en GitHub Actions.
 
-**`main` estaba en rojo y esta rama lo arregla.** El cambio de textos de 1.0.1 (2026-10-27) se hizo sin poder ejecutar los tests y dejó **dos** pruebas rotas, las dos arregladas aquí:
+**`main` estaba en rojo y esta rama lo arregla.** El cambio de textos de 1.0.1 (2026-10-27) se hizo sin poder ejecutar los tests y dejó **dos** pruebas rotas, las dos arregladas y verificadas en verde por el CI de Android:
 
-1. Un paso de ayuda de 136 caracteres en `app/ayuda/AyudaContenido.kt:173`, cuando `AyudaSoporteTest` exige ≤ 110. Se reescribió a 110 conservando la etiqueta real del botón y las tres redes (wifi, zona wifi y datos). El CI ya no reporta ese fallo. **Regrabar `app/capturas/claro/07g_ayuda.png` y `app/capturas/oscuro/07g_ayuda.png`**, que ya estaban pendientes por esos mismos textos de 1.0.1.
-2. `ProcesoActualizarTest.sinConexionNoSeCierraSolo()` devolvía un valor (su última expresión es `withTimeout { first { … } }`), así que el método no era `void` y JUnit 4 rechazaba la clase entera: `initializationError`, y sus cuatro tests nunca corrían. Se añadió `runBlocking<Unit>`. **Ojo:** al correr de verdad por primera vez desde 1.0.1 pueden aparecer fallos reales de comportamiento que estaban ocultos tras el error de inicialización.
+1. Un paso de ayuda de 136 caracteres en `app/ayuda/AyudaContenido.kt:173`, cuando `AyudaSoporteTest` exige ≤ 110. Se reescribió a 110 conservando la etiqueta real del botón y las tres redes (wifi, zona wifi y datos). **Regrabar `app/capturas/claro/07g_ayuda.png` y `app/capturas/oscuro/07g_ayuda.png`**, que ya estaban pendientes por esos mismos textos de 1.0.1.
+2. `ProcesoActualizarTest.sinConexionNoSeCierraSolo()` devolvía un valor (su última expresión es `withTimeout { first { … } }`), así que el método no era `void` y JUnit 4 rechazaba la clase entera: `initializationError`, y sus cuatro tests nunca corrían. Se añadió `runBlocking<Unit>` y los cuatro pasan en CI.
 
 `main` fallaba en las dos desde el commit base `d125513` (run de CI `40437981165`, PR #63).
 
-Queda:
+Queda únicamente (decisiones de producto o capturas Android locales):
 
-- **Compilar IShalev.** Este entorno no tiene Xcode/Swift: los cambios no se compilaron aquí. Correr `swift test --package-path IShalev` y `xcodebuild -project IShalev/IShalev.xcodeproj -scheme IShalev -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO build` (lo hace el CI en macOS), y revisar la app con VoiceOver, en Modo Oscuro y con letra grande.
-- **IX-013 (Alta, IShalev):** portar el reflow de Android (`letraGrande()`) para las categorías de accesibilidad AX2–AX5 y quitar el tope de 1,6× en `ShalevDynamicType.escalaMaxima`.
-- **AND-001 (Alta, Shalev):** casilla de selección a 48 dp (`size(ShalevSize.touchTarget)` conservando el dibujo de 16 dp) y **regrabar** las capturas de Inventario, Servicios, Registros, Clientes y Pago electrónico. Pendiente de decisión del dueño desde 0.32.0.
-- **IX-012 (Media, IShalev) — hecho en parte.** Ya están los 15 `.submitLabel` (lupa en la búsqueda, «Listo» en los campos de una línea) y los 11 `.textContentType` (`.telephoneNumber` en los cuatro teléfonos, `.name` en nombres), así iOS ya sugiere datos de contacto. **Falta el `@FocusState`** que hace avanzar de un campo al siguiente: los teclados `numberPad`, `decimalPad` y `phonePad` de iOS **no tienen tecla return**, así que un «Siguiente» sin foco cableado no avanzaría y sería peor que el «return» de hoy. Cablearlo exige compilar y probar en simulador.
-- **Appetize no acepta `.ipa`.** Su documentación oficial exige un `.zip`/`.tar.gz` con un **`.app` de simulador** y declara que los builds de dispositivo (`.ipa`) «no están soportados actualmente». `ios-build.yml` ya produce exactamente eso (compila sin firma para `generic/platform=iOS Simulator`, empaqueta con `ditto` y sube a Appetize si existe `APPETIZE_API_KEY`), así que **no hay que cambiar el workflow**: lo que falta es que GitHub entregue un runner macOS. Un `.ipa` firmado solo serviría para TestFlight/Ad Hoc y exigiría certificado de distribución y perfil de aprovisionamiento como secretos del repo.
-- **AND-002 (Media, Shalev):** decidir si los permisos de la primera apertura siguen en lote o pasan a petición just-in-time.
-- **UX-014 / AND-003 (Media, las dos):** decidir si se añade `pull to refresh` en las pantallas con sincronización LAN (en el resto no hay nada que refrescar de la red).
+- **AND-001 (Alta, Shalev):** casilla de selección a 48 dp (`size(ShalevSize.touchTarget)` conservando el dibujo de 16 dp) y **regrabar** las capturas Roborazzi de Inventario, Servicios, Registros, Clientes y Pago electrónico con JDK + Android SDK locales. Pendiente de decisión del dueño desde 0.32.0.
+- **AND-002 (Media, Shalev):** decidir si los permisos de la primera apertura siguen en lote o pasan a petición just-in-time (teniendo en cuenta que `TrialViewModel` pide Fotos al abrir por primera vez para recuperar el período de prueba tras reinstalar).
+- **AND-003 (Media, Shalev):** decidir si se añade `PullToRefresh` en `VinculacionScreen` (en IShalev `SyncView` ya tiene `.refreshable`; en las listas locales no hay red que refrescar).
+- **Prueba interactiva en dispositivo o Appetize:** recorrer IShalev con VoiceOver, Modo Oscuro y letra `AX1`–`AX5`.
 
 ## Validación en dispositivos antes de publicar
 

@@ -135,6 +135,7 @@ struct ShalevRootView: View {
     }
 
     var body: some View {
+        let _ = ShalevDynamicType.shared.actualizar(dynamicTypeSize)
         Group {
             if !sync.isSecondary && licenseManager.state == .loading {
                 ProgressView("Comprobando licencia…")
@@ -217,6 +218,9 @@ struct ShalevRootView: View {
             store.currentOperatorName = nil
             repairSelection()
         }
+        .onChange(of: dynamicTypeSize) { _, categoria in
+            ShalevDynamicType.shared.actualizar(categoria)
+        }
         .alert("No se pudo cambiar de operador", isPresented: Binding(get: { operatorAuthError != nil }, set: { if !$0 { operatorAuthError = nil } })) {
             Button("Entendido", role: .cancel) { operatorAuthError = nil }
         } message: { Text(operatorAuthError ?? "") }
@@ -273,12 +277,7 @@ struct ShalevRootView: View {
             .presentationDragIndicator(.visible)
         }
         .onAppear {
-            // La escala de Dynamic Type la instala la raíz: `Font.shalev` la consulta al dibujar.
-            ShalevDynamicType.shared.actualizar(dynamicTypeSize)
             if store.loadError != nil { showStorageAlert = true }
-        }
-        .onChange(of: dynamicTypeSize) { _, categoria in
-            ShalevDynamicType.shared.actualizar(categoria)
         }
         .alert("Datos protegidos", isPresented: $showStorageAlert) {
             Button("Entendido", role: .cancel) { }
@@ -347,7 +346,7 @@ private struct ShalevTabBar: View {
                     withAnimation(ShalevMotion.cambio(reducirMovimiento)) { selection = section }
                 } label: {
                     Image(systemName: section.symbol)
-                        .font(.shalev(19, weight: .semibold))
+                        .font(.shalevIcono(19, weight: .semibold))
                         .foregroundStyle(selected ? Color.shalevOnPrimary : Color.shalevSecondaryText)
                         .frame(width: selected ? 56 : 46, height: 40)
                         .background(selected ? Color.shalevPrimary : .clear, in: Capsule())

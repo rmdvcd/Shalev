@@ -23,6 +23,8 @@ struct OnboardingView: View {
     @State private var transferPhone = ""
     @State private var transferCard = ""
     @State private var errorMessage: String?
+    private enum DataFocus: Hashable { case business, firstName, lastName, ci }
+    @FocusState private var focusedField: DataFocus?
 
     init(store: ShalevStore, startAtData: Bool = false, onComplete: @escaping () -> Void) {
         self.store = store
@@ -189,10 +191,14 @@ struct OnboardingView: View {
             ShalevCard {
                 VStack(alignment: .leading, spacing: 12) {
                     ShalevSectionHeader(title: "Tu negocio")
-                    field("Nombre del negocio", text: $businessName, placeholder: "Mi negocio", capitalization: .words)
-                    field("Nombre del titular", text: $ownerFirstName, placeholder: "Nombre", capitalization: .words)
-                    field("Apellidos", text: $ownerLastName, placeholder: "Apellidos", capitalization: .words)
-                    field("Carné de identidad (opcional)", text: $identification, placeholder: "CI", capitalization: .characters)
+                    field("Nombre del negocio", text: $businessName, placeholder: "Mi negocio", capitalization: .words,
+                          focus: .business, submit: .next) { focusedField = .firstName }
+                    field("Nombre del titular", text: $ownerFirstName, placeholder: "Nombre", capitalization: .words,
+                          focus: .firstName, submit: .next) { focusedField = .lastName }
+                    field("Apellidos", text: $ownerLastName, placeholder: "Apellidos", capitalization: .words,
+                          focus: .lastName, submit: .next) { focusedField = .ci }
+                    field("Carné de identidad (opcional)", text: $identification, placeholder: "CI", capitalization: .characters,
+                          focus: .ci, submit: .done) { focusedField = nil }
                     field("Teléfono de contacto (opcional)", text: $phone, placeholder: "+53 5XXX XXXX", keyboard: .phonePad)
                 }
             }
@@ -234,13 +240,12 @@ struct OnboardingView: View {
     }
 
     private func summaryRow(_ title: String, _ value: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        ShalevFilaAdaptable(espaciadoHorizontal: 10, espaciadoVertical: 3) {
             Text(title).font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
-            Spacer(minLength: 6)
+        } valor: {
             Text(value)
                 .font(.shalev(13, weight: .semibold))
                 .foregroundStyle(Color.shalevText)
-                .multilineTextAlignment(.trailing)
         }
     }
 
@@ -296,18 +301,34 @@ struct OnboardingView: View {
 
     private func field(_ title: String, text: Binding<String>, placeholder: String,
                        keyboard: UIKeyboardType = .default,
-                       capitalization: TextInputAutocapitalization = .never) -> some View {
+                       capitalization: TextInputAutocapitalization = .never,
+                       focus: DataFocus? = nil, submit: SubmitLabel = .done,
+                       onSubmit: (() -> Void)? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-            TextField(placeholder, text: text)
-                .keyboardType(keyboard)
-                .textInputAutocapitalization(capitalization)
-                .autocorrectionDisabled()
-                .submitLabel(.done)
-                .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
-                .font(.shalev(14))
-                .padding(11)
-                .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+            if let focus {
+                TextField(placeholder, text: text)
+                    .keyboardType(keyboard)
+                    .textInputAutocapitalization(capitalization)
+                    .autocorrectionDisabled()
+                    .focused($focusedField, equals: focus)
+                    .submitLabel(submit)
+                    .onSubmit { onSubmit?() }
+                    .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
+                    .font(.shalev(14))
+                    .padding(11)
+                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+            } else {
+                TextField(placeholder, text: text)
+                    .keyboardType(keyboard)
+                    .textInputAutocapitalization(capitalization)
+                    .autocorrectionDisabled()
+                    .submitLabel(submit)
+                    .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
+                    .font(.shalev(14))
+                    .padding(11)
+                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+            }
         }
     }
 

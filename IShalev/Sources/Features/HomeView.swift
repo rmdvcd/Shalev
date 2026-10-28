@@ -49,6 +49,7 @@ struct HomeView: View {
     @State private var expandedCards: Set<String> = []
     @State private var shiftSheet: ShiftSheetAction?
     @State private var showSaleTypeDialog = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// Turno del que habla el período «Turno»: el abierto o, si no hay, el último cerrado.
     private var referenceShift: Shift? {
@@ -200,15 +201,16 @@ struct HomeView: View {
                         .font(.shalev(20, weight: .semibold))
                         .foregroundStyle(store.openShift == nil ? Color.shalevSecondaryText : Color.shalevPrimary)
                     VStack(alignment: .leading, spacing: 3) {
+                        let apilar = dynamicTypeSize >= .xxxLarge
                         Text(store.openShift == nil ? "Turno cerrado" : "Turno abierto")
                             .font(.shalev(16, weight: .semibold)).foregroundStyle(Color.shalevText)
                         Text(store.openShift.map { "Desde las \($0.openedAt.shalevTime)" } ?? "Ábrelo para vender")
                             .font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
-                            .lineLimit(1).minimumScaleFactor(0.8)
+                            .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.8)
                         if let shift = store.openShift {
                             Text("Efectivo esperado: \(Cup(cents: store.expectedCashCents(for: shift.id)).formatted)")
                                 .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-                                .lineLimit(1).minimumScaleFactor(0.8)
+                                .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.8)
                         }
                     }
                     Spacer(minLength: 3)
@@ -374,7 +376,7 @@ struct HomeView: View {
                             .cornerRadius(7)
                     }
                 }
-                .frame(height: 170)
+                .frame(minHeight: 170)
                 .chartYAxis(.hidden)
                 .chartLegend(.hidden)
                 Text("Cada barra muestra las ventas de un mes. Total del período: \(Cup(cents: revenue).formatted)")
@@ -387,9 +389,16 @@ struct HomeView: View {
     private var profitAccordion: some View {
         accordion(title: "Ganancia neta", value: Cup(cents: profit).formatted, key: "profit") {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    metricBlock(title: "Costo", amount: Cup(cents: cost).formatted)
-                    metricBlock(title: "Ganancia", amount: Cup(cents: profit).formatted)
+                if dynamicTypeSize >= .xxxLarge {
+                    VStack(alignment: .leading, spacing: 10) {
+                        metricBlock(title: "Costo", amount: Cup(cents: cost).formatted)
+                        metricBlock(title: "Ganancia", amount: Cup(cents: profit).formatted)
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        metricBlock(title: "Costo", amount: Cup(cents: cost).formatted)
+                        metricBlock(title: "Ganancia", amount: Cup(cents: profit).formatted)
+                    }
                 }
                 if revenue > 0 {
                     let margin = Double(profit) / Double(revenue) * 100
@@ -410,7 +419,7 @@ struct HomeView: View {
             Text(amount)
                 .font(.shalev(18, weight: .bold))
                 .foregroundStyle(Color.shalevText)
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize >= .xxxLarge ? nil : 1)
                 .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -427,7 +436,7 @@ struct HomeView: View {
                             .cornerRadius(7)
                     }
                 }
-                .frame(height: 145)
+                .frame(minHeight: 145)
                 .chartYAxis(.hidden)
                 .chartLegend(.hidden)
                 Text("Recuento del catálogo por tipo de artículo.")
@@ -472,17 +481,20 @@ struct HomeView: View {
                 Text("En \(period.rawValue.lowercased())")
                     .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    let apilar = dynamicTypeSize >= .xxxLarge
                     HStack(spacing: 11) {
                         medal(position: index + 1)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.name).font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevText).lineLimit(1)
-                            Text(detail(item)).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
+                        ShalevFilaAdaptable(espaciadoHorizontal: 6, espaciadoVertical: 3) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name).font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevText).lineLimit(apilar ? nil : 1)
+                                Text(detail(item)).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
+                            }
+                        } valor: {
+                            Text(amount(item))
+                                .font(.shalev(12, weight: .semibold))
+                                .foregroundStyle(Color.shalevText)
+                                .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.8)
                         }
-                        Spacer(minLength: 6)
-                        Text(amount(item))
-                            .font(.shalev(12, weight: .semibold))
-                            .foregroundStyle(Color.shalevText)
-                            .lineLimit(1).minimumScaleFactor(0.8)
                     }
                 }
             }
@@ -500,9 +512,10 @@ struct HomeView: View {
             foreground = Color(red: 0.122, green: 0.161, blue: 0.200)
         }
         return Text("\(position)")
-            .font(.shalev(12, weight: .bold))
+            .font(.shalevIcono(12, weight: .bold))
             .foregroundStyle(foreground)
-            .frame(width: 30, height: 30)
+            .padding(4)
+            .frame(minWidth: 30, minHeight: 30)
             .background(background, in: Circle())
             .accessibilityLabel(position == 1 ? "Primer puesto" : position == 2 ? "Segundo puesto" : "Tercer puesto")
     }
@@ -516,7 +529,7 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(title).font(.shalev(15, weight: .semibold)).foregroundStyle(Color.shalevText)
                     Text(value).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
-                        .lineLimit(2).minimumScaleFactor(0.82)
+                        .lineLimit(dynamicTypeSize >= .xxxLarge ? nil : 2).minimumScaleFactor(0.82)
                 }
                 Spacer(minLength: 10)
                 Image(systemName: expandedCards.contains(key) ? "chevron.up" : "chevron.down")

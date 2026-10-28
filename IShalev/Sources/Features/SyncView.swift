@@ -32,6 +32,14 @@ struct SyncView: View {
             .frame(maxWidth: 680)
             .frame(maxWidth: .infinity)
         }
+        .refreshable {
+            if sync.isSecondary {
+                do { _ = try await sync.synchronize() }
+                catch { errorMessage = error.localizedDescription }
+            } else {
+                sync.start()
+            }
+        }
         .background(Color.shalevBackground.ignoresSafeArea())
         .navigationTitle("Apps vinculadas")
         .navigationBarTitleDisplayMode(.inline)

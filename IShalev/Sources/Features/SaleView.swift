@@ -14,6 +14,7 @@ struct SaleComposerView: View {
     let onOpenSettings: () -> Void
     var canOpenSettings = true
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var step: SaleStep = .cart
     @State private var cart: [UUID: Int] = [:]
@@ -202,24 +203,25 @@ struct SaleComposerView: View {
     }
 
     private func cartLine(_ draft: CartDraft) -> some View {
-        ShalevCard(padding: 14) {
+        let apilar = dynamicTypeSize >= .xxxLarge
+        return ShalevCard(padding: 14) {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 10) {
+                ShalevFilaAdaptable(espaciadoHorizontal: 10, espaciadoVertical: 4) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(lineName(for: draft))
                             .font(.shalev(15, weight: .semibold))
                             .foregroundStyle(Color.shalevText)
-                            .lineLimit(2)
+                            .lineLimit(apilar ? nil : 2)
                         Text("\(Cup(cents: basePrice(for: draft)).formatted) c/u" + availabilityText(draft))
                             .font(.shalev(12))
                             .foregroundStyle(Color.shalevSecondaryText)
-                            .lineLimit(2)
+                            .lineLimit(apilar ? nil : 2)
                     }
-                    Spacer(minLength: 6)
+                } valor: {
                     Text(Cup(cents: lineSubtotal(draft)).formatted)
                         .font(.shalev(14, weight: .semibold))
                         .foregroundStyle(Color.shalevText)
-                        .lineLimit(1).minimumScaleFactor(0.75)
+                        .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.75)
                 }
                 HStack(spacing: 9) {
                     circleButton(symbol: "minus", label: "Una menos de \(lineName(for: draft))",
@@ -227,7 +229,9 @@ struct SaleComposerView: View {
                     Text("\(draft.quantity)")
                         .font(.shalev(15, weight: .semibold))
                         .foregroundStyle(Color.shalevText)
-                        .frame(width: 76, height: 44)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .frame(minWidth: 76, minHeight: 44)
                         .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 11).stroke(Color.shalevOutline, lineWidth: 1))
                         .accessibilityLabel("Cantidad de \(lineName(for: draft)): \(draft.quantity)")
@@ -236,7 +240,7 @@ struct SaleComposerView: View {
                     Spacer(minLength: 0)
                     Button { cart.removeValue(forKey: draft.sourceID) } label: {
                         Image(systemName: "trash")
-                            .font(.shalev(17, weight: .semibold))
+                            .font(.shalevIcono(17, weight: .semibold))
                             .foregroundStyle(Color.shalevSecondaryText)
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
@@ -251,7 +255,7 @@ struct SaleComposerView: View {
     private func circleButton(symbol: String, label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.shalev(16, weight: .bold))
+                .font(.shalevIcono(16, weight: .bold))
                 .foregroundStyle(enabled ? Color.shalevPrimary : Color.shalevSecondaryText.opacity(0.45))
                 .frame(width: 44, height: 44)
                 .background(Color.shalevPrimaryContainer.opacity(enabled ? 1 : 0.45), in: Circle())
@@ -282,9 +286,16 @@ struct SaleComposerView: View {
                 .font(.shalev(14, weight: .semibold))
                 .foregroundStyle(Color.shalevText)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            HStack(spacing: 10) {
-                paymentPill(.cash, title: "Efectivo", symbol: "banknote")
-                paymentPill(.transfer, title: "Transferencia", symbol: "arrow.left.arrow.right")
+            if dynamicTypeSize >= .xxxLarge {
+                VStack(spacing: 10) {
+                    paymentPill(.cash, title: "Efectivo", symbol: "banknote")
+                    paymentPill(.transfer, title: "Transferencia", symbol: "arrow.left.arrow.right")
+                }
+            } else {
+                HStack(spacing: 10) {
+                    paymentPill(.cash, title: "Efectivo", symbol: "banknote")
+                    paymentPill(.transfer, title: "Transferencia", symbol: "arrow.left.arrow.right")
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -298,7 +309,8 @@ struct SaleComposerView: View {
                 .font(.shalev(13, weight: .semibold))
                 .foregroundStyle(selected ? Color.shalevOnPrimary : Color.shalevText)
                 .padding(.horizontal, 14)
-                .frame(height: 44)
+                .padding(.vertical, 8)
+                .frame(minHeight: 44)
                 .frame(maxWidth: .infinity)
                 .background(selected ? Color.shalevPrimary : Color.clear,
                             in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -312,24 +324,25 @@ struct SaleComposerView: View {
     // MARK: - Comprobante (efectivo)
 
     private var receiptStep: some View {
-        ShalevCard {
+        let apilar = dynamicTypeSize >= .xxxLarge
+        return ShalevCard {
             VStack(alignment: .leading, spacing: 11) {
                 ForEach(drafts) { draft in
-                    HStack(alignment: .top, spacing: 10) {
+                    ShalevFilaAdaptable(espaciadoHorizontal: 10, espaciadoVertical: 4) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(lineName(for: draft))
                                 .font(.shalev(14, weight: .medium))
                                 .foregroundStyle(Color.shalevText)
-                                .lineLimit(2)
+                                .lineLimit(apilar ? nil : 2)
                             Text("\(draft.quantity) × \(Cup(cents: unitPrice(draft)).formatted)")
                                 .font(.shalev(12))
                                 .foregroundStyle(Color.shalevSecondaryText)
                         }
-                        Spacer(minLength: 6)
+                    } valor: {
                         Text(Cup(cents: lineSubtotal(draft)).formatted)
                             .font(.shalev(13, weight: .semibold))
                             .foregroundStyle(Color.shalevText)
-                            .lineLimit(1).minimumScaleFactor(0.8)
+                            .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.8)
                     }
                 }
                 Divider()
@@ -440,6 +453,7 @@ struct SaleComposerView: View {
                     .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
                 TextField("Nombre y apellidos", text: $customerName)
                     .textContentType(.name).textFieldStyle(SaleInputStyle())
+                    .submitLabel(.done)
                 TextField("Carné cubano de 11 dígitos", text: $customerID)
                     .keyboardType(.numberPad)
                     .textInputAutocapitalization(.never).textFieldStyle(SaleInputStyle())
@@ -509,7 +523,7 @@ struct SaleComposerView: View {
     private func roundAction(_ symbol: String, label: String, filled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.shalev(19, weight: .bold))
+                .font(.shalevIcono(19, weight: .bold))
                 .foregroundStyle(filled ? Color.shalevOnPrimary : Color.shalevOnTertiaryContainer)
                 .frame(width: 54, height: 54)
                 .background(filled ? Color.shalevPrimary : Color.shalevTertiaryContainer, in: Circle())
@@ -697,25 +711,34 @@ private struct SaleCatalogRow: View {
     let canAdd: Bool
     let onMinus: () -> Void
     let onPlus: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
+        let apilar = dynamicTypeSize >= .xxxLarge
         HStack(spacing: 11) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(name).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(2)
-                Text(detail).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(1)
+                Text(name).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(apilar ? nil : 2)
+                Text(detail).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(apilar ? nil : 1)
                 Text(price).font(.shalev(12, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
             }
             Spacer(minLength: 8)
             HStack(spacing: 9) {
                 if quantity > 0 {
-                    Button(action: onMinus) { Image(systemName: "minus.circle.fill") }
-                        .accessibilityLabel("Quitar una unidad de \(name)")
+                    Button(action: onMinus) {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.shalevIcono(22, weight: .semibold))
+                            .shalevToque()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Quitar una unidad de \(name)")
                     Text("\(quantity)").font(.shalev(13, weight: .semibold)).monospacedDigit()
                 }
                 Button(action: onPlus) {
                     Image(systemName: quantity == 0 ? "plus.circle.fill" : "plus.circle")
-                        .font(.shalev(22, weight: .semibold))
+                        .font(.shalevIcono(22, weight: .semibold))
+                        .shalevToque()
                 }
+                .buttonStyle(.plain)
                 .disabled(!canAdd)
                 .opacity(canAdd ? 1 : 0.38)
                 .accessibilityLabel("Añadir \(name)")

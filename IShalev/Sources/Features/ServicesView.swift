@@ -136,27 +136,31 @@ struct ServicesView: View {
 private struct ServiceRow: View {
     let service: ServiceItem
     @ObservedObject var store: ShalevStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
+        let apilar = dynamicTypeSize >= .xxxLarge
         HStack(spacing: 12) {
             if let data = service.imageData, let photo = UIImage(data: data) {
                 Image(uiImage: photo).resizable().scaledToFill()
                     .frame(width: 48, height: 48).clipped().clipShape(RoundedRectangle(cornerRadius: 14))
             } else {
                 Image(systemName: "scissors")
-                    .font(.shalev(18, weight: .semibold)).foregroundStyle(Color.shalevTertiary)
+                    .font(.shalevIcono(18, weight: .semibold)).foregroundStyle(Color.shalevTertiary)
                     .frame(width: 48, height: 48).background(Color.shalevTertiaryContainer, in: RoundedRectangle(cornerRadius: 14))
             }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(service.name).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1)
-                let capacity = store.availableQuantity(kind: .service, sourceID: service.id) ?? 0
-                Text(service.uses.isEmpty ? service.type : "Alcanza para \(capacity) · \(service.type)")
-                    .font(.shalev(12)).foregroundStyle(capacity == 0 && !service.uses.isEmpty ? Color.shalevError : Color.shalevSecondaryText)
-                    .lineLimit(1)
+            ShalevFilaAdaptable(espaciadoHorizontal: 8, espaciadoVertical: 4) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(service.name).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(apilar ? nil : 1)
+                    let capacity = store.availableQuantity(kind: .service, sourceID: service.id) ?? 0
+                    Text(service.uses.isEmpty ? service.type : "Alcanza para \(capacity) · \(service.type)")
+                        .font(.shalev(12)).foregroundStyle(capacity == 0 && !service.uses.isEmpty ? Color.shalevError : Color.shalevSecondaryText)
+                        .lineLimit(apilar ? nil : 1)
+                }
+            } valor: {
+                Text(Cup(cents: service.priceCents).formatted)
+                    .font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(apilar ? nil : 1).minimumScaleFactor(0.78)
             }
-            Spacer(minLength: 8)
-            Text(Cup(cents: service.priceCents).formatted)
-                .font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(1).minimumScaleFactor(0.78)
         }
         .padding(13)
         .background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -183,6 +187,8 @@ private struct ServiceEditorView: View {
     @State private var errorMessage: String?
     @State private var confirmDelete = false
     @State private var working = false
+    private enum ServiceFocus: Hashable { case name, description, type }
+    @FocusState private var focusedField: ServiceFocus?
 
     init(store: ShalevStore, sync: SyncManager, service: ServiceItem?) {
         self.store = store
@@ -246,16 +252,19 @@ private struct ServiceEditorView: View {
                             Text("* Obligatorio")
                                 .font(.shalev(11))
                                 .foregroundStyle(Color.shalevSecondaryText)
-                            input("Nombre *", text: $name, placeholder: "Corte de pelo")
+                            input("Nombre *", text: $name, placeholder: "Corte de pelo",
+                                  focus: .name, submit: .next) { focusedField = .description }
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Importe (CUP) *")
                                     .font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                                 TextField("0.00", text: $price).keyboardType(.decimalPad).textFieldStyle(ServiceInputStyle())
                             }
-                            input("Descripción (máximo 40)", text: $description, placeholder: "A domicilio, 30 minutos")
+                            input("Descripción (máximo 40)", text: $description, placeholder: "A domicilio, 30 minutos",
+                                  focus: .description, submit: .next) { focusedField = .type }
                                 .onChange(of: description) { _, value in if value.count > 40 { description = String(value.prefix(40)) } }
                             VStack(alignment: .leading, spacing: 7) {
-                                input("Tipo *", text: $type, placeholder: "Peluquería")
+                                input("Tipo *", text: $type, placeholder: "Peluquería",
+                                      focus: .type, submit: .done) { focusedField = nil }
                                 if !typeSuggestions.isEmpty {
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack(spacing: 7) {
@@ -339,14 +348,21 @@ private struct ServiceEditorView: View {
         }
     }
 
-    private func input(_ title: String, text: Binding<String>, placeholder: String, multiline: Bool = false) -> some View {
+    private func input(_ title: String, text: Binding<String>, placeholder: String, multiline: Bool = false,
+                       focus: ServiceFocus? = nil, submit: SubmitLabel = .done,
+                       onSubmit: (() -> Void)? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
             if multiline {
                 TextField(placeholder, text: text, axis: .vertical).lineLimit(2...4).textFieldStyle(ServiceInputStyle())
+            } else if let focus {
+                TextField(placeholder, text: text).textFieldStyle(ServiceInputStyle())
+                    .focused($focusedField, equals: focus)
+                    .submitLabel(submit)
+                    .onSubmit { onSubmit?() }
             } else {
                 TextField(placeholder, text: text).textFieldStyle(ServiceInputStyle())
-                    .submitLabel(.done)
+                    .submitLabel(submit)
             }
         }
     }

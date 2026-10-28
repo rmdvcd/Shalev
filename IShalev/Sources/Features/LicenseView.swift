@@ -39,6 +39,8 @@ struct LicenseView: View {
     @State private var alertMessage: String?
     @State private var didLoadProfile = false
     @State private var isBusy = false
+    private enum LicenseFocus: Hashable { case firstName, lastName, ci }
+    @FocusState private var focusedField: LicenseFocus?
 
     var body: some View {
         NavigationStack {
@@ -358,13 +360,13 @@ struct LicenseView: View {
                 .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
             inputField("Nombre", text: $firstName, placeholder: "Nombre",
                        isError: showErrors && !validName(firstName), errorText: "Solo letras, 2 a 80",
-                       capitalization: .words)
+                       capitalization: .words, focus: .firstName, submit: .next) { focusedField = .lastName }
             inputField("Apellidos", text: $lastName, placeholder: "Apellidos",
                        isError: showErrors && !validName(lastName), errorText: "Solo letras, 2 a 80",
-                       capitalization: .words)
+                       capitalization: .words, focus: .lastName, submit: .next) { focusedField = .ci }
             inputField("Carné de identidad", text: $identification, placeholder: "5–20 letras o dígitos",
                        isError: showErrors && !validCI(identification), errorText: "5 a 20 letras o dígitos",
-                       keyboard: .asciiCapable, capitalization: .characters)
+                       keyboard: .asciiCapable, capitalization: .characters, focus: .ci, submit: .done) { focusedField = nil }
             inputField("Teléfono", text: $phone, placeholder: "5XXXXXXX",
                        isError: showErrors && normalizePhone(phone) == nil, errorText: "Número no válido",
                        keyboard: .phonePad)
@@ -643,22 +645,42 @@ struct LicenseView: View {
     private func inputField(_ title: String, text: Binding<String>, placeholder: String,
                             isError: Bool = false, errorText: String? = nil,
                             keyboard: UIKeyboardType = .default,
-                            capitalization: TextInputAutocapitalization = .never) -> some View {
+                            capitalization: TextInputAutocapitalization = .never,
+                            focus: LicenseFocus? = nil, submit: SubmitLabel = .done,
+                            onSubmit: (() -> Void)? = nil) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title).font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-            TextField(placeholder, text: text)
-                .keyboardType(keyboard)
-                .textInputAutocapitalization(capitalization)
-                .autocorrectionDisabled()
-                .submitLabel(.done)
-                .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
-                .font(.shalev(14))
-                .padding(11)
-                .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 11)
-                        .stroke(isError ? Color.shalevError : Color.shalevOutlineVariant, lineWidth: 1)
-                }
+            if let focus {
+                TextField(placeholder, text: text)
+                    .keyboardType(keyboard)
+                    .textInputAutocapitalization(capitalization)
+                    .autocorrectionDisabled()
+                    .focused($focusedField, equals: focus)
+                    .submitLabel(submit)
+                    .onSubmit { onSubmit?() }
+                    .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
+                    .font(.shalev(14))
+                    .padding(11)
+                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 11)
+                            .stroke(isError ? Color.shalevError : Color.shalevOutlineVariant, lineWidth: 1)
+                    }
+            } else {
+                TextField(placeholder, text: text)
+                    .keyboardType(keyboard)
+                    .textInputAutocapitalization(capitalization)
+                    .autocorrectionDisabled()
+                    .submitLabel(submit)
+                    .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
+                    .font(.shalev(14))
+                    .padding(11)
+                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 11)
+                            .stroke(isError ? Color.shalevError : Color.shalevOutlineVariant, lineWidth: 1)
+                    }
+            }
             if isError, let errorText {
                 Text(errorText).font(.shalev(11)).foregroundStyle(Color.shalevError)
             }
