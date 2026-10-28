@@ -170,7 +170,7 @@ object AyudaContenido {
             "Apps vinculadas",
             listOf(
                 "En tu teléfono: Ajustes → Apps vinculadas → +. Tu licencia dice cuántas secundarias puedes tener.",
-                "En el del empleado: Usar esta app como secundaria, escribe su teléfono y escanea tu código (misma red: wifi, zona wifi o datos móviles).",
+                "En el del empleado: «Usar esta app como secundaria», su teléfono, escanea tu código (wifi, zona wifi o datos).",
                 "Su teléfono va en su QR de cobro: el SMS de la transferencia le llega a él.",
                 "El empleado no cierra su turno: lo solicita y tú lo apruebas o rechazas. Sin red sigue vendiendo.",
                 "Toca su app para sus permisos, su tarjeta de cobro o «Pedir cierre» de su turno abierto.",

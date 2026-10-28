@@ -27,15 +27,22 @@ tooltips, snackbars y velos.
 ## Resumen
 
 IShalev tenía **dos incumplimientos bloqueantes** de las reglas MUST del documento (tipografía fija
-en toda la app y 19 controles por debajo del mínimo táctil) y cuatro altos; **todos se corrigieron en
-esta rama**. Shalev sale bien parada: su design system ya cumple casi todo el checklist y los dos
-hallazgos que quedan son decisiones pendientes del dueño (casilla de 24 dp y permisos en lote al
-abrir la app), no descuidos.
+en toda la app y 19 controles por debajo del mínimo táctil) y siete altos; **se corrigieron aquí los
+dos bloqueantes y seis de los siete altos** —el séptimo, IX-013, queda mitigado con un tope de escala
+y pendiente de portar el reflow que Android ya tiene—. Shalev sale bien parada en el checklist
+mapeado, pero la auditoría destapó que **la build estaba rota en `main`**: un paso de ayuda de 136
+caracteres incumple el máximo de 110 que exige `AyudaSoporteTest` y hacía fallar `shalevTests` desde
+el commit base (AND-009, corregido aquí). Los otros dos hallazgos de Android son decisiones
+pendientes del dueño (casilla de 24 dp y permisos en lote al abrir la app), no descuidos.
 
 | App | Bloqueante | Alta | Media | Baja | Corregidos aquí | Pendientes |
 |---|---|---|---|---|---|---|
-| IShalev (iOS) | 2 | 6 | 4 | 2 | 10 | 4 |
-| Shalev (Android) | 0 | 1 | 3 | 2 | 0 | 6 |
+| IShalev (iOS) | 2 | 7 | 4 | 2 | 10 | 3 |
+| Shalev (Android) | 0 | 2 | 3 | 1 | 1 | 3 |
+
+Contabilizan como hallazgo las filas con severidad; las desviaciones aceptadas (UI-009, AND-005) y
+las justificadas (AND-004) no suman en «pendientes», y las filas de verificación (AND-006, AND-007,
+AND-008, UX-015) tampoco: son cumplimiento comprobado, no hallazgos.
 
 ---
 
@@ -122,10 +129,11 @@ aceptación.
 | AND-006 | Movimiento | — | MUST «respetar Reduce Motion» | **Verificado en la fuente del framework**, no de memoria: Compose observa `Settings.Global.ANIMATOR_DURATION_SCALE` (`androidx/compose/ui/ui/src/androidMain/.../WindowRecomposer.android.kt:95-119`) y lo expone como `MotionDurationScale`, cuyo `scaleFactor = 0` hace que «the motion will end in the next frame callback» (`androidx/compose/ui/.../MotionDurationScale.kt`). Todas las animaciones de Shalev salen de `ShalevMotion` (`token/Tokens.kt:116-179`: `tween`, `spring`, `EnterTransition`) y no hay `rememberInfiniteTransition` en la app | Ninguna | Con «Quitar animaciones» del sistema, pestañas, ventanas y listas cambian sin movimiento | Verificado (cumple) |
 | AND-007 | Toda la app | — | MUST Safe Areas, Dynamic Type, contraste, etiquetas TalkBack, sin estilos sueltos | `MainActivity.kt:65` `enableEdgeToEdge` + recorte de notch en horizontal (`:73-76`); `imePadding` en los 7 formularios y en `VentaScreen`/`ModificarVenta`; `safeDrawingPadding` en los diálogos (`Overlays.kt:238`); tipografía íntegra en `sp` (`theme/Theme.kt:26-37`) con disposición alternativa a partir de escala 1,3; contraste AA verificado por test (`designsystem/src/test/.../ContrastTest.kt`); **0 literales `.sp` y 1 solo `.dp`** en `:app` (el umbral del gesto, `navigation/Deslizar.kt:58`); 109 `contentDescription` y 45 iconos decorativos con `contentDescription = null` | Ninguna | — | Verificado (cumple) |
 | AND-008 | Navegación por gestos | — | MUST NOT «romper gestos nativos como deslizar desde el borde izquierdo» | `navigation/Deslizar.kt:38-41` lee `WindowInsets.systemGestures` y **descarta** los toques que empiezan en las franjas del sistema, así el gesto propio de cambiar de sección no choca con «atrás» | Ninguna | — | Verificado (cumple) |
+| AND-009 | Ayuda → tema «Apps vinculadas» | **Alta** | Principio de **Claridad** («la interfaz debe ser limpia, legible y autoexplicativa») y la regla propia del proyecto: ningún paso de ayuda pasa de 110 caracteres (`app/src/test/.../AyudaSoporteTest.kt:36`) | Un paso de **136 caracteres** (`app/ayuda/AyudaContenido.kt:173`), añadido por el cambio de textos de 1.0.1 (2026-10-27) que admitió «wifi, zona wifi o datos móviles». El paso se lee de corrido, sin pausas, en una app para usuarios sin conocimientos técnicos. **Rompe la build**: `shalevTests` falla en `AyudaSoporteTest > manualBreveYCompleto` y el CI de `main` está en rojo desde el commit base `d125513` (run `40437981165`, PR #63), porque ese cambio se hizo sin poder ejecutar los tests | Reescribir el paso en 110 caracteres conservando la etiqueta real del botón («Usar esta app como secundaria», `vinculacion/VinculacionLogic.kt:20`), el teléfono, la acción de escanear y las tres redes | `shalevTests` en verde y el paso mide ≤ 110. **Ojo:** cambia el texto de la pantalla de Ayuda, así que hay que regrabar `app/capturas/*/07g_ayuda.png` (ya estaba pendiente por los textos de 1.0.1) | **Corregido** |
 
 ---
 
-## 4 · Cambios aplicados en esta rama (IShalev)
+## 4 · Cambios aplicados en esta rama
 
 Todo en ficheros existentes: el `project.pbxproj` lista los ficheros uno a uno, así que **no se añadió
 ningún fichero nuevo** y el proyecto no necesita cambios.
@@ -145,6 +153,29 @@ Cifras de la conversión: 482 `.font(.system(size:))` → `.font(.shalev(...))` 
 18 `.shalevToque()`; 4 `ShalevMotion.cambio`; 3 `ShalevBarBackground()`; 4 `ShalevHaptics`;
 6 etiquetas/valores de accesibilidad nuevos. Los tamaños base no cambian (factor 1 en categoría
 Large), así que **la interfaz en la configuración por defecto es idéntica a la anterior**.
+
+### Shalev (Android): un arreglo que desbloquea la build
+
+`app/ayuda/AyudaContenido.kt:173` (AND-009): el paso de «Apps vinculadas» medía **136 caracteres** y
+`AyudaSoporteTest` exige ≤ 110, así que `shalevTests` fallaba y el CI de `main` estaba en rojo desde
+el commit base. Se reescribió en 110 caracteres conservando la etiqueta real del botón
+(«Usar esta app como secundaria», `vinculacion/VinculacionLogic.kt:20`), el teléfono, la acción de
+escanear y las tres redes que el cambio 1.0.1 añadió a propósito (wifi, zona wifi y datos):
+
+```
+- "En el del empleado: Usar esta app como secundaria, escribe su teléfono y escanea tu código (misma red: wifi, zona wifi o datos móviles)."   (136)
++ "En el del empleado: «Usar esta app como secundaria», su teléfono, escanea tu código (wifi, zona wifi o datos)."                              (110)
+```
+
+Verificado sin JVM repasando **todas** las aserciones del test sobre el fichero: 13 temas (dentro de
+6–14), títulos únicos, ningún tema con más de 5 pasos, longitud máxima 110 y las seis palabras clave
+(«Abrir turno», «Nueva venta», «Inventario», «Respaldo», «Licencia», «Soporte») presentes. Ese paso
+era la única aserción incumplida en todo el fichero.
+
+**Consecuencia a anotar:** cambia el texto de la pantalla de Ayuda, así que hay que regrabar
+`app/capturas/claro/07g_ayuda.png` y `app/capturas/oscuro/07g_ayuda.png`, que **ya estaban
+pendientes** de regrabar por los textos de 1.0.1. Este entorno no tiene JDK ni Android SDK para
+hacerlo.
 
 ---
 

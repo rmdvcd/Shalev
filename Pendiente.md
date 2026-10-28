@@ -17,7 +17,11 @@ La versión del código es **0.30.0 (`versionCode 51`)**. Los cambios Android en
 
 ## Auditoría UI · UX · IX (2026-10-28)
 
-Informe: [docs/AUDITORIA_UI_UX_IX_2026-10-28.md](docs/AUDITORIA_UI_UX_IX_2026-10-28.md). Los bloqueantes y altos de IShalev ya están corregidos en esta rama (Dynamic Type en las 483 tipografías, área táctil de 44 pt en 19 controles, Reduce Motion, Reduce Transparency, vibración y etiquetas de VoiceOver). Queda:
+Informe: [docs/AUDITORIA_UI_UX_IX_2026-10-28.md](docs/AUDITORIA_UI_UX_IX_2026-10-28.md). Los bloqueantes y altos de IShalev ya están corregidos en esta rama (Dynamic Type en las 483 tipografías, área táctil de 44 pt en 19 controles, Reduce Motion, Reduce Transparency, vibración y etiquetas de VoiceOver).
+
+**`main` estaba en rojo y esta rama lo arregla.** El cambio de textos de 1.0.1 (2026-10-27) dejó un paso de ayuda de 136 caracteres en `app/ayuda/AyudaContenido.kt:173` y `AyudaSoporteTest` exige ≤ 110: `shalevTests` fallaba desde el commit base `d125513` (run de CI `40437981165`, PR #63). Se reescribió el paso a 110 caracteres conservando la etiqueta real del botón y las tres redes (wifi, zona wifi y datos). **Regrabar `app/capturas/claro/07g_ayuda.png` y `app/capturas/oscuro/07g_ayuda.png`**, que ya estaban pendientes por esos mismos textos de 1.0.1.
+
+Queda:
 
 - **Compilar IShalev.** Este entorno no tiene Xcode/Swift: los cambios no se compilaron aquí. Correr `swift test --package-path IShalev` y `xcodebuild -project IShalev/IShalev.xcodeproj -scheme IShalev -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO build` (lo hace el CI en macOS), y revisar la app con VoiceOver, en Modo Oscuro y con letra grande.
 - **IX-013 (Alta, IShalev):** portar el reflow de Android (`letraGrande()`) para las categorías de accesibilidad AX2–AX5 y quitar el tope de 1,6× en `ShalevDynamicType.escalaMaxima`.
