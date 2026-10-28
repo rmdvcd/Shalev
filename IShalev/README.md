@@ -68,6 +68,8 @@ swift test --package-path IShalev # pruebas unitarias del dominio iOS
 
 El proyecto de Android que lo acompaña sigue en la raíz del repositorio. Las pruebas unitarias verifican reglas de venta/cierre, clientes, preajustes, PIN y licencias, además de vectores independientes `SPVIBAK` v3/v4, archivos sin contraseña, escalas de cantidades y estabilidad de IDs al convertir respaldos Android. La compilación y las pruebas automatizadas se ejecutan en GitHub Actions sobre macOS; el entorno de desarrollo local es Linux y carece de Xcode/`swift`.
 
+**Estado de los cambios de accesibilidad del 2026-10-28:** revisados de forma estática y **pendientes de compilar en macOS**. Los dos runs de `Compilación iOS de IShalev` que los acompañaron (`40709315298` y `40712998823`) no llegaron a ejecutar nada: GitHub no entregó un runner macOS arm64 por falta de capacidad (`The job was not acquired by Runner of type hosted`), así que fallaron tras 15 minutos de cola sin tocar el código. Hay que reejecutar el job desde Actions, o empujar un cambio en `IShalev/`, antes de dar la build por buena. Detalle en [`docs/VERIFICACION.md`](../docs/VERIFICACION.md).
+
 ## Compilar y probar online sin coste
 
 ### Verificación registrada
