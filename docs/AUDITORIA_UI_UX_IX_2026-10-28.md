@@ -154,13 +154,15 @@ Cifras de la conversión: 482 `.font(.system(size:))` → `.font(.shalev(...))` 
 6 etiquetas/valores de accesibilidad nuevos. Los tamaños base no cambian (factor 1 en categoría
 Large), así que **la interfaz en la configuración por defecto es idéntica a la anterior**.
 
-### Shalev (Android): un arreglo que desbloquea la build
+### Shalev (Android): dos arreglos que desbloquean la build
 
-`app/ayuda/AyudaContenido.kt:173` (AND-009): el paso de «Apps vinculadas» medía **136 caracteres** y
-`AyudaSoporteTest` exige ≤ 110, así que `shalevTests` fallaba y el CI de `main` estaba en rojo desde
-el commit base. Se reescribió en 110 caracteres conservando la etiqueta real del botón
-(«Usar esta app como secundaria», `vinculacion/VinculacionLogic.kt:20`), el teléfono, la acción de
-escanear y las tres redes que el cambio 1.0.1 añadió a propósito (wifi, zona wifi y datos):
+El cambio 1.0.1 (2026-10-27) se hizo sin poder ejecutar los tests y dejó **dos** pruebas rotas; las
+dos se arreglaron aquí. `main` fallaba en ambas desde el commit base `d125513` (run `40437981165`).
+
+**1. `app/ayuda/AyudaContenido.kt:173` (AND-009).** El paso de «Apps vinculadas» medía **136
+caracteres** y `AyudaSoporteTest` exige ≤ 110. Se reescribió en 110 conservando la etiqueta real del
+botón («Usar esta app como secundaria», `vinculacion/VinculacionLogic.kt:20`), el teléfono, la acción
+de escanear y las tres redes que 1.0.1 añadió a propósito (wifi, zona wifi y datos):
 
 ```
 - "En el del empleado: Usar esta app como secundaria, escribe su teléfono y escanea tu código (misma red: wifi, zona wifi o datos móviles)."   (136)
@@ -170,12 +172,36 @@ escanear y las tres redes que el cambio 1.0.1 añadió a propósito (wifi, zona 
 Verificado sin JVM repasando **todas** las aserciones del test sobre el fichero: 13 temas (dentro de
 6–14), títulos únicos, ningún tema con más de 5 pasos, longitud máxima 110 y las seis palabras clave
 («Abrir turno», «Nueva venta», «Inventario», «Respaldo», «Licencia», «Soporte») presentes. Ese paso
-era la única aserción incumplida en todo el fichero.
+era la única aserción incumplida en todo el fichero. El CI lo confirmó: en la siguiente ejecución
+`AyudaSoporteTest > manualBreveYCompleto` ya no aparece entre los fallos.
 
-**Consecuencia a anotar:** cambia el texto de la pantalla de Ayuda, así que hay que regrabar
-`app/capturas/claro/07g_ayuda.png` y `app/capturas/oscuro/07g_ayuda.png`, que **ya estaban
+**2. `app/src/test/.../actualizacion/ProcesoActualizarTest.kt:114`.** `sinConexionNoSeCierraSolo()`
+está escrita como `= runBlocking { … }` y su última expresión es `withTimeout { g.estado.first { … } }`,
+que **devuelve el estado** en vez de `Unit`. El método JVM resultante no es `void`, y JUnit 4 exige
+que todo `@Test` lo sea: la clase entera se rechaza al inicializar (`InvalidTestClassError`,
+reportado como `initializationError`) y **ninguno de sus cuatro tests llegaba a correr**. Se añadió el
+parámetro de tipo explícito `runBlocking<Unit>`, con lo que Kotlin descarta el valor de la última
+expresión y el método vuelve a ser `void`, sin tocar la lógica. Los otros tres tests de la clase
+terminan en `assertNull`/`assertTrue`, que sí devuelven `Unit`, por eso solo fallaba este.
+
+Se rastreó el mismo patrón (`@Test fun x() = runBlocking { … }` con última expresión que no sea
+`Unit`) en **todos** los tests JVM e instrumentados del repositorio: no hay ningún otro caso. El único
+candidato, `RendimientoInicioTest.inicioConDieciochoMesesDeDatos`, termina en un `try/finally` cuyo
+bloque acaba en `assertTrue` → `Unit`, y además el CI solo lo compila.
+
+**Consecuencia a anotar:** el arreglo 1 cambia el texto de la pantalla de Ayuda, así que hay que
+regrabar `app/capturas/claro/07g_ayuda.png` y `app/capturas/oscuro/07g_ayuda.png`, que **ya estaban
 pendientes** de regrabar por los textos de 1.0.1. Este entorno no tiene JDK ni Android SDK para
-hacerlo.
+hacerlo. El arreglo 2 hace que `ProcesoActualizarTest` corra de verdad por primera vez desde 1.0.1:
+si alguna de sus cuatro pruebas falla ahora, será un fallo real de comportamiento que estaba oculto
+tras el error de inicialización, no un daño de esta rama.
+
+### IShalev: nombre de hápticos alineado con Android
+
+`ShalevHaptics.aviso()` pasó a llamarse `.error()`, y su feedback de `.warning` a `.error`: Android
+expone `exito()` / `error()` / `seleccion()` y el design system de iOS ahora tiene los tres mismos
+nombres para el mismo concepto. Se actualizaron sus dos usos (`SaleView.swift:585`, `SyncView.swift:691`)
+y `IShalev/README.md`.
 
 ---
 

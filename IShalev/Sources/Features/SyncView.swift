@@ -688,7 +688,7 @@ private struct SyncLinkScanner: View {
         working = true
         Task {
             do { try await onCode(text); ShalevHaptics.exito(); dismiss() }   // vibra al leer el código, como Android
-            catch { ShalevHaptics.aviso(); errorMessage = error.localizedDescription; working = false }
+            catch { ShalevHaptics.error(); errorMessage = error.localizedDescription; working = false }
         }
     }
 }

@@ -111,7 +111,10 @@ class ProcesoActualizarTest {
     }
 
     /** 1.0.1: «Sin conexión» NO se cierra solo: el usuario tiene que leerlo y cerrarlo. */
-    @Test fun sinConexionNoSeCierraSolo() = runBlocking {
+    // `runBlocking<Unit>`: la última expresión (`withTimeout { first { … } }`) devuelve el estado, y un
+    // método @Test de JUnit 4 tiene que ser void. Sin el <Unit> la clase entera se rechaza al inicializar
+    // (InvalidTestClassError) y no corre ninguno de los cuatro tests.
+    @Test fun sinConexionNoSeCierraSolo() = runBlocking<Unit> {
         val g = gestor()
         g.actualizarAhora()
         withTimeout(10_000) { g.estado.first { it.proceso is ProcesoActualizar.EnCurso } }

@@ -582,7 +582,7 @@ struct SaleComposerView: View {
             ShalevHaptics.exito()   // igual que Android: vibra al terminar la venta
             dismiss()
         } catch {
-            ShalevHaptics.aviso()
+            ShalevHaptics.error()
             errorMessage = error.localizedDescription
         }
     }

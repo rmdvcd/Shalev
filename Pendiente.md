@@ -19,7 +19,12 @@ La versión del código es **0.30.0 (`versionCode 51`)**. Los cambios Android en
 
 Informe: [docs/AUDITORIA_UI_UX_IX_2026-10-28.md](docs/AUDITORIA_UI_UX_IX_2026-10-28.md). Los bloqueantes y altos de IShalev ya están corregidos en esta rama (Dynamic Type en las 483 tipografías, área táctil de 44 pt en 19 controles, Reduce Motion, Reduce Transparency, vibración y etiquetas de VoiceOver).
 
-**`main` estaba en rojo y esta rama lo arregla.** El cambio de textos de 1.0.1 (2026-10-27) dejó un paso de ayuda de 136 caracteres en `app/ayuda/AyudaContenido.kt:173` y `AyudaSoporteTest` exige ≤ 110: `shalevTests` fallaba desde el commit base `d125513` (run de CI `40437981165`, PR #63). Se reescribió el paso a 110 caracteres conservando la etiqueta real del botón y las tres redes (wifi, zona wifi y datos). **Regrabar `app/capturas/claro/07g_ayuda.png` y `app/capturas/oscuro/07g_ayuda.png`**, que ya estaban pendientes por esos mismos textos de 1.0.1.
+**`main` estaba en rojo y esta rama lo arregla.** El cambio de textos de 1.0.1 (2026-10-27) se hizo sin poder ejecutar los tests y dejó **dos** pruebas rotas, las dos arregladas aquí:
+
+1. Un paso de ayuda de 136 caracteres en `app/ayuda/AyudaContenido.kt:173`, cuando `AyudaSoporteTest` exige ≤ 110. Se reescribió a 110 conservando la etiqueta real del botón y las tres redes (wifi, zona wifi y datos). El CI ya no reporta ese fallo. **Regrabar `app/capturas/claro/07g_ayuda.png` y `app/capturas/oscuro/07g_ayuda.png`**, que ya estaban pendientes por esos mismos textos de 1.0.1.
+2. `ProcesoActualizarTest.sinConexionNoSeCierraSolo()` devolvía un valor (su última expresión es `withTimeout { first { … } }`), así que el método no era `void` y JUnit 4 rechazaba la clase entera: `initializationError`, y sus cuatro tests nunca corrían. Se añadió `runBlocking<Unit>`. **Ojo:** al correr de verdad por primera vez desde 1.0.1 pueden aparecer fallos reales de comportamiento que estaban ocultos tras el error de inicialización.
+
+`main` fallaba en las dos desde el commit base `d125513` (run de CI `40437981165`, PR #63).
 
 Queda:
 

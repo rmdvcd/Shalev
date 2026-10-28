@@ -147,7 +147,7 @@ enum ShalevHaptics {
     /// Operación completada: código QR leído, venta registrada, licencia activada, respaldo exportado.
     static func exito() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
     /// Algo destructivo o un error: eliminar, anular, descartar, contraseña incorrecta.
-    static func aviso() { UINotificationFeedbackGenerator().notificationOccurred(.warning) }
+    static func error() { UINotificationFeedbackGenerator().notificationOccurred(.error) }
     /// Selección: pestañas, casillas y filtros.
     static func seleccion() { UISelectionFeedbackGenerator().selectionChanged() }
 }
