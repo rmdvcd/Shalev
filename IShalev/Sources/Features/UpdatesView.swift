@@ -101,7 +101,7 @@ struct UpdatesView: View {
                 ShalevCard {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Versión instalada: \(currentVersion)", systemImage: "iphone")
-                            .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                            .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
                         statusContent
                         Button {
                             Task { await checker.check(currentVersion: currentVersion) }
@@ -115,11 +115,11 @@ struct UpdatesView: View {
                 ShalevCard {
                     VStack(alignment: .leading, spacing: 8) {
                         Label("Instalación en iOS", systemImage: "info.circle.fill")
-                            .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                            .font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                         Text("Shalev no puede reemplazar ni instalar su propia app en iOS. Las versiones de iPhone se distribuyen mediante TestFlight, App Store o un canal de administración autorizado. Esta pantalla solo avisa de publicaciones con etiqueta ios-v y abre sus notas; no descarga APK ni cambia la instalación.")
-                            .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                         Link("Ver publicaciones de GitHub", destination: releasePage)
-                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                            .font(.shalev(12, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                     }
                 }
                 .padding(.bottom, 20)
@@ -133,31 +133,31 @@ struct UpdatesView: View {
         switch checker.status {
         case .idle:
             Text("Pulsa «Comprobar ahora» para consultar la última publicación iOS.")
-                .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
         case .checking:
             HStack(spacing: 8) {
                 ProgressView().tint(Color.shalevPrimary)
-                Text("Consultando las publicaciones…").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                Text("Consultando las publicaciones…").font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
             }
         case .available(let release):
             VStack(alignment: .leading, spacing: 7) {
                 Label("Hay una versión más reciente: \(release.title)", systemImage: "arrow.down.circle.fill")
-                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevSuccess)
-                if let date = release.publishedAt { Text("Publicada: \(date)").font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText) }
+                    .font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevSuccess)
+                if let date = release.publishedAt { Text("Publicada: \(date)").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText) }
                 if let notes = release.body, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text(String(notes.prefix(700))).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(8)
+                    Text(String(notes.prefix(700))).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).lineLimit(8)
                 }
-                if let url = release.url { Link("Abrir notas de la versión", destination: url).font(.system(size: 12, weight: .semibold)) }
+                if let url = release.url { Link("Abrir notas de la versión", destination: url).font(.shalev(12, weight: .semibold)) }
             }
         case .current:
             Label("IShalev está al día según la última publicación iOS.", systemImage: "checkmark.circle.fill")
-                .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSuccess)
+                .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSuccess)
         case .noIOSRelease:
             Text("Aún no hay una publicación con etiqueta ios-v. La app instalada no se modificó.")
-                .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
         case .failed(let message):
             Label(message, systemImage: "wifi.exclamationmark")
-                .font(.system(size: 12)).foregroundStyle(Color.shalevError)
+                .font(.shalev(12)).foregroundStyle(Color.shalevError)
         }
     }
 }

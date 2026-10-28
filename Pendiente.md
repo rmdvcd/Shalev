@@ -15,6 +15,24 @@ La versión del código es **0.30.0 (`versionCode 51`)**. Los cambios Android en
 - Capturas Roborazzi ejecutadas el 2026-10-17: 525 capturas, **1 fallo de comparación** en `01f_inicio_dialogo_cerrar_turno.png`, que es del cambio de cierre con conteo ya en `main` (no regenerada aquí); ninguna captura de Registros cambia. Falta decidir si esa captura se regenera con el cambio de cierre. El 2026-10-18 `verifyRoborazziDebug` quedó en **527 capturas en verde**.
 - Publicar los cambios en curso (editar Registros, retirada del OCR y auditoría de UI, 0.31.0): correr CI, subir y regenerar capturas tras decidir lo anterior.
 
+## Auditoría UI · UX · IX (2026-10-28)
+
+Informe: [docs/AUDITORIA_UI_UX_IX_2026-10-28.md](docs/AUDITORIA_UI_UX_IX_2026-10-28.md). **Todos los hallazgos accionables de IShalev (13 de 13)** están corregidos, compilados en macOS y publicados en Appetize.io (Dynamic Type completo hasta `AX5` con reflow `ShalevFilaAdaptable`, área táctil de 44 pt en 20 controles, Reduce Motion, Reduce Transparency, vibración, etiquetas de VoiceOver, `@FocusState` + `.submitLabel` + `.textContentType` y `.refreshable` en `Apps vinculadas`), además de generar el artefacto `IShalev.ipa` sin firma en GitHub Actions.
+
+**`main` estaba en rojo y esta rama lo arregla.** El cambio de textos de 1.0.1 (2026-10-27) se hizo sin poder ejecutar los tests y dejó **dos** pruebas rotas, las dos arregladas y verificadas en verde por el CI de Android:
+
+1. Un paso de ayuda de 136 caracteres en `app/ayuda/AyudaContenido.kt:173`, cuando `AyudaSoporteTest` exige ≤ 110. Se reescribió a 110 conservando la etiqueta real del botón y las tres redes (wifi, zona wifi y datos). **Regrabar `app/capturas/claro/07g_ayuda.png` y `app/capturas/oscuro/07g_ayuda.png`**, que ya estaban pendientes por esos mismos textos de 1.0.1.
+2. `ProcesoActualizarTest.sinConexionNoSeCierraSolo()` devolvía un valor (su última expresión es `withTimeout { first { … } }`), así que el método no era `void` y JUnit 4 rechazaba la clase entera: `initializationError`, y sus cuatro tests nunca corrían. Se añadió `runBlocking<Unit>` y los cuatro pasan en CI.
+
+`main` fallaba en las dos desde el commit base `d125513` (run de CI `40437981165`, PR #63).
+
+Queda únicamente (decisiones de producto o capturas Android locales):
+
+- **AND-001 (Alta, Shalev):** casilla de selección a 48 dp (`size(ShalevSize.touchTarget)` conservando el dibujo de 16 dp) y **regrabar** las capturas Roborazzi de Inventario, Servicios, Registros, Clientes y Pago electrónico con JDK + Android SDK locales. Pendiente de decisión del dueño desde 0.32.0.
+- **AND-002 (Media, Shalev):** decidir si los permisos de la primera apertura siguen en lote o pasan a petición just-in-time (teniendo en cuenta que `TrialViewModel` pide Fotos al abrir por primera vez para recuperar el período de prueba tras reinstalar).
+- **AND-003 (Media, Shalev):** decidir si se añade `PullToRefresh` en `VinculacionScreen` (en IShalev `SyncView` ya tiene `.refreshable`; en las listas locales no hay red que refrescar).
+- **Prueba interactiva en dispositivo o Appetize:** recorrer IShalev con VoiceOver, Modo Oscuro y letra `AX1`–`AX5`.
+
 ## Validación en dispositivos antes de publicar
 
 - Instrumentados de Room: `:data:RepositoriosRoomTest` 9/9 y `:data:TurnoRepositoryInstrumentedTest` 8/8 en verde el 2026-10-17 en el teléfono 4bc9f8f3 (Android 15, API 35). Faltan los instrumentados de UI de `:app`.

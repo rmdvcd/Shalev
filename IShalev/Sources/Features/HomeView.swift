@@ -49,6 +49,7 @@ struct HomeView: View {
     @State private var expandedCards: Set<String> = []
     @State private var shiftSheet: ShiftSheetAction?
     @State private var showSaleTypeDialog = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// Turno del que habla el período «Turno»: el abierto o, si no hay, el último cerrado.
     private var referenceShift: Shift? {
@@ -179,7 +180,7 @@ struct HomeView: View {
             if isEmployeeSession {
                 Button(action: onSwitchToOwner) {
                     Label("Cambiar a dueño / administrador", systemImage: "person.badge.key.fill")
-                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                        .font(.shalev(12, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -197,18 +198,19 @@ struct HomeView: View {
             Button(action: shiftAction) {
                 HStack(spacing: 13) {
                     Image(systemName: "storefront.fill")
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.shalev(20, weight: .semibold))
                         .foregroundStyle(store.openShift == nil ? Color.shalevSecondaryText : Color.shalevPrimary)
                     VStack(alignment: .leading, spacing: 3) {
+                        let apilar = dynamicTypeSize >= .xxxLarge
                         Text(store.openShift == nil ? "Turno cerrado" : "Turno abierto")
-                            .font(.system(size: 16, weight: .semibold)).foregroundStyle(Color.shalevText)
+                            .font(.shalev(16, weight: .semibold)).foregroundStyle(Color.shalevText)
                         Text(store.openShift.map { "Desde las \($0.openedAt.shalevTime)" } ?? "Ábrelo para vender")
-                            .font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
-                            .lineLimit(1).minimumScaleFactor(0.8)
+                            .font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
+                            .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.8)
                         if let shift = store.openShift {
                             Text("Efectivo esperado: \(Cup(cents: store.expectedCashCents(for: shift.id)).formatted)")
-                                .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-                                .lineLimit(1).minimumScaleFactor(0.8)
+                                .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                                .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.8)
                         }
                     }
                     Spacer(minLength: 3)
@@ -249,16 +251,16 @@ struct HomeView: View {
         } label: {
             HStack(spacing: 13) {
                 Image(systemName: "calendar")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.shalev(18, weight: .semibold))
                     .foregroundStyle(Color.shalevPrimary)
                     .frame(width: 44, height: 44)
                     .background(Color.shalevPrimaryContainer, in: Circle())
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Período").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-                    Text(period.rawValue).font(.system(size: 16, weight: .semibold)).foregroundStyle(Color.shalevText)
+                    Text("Período").font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                    Text(period.rawValue).font(.shalev(16, weight: .semibold)).foregroundStyle(Color.shalevText)
                 }
                 Spacer()
-                Image(systemName: "chevron.down").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
+                Image(systemName: "chevron.down").font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
@@ -272,13 +274,13 @@ struct HomeView: View {
     private func licenseBannerView(_ text: String) -> some View {
         Button(action: onShowLicense) {
             HStack(spacing: 11) {
-                Image(systemName: "key.fill").font(.system(size: 15, weight: .semibold))
+                Image(systemName: "key.fill").font(.shalev(15, weight: .semibold))
                 Text(text)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.shalev(13, weight: .semibold))
                     .lineLimit(2)
                     .minimumScaleFactor(0.85)
                 Spacer(minLength: 6)
-                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
+                Image(systemName: "chevron.right").font(.shalev(12, weight: .semibold))
             }
             .foregroundStyle(Color.shalevOnPrimaryContainer)
             .padding(.horizontal, 15)
@@ -299,10 +301,10 @@ struct HomeView: View {
             if alertTotal == 0 {
                 ShalevCard(padding: 16) {
                     HStack(spacing: 11) {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.shalevSuccess).font(.system(size: 19))
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.shalevSuccess).font(.shalev(19))
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("Sin alertas de existencias").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                            Text("Los niveles de inventario están en orden.").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                            Text("Sin alertas de existencias").font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                            Text("Los niveles de inventario están en orden.").font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                         }
                         Spacer()
                     }
@@ -333,9 +335,9 @@ struct HomeView: View {
 
     private func alertCount(number: Int, label: String, tint: Color) -> some View {
         VStack(spacing: 4) {
-            Text("\(number)").font(.system(size: 20, weight: .bold)).foregroundStyle(tint)
+            Text("\(number)").font(.shalev(20, weight: .bold)).foregroundStyle(tint)
             Text(label)
-                .font(.system(size: 12, weight: .medium))
+                .font(.shalev(12, weight: .medium))
                 .foregroundStyle(Color.shalevSecondaryText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -374,11 +376,11 @@ struct HomeView: View {
                             .cornerRadius(7)
                     }
                 }
-                .frame(height: 170)
+                .frame(minHeight: 170)
                 .chartYAxis(.hidden)
                 .chartLegend(.hidden)
                 Text("Cada barra muestra las ventas de un mes. Total del período: \(Cup(cents: revenue).formatted)")
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
             }
         }
@@ -387,18 +389,25 @@ struct HomeView: View {
     private var profitAccordion: some View {
         accordion(title: "Ganancia neta", value: Cup(cents: profit).formatted, key: "profit") {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    metricBlock(title: "Costo", amount: Cup(cents: cost).formatted)
-                    metricBlock(title: "Ganancia", amount: Cup(cents: profit).formatted)
+                if dynamicTypeSize >= .xxxLarge {
+                    VStack(alignment: .leading, spacing: 10) {
+                        metricBlock(title: "Costo", amount: Cup(cents: cost).formatted)
+                        metricBlock(title: "Ganancia", amount: Cup(cents: profit).formatted)
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        metricBlock(title: "Costo", amount: Cup(cents: cost).formatted)
+                        metricBlock(title: "Ganancia", amount: Cup(cents: profit).formatted)
+                    }
                 }
                 if revenue > 0 {
                     let margin = Double(profit) / Double(revenue) * 100
                     Text("Margen \(String(format: "%.1f", margin)) %")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.shalev(12, weight: .medium))
                         .foregroundStyle(Color.shalevSecondaryText)
                 }
                 Text("\(periodSales.count) operaciones registradas en \(period.rawValue.lowercased()).")
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
             }
         }
@@ -406,11 +415,11 @@ struct HomeView: View {
 
     private func metricBlock(title: String, amount: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+            Text(title).font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
             Text(amount)
-                .font(.system(size: 18, weight: .bold))
+                .font(.shalev(18, weight: .bold))
                 .foregroundStyle(Color.shalevText)
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize >= .xxxLarge ? nil : 1)
                 .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -427,11 +436,11 @@ struct HomeView: View {
                             .cornerRadius(7)
                     }
                 }
-                .frame(height: 145)
+                .frame(minHeight: 145)
                 .chartYAxis(.hidden)
                 .chartLegend(.hidden)
                 Text("Recuento del catálogo por tipo de artículo.")
-                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
             }
         }
     }
@@ -470,19 +479,22 @@ struct HomeView: View {
         accordion(title: title, value: value, key: key) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("En \(period.rawValue.lowercased())")
-                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    let apilar = dynamicTypeSize >= .xxxLarge
                     HStack(spacing: 11) {
                         medal(position: index + 1)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevText).lineLimit(1)
-                            Text(detail(item)).font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                        ShalevFilaAdaptable(espaciadoHorizontal: 6, espaciadoVertical: 3) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name).font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevText).lineLimit(apilar ? nil : 1)
+                                Text(detail(item)).font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
+                            }
+                        } valor: {
+                            Text(amount(item))
+                                .font(.shalev(12, weight: .semibold))
+                                .foregroundStyle(Color.shalevText)
+                                .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.8)
                         }
-                        Spacer(minLength: 6)
-                        Text(amount(item))
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color.shalevText)
-                            .lineLimit(1).minimumScaleFactor(0.8)
                     }
                 }
             }
@@ -500,9 +512,10 @@ struct HomeView: View {
             foreground = Color(red: 0.122, green: 0.161, blue: 0.200)
         }
         return Text("\(position)")
-            .font(.system(size: 12, weight: .bold))
+            .font(.shalevIcono(12, weight: .bold))
             .foregroundStyle(foreground)
-            .frame(width: 30, height: 30)
+            .padding(4)
+            .frame(minWidth: 30, minHeight: 30)
             .background(background, in: Circle())
             .accessibilityLabel(position == 1 ? "Primer puesto" : position == 2 ? "Segundo puesto" : "Tercer puesto")
     }
@@ -514,18 +527,18 @@ struct HomeView: View {
         } label: {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.shalevText)
-                    Text(value).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
-                        .lineLimit(2).minimumScaleFactor(0.82)
+                    Text(title).font(.shalev(15, weight: .semibold)).foregroundStyle(Color.shalevText)
+                    Text(value).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
+                        .lineLimit(dynamicTypeSize >= .xxxLarge ? nil : 2).minimumScaleFactor(0.82)
                 }
                 Spacer(minLength: 10)
                 Image(systemName: expandedCards.contains(key) ? "chevron.up" : "chevron.down")
-                    .font(.system(size: 12, weight: .bold)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(12, weight: .bold)).foregroundStyle(Color.shalevSecondaryText)
             }
             .contentShape(Rectangle())
         }
         .tint(Color.shalevPrimary)
-        .font(.system(size: 14))
+        .font(.shalev(14))
         .padding(16)
         .background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.shalevOutlineVariant.opacity(0.55), lineWidth: 0.7))
@@ -540,9 +553,9 @@ struct HomeView: View {
 
     private func summaryRow(_ title: String, amount: String) -> some View {
         HStack {
-            Text(title).font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+            Text(title).font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
             Spacer()
-            Text(amount).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+            Text(amount).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
         }
     }
 
@@ -738,19 +751,19 @@ private struct ShiftClosingSheet: View {
                     closingRow("Efectivo contado", countedCash.map { Cup(cents: $0).formatted } ?? "—")
                     Divider()
                     HStack {
-                        Text("Diferencia").font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+                        Text("Diferencia").font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
                         Spacer()
-                        Text(cashDifferenceText).font(.system(size: 14, weight: .semibold))
+                        Text(cashDifferenceText).font(.shalev(14, weight: .semibold))
                             .foregroundStyle(cashDifference == 0 ? Color.shalevSuccess : Color.shalevSecondary)
                     }
                 }
             }
             ShalevCard {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Billetes").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.shalevText)
+                    Text("Billetes").font(.shalev(15, weight: .semibold)).foregroundStyle(Color.shalevText)
                     ForEach(ShiftClosingCount.denominations, id: \.self) { denomination in
                         HStack {
-                            Text("\(denomination) CUP").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevText)
+                            Text("\(denomination) CUP").font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevText)
                             Spacer()
                             TextField("0", text: billBinding(denomination))
                                 .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
@@ -759,19 +772,19 @@ private struct ShiftClosingSheet: View {
                         }
                     }
                     HStack(spacing: 10) {
-                        Text("¿No quieres contar billete por billete?").font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                        Text("¿No quieres contar billete por billete?").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                         Spacer(minLength: 6)
                         Button {
                             fillToMatchExpected()
                         } label: {
-                            Text("Cuadra").font(.system(size: 12, weight: .semibold))
+                            Text("Cuadra").font(.shalev(12, weight: .semibold))
                         }
                         .buttonStyle(ShalevTonalButtonStyle())
                         .accessibilityHint("Rellena el efectivo contado con el esperado")
                     }
                     Divider()
                     HStack {
-                        Text("Otro efectivo (CUP)").font(.system(size: 13)).foregroundStyle(Color.shalevText)
+                        Text("Otro efectivo (CUP)").font(.shalev(13)).foregroundStyle(Color.shalevText)
                         Spacer()
                         TextField("0.00", text: $otherCash)
                             .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
@@ -782,7 +795,7 @@ private struct ShiftClosingSheet: View {
             }
             if countedCash == nil {
                 Text("Escribe el conteo (o toca Cuadra) para continuar.")
-                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                     .multilineTextAlignment(.center).frame(maxWidth: .infinity)
             }
         }
@@ -794,29 +807,29 @@ private struct ShiftClosingSheet: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Toggle("Omitir el conteo de inventario", isOn: $inventoryCountSkipped).tint(Color.shalevPrimary)
                     Text("Si lo omites, no se ajustará ninguna existencia. El cierre conservará esta decisión.")
-                        .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                        .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                 }
             }
             if !inventoryCountSkipped {
                 ShalevCard {
                     VStack(alignment: .leading, spacing: 11) {
-                        Text("Existencias contadas").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.shalevText)
+                        Text("Existencias contadas").font(.shalev(15, weight: .semibold)).foregroundStyle(Color.shalevText)
                         if movedArticles.isEmpty {
-                            Text("No hubo movimientos de inventario en este turno.").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                            Text("No hubo movimientos de inventario en este turno.").font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                         }
                         ForEach(articleCategories, id: \.self) { category in
                             Text(category.isEmpty ? "Sin categoría" : category)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.shalev(12, weight: .semibold))
                                 .foregroundStyle(Color.shalevPrimary)
                                 .padding(.top, 4)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .accessibilityAddTraits(.isHeader)
                             ForEach(movedArticles.filter { $0.category == category }) { line in
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text(line.productName).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText)
+                                    Text(line.productName).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
                                     HStack {
                                         Text("Esperado: \(FixedNumber.formatMilli(line.expectedMilli)) \(line.unit)")
-                                            .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                            .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                                         Spacer()
                                         TextField("Contado", text: stockBinding(line.productID))
                                             .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
@@ -833,10 +846,10 @@ private struct ShiftClosingSheet: View {
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 10) {
                             Label("Revisa las diferencias", systemImage: "exclamationmark.triangle.fill")
-                                .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevSecondary)
+                                .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevSecondary)
                             ForEach(inventoryDifferences) { line in
                                 Text("\(line.productName): esperado \(FixedNumber.formatMilli(line.expectedMilli)), contado \(countedStock[line.productID] ?? "—")")
-                                    .font(.system(size: 12)).foregroundStyle(Color.shalevText)
+                                    .font(.shalev(12)).foregroundStyle(Color.shalevText)
                             }
                             Toggle("Confirmo que revisé las diferencias", isOn: $inventoryConfirmed).tint(Color.shalevPrimary)
                             TextField("Motivo del ajuste (3–160 caracteres)", text: $discrepancyReason, axis: .vertical)
@@ -850,7 +863,7 @@ private struct ShiftClosingSheet: View {
                 Text(inventoryInputsValid
                      ? "Confirma que revisaste las diferencias y escribe el motivo para continuar."
                      : "Completa todas las existencias contadas para continuar.")
-                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                     .multilineTextAlignment(.center).frame(maxWidth: .infinity)
             }
         }
@@ -871,19 +884,19 @@ private struct ShiftClosingSheet: View {
             }
             ShalevCard {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Inventario").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.shalevText)
+                    Text("Inventario").font(.shalev(15, weight: .semibold)).foregroundStyle(Color.shalevText)
                     if inventoryCountSkipped {
-                        Text("Conteo omitido: no se ajustarán existencias.").font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                        Text("Conteo omitido: no se ajustarán existencias.").font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                     } else if inventoryDifferences.isEmpty {
-                        Text("Sin diferencias por ajustar.").font(.system(size: 12)).foregroundStyle(Color.shalevSuccess)
+                        Text("Sin diferencias por ajustar.").font(.shalev(12)).foregroundStyle(Color.shalevSuccess)
                     } else {
-                        Text("\(inventoryDifferences.count) artículo(s) con ajuste.").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.shalevSecondary)
-                        Text(discrepancyReason).font(.system(size: 12)).foregroundStyle(Color.shalevText)
+                        Text("\(inventoryDifferences.count) artículo(s) con ajuste.").font(.shalev(12, weight: .semibold)).foregroundStyle(Color.shalevSecondary)
+                        Text(discrepancyReason).font(.shalev(12)).foregroundStyle(Color.shalevText)
                     }
                 }
             }
             Text("Al cerrar no podrás registrar más operaciones en este turno. El resumen quedará congelado.")
-                .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText).multilineTextAlignment(.center)
+                .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText).multilineTextAlignment(.center)
             Button(action: finish) { Label("Cerrar turno", systemImage: "checkmark.circle.fill") }
                 .buttonStyle(ShalevPrimaryButtonStyle())
         }
@@ -897,9 +910,9 @@ private struct ShiftClosingSheet: View {
 
     private func closingRow(_ title: String, _ value: String) -> some View {
         HStack(alignment: .top) {
-            Text(title).font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+            Text(title).font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
             Spacer()
-            Text(value).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.shalevText).multilineTextAlignment(.trailing)
+            Text(value).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText).multilineTextAlignment(.trailing)
         }
     }
 
@@ -988,7 +1001,7 @@ private struct ShiftOperationSheet: View {
                                 Divider()
                                 HStack { Text("Diferencia"); Spacer(); Text(differenceText).fontWeight(.semibold).foregroundStyle(differenceColor) }
                             }
-                            .font(.system(size: 14))
+                            .font(.shalev(14))
                             .foregroundStyle(Color.shalevText)
                         }
                     }
@@ -1002,18 +1015,18 @@ private struct ShiftOperationSheet: View {
                             }
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(action == .close ? "Efectivo contado" : "Importe")
-                                    .font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                                    .font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                                 TextField("0.00", text: $amountText)
                                     .keyboardType(.decimalPad)
-                                    .font(.system(size: 18, weight: .semibold))
+                                    .font(.shalev(18, weight: .semibold))
                                     .padding(13)
                                     .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 12))
                                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.shalevOutlineVariant, lineWidth: 1))
-                                Text("Importes en CUP").font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                Text("Importes en CUP").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                             }
                             if action == .cashMovement {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text("Motivo").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                                    Text("Motivo").font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                                     TextField("Escribe un motivo", text: $reason, axis: .vertical)
                                         .lineLimit(2...4)
                                         .padding(12)

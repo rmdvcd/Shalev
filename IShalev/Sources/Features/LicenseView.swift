@@ -39,6 +39,8 @@ struct LicenseView: View {
     @State private var alertMessage: String?
     @State private var didLoadProfile = false
     @State private var isBusy = false
+    private enum LicenseFocus: Hashable { case firstName, lastName, ci }
+    @FocusState private var focusedField: LicenseFocus?
 
     var body: some View {
         NavigationStack {
@@ -83,10 +85,10 @@ struct LicenseView: View {
         ShalevCard {
             VStack(alignment: .leading, spacing: 8) {
                 Label("Shalev está bloqueado hasta que actives una licencia válida.", systemImage: "lock.fill")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.shalev(14, weight: .semibold))
                     .foregroundStyle(Color.shalevText)
                 Text("Tus datos siguen guardados.")
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
                 Link(destination: URL(string: "https://wa.me/5351815604")!) {
                     Label("Contactar soporte", systemImage: "message.fill")
@@ -132,22 +134,22 @@ struct LicenseView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: symbol)
-                        .font(.system(size: 23, weight: .medium))
+                        .font(.shalev(23, weight: .medium))
                         .foregroundStyle(license.state.unlocked ? Color.shalevPrimary : Color.shalevSecondary)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(title)
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.shalev(16, weight: .semibold))
                             .foregroundStyle(Color.shalevText)
                             .accessibilityAddTraits(.isHeader)
                         Text(detail)
-                            .font(.system(size: 13))
+                            .font(.shalev(13))
                             .foregroundStyle(Color.shalevSecondaryText)
                     }
                     Spacer(minLength: 0)
                 }
                 if let extra {
                     Text(extra)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.shalev(12, weight: .medium))
                         .foregroundStyle(Color.shalevText)
                 }
             }
@@ -159,9 +161,9 @@ struct LicenseView: View {
         ShalevCard {
             VStack(alignment: .leading, spacing: 6) {
                 Label("Esta versión no puede validar licencias", systemImage: "exclamationmark.shield.fill")
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevError)
+                    .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevError)
                 Text("Contacta al desarrollador para obtener una versión actualizada. Las claves públicas fijadas en la app no se pueden cambiar desde Ajustes.")
-                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
             }
         }
     }
@@ -187,7 +189,7 @@ struct LicenseView: View {
             if let installedType = license.installedType {
                 let installedSlots = min(10, max(0, license.installedSecondaries ?? 0))
                 Text("\(installedType.title) · \(slotsLabel(installedSlots)) · \(Cup(cents: installedType.totalPriceCents(secondaries: installedSlots)).formatted)")
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
                     .multilineTextAlignment(.center)
             }
@@ -202,21 +204,21 @@ struct LicenseView: View {
             VStack(alignment: .leading, spacing: 10) {
                 ShalevSectionHeader(title: "Precios de la licencia")
                 Text("Cada licencia cubre tu app principal. Cada app secundaria (empleado, hasta 10) suma un importe fijo.")
-                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                 VStack(spacing: 0) {
                     ForEach(GLLicenseType.allCases) { option in
                         HStack(alignment: .top) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(option.title)
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.shalev(14, weight: .medium))
                                     .foregroundStyle(Color.shalevText)
                                 Text("Cada app secundaria: +\(Cup(cents: option.secondaryPriceCUP * 100).formatted)")
-                                    .font(.system(size: 12))
+                                    .font(.shalev(12))
                                     .foregroundStyle(Color.shalevSecondaryText)
                             }
                             Spacer(minLength: 10)
                             Text(Cup(cents: option.basePriceCUP * 100).formatted)
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.shalev(13, weight: .semibold))
                                 .foregroundStyle(Color.shalevText)
                         }
                         .padding(.vertical, 7)
@@ -238,10 +240,11 @@ struct LicenseView: View {
                     if let previous = Step(rawValue: step.rawValue - 1) { step = previous; requestMessage = nil }
                 } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.shalev(15, weight: .semibold))
                         .foregroundStyle(step == .data ? Color.shalevOutline : Color.shalevText)
                         .frame(width: 38, height: 38)
                         .background((step == .data ? Color.clear : Color.shalevSurfaceVariant), in: Circle())
+                        .shalevToque()
                 }
                 .buttonStyle(.plain)
                 .disabled(step == .data)
@@ -249,10 +252,10 @@ struct LicenseView: View {
 
                 VStack(spacing: 2) {
                     Text("Paso \(step.rawValue + 1) de \(Step.allCases.count)")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.shalev(12, weight: .medium))
                         .foregroundStyle(Color.shalevSecondaryText)
                     Text(step.title)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.shalev(16, weight: .semibold))
                         .foregroundStyle(Color.shalevText)
                 }
                 .frame(maxWidth: .infinity)
@@ -269,10 +272,11 @@ struct LicenseView: View {
                     }
                 } label: {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.shalev(15, weight: .semibold))
                         .foregroundStyle(Color.shalevOnPrimary)
                         .frame(width: 42, height: 42)
                         .background(step == .activate ? Color.shalevOutlineVariant : Color.shalevPrimary, in: Circle())
+                        .shalevToque()
                 }
                 .buttonStyle(.plain)
                 .disabled(step == .activate)
@@ -328,14 +332,14 @@ struct LicenseView: View {
                 } else {
                     VStack(spacing: 5) {
                         Text("\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces))
-                            .font(.system(size: 16))
+                            .font(.shalev(16))
                             .foregroundStyle(Color.shalevText)
                         Text("CI: \(identification)")
-                            .font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
                         Text("Teléfono: \(phone)")
-                            .font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
                         Text("De tu Perfil y de Pago electrónico.")
-                            .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                         Button {
                             editingData = true
                         } label: {
@@ -353,22 +357,22 @@ struct LicenseView: View {
     private var dataForm: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Tu Perfil está vacío: estos datos se guardarán también en él al solicitar.")
-                .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
             inputField("Nombre", text: $firstName, placeholder: "Nombre",
                        isError: showErrors && !validName(firstName), errorText: "Solo letras, 2 a 80",
-                       capitalization: .words)
+                       capitalization: .words, focus: .firstName, submit: .next) { focusedField = .lastName }
             inputField("Apellidos", text: $lastName, placeholder: "Apellidos",
                        isError: showErrors && !validName(lastName), errorText: "Solo letras, 2 a 80",
-                       capitalization: .words)
+                       capitalization: .words, focus: .lastName, submit: .next) { focusedField = .ci }
             inputField("Carné de identidad", text: $identification, placeholder: "5–20 letras o dígitos",
                        isError: showErrors && !validCI(identification), errorText: "5 a 20 letras o dígitos",
-                       keyboard: .asciiCapable, capitalization: .characters)
+                       keyboard: .asciiCapable, capitalization: .characters, focus: .ci, submit: .done) { focusedField = nil }
             inputField("Teléfono", text: $phone, placeholder: "5XXXXXXX",
                        isError: showErrors && normalizePhone(phone) == nil, errorText: "Número no válido",
                        keyboard: .phonePad)
             if !profilePhones.isEmpty {
                 Text("Tus teléfonos")
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                 HStack(spacing: 8) {
                     ForEach(profilePhones, id: \.self) { candidate in
                         ShalevFilterChip(title: candidate, selected: phone == candidate) { phone = candidate }
@@ -393,10 +397,10 @@ struct LicenseView: View {
                     ShalevSectionHeader(title: requestTitle)
                     if license.state.isPerpetual {
                         Text("Tu licencia no vence. No necesitas renovarla.")
-                            .font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
                     } else {
                         Text("Tipo de licencia")
-                            .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                         VStack(spacing: 8) {
                             ForEach(GLLicenseType.allCases) { option in
                                 typeChip(option)
@@ -404,14 +408,14 @@ struct LicenseView: View {
                         }
 
                         Text("Apps secundarias (empleados)")
-                            .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                         HStack(spacing: 16) {
                             quantityButton("minus", enabled: secondaries > 0, label: "Una secundaria menos") {
                                 secondaries = max(0, secondaries - 1)
                                 requestMessage = nil
                             }
                             Text("\(secondaries)")
-                                .font(.system(size: 22, weight: .semibold))
+                                .font(.shalev(22, weight: .semibold))
                                 .foregroundStyle(Color.shalevText)
                                 .frame(minWidth: 34)
                             quantityButton("plus", enabled: secondaries < 10, label: "Una secundaria más") {
@@ -422,25 +426,25 @@ struct LicenseView: View {
                         .frame(maxWidth: .infinity)
 
                         Text(totalText)
-                            .font(.system(size: 12))
+                            .font(.shalev(12))
                             .foregroundStyle(Color.shalevSecondaryText)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
 
                         if license.canRecover {
                             Text("¿Ya tenías licencia en otro teléfono?")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.shalev(13, weight: .semibold))
                                 .foregroundStyle(Color.shalevText)
                             inputField("ID de la licencia anterior (opcional)", text: $recoveryID,
                                        placeholder: "UUID de la licencia",
                                        isError: !recoveryID.isBlank && normalizedRecoveryID == nil,
                                        errorText: "El ID de la licencia anterior no es válido. Cópialo del mensaje de licencia (ID: …).")
                             Text("Escribe o pega el ID de tu licencia anterior: el desarrollador la pasa a este teléfono gratis, con el mismo vencimiento y secundarias. El teléfono anterior se bloquea, borra sus datos y pide desinstalar Shalev.")
-                                .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                         }
 
                         Text("Enviar por")
-                            .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                            .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                         HStack(spacing: 14) {
                             channelButton(.whatsapp, symbol: "message.fill", tint: Color(red: 0.14, green: 0.62, blue: 0.36))
                             channelButton(.sms, symbol: "text.bubble.fill", tint: Color.shalevPrimary)
@@ -449,14 +453,14 @@ struct LicenseView: View {
 
                         Text(channel == .whatsapp ? "Se compartirá tu solicitud de licencia por WhatsApp o Mensajes."
                                                   : "Se compartirá tu solicitud de licencia por Mensajes o WhatsApp.")
-                            .font(.system(size: 12))
+                            .font(.shalev(12))
                             .foregroundStyle(Color.shalevSecondaryText)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
 
                         if license.installedType != nil {
                             Text("Si renuevas antes de que venza no pierdes días: la nueva licencia empieza cuando termine la actual.")
-                                .font(.system(size: 12))
+                                .font(.shalev(12))
                                 .foregroundStyle(Color.shalevSecondaryText)
                                 .multilineTextAlignment(.center)
                                 .frame(maxWidth: .infinity)
@@ -473,7 +477,7 @@ struct LicenseView: View {
 
                         if let requestMessage {
                             Text("Solicitud lista para compartir")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.shalev(13, weight: .semibold))
                                 .foregroundStyle(Color.shalevSuccess)
                             ShareLink(item: requestMessage) {
                                 Label("Compartir solicitud", systemImage: "square.and.arrow.up")
@@ -481,14 +485,14 @@ struct LicenseView: View {
                             .buttonStyle(ShalevTonalButtonStyle())
                             .frame(maxWidth: .infinity)
                             Text("Envía el texto completo; el código SPVIR1 es la parte cifrada que GL procesa.")
-                                .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                                .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                         }
                     }
                 }
             }
             if !license.state.isPerpetual {
                 Text("Cuando recibas la respuesta, actívala en el paso siguiente.")
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
                     .multilineTextAlignment(.center)
             }
@@ -503,14 +507,14 @@ struct LicenseView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(option.title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.shalev(14, weight: .semibold))
                     Text(Cup(cents: option.basePriceCUP * 100).formatted)
-                        .font(.system(size: 12))
+                        .font(.shalev(12))
                 }
                 Spacer(minLength: 8)
                 if type == option {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.shalev(13, weight: .bold))
                 }
             }
             .foregroundStyle(type == option ? Color.shalevOnPrimary : Color.shalevText)
@@ -527,10 +531,11 @@ struct LicenseView: View {
     private func quantityButton(_ symbol: String, enabled: Bool, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.shalev(16, weight: .semibold))
                 .foregroundStyle(enabled ? Color.shalevText : Color.shalevOutline)
                 .frame(width: 40, height: 40)
                 .background(enabled ? Color.shalevSurfaceVariant : Color.shalevSurfaceVariant.opacity(0.45), in: Circle())
+                .shalevToque()
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
@@ -542,7 +547,7 @@ struct LicenseView: View {
             channel = option
         } label: {
             Image(systemName: symbol)
-                .font(.system(size: 18, weight: .semibold))
+                .font(.shalev(18, weight: .semibold))
                 .foregroundStyle(channel == option ? Color.shalevOnPrimary : tint)
                 .frame(width: 46, height: 46)
                 .background(channel == option ? Color.shalevPrimary : Color.shalevSurfaceVariant, in: Circle())
@@ -559,13 +564,13 @@ struct LicenseView: View {
             VStack(alignment: .leading, spacing: 11) {
                 ShalevSectionHeader(title: "Activar licencia")
                 Text("Pega el mensaje de activación que recibiste.")
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                 TextField("Mensaje de licencia", text: $activationText, axis: .vertical)
                     .lineLimit(4...8)
-                    .font(.system(size: 13, design: .monospaced))
+                    .font(.shalev(13, design: .monospaced))
                     .padding(12)
                     .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.shalevOutlineVariant, lineWidth: 1))
@@ -640,22 +645,44 @@ struct LicenseView: View {
     private func inputField(_ title: String, text: Binding<String>, placeholder: String,
                             isError: Bool = false, errorText: String? = nil,
                             keyboard: UIKeyboardType = .default,
-                            capitalization: TextInputAutocapitalization = .never) -> some View {
+                            capitalization: TextInputAutocapitalization = .never,
+                            focus: LicenseFocus? = nil, submit: SubmitLabel = .done,
+                            onSubmit: (() -> Void)? = nil) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-            TextField(placeholder, text: text)
-                .keyboardType(keyboard)
-                .textInputAutocapitalization(capitalization)
-                .autocorrectionDisabled()
-                .font(.system(size: 14))
-                .padding(11)
-                .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 11)
-                        .stroke(isError ? Color.shalevError : Color.shalevOutlineVariant, lineWidth: 1)
-                }
+            Text(title).font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+            if let focus {
+                TextField(placeholder, text: text)
+                    .keyboardType(keyboard)
+                    .textInputAutocapitalization(capitalization)
+                    .autocorrectionDisabled()
+                    .focused($focusedField, equals: focus)
+                    .submitLabel(submit)
+                    .onSubmit { onSubmit?() }
+                    .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
+                    .font(.shalev(14))
+                    .padding(11)
+                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 11)
+                            .stroke(isError ? Color.shalevError : Color.shalevOutlineVariant, lineWidth: 1)
+                    }
+            } else {
+                TextField(placeholder, text: text)
+                    .keyboardType(keyboard)
+                    .textInputAutocapitalization(capitalization)
+                    .autocorrectionDisabled()
+                    .submitLabel(submit)
+                    .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
+                    .font(.shalev(14))
+                    .padding(11)
+                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 11)
+                            .stroke(isError ? Color.shalevError : Color.shalevOutlineVariant, lineWidth: 1)
+                    }
+            }
             if isError, let errorText {
-                Text(errorText).font(.system(size: 11)).foregroundStyle(Color.shalevError)
+                Text(errorText).font(.shalev(11)).foregroundStyle(Color.shalevError)
             }
         }
     }

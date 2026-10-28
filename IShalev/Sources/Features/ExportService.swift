@@ -408,7 +408,7 @@ struct ExportCenterView: View {
                 }
                 .pickerStyle(.segmented)
                 Text("XLSX es un libro de Excel con filas y columnas; CSV es una alternativa de texto. Los datos no se envían a ningún servidor; eliges dónde compartir el archivo.")
-                    .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
             }
         }
     }
@@ -431,13 +431,14 @@ struct ExportCenterView: View {
             VStack(alignment: .leading, spacing: 11) {
                 ShalevSectionHeader(title: "Imágenes para compartir")
                 TextField("Comentario opcional en las imágenes", text: $exportComment)
+                    .submitLabel(.done)
                     .padding(11).background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
                 Button(action: exportPriceImages) { Label("Lista de precios en PNG", systemImage: "photo") }
                     .buttonStyle(ShalevTonalButtonStyle())
                 Button(action: exportCards) { Label("Tarjetas de artículos en PNG", systemImage: "rectangle.portrait.on.rectangle.portrait") }
                     .buttonStyle(ShalevTonalButtonStyle())
                 Text("Las imágenes no incluyen costos, ganancias ni existencias.")
-                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
             }
         }
     }

@@ -32,6 +32,14 @@ struct SyncView: View {
             .frame(maxWidth: 680)
             .frame(maxWidth: .infinity)
         }
+        .refreshable {
+            if sync.isSecondary {
+                do { _ = try await sync.synchronize() }
+                catch { errorMessage = error.localizedDescription }
+            } else {
+                sync.start()
+            }
+        }
         .background(Color.shalevBackground.ignoresSafeArea())
         .navigationTitle("Apps vinculadas")
         .navigationBarTitleDisplayMode(.inline)
@@ -73,7 +81,7 @@ struct SyncView: View {
 
     @ViewBuilder private var principalContent: some View {
         Text("Esta es la app principal: guarda todos los datos y la licencia. Tus empleados se vinculan con un código QR.")
-            .font(.system(size: 13))
+            .font(.shalev(13))
             .foregroundStyle(Color.shalevText)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
@@ -83,7 +91,7 @@ struct SyncView: View {
                     symbol: sync.isListening ? "key.horizontal.fill" : "wifi.slash")
 
         Text("Secundarias (\(activeEmployees.count) de 10)")
-            .font(.system(size: 15, weight: .semibold))
+            .font(.shalev(15, weight: .semibold))
             .foregroundStyle(Color.shalevText)
             .frame(maxWidth: .infinity)
 
@@ -110,7 +118,7 @@ struct SyncView: View {
         }
 
         Text("Cada QR caduca en 10 minutos, se usa una sola vez y sustituye la clave anterior.")
-            .font(.system(size: 12))
+            .font(.shalev(12))
             .foregroundStyle(Color.shalevSecondaryText)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
@@ -131,14 +139,14 @@ struct SyncView: View {
         ShalevCard {
             VStack(spacing: 4) {
                 Text("Secundaria de \(sync.link?.businessName ?? "tu negocio")")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.shalev(17, weight: .semibold))
                     .foregroundStyle(Color.shalevText)
                     .multilineTextAlignment(.center)
                 Text("Empleado: \(sync.link?.employeeName ?? "sin vincular")")
-                    .font(.system(size: 14))
+                    .font(.shalev(14))
                     .foregroundStyle(Color.shalevText)
                 Text(secondarySummary)
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
                     .multilineTextAlignment(.center)
             }
@@ -157,7 +165,7 @@ struct SyncView: View {
                     ProgressView().tint(Color.shalevOnPrimary)
                 } else {
                     Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 21, weight: .semibold))
+                        .font(.shalev(21, weight: .semibold))
                 }
             }
             .foregroundStyle(Color.shalevOnPrimary)
@@ -167,7 +175,7 @@ struct SyncView: View {
         }
         .buttonStyle(.plain)
         .disabled(sync.isBusy)
-        .accessibilityLabel("Sincronizar ahora")
+        .accessibilityLabel(sync.isBusy ? "Sincronizando…" : "Sincronizar ahora")
 
         if !allowedPermissions.isEmpty {
             ShalevCard {
@@ -175,7 +183,7 @@ struct SyncView: View {
                     ShalevSectionHeader(title: "Lo que puedes hacer")
                     ForEach(allowedPermissions) { permission in
                         Text("• \(permission.rawValue)")
-                            .font(.system(size: 13))
+                            .font(.shalev(13))
                             .foregroundStyle(Color.shalevText)
                     }
                 }
@@ -208,7 +216,7 @@ struct SyncView: View {
         }
 
         Text("Vender y cerrar siguen disponibles sin red. Los turnos, ventas y movimientos se reenvían hasta que la principal confirme que los guardó.")
-            .font(.system(size: 12))
+            .font(.shalev(12))
             .foregroundStyle(Color.shalevSecondaryText)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
@@ -231,18 +239,18 @@ struct SyncView: View {
     private func networkCard(title: String, detail: String, symbol: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: symbol)
-                .font(.system(size: 20, weight: .medium))
+                .font(.shalev(20, weight: .medium))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.shalev(14, weight: .semibold))
                     .foregroundStyle(Color.shalevText)
                 Text(detail)
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
             }
             Spacer(minLength: 8)
             Image(systemName: "wifi")
-                .font(.system(size: 18, weight: .medium))
+                .font(.shalev(18, weight: .medium))
         }
         .foregroundStyle(Color.shalevPrimary)
         .padding(14)
@@ -255,10 +263,10 @@ struct SyncView: View {
         ShalevCard {
             VStack(alignment: .leading, spacing: 6) {
                 Label(title, systemImage: symbol)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.shalev(14, weight: .semibold))
                     .foregroundStyle(Color.shalevText)
                 Text(detail)
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
                 if let actionTitle, let action {
                     Button(actionTitle, action: action)
@@ -291,38 +299,38 @@ private struct SyncLinkedAppRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "iphone")
-                    .font(.system(size: 19))
+                    .font(.shalev(19))
                     .foregroundStyle(Color.shalevPrimary)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(employee.name)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.shalev(15, weight: .semibold))
                         .foregroundStyle(Color.shalevText)
                     if let last = employee.lastSyncAt, employee.closeRequestedAt != nil || isConnected {
                         Text(statusLine == "Última vez" ? "Última vez: \(last.shalevDateTime)" : "\(statusLine) · Última vez: \(last.shalevDateTime)")
-                            .font(.system(size: 12))
+                            .font(.shalev(12))
                             .foregroundStyle(isConnected ? Color.shalevSuccess : Color.shalevSecondaryText)
                     } else {
                         Text(statusLine)
-                            .font(.system(size: 12))
+                            .font(.shalev(12))
                             .foregroundStyle(isConnected ? Color.shalevSuccess : Color.shalevSecondaryText)
                     }
                 }
                 Spacer(minLength: 8)
                 if employee.linkedAt == nil {
                     Text("Pendiente")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.shalev(11, weight: .semibold))
                         .foregroundStyle(Color.shalevError)
                 }
             }
 
             if let shift = remoteShift {
                 Text("Turno abierto \(shift.openedAt.shalevDateTime)")
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
                 if let count = shift.closingCount {
                     Text(count.approvedAt == nil ? "Conteo pendiente de aprobación" : "Conteo aprobado; falta recibir el cierre")
-                        .font(.system(size: 12))
+                        .font(.shalev(12))
                         .foregroundStyle(count.approvedAt == nil ? Color.shalevError : Color.shalevSuccess)
                     ShiftCountSummaryView(count: count, expectedCashCents: sync.store.expectedCashCents(for: shift.id))
                     if count.approvedAt == nil {
@@ -330,19 +338,19 @@ private struct SyncLinkedAppRow: View {
                             Button("Aprobar cierre") { do { try sync.approveClosing(employee.syncID ?? 0) } catch { errorMessage = error.localizedDescription } }
                             Button("Rechazar cierre", role: .destructive) { do { try sync.rejectClosing(employee.syncID ?? 0) } catch { errorMessage = error.localizedDescription } }
                         }
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.shalev(12, weight: .semibold))
                     }
                 } else if employee.closeRequestedAt == nil {
                     Button("Pedir cierre") {
                         var updated = employee; updated.closeRequestedAt = Date()
                         do { try sync.updateLinkedApp(updated) } catch { errorMessage = error.localizedDescription }
                     }
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.shalev(12, weight: .semibold))
                 }
             }
             if employee.employeeCloseRequestAt != nil && employee.employeeCloseRequestAt?.timeIntervalSince1970 != 0 {
                 Text("El empleado solicita cerrar")
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevError)
             }
 
@@ -352,7 +360,7 @@ private struct SyncLinkedAppRow: View {
                 Spacer()
                 Button("Quitar", role: .destructive) { confirmRemove = true }
             }
-            .font(.system(size: 12, weight: .semibold))
+            .font(.shalev(12, weight: .semibold))
         }
         .padding(.vertical, 11)
         .sheet(isPresented: $editing) { SyncEmployeeEditor(sync: sync, employee: employee) }
@@ -405,7 +413,7 @@ private struct ShiftCountSummaryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text("Conteo de cierre")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.shalev(13, weight: .semibold))
                 .foregroundStyle(Color.shalevText)
             HStack(spacing: 4) {
                 Text("Esperado \(Cup(cents: expectedCashCents).formatted)")
@@ -415,38 +423,38 @@ private struct ShiftCountSummaryView: View {
                 Text(differenceText)
                     .foregroundStyle(countedCashCents == expectedCashCents ? Color.shalevSuccess : Color.shalevSecondary)
             }
-            .font(.system(size: 11))
+            .font(.shalev(11))
             .foregroundStyle(Color.shalevSecondaryText)
             ForEach(billLines) { line in
                 Text("\(line.denomination) CUP × \(line.quantity) = \(Cup(cents: Int64(line.denomination) * 100 * Int64(line.quantity)).formatted)")
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(.shalev(11, design: .monospaced))
                     .foregroundStyle(Color.shalevText)
             }
             Text("Otro efectivo: \(Cup(cents: count.otherCashCents).formatted)")
-                .font(.system(size: 11))
+                .font(.shalev(11))
                 .foregroundStyle(Color.shalevText)
             if count.inventory.isEmpty {
                 Text("Sin conteo de inventario.")
-                    .font(.system(size: 11))
+                    .font(.shalev(11))
                     .foregroundStyle(Color.shalevSecondaryText)
             } else {
                 ForEach(count.inventory) { line in
                     VStack(alignment: .leading, spacing: 1) {
                         Text("\(line.productName) (\(line.unit))")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.shalev(11, weight: .medium))
                             .foregroundStyle(Color.shalevText)
                         Text("esperado \(fixed(line.expectedMilli)), contado \(fixed(line.countedMilli)), diferencia \(signedDifference(line.differenceMilli))")
-                            .font(.system(size: 10))
+                            .font(.shalev(10))
                             .foregroundStyle(line.differenceMilli == 0 ? Color.shalevSecondaryText : Color.shalevSecondary)
                     }
                 }
             }
             Text(count.approvedAt == nil ? "Pendiente de aprobación de inventario" : "Inventario aprobado por \(count.approvedBy ?? "el dueño")")
-                .font(.system(size: 11, weight: .medium))
+                .font(.shalev(11, weight: .medium))
                 .foregroundStyle(count.approvedAt == nil ? Color.shalevError : Color.shalevSuccess)
             if !count.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text("Motivo: \(count.reason)")
-                    .font(.system(size: 11))
+                    .font(.shalev(11))
                     .foregroundStyle(Color.shalevSecondaryText)
             }
         }
@@ -483,18 +491,19 @@ private struct SyncEmployeeEditor: View {
                         VStack(alignment: .leading, spacing: 11) {
                             if employee == nil {
                                 Text("* Obligatorio")
-                                    .font(.system(size: 11))
+                                    .font(.shalev(11))
                                     .foregroundStyle(Color.shalevSecondaryText)
                                 Text("Nombre del empleado *")
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(.shalev(12, weight: .medium))
                                     .foregroundStyle(Color.shalevSecondaryText)
                                 TextField("Nombre del empleado", text: $name)
                                     .textInputAutocapitalization(.words)
+                                    .submitLabel(.done)
                                     .padding(12)
                                     .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
                             }
                             Text("Permisos")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.shalev(14, weight: .semibold))
                                 .foregroundStyle(Color.shalevText)
                             EmployeePermissionRow(permission: .sellProducts, isOn: sellProducts) { sellProducts = $0 }
                             Divider().opacity(0.5)
@@ -510,7 +519,7 @@ private struct SyncEmployeeEditor: View {
                     ShalevCard {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Cobro por transferencia")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.shalev(14, weight: .semibold))
                                 .foregroundStyle(Color.shalevText)
                             Picker("Cobrar en la tarjeta", selection: $cardID) {
                                 Text("La predeterminada").tag(UUID?.none)
@@ -533,7 +542,7 @@ private struct SyncEmployeeEditor: View {
                                 .tint(Color.shalevPrimary)
                             }
                             Text("Su app solo recibe esta tarjeta para el QR de cobro. Si no eliges un teléfono, el empleado escribe el suyo al vincular su app.")
-                                .font(.system(size: 11))
+                                .font(.shalev(11))
                                 .foregroundStyle(Color.shalevSecondaryText)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -545,7 +554,7 @@ private struct SyncEmployeeEditor: View {
                     .buttonStyle(ShalevPrimaryButtonStyle())
                     .disabled(employee == nil && name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     if let errorMessage {
-                        Text(errorMessage).font(.system(size: 12)).foregroundStyle(Color.shalevError)
+                        Text(errorMessage).font(.shalev(12)).foregroundStyle(Color.shalevError)
                             .multilineTextAlignment(.center).frame(maxWidth: .infinity)
                     }
                 }
@@ -603,12 +612,12 @@ private struct SyncPairingQRView: View {
             VStack(spacing: 18) {
                 if let code, let text = try? code.encoded() {
                     QRCodeImage(text: text)
-                    Text("Vincular a \(employee.name)").font(.headline)
-                    Text("Vence \(code.expiresAt.shalevDateTime)").font(.caption).foregroundStyle(.secondary)
+                    Text("Vincular a \(employee.name)").font(.shalev(17, weight: .semibold))
+                    Text("Vence \(code.expiresAt.shalevDateTime)").font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                     ShareLink(item: text) { Label("Compartir código", systemImage: "square.and.arrow.up") }
                     Text("El QR contiene el token inicial, no la clave definitiva del empleado. La clave se acuerda después con ECDH P-256.")
-                        .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                } else if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
+                        .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText).multilineTextAlignment(.center)
+                } else if let errorMessage { Text(errorMessage).foregroundStyle(Color.shalevError) }
                 else { ProgressView("Generando código…") }
                 Button("Generar uno nuevo") { Task { await generate() } }
             }
@@ -663,10 +672,10 @@ private struct SyncLinkScanner: View {
                         Label("Escanea el QR o pega aquí el texto compartido por la principal.", systemImage: "qrcode.viewfinder")
                     }
                     TextEditor(text: $manual).frame(minHeight: 100).padding(6)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.secondary))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.shalevOutline))
                     Button("Vincular con este código") { submit(manual) }
-                        .buttonStyle(.borderedProminent).disabled(working || manual.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    if working { ProgressView() }
+                        .buttonStyle(ShalevPrimaryButtonStyle()).disabled(working || manual.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    if working { ProgressView().accessibilityLabel("Vinculando…") }
                 }.padding()
             }
             .navigationTitle("Vincular secundaria")
@@ -687,8 +696,8 @@ private struct SyncLinkScanner: View {
         guard !working else { return }
         working = true
         Task {
-            do { try await onCode(text); dismiss() }
-            catch { errorMessage = error.localizedDescription; working = false }
+            do { try await onCode(text); ShalevHaptics.exito(); dismiss() }   // vibra al leer el código, como Android
+            catch { ShalevHaptics.error(); errorMessage = error.localizedDescription; working = false }
         }
     }
 }

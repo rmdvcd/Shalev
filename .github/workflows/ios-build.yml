@@ -11,19 +11,27 @@ on:
       - '.github/workflows/ios-build.yml'
   workflow_dispatch:
 
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   build-ios-simulator:
-    name: Compilar app para iOS Simulator
-    runs-on: macos-15
+    name: Compilar app para iOS Simulator e IPA sin firma
+    # macos-15-intel evita la saturación de cola de los runners arm64 estándar de GitHub
+    # y conserva Xcode 16.4; ARCHS="arm64 x86_64" genera binario universal de simulador para Appetize.
+    runs-on: macos-15-intel
     steps:
       - name: Obtener el código
         uses: actions/checkout@v4
 
       - name: Mostrar herramientas de Apple
-        run: xcodebuild -version
+        run: |
+          xcodebuild -version
+          swift --version
 
       - name: Ejecutar pruebas unitarias del dominio iOS
         shell: bash
@@ -31,7 +39,7 @@ jobs:
           set -o pipefail
           swift test --package-path IShalev 2>&1 | tee "$RUNNER_TEMP/swift-test.log"
 
-      - name: Compilar sin firma para el simulador
+      - name: Compilar sin firma para el simulador (universal arm64 + x86_64)
         shell: bash
         run: |
           set -o pipefail
@@ -41,14 +49,54 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/IShalevDerivedData" \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO \
             build 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log"
+          archs=$(lipo -archs "$RUNNER_TEMP/IShalevDerivedData/Build/Products/Debug-iphonesimulator/IShalev.app/IShalev")
+          echo "::notice::Arquitecturas simulador IShalev.app: $archs"
 
-      - name: Resumir errores de compilación y pruebas
+      - name: Compilar sin firma para dispositivo iOS y empaquetar IShalev.ipa
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project IShalev/IShalev.xcodeproj \
+            -scheme IShalev \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/IShalevDeviceDerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/xcodebuild-device.log"
+          rm -rf "$RUNNER_TEMP/Payload" "$RUNNER_TEMP/IShalev.ipa"
+          mkdir -p "$RUNNER_TEMP/Payload"
+          ditto "$RUNNER_TEMP/IShalevDeviceDerivedData/Build/Products/Release-iphoneos/IShalev.app" \
+            "$RUNNER_TEMP/Payload/IShalev.app"
+          (cd "$RUNNER_TEMP" && zip -r -y -q IShalev.ipa Payload)
+          ipa_size=$(du -h "$RUNNER_TEMP/IShalev.ipa" | cut -f1)
+          echo "::notice::IShalev.ipa sin firma generado ($ipa_size)"
+
+      - name: Resumir errores de compilación Swift
         if: failure()
         shell: bash
         run: |
-          for log in "$RUNNER_TEMP/swift-test.log" "$RUNNER_TEMP/xcodebuild.log"; do
+          for log in "$RUNNER_TEMP/swift-test.log" "$RUNNER_TEMP/xcodebuild.log" "$RUNNER_TEMP/xcodebuild-device.log"; do
+            if [ -f "$log" ]; then
+              swift_errors=$(grep -E '\.swift:[0-9]+:[0-9]+: error:' "$log" | head -n 10 || true)
+              if [ -n "$swift_errors" ]; then
+                while IFS= read -r issue; do echo "::error::$issue"; done <<< "$swift_errors"
+              fi
+            fi
+          done
+
+      - name: Resumir otros errores de compilación y pruebas
+        if: failure()
+        shell: bash
+        run: |
+          for log in "$RUNNER_TEMP/swift-test.log" "$RUNNER_TEMP/xcodebuild.log" "$RUNNER_TEMP/xcodebuild-device.log"; do
             if [ -f "$log" ]; then
               issues=$(grep -E 'error:|BUILD FAILED|Test Suite .* failed|The following build commands failed' "$log" | tail -n 100 || true)
               if [ -n "$issues" ]; then
@@ -58,7 +106,7 @@ jobs:
                   printf '%s\n' "$issues"
                   echo '```'
                 } >> "$GITHUB_STEP_SUMMARY"
-                while IFS= read -r issue; do echo "::error::$issue"; done <<< "$issues"
+                while IFS= read -r issue; do echo "::error::$issue"; done <<< "$(printf '%s\n' "$issues" | head -n 9)"
               fi
             fi
           done
@@ -104,5 +152,13 @@ jobs:
         with:
           name: IShalev-iOS-Simulator
           path: ${{ runner.temp }}/IShalev-iOS-Simulator.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publicar IShalev.ipa sin firma
+        uses: actions/upload-artifact@v4
+        with:
+          name: IShalev-iOS-IPA
+          path: ${{ runner.temp }}/IShalev.ipa
           if-no-files-found: error
           retention-days: 7

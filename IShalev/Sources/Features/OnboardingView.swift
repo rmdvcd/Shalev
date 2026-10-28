@@ -23,6 +23,8 @@ struct OnboardingView: View {
     @State private var transferPhone = ""
     @State private var transferCard = ""
     @State private var errorMessage: String?
+    private enum DataFocus: Hashable { case business, firstName, lastName, ci }
+    @FocusState private var focusedField: DataFocus?
 
     init(store: ShalevStore, startAtData: Bool = false, onComplete: @escaping () -> Void) {
         self.store = store
@@ -48,7 +50,7 @@ struct OnboardingView: View {
                     }
                     if let errorMessage {
                         Text(errorMessage)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.shalev(12, weight: .medium))
                             .foregroundStyle(Color.shalevError)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -71,17 +73,19 @@ struct OnboardingView: View {
             if step != 0 {
                 HStack {
                     Text(title)
-                        .font(.system(size: 21, weight: .semibold))
+                        .font(.shalev(21, weight: .semibold))
                         .foregroundStyle(Color.shalevText)
                     Spacer()
                     Text("Paso \(position + 1) de \(totalSteps)")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.shalev(12, weight: .medium))
                         .foregroundStyle(Color.shalevSecondaryText)
                 }
                 ProgressView(value: Double(position + 1), total: Double(totalSteps))
                     .tint(Color.shalevPrimary)
+                    .accessibilityLabel("Progreso del asistente")
+                    .accessibilityValue("Paso \(position + 1) de \(totalSteps)")
                 Text(subtitle)
-                    .font(.system(size: 12))
+                    .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -112,17 +116,17 @@ struct OnboardingView: View {
     private var welcomeStep: some View {
         VStack(spacing: 16) {
             Image(systemName: "storefront.fill")
-                .font(.system(size: 40, weight: .semibold))
+                .font(.shalev(40, weight: .semibold))
                 .foregroundStyle(Color.shalevOnPrimary)
                 .frame(width: 88, height: 88)
                 .background(Color.shalevPrimary, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .padding(.top, 30)
             Text("Bienvenido a Shalev")
-                .font(.system(size: 26, weight: .bold))
+                .font(.shalev(26, weight: .bold))
                 .foregroundStyle(Color.shalevText)
                 .multilineTextAlignment(.center)
             Text("Punto de venta e inventario que funciona sin conexión y guarda todo en este teléfono.")
-                .font(.system(size: 14))
+                .font(.shalev(14))
                 .foregroundStyle(Color.shalevSecondaryText)
                 .multilineTextAlignment(.center)
             ShalevCard {
@@ -134,7 +138,7 @@ struct OnboardingView: View {
                 }
             }
             Text("Tres pasos y ya puedes empezar.")
-                .font(.system(size: 12))
+                .font(.shalev(12))
                 .foregroundStyle(Color.shalevSecondaryText)
         }
     }
@@ -142,13 +146,13 @@ struct OnboardingView: View {
     private func bullet(_ symbol: String, _ title: String, _ detail: String) -> some View {
         HStack(alignment: .top, spacing: 11) {
             Image(systemName: symbol)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.shalev(15, weight: .semibold))
                 .foregroundStyle(Color.shalevPrimary)
                 .frame(width: 34, height: 34)
                 .background(Color.shalevPrimaryContainer, in: RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                Text(detail).font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                Text(title).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
+                Text(detail).font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
             }
             Spacer(minLength: 0)
         }
@@ -160,20 +164,20 @@ struct OnboardingView: View {
                 ShalevSectionHeader(title: "Módulos del negocio")
                 Toggle(isOn: $salesEnabled) {
                     Label("Ventas de productos", systemImage: "cart.fill")
-                        .font(.system(size: 14, weight: .medium)).foregroundStyle(Color.shalevText)
+                        .font(.shalev(14, weight: .medium)).foregroundStyle(Color.shalevText)
                 }
                 Toggle(isOn: $inventoryEnabled) {
                     Label("Inventario", systemImage: "archivebox.fill")
-                        .font(.system(size: 14, weight: .medium)).foregroundStyle(Color.shalevText)
+                        .font(.shalev(14, weight: .medium)).foregroundStyle(Color.shalevText)
                 }
                 Toggle(isOn: $servicesEnabled) {
                     Label("Servicios", systemImage: "storefront.fill")
-                        .font(.system(size: 14, weight: .medium)).foregroundStyle(Color.shalevText)
+                        .font(.shalev(14, weight: .medium)).foregroundStyle(Color.shalevText)
                 }
                 Text("Vender productos necesita el inventario: si activas Ventas, Inventario se activa también. Debe quedar al menos un módulo.")
-                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                 Text("Los perfiles por empleado se administran en Ajustes → Permisos y son locales a este iPhone; aún no se sincronizan con Android.")
-                    .font(.system(size: 11)).foregroundStyle(Color.shalevSecondaryText)
+                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
             }
             .tint(Color.shalevPrimary)
         }
@@ -187,10 +191,14 @@ struct OnboardingView: View {
             ShalevCard {
                 VStack(alignment: .leading, spacing: 12) {
                     ShalevSectionHeader(title: "Tu negocio")
-                    field("Nombre del negocio", text: $businessName, placeholder: "Mi negocio", capitalization: .words)
-                    field("Nombre del titular", text: $ownerFirstName, placeholder: "Nombre", capitalization: .words)
-                    field("Apellidos", text: $ownerLastName, placeholder: "Apellidos", capitalization: .words)
-                    field("Carné de identidad (opcional)", text: $identification, placeholder: "CI", capitalization: .characters)
+                    field("Nombre del negocio", text: $businessName, placeholder: "Mi negocio", capitalization: .words,
+                          focus: .business, submit: .next) { focusedField = .firstName }
+                    field("Nombre del titular", text: $ownerFirstName, placeholder: "Nombre", capitalization: .words,
+                          focus: .firstName, submit: .next) { focusedField = .lastName }
+                    field("Apellidos", text: $ownerLastName, placeholder: "Apellidos", capitalization: .words,
+                          focus: .lastName, submit: .next) { focusedField = .ci }
+                    field("Carné de identidad (opcional)", text: $identification, placeholder: "CI", capitalization: .characters,
+                          focus: .ci, submit: .done) { focusedField = nil }
                     field("Teléfono de contacto (opcional)", text: $phone, placeholder: "+53 5XXX XXXX", keyboard: .phonePad)
                 }
             }
@@ -198,7 +206,7 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 11) {
                     ShalevSectionHeader(title: "Transfermóvil (opcional)")
                     Text("Estos datos solo se usan para crear el QR de cobro; Shalev no verifica ni confirma pagos.")
-                        .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                        .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                     field("Teléfono asociado", text: $transferPhone, placeholder: "5XXXXXXX", keyboard: .phonePad)
                     field("Tarjeta", text: $transferCard, placeholder: "16 dígitos", keyboard: .numberPad)
                 }
@@ -223,22 +231,21 @@ struct OnboardingView: View {
             ShalevCard {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Siguiente paso: abre el turno", systemImage: "lock.open.fill")
-                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                        .font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
                     Text("En Inicio toca el interruptor del turno o «Nueva venta» para abrir la caja con su fondo. Sin turno abierto no se vende.")
-                        .font(.system(size: 12)).foregroundStyle(Color.shalevSecondaryText)
+                        .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                 }
             }
         }
     }
 
     private func summaryRow(_ title: String, _ value: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text(title).font(.system(size: 13)).foregroundStyle(Color.shalevSecondaryText)
-            Spacer(minLength: 6)
+        ShalevFilaAdaptable(espaciadoHorizontal: 10, espaciadoVertical: 3) {
+            Text(title).font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
+        } valor: {
             Text(value)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.shalev(13, weight: .semibold))
                 .foregroundStyle(Color.shalevText)
-                .multilineTextAlignment(.trailing)
         }
     }
 
@@ -264,7 +271,7 @@ struct OnboardingView: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 12)
         }
-        .background(.ultraThinMaterial)
+        .background(ShalevBarBackground())
     }
 
     private func advance() {
@@ -294,16 +301,34 @@ struct OnboardingView: View {
 
     private func field(_ title: String, text: Binding<String>, placeholder: String,
                        keyboard: UIKeyboardType = .default,
-                       capitalization: TextInputAutocapitalization = .never) -> some View {
+                       capitalization: TextInputAutocapitalization = .never,
+                       focus: DataFocus? = nil, submit: SubmitLabel = .done,
+                       onSubmit: (() -> Void)? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
-            TextField(placeholder, text: text)
-                .keyboardType(keyboard)
-                .textInputAutocapitalization(capitalization)
-                .autocorrectionDisabled()
-                .font(.system(size: 14))
-                .padding(11)
-                .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+            Text(title).font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+            if let focus {
+                TextField(placeholder, text: text)
+                    .keyboardType(keyboard)
+                    .textInputAutocapitalization(capitalization)
+                    .autocorrectionDisabled()
+                    .focused($focusedField, equals: focus)
+                    .submitLabel(submit)
+                    .onSubmit { onSubmit?() }
+                    .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
+                    .font(.shalev(14))
+                    .padding(11)
+                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+            } else {
+                TextField(placeholder, text: text)
+                    .keyboardType(keyboard)
+                    .textInputAutocapitalization(capitalization)
+                    .autocorrectionDisabled()
+                    .submitLabel(submit)
+                    .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
+                    .font(.shalev(14))
+                    .padding(11)
+                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11))
+            }
         }
     }
 

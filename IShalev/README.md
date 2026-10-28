@@ -9,7 +9,7 @@ Subproyecto independiente en **SwiftUI**, pensado como contraparte iOS de la apl
 - `IShalev.xcodeproj` — proyecto Xcode compartido y esquema `IShalev`.
 - `Sources/App` — navegación nativa en cinco pestañas.
 - `Sources/Domain` — modelos y reglas del negocio, precios enteros en centavos, persistencia AES-GCM, codecs de respaldo iOS/Android y protocolo/transporte/repositorio de sincronización LAN.
-- `Sources/Design` — paleta adaptativa de Shalev, controles reutilizables y QR Transfermóvil.
+- `Sources/Design` — paleta adaptativa de Shalev, controles reutilizables, QR Transfermóvil y las piezas de accesibilidad e interacción: `ShalevDynamicType` y `Font.shalev` (tipografía que escala), `shalevToque()` (área táctil mínima), `ShalevMotion` (Reduce Motion), `ShalevBarBackground` (Reduce Transparency) y `ShalevHaptics` (vibración breve).
 - `Sources/Features` — Inicio, Inventario, Venta, Servicios, Registros y Ajustes.
 - `Resources` — icono, logo, tipografía Orbitron y licencia OFL.
 - `.github/workflows/ios-build.yml` — compilación de simulador y artefacto `.app` empaquetado para Appetize.
@@ -34,6 +34,20 @@ Subproyecto independiente en **SwiftUI**, pensado como contraparte iOS de la apl
 - **Respaldo iOS:** archivo `.shalev-ios` cifrado con AES-GCM y clave derivada con PBKDF2-HMAC-SHA256. Conserva el formato completo propio de IShalev; la contraseña no se almacena.
 - **Intercambio con Android:** importa respaldos `SPVIBAK` v3/v4, incluidos los archivos v4 sin contraseña del usuario, y exporta `.shalev` v4 con contraseña. Convierte explícitamente unidades Android a milésimas iOS, mantiene los importes en centavos y migra catálogo, recetas, servicios, ventas, turnos, caja, clientes, preajustes y empleados. Los PIN y secretos de licencia no viajan. Las fotos iOS se incluyen como campos adicionales que Android ignora. Si una cantidad de producto no puede representarse en unidades enteras Android, la exportación se detiene en vez de truncarla.
 
+## Accesibilidad e interacción
+
+Aplicado tras la auditoría del 2026-10-28 contra la guía UI/UX/IX (informe completo en [`docs/AUDITORIA_UI_UX_IX_2026-10-28.md`](../docs/AUDITORIA_UI_UX_IX_2026-10-28.md)):
+
+- **Dynamic Type completo (`AX1`–`AX5`):** las 483 tipografías de la app pasan por `Font.shalev(_:weight:design:)` (y `Font.shalevMarca(_:)` para Orbitron), que multiplica el tamaño del design system por el factor oficial de Apple (`0,82×` en `xSmall` hasta `3,2×` en `accessibility5`, sin tope artificial). La categoría se sincroniza desde el primer pase de `ShalevRootView.body`; en **Large** (la del sistema por defecto) el factor es 1, así la interfaz no cambia. Desde `xxxLarge`, `ShalevFilaAdaptable` apila los importes y totales debajo del título (paridad con el `letraGrande()` de Android), los botones y gráficos crecen sin altura máxima y `Font.shalevIcono(_:weight:)` acota los glifos dentro de botones circulares y barra inferior para que nunca desborden.
+- **Área táctil mínima de 44 pt:** `View.shalevToque()` aplica `frame(minWidth:minHeight:)` + `contentShape(Rectangle())` **fuera** del dibujo, así crece la zona del dedo y no el icono. Cubre los botones de icono, los chevrons del asistente, los chips de filtro, las insignias «Quitar filtro», la casilla de selección de Inventario, los botones −/+ del catálogo y los botones de editar y borrar.
+- **Reducir movimiento:** `ShalevMotion.cambio(_:)` devuelve `nil` cuando el ajuste está activo, así el cambio de pestaña, el filtro, el FAB expandible y los acordeones de Ayuda se aplican de inmediato. El `scaleEffect` del botón primario también se anula; queda la opacidad como respuesta al toque.
+- **Reducir transparencia:** las tres barras flotantes (pestañas, pie del asistente y pie de la venta) usan `ShalevBarBackground`, que cambia el material translúcido por una superficie opaca con el ajuste activo.
+- **Vibración:** `ShalevHaptics.exito()` al registrar una venta y al leer o pegar un código de vinculación; `.error()` cuando la operación falla. Los tres nombres (`exito`, `error`, `seleccion`) son los mismos que en `ShalevHaptics` de Android y no piden permisos nuevos.
+- **VoiceOver:** etiquetas en todos los indicadores de progreso («Cargando», «Vinculando…», «Sincronizando…»), valor accesible en el asistente («Paso 2 de 3: título») y en la barra de pestañas («Pestaña 2 de 5»), y la barra de progreso del asistente marcada como decorativa para no duplicar la lectura.
+- **Teclado, foco, autocompletado y recarga (IX-012, UX-014):** `@FocusState` con `.submitLabel(.next)` / `.submitLabel(.done)` y `.onSubmit` en los siete formularios multicampo alfanuméricos (Onboarding, Perfil, Respaldo, Licencia, Producto, Servicio y Corrección de venta), lupa `.submitLabel(.search)` en la búsqueda, `.textContentType` en nombres y teléfonos, y gesto `.refreshable` (deslizar hacia abajo) en «Apps vinculadas» para lanzar la sincronización LAN.
+
+**Desviación aceptada:** la barra inferior mantiene **solo iconos** (cinco destinos), igual que Android, aunque la guía de iOS pide etiquetas de texto. Se compensa con el nombre y la posición por VoiceOver, iconos SF Symbols inequívocos y una selección que se ve por relleno e inversión, no solo por color.
+
 ## Requisitos y compilación local
 
 - Mac con Xcode 15 o posterior.
@@ -54,6 +68,8 @@ swift test --package-path IShalev # pruebas unitarias del dominio iOS
 ```
 
 El proyecto de Android que lo acompaña sigue en la raíz del repositorio. Las pruebas unitarias verifican reglas de venta/cierre, clientes, preajustes, PIN y licencias, además de vectores independientes `SPVIBAK` v3/v4, archivos sin contraseña, escalas de cantidades y estabilidad de IDs al convertir respaldos Android. La compilación y las pruebas automatizadas se ejecutan en GitHub Actions sobre macOS; el entorno de desarrollo local es Linux y carece de Xcode/`swift`.
+
+**Estado de compilación del 2026-10-28 (en verde):** `.github/workflows/ios-build.yml` usa `macos-15-intel` (evita la saturación de la cola `arm64` de GitHub Actions y conserva Xcode 16.4) y verifica en cada push: `swift test --package-path IShalev`, compilación universal (`arm64 + x86_64`) para `iOS Simulator` subida automáticamente a Appetize.io (`IShalev-iOS-Simulator.zip`) y compilación Release `iphoneos` empaquetada como `IShalev.ipa` sin firma (artefacto `IShalev-iOS-IPA`). Appetize ejecuta el paquete de simulador; el `.ipa` sin firma sirve para herramientas de carga lateral o para firmarlo aparte con certificado de distribución. Detalle en [`docs/VERIFICACION.md`](../docs/VERIFICACION.md).
 
 ## Compilar y probar online sin coste
 
