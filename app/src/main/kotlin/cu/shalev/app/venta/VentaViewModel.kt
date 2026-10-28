@@ -293,13 +293,15 @@ class VentaViewModel @Inject constructor(
         val ajustado = Carrito.recortarACapacidad(nuevo, cat)
         guardar(ajustado)
         local.update { s ->
+            var cli = s.cliente
+            resultado.clienteNombre?.takeIf { it.isNotBlank() }?.let { cli = cli.con(CampoCliente.NOMBRE, it) }
+            resultado.clienteTelefono?.takeIf { it.isNotBlank() }?.let { cli = cli.con(CampoCliente.TELEFONO, it) }
+            resultado.clienteCi?.takeIf { it.isNotBlank() }?.let { cli = cli.con(CampoCliente.CI, it) }
             s.copy(
                 paso = PasoVenta.CARRITO,
                 cotizacion = null,
                 error = null,
-                nombre = resultado.clienteNombre ?: s.nombre,
-                telefono = resultado.clienteTelefono ?: s.telefono,
-                ci = resultado.clienteCi ?: s.ci,
+                cliente = cli,
             )
         }
         emitir(EventoVenta.Mensaje("Líneas importadas al carrito (${ajustado.size})."))

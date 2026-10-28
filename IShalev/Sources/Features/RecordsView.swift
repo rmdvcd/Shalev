@@ -961,7 +961,7 @@ private struct SaleEditView: View {
         }
     }
 
-    private func canAdd(kind: SaleLineKind, sourceID: UUID) -> Bool {
+    private func canAdd(kind: SaleItemKind, sourceID: UUID) -> Bool {
         var nextCart = cart
         if let idx = nextCart.firstIndex(where: { $0.kind == kind && $0.sourceID == sourceID }) {
             guard nextCart[idx].quantity < 100_000 else { return false }
