@@ -2323,6 +2323,21 @@ Los dos hallazgos restantes son decisiones pendientes del dueño, no descuidos: 
 
 `ShalevHaptics.aviso()` pasó a llamarse `.error()` y su feedback de `.warning` a `.error`: Android expone `exito()` / `error()` / `seleccion()` y el design system de iOS tiene ahora los tres mismos nombres para los mismos conceptos. Actualizados sus dos usos (`SaleView.swift:585`, `SyncView.swift:691`) y `IShalev/README.md`.
 
+### IShalev: teclado que confirma y autocompletado de contactos (IX-012, parcial)
+
+La guía UI/UX/IX pide minimizar la escritura y aprovechar el autocompletado del sistema. IShalev no tenía **ni un** `.submitLabel` (el teclado siempre mostraba «return») y solo 2 `.textContentType`, mientras la app Android sí tiene `imeAction` y autocompletado. Se añadieron 24 modificadores en 11 archivos, sin tocar ninguna lógica:
+
+- **15 `.submitLabel`:** `.search` en `ShalevSearchField` (la lupa en vez de «return») y `.done` en los campos de una línea de empleado (IShalev y Apps vinculadas), venta y corrección de venta (n.º de transacción y motivo), método de pago, perfil, respaldo, licencia, asistente inicial, inventario, servicios y comentario de las imágenes exportadas.
+- **11 `.textContentType`** (antes 2): `.telephoneNumber` en los cuatro campos de teléfono —cliente fijo, corrección de venta, venta y los ayudantes genéricos cuando `keyboard == .phonePad`— y `.name` en el nombre del cliente de la corrección, que se suma a los dos que ya existían.
+
+**Lo que se dejó fuera a propósito:** el `@FocusState` que hace avanzar de un campo al siguiente. En iOS los teclados `numberPad`, `decimalPad` y `phonePad` **no tienen tecla return**, así que en esos campos `.submitLabel` es inerte; poner «Siguiente» sin cablear el foco mostraría una tecla que no avanza, que es peor que el «return» de hoy. Cablear foco por formulario exige poder compilar y probar, y en esta pasada no hubo runner macOS (ver abajo). Queda como parte pendiente de IX-012.
+
+### La build de iOS no se pudo compilar: falta de runners macOS, no de código
+
+Cuatro runs de `Compilación iOS de IShalev` (`40709315298`, `40712998823`, `40716541666` y `40726575330`) fallaron **sin ejecutar un solo paso**: `The job was not acquired by Runner of type hosted even after multiple attempts` y `Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times`, los cuatro a los ~15 minutos de cola. El mismo workflow había pasado ocho veces seguidas el 2026-10-26 en 3–5 min, así que es capacidad de GitHub, no del proyecto. Reencolar por API (`/rerun`, `/rerun-failed-jobs`) y disparar por `workflow_dispatch` devolvieron **403 `Resource not accessible by integration`** con el token de esta sesión; la única vía desde aquí es empujar otro commit que toque `IShalev/**`. **Los cambios de iOS de esta auditoría siguen sin compilarse.**
+
+**Sobre el `.ipa` que se pidió para Appetize:** no es el artefacto que Appetize acepta. Su documentación oficial exige un `.zip` o `.tar.gz` con un **`.app` de simulador** y declara que los builds de dispositivo/AppStore (`.ipa`) «no están soportados actualmente». `ios-build.yml` ya produce exactamente lo correcto: compila sin firma para `generic/platform=iOS Simulator`, empaqueta `IShalev.app` con `ditto` y lo sube a Appetize si existe `APPETIZE_API_KEY` (así se publicaron las builds del 2026-10-26). Un `.ipa` firmado solo serviría para TestFlight o Ad Hoc y exigiría certificado de distribución y perfil de aprovisionamiento como secretos del repositorio, que no están.
+
 **Desviación aceptada en las dos apps:** la barra inferior mantiene solo iconos (5 destinos) aunque la HIG pida etiquetas de texto. Decisión del dueño por requisito de producto y paridad; se compensa con nombre y posición por lector de pantalla, iconos inequívocos y selección por relleno e inversión, no solo por color. Queda escrita en `UI_UX_IX.md`.
 
 **Verificación.** Este entorno no tiene JDK, Android SDK ni Xcode/Swift: no se pudieron ejecutar `shalevTests`, `shalevCheck` ni `xcodebuild`, y los cambios de IShalev no se compilaron aquí. Los compila el CI en macOS (`.github/workflows/ios-build.yml`: `swift test` + `xcodebuild` para el simulador). No se ha probado con VoiceOver ni TalkBack reales. Con la letra del sistema por defecto no debería cambiar ninguna captura; con letra grande, sí.
