@@ -20,7 +20,7 @@ Ocho cambios pedidos por el dueño. **No cambia la versión declarada** (sigue 1
 
 **(8) Contenedores de Inicio ajustados al texto.** Se retiran los `fillMaxHeight()` de las tarjetas de accesos y de alertas (y el `height(IntrinsicSize.Min)` que las igualaba) para que cada tarjeta mida su propio texto, y `ShalevCard` gana `paddingVertical` (16dp por defecto) que en Inicio se usa ligero (8dp) en el turno, los accesos y los contadores de alerta.
 
-**Verificación.** Este entorno no tiene JDK ni Android SDK, así que **no se pudo compilar ni ejecutar `shalevTests`/`shalevCheck`**: hay que pasarlos en el CI o en el equipo de desarrollo antes de publicar. Cambia el aspecto de casi todas las pantallas, así que las capturas Roborazzi hay que regrabarlas (`./gradlew :app:recordRoborazziDebug`) — el CI no las verifica de forma ordinaria. Los tests JVM del diseño (`AuditoriaUiTest`) siguen siendo válidos porque la semántica (`contentDescription`, `selected`) no cambió.
+**Verificación.** El entorno donde se escribió no tiene JDK ni Android SDK, así que se comprobó con el CI: run `41077020680` del PR #67 **en verde en los 5 trabajos** (API mínima 26, lint, permisos del manifiesto, tests JVM + compilación de instrumentados, release R8 y APK debug). Los tests JVM del diseño (`AuditoriaUiTest`) siguen pasando porque la semántica (`contentDescription`, `selected`) no cambió. Cambia el aspecto de casi todas las pantallas, así que las capturas Roborazzi hay que regrabarlas (`./gradlew :app:recordRoborazziDebug`): el CI no las verifica de forma ordinaria.
 
 ## 2026-10-27 - Vinculación por datos móviles, cierre automático del cuadro de Actualizar e insumos en las estadísticas (1.0.1)
 

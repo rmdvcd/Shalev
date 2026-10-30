@@ -2,9 +2,9 @@
 
 > **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización Android: **2026-10-28**. La app principal sigue siendo Android. El antiguo Flutter/iOS y la web de escritorio se retiraron; la nueva contraparte SwiftUI vive en `IShalev/` y tiene una sección de verificación independiente al final de este documento.
 
-## 2026-10-30 — Pendiente de compilar en un equipo con JDK 17 y Android SDK
+## 2026-10-30 — Lote de interfaz (PR #67) compilado y con tests en verde en el CI
 
-El lote de interfaz del 2026-10-30 (botones con texto, etiquetas en la barra inferior, skeleton de carga, ayuda «?» por pestaña, campos ajustados a su contenido, contenedores de Inicio y cierre de turno con 0 CUP) **no se compiló en el entorno donde se escribió**: no hay JDK ni Android SDK. Antes de darlo por bueno hay que ejecutar `./gradlew shalevTests`, `./gradlew shalevCheck` y regrabar las capturas (`./gradlew :app:recordRoborazziDebug`), porque cambia el aspecto de casi todas las pantallas.
+El lote de interfaz del 2026-10-30 (botones con texto, etiquetas en la barra inferior, skeleton de carga, ayuda «?» por pestaña, campos ajustados a su contenido, contenedores de Inicio y cierre de turno con 0 CUP) se escribió en un entorno **sin JDK ni Android SDK**, así que se verificó con el CI: run `41077020680` (PR #67) **en verde en los 5 trabajos** — API mínima 26, lint con baseline, permisos del manifiesto, tests JVM + compilación de instrumentados y release R8 + APK debug. Queda **regrabar las capturas Roborazzi** (`./gradlew :app:recordRoborazziDebug`) en un equipo con JDK 17 y Android SDK, porque cambia el aspecto de casi todas las pantallas y el CI no las verifica.
 
 ## Auditoría UI · UX · IX de Shalev e IShalev (2026-10-28)
 
