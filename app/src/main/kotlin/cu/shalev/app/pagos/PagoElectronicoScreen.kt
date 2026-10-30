@@ -1,7 +1,5 @@
 package cu.shalev.app.pagos
 
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.Image
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -37,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.graphics.painterResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.app.common.SecureWindow
@@ -239,8 +239,8 @@ private fun IconoTarjeta(banco: BancoCubano, modifier: Modifier = Modifier) {
         else -> null
     }
     if (recurso != null) {
-        androidx.compose.foundation.Image(
-            painter = androidx.compose.ui.graphics.painterResource(id = recurso),
+        Image(
+            painter = painterResource(id = recurso),
             contentDescription = banco.nombre,
             modifier = modifier.size(ShalevSize.icon),
         )
