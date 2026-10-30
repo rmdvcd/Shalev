@@ -99,23 +99,27 @@ Shalev está pensada para manejarse con una sola mano de forma ágil detrás del
 
 ### 3.1 Cómo moverte entre secciones
 
-- **Tocar un icono de la barra inferior:** el icono activo se destaca con fondo relleno para que sepas siempre dónde estás (**Inicio**, **Inventario**, **Servicios**, **Registros** o **Ajustes**).
+- **Tocar una sección de la barra inferior:** cada sección muestra su icono y **su nombre escrito debajo** (**Inicio**, **Inventario**, **Servicios**, **Registros** o **Ajustes**), y la que tienes abierta se destaca con fondo relleno.
 - **Deslizar el dedo hacia la izquierda o la derecha:** en cualquiera de las 5 pantallas principales puedes deslizar horizontalmente para pasar a la sección vecina. Para evitar errores mientras trabajas, el gesto de deslizar se desactiva automáticamente cuando estás escribiendo, filtrando, seleccionando filas o dentro de una ventana emergente.
 
-### 3.2 Botones limpios de solo icono
+### 3.2 Botones con texto y ayuda en cada pestaña
 
-Para que la pantalla se mantenga despejada incluso en teléfonos compactos o con letra grande, los botones de acción de Shalev muestran **únicamente su icono**. Si tienes duda sobre qué hace un botón, **mantenlo pulsado un instante** y aparecerá un cartelito con su nombre exacto.
+Los botones de Shalev muestran **su nombre escrito**, también en las ventanas emergentes y en los diálogos: «Guardar», «Cancelar», «Filtrar», «Exportar», «Agregar»… No hay que adivinar qué hace un icono ni esperar a que aparezca un cartelito.
 
-| Icono / ubicación | Qué hace | Dónde lo encontrarás |
+| Botón | Qué hace | Dónde lo encontrarás |
 |---|---|---|
-| **+** *(abajo a la derecha)* | Crear o agregar un elemento nuevo | Inventario, Servicios, Pago electrónico, Precios y Apps vinculadas |
-| **✓** *(botón relleno principal)* | Guardar formulario o confirmar operación | Alta de productos/servicios, comprobante de venta, diálogos y filtros |
-| **✕** *(botón secundario)* | Cancelar, descartar o cerrar sin guardar | Formularios, carrito de venta y ventanas de confirmación |
-| **→** *(flecha siguiente)* | Avanzar al siguiente paso de un asistente | Recorrido inicial, carrito de venta, Respaldo y Licencia |
-| **Carrito** *(flotante inferior izquierdo)* | Iniciar una **Nueva venta** | Pantalla de Inicio (solo visible con el turno abierto) |
-| **Billetes** *(flotante inferior derecho)* | Registrar **Entrada / salida de efectivo** | Pantalla de Inicio (solo visible con el turno abierto) |
-| **Embudo** *(arriba a la derecha)* | Abrir la ventana **Filtrar** | Inventario, Servicios y Registros |
-| **Compartir** *(arriba a la derecha)* | **Exportar** a PDF, Excel, Imagen o Tarjetas | Inventario, Servicios, Registros y detalle de Turno |
+| **?** *(arriba a la izquierda)* | Abre la **ayuda de esa pestaña**: los pasos de los temas que más se usan en ella y un acceso al manual completo | Inicio, Inventario, Servicios, Registros y Ajustes |
+| **Agregar** *o el nombre de la acción* *(abajo a la derecha)* | Crear o agregar un elemento nuevo | Inventario, Servicios, Pago electrónico, Precios y Apps vinculadas |
+| **Guardar** *(botón relleno)* | Guardar el formulario o confirmar la operación | Alta de productos/servicios, comprobante de venta, diálogos y filtros |
+| **Cancelar** | Cerrar sin guardar ni aplicar cambios | Formularios, carrito de venta y ventanas de confirmación |
+| **Siguiente** / **Atrás** | Avanzar o volver en un asistente | Recorrido inicial, carrito de venta, Respaldo y Licencia |
+| **Vender** / **Caja** *(flotantes, abajo)* | Iniciar una **Nueva venta** / registrar **Entrada o salida de efectivo** | Pantalla de Inicio (solo con el turno abierto) |
+| **Filtrar** *(arriba a la derecha)* | Abrir la ventana **Filtrar** | Inventario, Servicios y Registros |
+| **Exportar** *(arriba a la derecha)* | Exportar a PDF, Excel, Imagen o Tarjetas | Inventario, Servicios, Registros y detalle de Turno |
+
+Solo siguen siendo iconos la **flecha «Atrás»** de la cabecera y la **X** que borra lo escrito en un campo de texto: son las dos convenciones que todo el mundo ya conoce.
+
+Mientras una pantalla carga sus datos verás **bloques grises** en el sitio donde irá la información (una lista, una tarjeta o el gráfico), en vez de una rueda de espera.
 
 ### 3.3 Tema claro, tema oscuro y letra grande
 
@@ -172,7 +176,7 @@ En Shalev rige una regla sencilla que mantiene tus cuentas claras todos los día
 2. Se abrirá el cuadro **Abrir turno** pidiendo el **Fondo de caja (CUP)**.
    - Shalev te propone automáticamente el efectivo que contaste al cerrar el turno anterior, pero puedes escribir cualquier importe (incluso `0` si empiezas sin cambio).
    - En las apps de empleados también escribe el fondo quien abre el turno (al abrirlo, su teléfono se sincroniza automáticamente con la principal para trabajar con el catálogo al día).
-3. Pulsa **Confirmar (✓)**. En **Inicio** aparecerán los dos botones azules flotantes abajo: **Nueva venta** (izquierda) y **Movimiento de caja** (derecha).
+3. Pulsa **Confirmar**. En **Inicio** aparecerán los dos botones azules flotantes abajo: **Nueva venta** (izquierda) y **Movimiento de caja** (derecha).
 
 > **Consejo:** mientras tu turno esté abierto, verás una notificación discreta de Shalev en la barra superior de Android con el tiempo transcurrido. No muestra importes ni nombres de clientes para proteger tu privacidad, y tocarla te devuelve enseguida a la app.
 
@@ -180,10 +184,10 @@ En Shalev rige una regla sencilla que mantiene tus cuentas claras todos los día
 
 Si sacas dinero de la caja para pagar a un proveedor, comprar hielo o bolsas, o si metes cambio adicional durante el día, regístralo para que la caja no descuadre al final:
 
-1. Con el turno abierto, toca el botón flotante de **billetes** (abajo a la derecha en **Inicio**).
+1. Con el turno abierto, toca el botón **Caja** (abajo a la derecha en **Inicio**).
 2. En la ventana **Entrada / salida de efectivo**, elige la pestaña **Entrada** o **Salida**.
 3. Escribe el **Importe (CUP)** y un **Motivo** claro (de 3 a 60 caracteres, por ejemplo: *«Compra de cambio menudo»* o *«Pago de mensajería»*).
-4. Confirma con **✓**. Por seguridad contable, los movimientos de caja no se borran: si te equivocaste en uno, anota el movimiento contrario explicando la corrección.
+4. Confirma con **Confirmar**. Por seguridad contable, los movimientos de caja no se borran: si te equivocaste en uno, anota el movimiento contrario explicando la corrección.
 
 ### 5.3 Cerrar el turno en 3 pasos (efectivo + inventario + revisión)
 
@@ -198,7 +202,7 @@ Al finalizar la jornada, desactiva el interruptor de **Turno abierto** en **Inic
    - Los artículos usan números enteros y los insumos admiten hasta **3 decimales** (con punto o coma, p. ej. `1.250`). Escribe `0` si se agotó alguno. Los productos *Elaborados* no aparecen aquí porque se controlan contando sus insumos reales.
    - Si no deseas hacer conteo físico en ese momento, toca **Omitir el conteo de inventario** (esquina inferior derecha): el turno se cerrará sin modificar tus existencias y quedará anotado *«Conteo de inventario omitido»*.
 3. **Paso 3 — Revisión y confirmación:**
-   - Revisa en pantalla el efectivo contado y cualquier diferencia de inventario. Si hay faltantes o sobrantes de stock, escribe el **Motivo del ajuste** (de 3 a 160 caracteres) y pulsa **Confirmar (✓)**.
+   - Revisa en pantalla el efectivo contado y cualquier diferencia de inventario. Si hay faltantes o sobrantes de stock, escribe el **Motivo del ajuste** (de 3 a 160 caracteres) y pulsa **Confirmar**.
    - En la **App Principal**, los ajustes de existencias y el cierre del turno se guardan juntos en ese instante. En una **App Secundaria de empleado**, confirmar envía la declaración al encargado para que la revise y apruebe en **Apps vinculadas**.
 
 | <img src="app/capturas/claro/01f_inicio_dialogo_cerrar_turno.png" alt="Conteo de billetes al cerrar turno" width="240"/> | <img src="app/capturas/claro/04s_turno_detalle_cerrado.png" alt="Resumen completo de un turno cerrado" width="240"/> |
@@ -231,7 +235,7 @@ Cada fila te da de un vistazo toda la información clave sin tener que abrirla:
 5. **Fecha de caducidad (opcional):** si el producto vence, márcala para que Shalev te avise en Inicio **7 días antes**.
 6. **Precio de costo \* y Precio de venta \*:** escribe ambos en CUP (admite punto o coma decimal). Por seguridad contra pérdidas, el precio de venta debe ser mayor que el de costo.
 7. **Cantidad inicial \*:** cuántas unidades tienes ahora mismo.
-8. Pulsa **Guardar (✓)** en la barra inferior.
+8. Pulsa **Guardar** en la barra inferior.
 
 ### 6.3 Insumos y Productos Elaborados (recetas)
 
@@ -245,7 +249,7 @@ Si tienes una cafetería, pizzería, dulcería o taller de producción, Shalev c
    - Ve a **Inventario → +** y en **Categoría** elige **Elaborado** (en singular).
    - Escribe el nombre (p. ej. *Pizza napolitana* o *Sándwich de jamón*).
    - En el bloque **Receta \*** (*Insumos de UNA unidad*), agrega cada ingrediente e indica cuánto gasta **una sola unidad** (por ejemplo: `0.25 kg` de harina, `0.10 kg` de puré de tomate y `0.08 kg` de queso).
-   - Verás que Shalev calcula sola el **Precio de costo** sumando los ingredientes de la receta. Tú solo eliges el **Precio de venta** y guardas con **✓**.
+   - Verás que Shalev calcula sola el **Precio de costo** sumando los ingredientes de la receta. Tú solo eliges el **Precio de venta** y guardas con **Guardar**.
 
 > **¿Qué ocurre al vender un Elaborado?** En la lista de Inventario y en el carrito verás siempre **«Alcanza para N»** calculado según el ingrediente más escaso. Cada vez que vendas uno, Shalev descontará automáticamente las porciones exactas de cada insumo. Cuando algún ingrediente no alcance, Shalev impedirá venderlo para que el inventario nunca quede en negativo.
 
@@ -275,7 +279,7 @@ La tercera pestaña de la barra inferior, **Servicios**, está dedicada a todo l
 3. Escribe el **Nombre \*** (p. ej. *Corte de cabello* o *Lavado y peinado*), el **Tipo \*** (*Barbería*, *Belleza*, *Lavandería*, *Telefonía*, *Domicilio*…) y el **Importe (CUP) \*** que cobras cada vez.
 4. Si tienes servicios parecidos, añade una **Descripción** breve (hasta 40 caracteres).
 5. **Insumos que gasta (opcional):** si cada vez que realizas ese servicio consumes algún material de tu inventario (por ejemplo, champú, tinte, detergente o bolsas de regalo), agrégalo con su cantidad. Al cobrar el servicio, Shalev descontará esos insumos automáticamente y calculará tu ganancia real descontando su costo.
-6. Guarda con **✓**.
+6. Guarda con **Guardar**.
 
 | <img src="promocion/capturas/shot_servicios_claro.png" alt="Catálogo de Servicios" width="240"/> | <img src="app/capturas/claro/09e_servicio_form.png" alt="Formulario Nuevo servicio" width="240"/> |
 |:---:|:---:|
@@ -301,7 +305,7 @@ Con tu **turno abierto**, vender lleva solo unos segundos y evita errores de sum
 
 ### 8.2 Cobrar en Efectivo
 
-Si elegiste **Efectivo**, Shalev muestra directamente el **Comprobante de pago** con el desglose de artículos, cualquier preajuste aplicado y el **Total** arriba en grande. Cobra al cliente y pulsa **Confirmar (✓)**: el dinero se suma al efectivo esperado de la caja y las existencias se descuentan en el acto.
+Si elegiste **Efectivo**, Shalev muestra directamente el **Comprobante de pago** con el desglose de artículos, cualquier preajuste aplicado y el **Total** arriba en grande. Cobra al cliente y pulsa **Confirmar**: el dinero se suma al efectivo esperado de la caja y las existencias se descuentan en el acto.
 
 ### 8.3 Cobrar por Transferencia (Transfermóvil)
 
@@ -318,7 +322,7 @@ Antes de tu primer cobro electrónico, asegúrate de haber marcado una tarjeta y
    - **Captura automática opcional:** si activas el *Acceso a notificaciones* cuando te lo ofrece la tarjeta informativa de la pantalla del QR, Shalev detectará el número y comprobará el importe automáticamente mientras esta venta espera el pago (sin permiso para leer tu buzón de SMS antiguos ni guardar el mensaje completo).
    - **Botón Pegar:** copia el SMS recibido y toca el botón redondo del **portapapeles** en la pantalla de datos; Shalev extrae el código de transacción y te avisa si el importe del SMS no coincide con el total de la venta.
    - **Compartir SMS con Shalev:** desde la app de Mensajes del teléfono, comparte el texto del SMS hacia Shalev.
-4. Pulsa **Confirmar (✓)** para dejar registrada la venta y su transferencia asociada.
+4. Pulsa **Confirmar** para dejar registrada la venta y su transferencia asociada.
 
 | <img src="app/capturas/claro/05a_venta_carrito.png" alt="Carrito de Nueva venta" width="230"/> | <img src="app/capturas/claro/05f_venta_qr.png" alt="Código QR de cobro por transferencia" width="230"/> | <img src="app/capturas/claro/05h_venta_datos_cliente.png" alt="Datos del cliente y validación del SMS" width="230"/> |
 |:---:|:---:|:---:|
@@ -348,7 +352,7 @@ En **Pago electrónico** administras la lista de teléfonos y tarjetas o cuentas
 3. Elige cuándo se aplica:
    - **Método de pago:** *Cualquiera*, *Solo Efectivo* o *Solo Transferencia*.
    - **Importe mínimo (opcional):** por ejemplo, solo en compras a partir de `5000 CUP`.
-4. Marca a qué productos se aplica y guarda con **✓** (Shalev te muestra una vista previa del cambio antes de guardar, pero nunca rebaja un artículo por debajo de su precio de costo).
+4. Marca a qué productos se aplica y guarda con **Guardar** (Shalev te muestra una vista previa del cambio antes de guardar, pero nunca rebaja un artículo por debajo de su precio de costo).
 5. En la lista de **Precios**, usa el interruptor de la derecha para encender o apagar cada regla cuando quieras.
 
 | <img src="app/capturas/claro/06c_pago_lista.png" alt="Configuración de Pago electrónico" width="240"/> | <img src="app/capturas/claro/06i_precios_lista.png" alt="Reglas automáticas de Precios" width="240"/> |
@@ -541,7 +545,7 @@ Entra en **Ajustes → Licencia**:
    - Elige enviar por **WhatsApp** *(recomendado por rapidez y porque cabe en un solo mensaje)* o por **SMS**, y toca el botón de **Enviar**. Se abrirá tu app de mensajería con tus datos y el código cifrado `SPVIR1:` listos: solo pulsa enviar.
 3. **Paso 3 — Activa la licencia:**
    - Cuando el desarrollador te responda con tu mensaje de activación (`SPVI2:`), cópialo completo (si te llegó por SMS dividido en varias partes, copia todas) o compártelo directamente hacia Shalev.
-   - En el Paso 3 toca el botón de **Pegar** y luego **Confirmar (✓)**. ¡Listo!
+   - En el Paso 3 toca el botón de **Pegar** y luego **Confirmar**. ¡Listo!
 
 > **Renovar sin perder ni un día:** cuando tengas una licencia activa y se acerque su fecha, puedes usar **Renovar igual** para pedir otra idéntica en dos toques. Si la activas antes de que venza la actual, **los días nuevos se suman a los que te quedaban**.
 

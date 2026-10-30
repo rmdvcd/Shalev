@@ -241,6 +241,7 @@ fun VentaContent(
                             cu.shalev.designsystem.icon.ShalevIcons.Ocr,
                             "Escanear o importar líneas de venta",
                             onClick = acciones.onImportarOcr,
+                            etiqueta = "Escanear",
                             modifier = Modifier.testTag("venta_ocr"),
                         )
                     }
@@ -361,7 +362,7 @@ internal fun LineaEditable(l: LineaCarrito, onCantidad: (Long, Long) -> Unit, on
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             ShalevIconAction(
                 ShalevIcons.Disminuir, "Una menos de ${l.producto.nombreCompleto}", onClick = { onCantidad(id, l.cantidad - 1) },
-                enabled = l.cantidad > 1, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.menos(id)),
+                enabled = l.cantidad > 1, style = IconActionStyle.Tonal, etiqueta = "−1", modifier = Modifier.testTag(VentaTags.menos(id)),
             )
             ShalevTextField(
                 filtro = FiltroEntrada.ENTERO,
@@ -373,10 +374,12 @@ internal fun LineaEditable(l: LineaCarrito, onCantidad: (Long, Long) -> Unit, on
             )
             ShalevIconAction(
                 ShalevIcons.Aumentar, "Una más de ${l.producto.nombreCompleto}", onClick = { onCantidad(id, l.cantidad + 1) },
-                enabled = l.cantidad < l.maximo, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.mas(id)),
+                enabled = l.cantidad < l.maximo, style = IconActionStyle.Tonal, etiqueta = "+1", modifier = Modifier.testTag(VentaTags.mas(id)),
             )
             Box(Modifier.weight(1f))
-            ShalevIconAction(ShalevIcons.Eliminar, "Quitar ${l.producto.nombreCompleto} de la venta", onClick = { onQuitar(id) })
+            ShalevIconAction(
+                ShalevIcons.Eliminar, "Quitar ${l.producto.nombreCompleto} de la venta", onClick = { onQuitar(id) }, etiqueta = "Quitar",
+            )
         }
     }
 }

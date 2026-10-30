@@ -142,8 +142,16 @@ fun AjustesContent(
     // 0.31.0 (P5): el cuadro de «Actualizar» lo abre el propio proceso (barra circular + resultado).
     // 1.0.1: al terminar con «Actualizado» o «Estas al día» el cuadro se cierra solo (el proceso lo cierra).
     val dialogoActualizaciones = actualizacion.proceso != null
+    // 1.0.2: ayuda de la pestaña (botón «?» de la esquina superior izquierda).
+    val ayudaPestana = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Scaffold(
-        topBar = { ShalevTopBar(title = "Ajustes") },
+        topBar = {
+            ShalevTopBar(
+                title = "Ajustes",
+                onAyuda = { ayudaPestana.value = true },
+                ayudaDescripcion = "Ayuda de Ajustes",
+            )
+        },
         snackbarHost = { cu.shalev.designsystem.component.ShalevSnackbarHost(snackbar) },
     ) { padding ->
         val principal = !state.permisos.esSecundaria
@@ -231,6 +239,13 @@ fun AjustesContent(
             },
         )
     }
+
+    if (ayudaPestana.value) cu.shalev.app.ayuda.DialogoAyudaPestana(
+        pestana = cu.shalev.app.ayuda.PestanaAyuda.AJUSTES,
+        modulos = state.permisos.modulos,
+        onDismiss = { ayudaPestana.value = false },
+        onVerManual = { ayudaPestana.value = false; onNavigate(Route.Ayuda) },
+    )
 }
 
 @Composable

@@ -147,7 +147,7 @@ private fun Formulario(state: InsumoFormUiState, a: AccionesInsumoForm, modifier
             value = f.nombre, onValueChange = a.onNombre, label = "Nombre *", placeholder = "Harina de trigo",
             isError = CamposInsumo.NOMBRE in err, errorText = err[CamposInsumo.NOMBRE], validarAlSalir = true, forzarError = state.intentado,
             imeAction = ImeAction.Next,
-            modifier = Modifier.fillMaxWidth().testTag(InsumoFormTags.NOMBRE),
+            modifier = Modifier.testTag(InsumoFormTags.NOMBRE),
         )
 
         // Cantidad + unidad de medida (la unidad define también cómo se leen el precio y los niveles).
@@ -156,7 +156,7 @@ private fun Formulario(state: InsumoFormUiState, a: AccionesInsumoForm, modifier
             value = f.cantidad, onValueChange = a.onCantidad, label = "Cantidad ($simbolo) *", placeholder = "0", keyboardOptions = decimal,
             isError = CamposInsumo.CANTIDAD in err, errorText = err[CamposInsumo.CANTIDAD], validarAlSalir = true, forzarError = state.intentado, supportingText = "Admite decimales: 2.5",
             imeAction = ImeAction.Next,
-            modifier = Modifier.fillMaxWidth().testTag(InsumoFormTags.CANTIDAD),
+            modifier = Modifier.testTag(InsumoFormTags.CANTIDAD),
         )
         Text("Se mide en", style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().semantics { heading() })
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs, Alignment.CenterHorizontally)) {
@@ -173,7 +173,7 @@ private fun Formulario(state: InsumoFormUiState, a: AccionesInsumoForm, modifier
             value = f.precio, onValueChange = a.onPrecio, label = "Precio de costo (CUP por $simbolo) *", placeholder = "0.00", keyboardOptions = decimal,
             isError = CamposInsumo.PRECIO in err, errorText = err[CamposInsumo.PRECIO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Lo que te cuesta 1 $simbolo",
             imeAction = ImeAction.Next,
-            modifier = Modifier.fillMaxWidth().testTag(InsumoFormTags.PRECIO),
+            modifier = Modifier.testTag(InsumoFormTags.PRECIO),
         )
         // P29: los insumos también se pueden vender (unidades enteras de su medida) si tienen precio de venta.
         ShalevTextField(
@@ -182,7 +182,7 @@ private fun Formulario(state: InsumoFormUiState, a: AccionesInsumoForm, modifier
             isError = CamposInsumo.PRECIO_VENTA in err, errorText = err[CamposInsumo.PRECIO_VENTA], validarAlSalir = true, forzarError = state.intentado,
             supportingText = "Opcional: para venderlo por $simbolo enteros",
             imeAction = ImeAction.Next,
-            modifier = Modifier.fillMaxWidth().testTag(InsumoFormTags.PRECIO_VENTA),
+            modifier = Modifier.testTag(InsumoFormTags.PRECIO_VENTA),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
             ShalevTextField(

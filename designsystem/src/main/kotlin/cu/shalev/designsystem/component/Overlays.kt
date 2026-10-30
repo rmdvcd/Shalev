@@ -1,17 +1,12 @@
 package cu.shalev.designsystem.component
 
-import androidx.compose.runtime.CompositionLocalProvider
+import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.window.DialogWindowProvider
-import android.view.WindowManager
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,10 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -43,9 +35,12 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -54,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -62,6 +58,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.token.ShalevElevation
 import cu.shalev.designsystem.token.ShalevMotion
@@ -126,8 +123,10 @@ fun ShalevDialog(
         title = title,
         modifier = modifier,
         footer = { cerrar ->
-            Box(Modifier.fillMaxWidth()) {
-                ShalevButtonRow(Modifier.align(Alignment.Center)) {
+            // 1.0.2: con acciones de texto, la acción de la esquina va en su propia línea a la derecha para que
+            // no se pise con Cancelar/Confirmar; sin ella, el pie es la fila centrada de siempre.
+            Column(Modifier.fillMaxWidth()) {
+                ShalevButtonRow {
                     ShalevIconAction(ShalevIcons.Cancelar, dismissDescription, cerrar)
                     if (onConfirm != null) {
                         if (confirmLoading) {
@@ -147,7 +146,9 @@ fun ShalevDialog(
                         }
                     }
                 }
-                esquina?.let { accion -> Box(Modifier.align(Alignment.CenterEnd)) { accion() } }
+                esquina?.let { accion ->
+                    Box(Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs), contentAlignment = Alignment.CenterEnd) { accion() }
+                }
             }
         },
         divisor = false,
@@ -313,14 +314,28 @@ fun ShalevFab(
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * 1.0.2: texto visible del botón flotante. Si es null se usa [contentDescription]; [etiqueta] permite un texto
+     * más corto cuando la descripción es larga («Nueva venta» → «Vender»).
+     */
+    etiqueta: String? = null,
 ) {
     val cs = MaterialTheme.colorScheme
-    FloatingActionButton(
+    // 1.0.2: el botón flotante también se rotula con texto (ya no es un icono suelto).
+    Surface(
         onClick = onClick,
-        modifier = modifier,
-        containerColor = cs.primary,
+        modifier = modifier.semantics { this.contentDescription = contentDescription },
+        shape = RoundedCornerShape(ShalevRadius.lg),
+        color = cs.primary,
         contentColor = cs.onPrimary,
-        elevation = FloatingActionButtonDefaults.elevation(ShalevElevation.mid, ShalevElevation.high),
-    ) { Icon(icon, contentDescription = contentDescription) }
+        shadowElevation = ShalevElevation.mid,
+    ) {
+        Row(
+            Modifier.heightIn(min = ShalevSize.touchTarget).padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(etiqueta ?: contentDescription, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        }
+    }
 }
 

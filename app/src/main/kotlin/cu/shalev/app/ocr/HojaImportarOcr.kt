@@ -435,11 +435,11 @@ private fun BarraFuentesOcr(
                 horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
                 verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
             ) {
-                ShalevIconAction(ShalevIcons.Camara, "Cámara (manuscrito o impreso)", onClick = onCamara, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag("ocr.camara"))
-                ShalevIconAction(ShalevIcons.Galeria, "Foto de la galería", onClick = onGaleria, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag("ocr.galeria"))
-                ShalevIconAction(ShalevIcons.Pdf, "Abrir PDF", onClick = onPdf, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag("ocr.pdf"))
-                ShalevIconAction(ShalevIcons.Excel, "Abrir Excel (.xlsx / .csv)", onClick = onExcel, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag("ocr.excel"))
-                ShalevIconAction(ShalevIcons.ElegirArchivo, "Abrir Word (.docx)", onClick = onWord, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag("ocr.word"))
+                ShalevIconAction(ShalevIcons.Camara, "Cámara (manuscrito o impreso)", etiqueta = "Cámara", onClick = onCamara, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag("ocr.camara"))
+                ShalevIconAction(ShalevIcons.Galeria, "Foto de la galería", etiqueta = "Galería", onClick = onGaleria, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag("ocr.galeria"))
+                ShalevIconAction(ShalevIcons.Pdf, "Abrir PDF", etiqueta = "PDF", onClick = onPdf, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag("ocr.pdf"))
+                ShalevIconAction(ShalevIcons.Excel, "Abrir Excel (.xlsx / .csv)", etiqueta = "Excel", onClick = onExcel, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag("ocr.excel"))
+                ShalevIconAction(ShalevIcons.ElegirArchivo, "Abrir Word (.docx)", etiqueta = "Word", onClick = onWord, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag("ocr.word"))
             }
         }
     }

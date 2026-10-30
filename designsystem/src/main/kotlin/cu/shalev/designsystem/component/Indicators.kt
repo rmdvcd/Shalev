@@ -1,13 +1,11 @@
 package cu.shalev.designsystem.component
 
-import cu.shalev.designsystem.theme.ShalevTextos
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import cu.shalev.designsystem.token.ShalevSpacing
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Badge
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -17,12 +15,13 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import cu.shalev.designsystem.theme.ShalevTextos
 import cu.shalev.designsystem.token.ShalevSize
+import cu.shalev.designsystem.token.ShalevSpacing
 
 /** Badge numérico. Con 0 no se muestra. */
 @Composable
@@ -76,11 +75,15 @@ fun ShalevChip(
     )
 }
 
-/** Carga a pantalla completa (o dentro de un contenedor). */
+/**
+ * Carga a pantalla completa (o dentro de un contenedor).
+ * 1.0.2: se dibuja con un marcador tipo **skeleton** ([forma]) en vez de una rueda: la pantalla conserva la
+ * estructura del contenido mientras llegan los datos. TalkBack anuncia «Cargando».
+ */
 @Composable
-fun ShalevLoading(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize().semantics { contentDescription = "Cargando" }, contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
+fun ShalevLoading(modifier: Modifier = Modifier, forma: FormaSkeleton = FormaSkeleton.LISTA) {
+    Box(modifier.fillMaxSize().semantics { contentDescription = "Cargando" }) {
+        ShalevSkeleton(Modifier.fillMaxWidth(), forma)
     }
 }
 

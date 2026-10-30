@@ -321,7 +321,7 @@ fun LicenciaContent(
                                     value = form.recupera, onValueChange = { v -> acciones.onEditar { it.copy(recupera = v.take(200)) } },
                                     label = TextosRecuperacion.CAMPO, supportingText = TextosRecuperacion.DETALLE,
                                     isError = !form.recuperaOk, errorText = TextosRecuperacion.ID_INVALIDO,
-                                    modifier = Modifier.fillMaxWidth().testTag(LicenciaTags.RECUPERA),
+                                    modifier = Modifier.testTag(LicenciaTags.RECUPERA),
                                 )
                             }
                         }
@@ -372,7 +372,7 @@ fun LicenciaContent(
                         filtro = FiltroEntrada.LIBRE,
                         value = form.mensajeLicencia, onValueChange = { v -> acciones.onEditar { it.copy(mensajeLicencia = v) } },
                         label = "Mensaje de licencia", singleLine = false, minLines = 3, maxLines = 6,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier,
                     )
                     ShalevButtonRow {
                         ShalevIconAction(ShalevIcons.Pegar, "Pegar", style = IconActionStyle.Tonal, onClick = acciones.onPegar)
@@ -419,7 +419,7 @@ private fun DatosForm(state: LicenciaUiState, acciones: LicenciaAcciones) {
             imeAction = ImeAction.Next,
             label = "Nombre", isError = !form.nombreOk, errorText = "Solo letras, 2 a 80", validarAlSalir = true, forzarError = err,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier,
         )
         ShalevTextField(
             filtro = FiltroEntrada.NOMBRE,
@@ -427,7 +427,7 @@ private fun DatosForm(state: LicenciaUiState, acciones: LicenciaAcciones) {
             imeAction = ImeAction.Next,
             label = "Apellidos", isError = !form.apellidosOk, errorText = "Solo letras, 2 a 80", validarAlSalir = true, forzarError = err,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier,
         )
         ShalevTextField(
             filtro = FiltroEntrada.CARNE,
@@ -435,7 +435,7 @@ private fun DatosForm(state: LicenciaUiState, acciones: LicenciaAcciones) {
             imeAction = ImeAction.Next,
             label = "Carné de identidad", isError = !form.ciOk, errorText = "5 a 20 letras o dígitos", validarAlSalir = true, forzarError = err,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier,
         )
         if (state.telefonosPerfil.isNotEmpty()) {
             ShalevSecondaryText("Tus teléfonos")
@@ -451,7 +451,7 @@ private fun DatosForm(state: LicenciaUiState, acciones: LicenciaAcciones) {
             imeAction = ImeAction.Done,
             label = "Teléfono", placeholder = "5XXXXXXX", isError = !form.telefonoOk, errorText = "Número no válido", validarAlSalir = true, forzarError = err,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier,
         )
         if (!state.perfilVacio) {
             ShalevSecondaryButton(text = "Listo", icon = ShalevIcons.Listo, onClick = acciones.onCerrarEdicion)

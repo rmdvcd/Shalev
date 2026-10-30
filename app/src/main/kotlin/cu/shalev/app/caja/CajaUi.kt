@@ -200,7 +200,7 @@ fun DialogoFondo(
             supportingText = if (sugerido != null) TextosCaja.FONDO_SUGERIDO else null,
             isError = texto.isNotBlank() && valor == null, errorText = TextosCaja.IMPORTE_INVALIDO,
             filtro = FiltroEntrada.DINERO, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth().testTag(CajaTags.FONDO),
+            modifier = Modifier.testTag(CajaTags.FONDO),
         )
     }
 }
@@ -224,9 +224,12 @@ fun DialogoContado(
     dismissDescription: String = "Cancelar",
     onDesglose: ((Cup, Map<Int, Long>, Cup) -> Unit)? = null,
 ) {
-    var valorTexto by rememberSaveable { androidx.compose.runtime.mutableStateOf("") }
+    // 1.0.2: si el efectivo esperado es 0 CUP no hay nada que contar billete a billete: el diálogo se abre
+    // directamente en el total suelto (el conteo de billetes queda como opción, no como paso obligatorio).
+    val esperadoCero = arqueo != null && arqueo.esperado.centavos == 0L
+    var valorTexto by rememberSaveable(esperadoCero) { androidx.compose.runtime.mutableStateOf(if (esperadoCero) "0" else "") }
     // 0.31.0: por billetes de entrada (antes quedaba oculto tras un botón de solo icono).
-    var porBilletes by rememberSaveable { mutableStateOf(true) }
+    var porBilletes by rememberSaveable(esperadoCero) { mutableStateOf(!esperadoCero) }
     var cantidades by rememberSaveable { mutableStateOf(List(BilletesCUP.denominaciones.size) { "" }) }
     var otroTexto by rememberSaveable { mutableStateOf("0") }
     val otro = CajaForm.importe(otroTexto)
@@ -295,6 +298,7 @@ fun DialogoContado(
                             },
                             enabled = actual > 0L,
                             style = IconActionStyle.Tonal,
+                            etiqueta = "−1",
                             modifier = Modifier.testTag("billetes_menos_$denominacion"),
                         )
                         ShalevTextField(
@@ -321,13 +325,14 @@ fun DialogoContado(
                             },
                             enabled = actual < 999_999L,
                             style = IconActionStyle.Tonal,
+                            etiqueta = "+1",
                             modifier = Modifier.testTag("billetes_mas_$denominacion"),
                         )
                     }
                 }
                 ShalevTextField(value = otroTexto, onValueChange = { otroTexto = it.take(16) }, label = "Monedas / otro efectivo (CUP)",
                     filtro = FiltroEntrada.DINERO, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth())
+                    modifier = Modifier)
                 Text("Total contado: ${contado?.let(Money::format) ?: "Importe inválido"}", style = ShalevTextos.datoEn(MaterialTheme.typography.bodyMedium))
             } else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
                 ShalevTextField(
@@ -392,12 +397,12 @@ fun DialogoMovimientoCaja(
                     "Disponible en caja: ${Money.format(efectivoDisponible)}"
                 } else null,
                 filtro = FiltroEntrada.DINERO, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth().testTag(CajaTags.IMPORTE),
+                modifier = Modifier.testTag(CajaTags.IMPORTE),
             )
             ShalevTextField(
                 value = motivo, onValueChange = { motivo = it.take(MovimientoCaja.MOTIVO_MAX) }, label = "${TextosCaja.MOTIVO} *",
                 supportingText = TextosCaja.MOTIVO_AYUDA,
-                modifier = Modifier.fillMaxWidth().testTag(CajaTags.MOTIVO),
+                modifier = Modifier.testTag(CajaTags.MOTIVO),
             )
         }
     }

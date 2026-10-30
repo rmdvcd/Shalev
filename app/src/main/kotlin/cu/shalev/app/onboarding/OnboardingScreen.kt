@@ -324,26 +324,26 @@ private fun PasoDatos(state: OnboardingUiState, acciones: OnboardingAcciones) {
         filtro = FiltroEntrada.NOMBRE,
         value = d.nombre, onValueChange = { v -> acciones.onDatos { it.copy(nombre = v) } }, label = "Nombre",
         isError = "nombre" in err, errorText = err["nombre"], validarAlSalir = true, forzarError = forzar, imeAction = ImeAction.Next,
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier,
     )
     ShalevTextField(
         filtro = FiltroEntrada.NOMBRE,
         value = d.apellidos, onValueChange = { v -> acciones.onDatos { it.copy(apellidos = v) } }, label = "Apellidos",
         isError = "apellidos" in err, errorText = err["apellidos"], validarAlSalir = true, forzarError = forzar, imeAction = ImeAction.Next,
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier,
     )
     ShalevTextField(
         filtro = FiltroEntrada.CARNE,
         value = d.ci, onValueChange = { v -> acciones.onDatos { it.copy(ci = v) } }, label = "Carné de identidad",
         isError = "ci" in err, errorText = err["ci"], validarAlSalir = true, forzarError = forzar, imeAction = ImeAction.Next,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier,
     )
     ShalevTextField(
         filtro = FiltroEntrada.TELEFONO,
         value = d.telefono, onValueChange = { v -> acciones.onDatos { it.copy(telefono = v) } }, label = "Teléfono",
         placeholder = "52345678", isError = "telefono" in err, errorText = err["telefono"], validarAlSalir = true, forzarError = forzar,
         imeAction = ImeAction.Done, onImeAction = acciones.onSiguiente,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier,
     )
 }
 

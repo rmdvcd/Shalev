@@ -186,8 +186,8 @@ private fun HojaExportarTurno(d: DetalleTurno, a: AccionesExportarTurno) {
                 modifier = Modifier.testTag(TurnoDetalleTags.formato(f)),
                 trailing = {
                     Row {
-                        ShalevIconAction(ShalevIcons.Compartir, "Enviar $etiqueta a otra app", onClick = { a.onEnviar(f) }, modifier = Modifier.testTag(TurnoDetalleTags.enviar(f)))
-                        ShalevIconAction(ShalevIcons.Exportar, "Guardar $etiqueta en el teléfono", onClick = { a.onGuardar(f) }, modifier = Modifier.testTag(TurnoDetalleTags.guardar(f)))
+                        ShalevIconAction(ShalevIcons.Compartir, "Enviar $etiqueta a otra app", etiqueta = "Enviar", onClick = { a.onEnviar(f) }, modifier = Modifier.testTag(TurnoDetalleTags.enviar(f)))
+                        ShalevIconAction(ShalevIcons.Exportar, "Guardar $etiqueta en el teléfono", etiqueta = "Guardar", onClick = { a.onGuardar(f) }, modifier = Modifier.testTag(TurnoDetalleTags.guardar(f)))
                     }
                 },
             )

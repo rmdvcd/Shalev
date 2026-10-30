@@ -171,7 +171,7 @@ fun VinculacionContent(
         snackbarHost = { ShalevSnackbarHost(snackbar) },
         floatingActionButton = {
             if (s.puedeAgregar) { // 0.21.0 (C4/C5): solo la principal y hasta el límite de la licencia
-                ShalevFab(ShalevIcons.AgregarEmpleado, "Agregar app de un empleado", onAgregar, Modifier.testTag(VinculacionTags.AGREGAR))
+                ShalevFab(ShalevIcons.AgregarEmpleado, "Agregar app de un empleado", onAgregar, Modifier.testTag(VinculacionTags.AGREGAR), etiqueta = "Agregar")
             }
         },
     ) { padding ->
@@ -249,7 +249,7 @@ fun VinculacionContent(
                         supportingText = VinculacionLogic.TELEFONO_SECUNDARIA_AYUDA,
                         isError = s.errorTelefono != null, errorText = s.errorTelefono,
                         
-                        modifier = Modifier.fillMaxWidth().testTag(VinculacionTags.TELEFONO),
+                        modifier = Modifier.testTag(VinculacionTags.TELEFONO),
                     )
                 }
             },
@@ -468,7 +468,7 @@ private fun FormDialog(
                     ShalevTextField(
                         filtro = FiltroEntrada.NOMBRE,
                         value = f.nombre, onValueChange = onNombre, label = "Nombre del empleado",
-                        isError = f.errorNombre != null, errorText = f.errorNombre, modifier = Modifier.fillMaxWidth(),
+                        isError = f.errorNombre != null, errorText = f.errorNombre, modifier = Modifier,
                     )
                 }
                 // 0.20.0 (H5): turno abierto de esta app y «Pedir cierre» (arriba: es lo urgente, Von Restorff).

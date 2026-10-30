@@ -107,7 +107,6 @@ class AccionesServicios(
     val onContinuarVenta: () -> Unit = {},
     val onAtras: () -> Unit = {},
     val onAyuda: (() -> Unit)? = null,
-    val onImportarOcr: (() -> Unit)? = null,
 )
 
 @Composable
@@ -122,16 +121,10 @@ fun ServiciosScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
-    var mostrarOcr by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
-    var mensajeOcr by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
     val guardarPdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.PDF.mime)) { viewModel.guardarEn(it?.toString()) }
     val guardarXlsx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.XLSX.mime)) { viewModel.guardarEn(it?.toString()) }
     LaunchedEffect(mensajeInicial) {
         if (mensajeInicial != null) { onMensajeMostrado(); snackbar.showSnackbar(mensajeInicial) }
-    }
-    LaunchedEffect(mensajeOcr) {
-        val m = mensajeOcr
-        if (m != null) { mensajeOcr = null; snackbar.showSnackbar(m) }
     }
     LaunchedEffect(viewModel) {
         viewModel.eventos.collect { e ->
@@ -147,19 +140,11 @@ fun ServiciosScreen(
             }
         }
     }
-    if (mostrarOcr) {
-        cu.shalev.app.ocr.HojaImportarOcr(
-            destino = cu.shalev.app.ocr.DestinoOcr.SERVICIOS,
-            onDismiss = { mostrarOcr = false },
-            onImportadoMensaje = { msg -> mensajeOcr = msg },
-        )
-    }
     ServiciosContent(
         state = state,
         snackbar = snackbar,
         acciones = AccionesServicios(
             onAyuda = { onNavigate(Route.Ayuda) },
-            onImportarOcr = { mostrarOcr = true },
             onBuscar = viewModel::buscar, onFiltro = viewModel::aplicarFiltro, onQuitarFiltros = viewModel::quitarFiltros,
             onReintentar = viewModel::reintentar, onAlternar = viewModel::alternar, onSeleccionarTodo = viewModel::seleccionarTodo,
             onLimpiarSeleccion = viewModel::limpiarSeleccion, onAbrirFicha = viewModel::abrirFicha, onCerrarFicha = viewModel::cerrarFicha,
@@ -179,23 +164,26 @@ fun ServiciosContent(
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val venta = state.modoVenta
+    // 1.0.2: ayuda de la pestaña (botón «?» de la esquina superior izquierda).
+    val ayudaPestana = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Scaffold(
         topBar = {
             if (venta) {
                 ShalevTopBar(title = TextosServicios.ELIGE, onBack = acciones.onAtras, actions = {
                     BotonFiltro(state.filtro.activos, TextosServicios.FILTRAR, onClick = { acciones.onHoja(HojaServicios.FILTRO) }, modifier = Modifier.testTag(ServiciosTags.FILTRO), enabled = state.tipos.isNotEmpty() || state.filtro.activos > 0)
                 })
-            } else ShalevTopBar(title = TextosServicios.TITULO, actions = {
-                if (LocalPermisosApp.current.editarInventario && acciones.onImportarOcr != null) ShalevIconAction(
-                    ShalevIcons.Ocr, "Escanear o importar servicios", onClick = acciones.onImportarOcr,
-                    modifier = Modifier.testTag("servicios_ocr"),
-                )
-                BotonFiltro(state.filtro.activos, TextosServicios.FILTRAR, onClick = { acciones.onHoja(HojaServicios.FILTRO) }, modifier = Modifier.testTag(ServiciosTags.FILTRO), enabled = state.tipos.isNotEmpty() || state.filtro.activos > 0)
-                if (LocalPermisosApp.current.exportar) ShalevIconAction(
-                    ShalevIcons.Compartir, TextosServicios.EXPORTAR, onClick = { acciones.onHoja(HojaServicios.EXPORTAR) },
-                    enabled = state.items.isNotEmpty() || state.seleccion.isNotEmpty(), modifier = Modifier.testTag(ServiciosTags.EXPORTAR),
-                )
-            })
+            } else ShalevTopBar(
+                title = TextosServicios.TITULO,
+                onAyuda = { ayudaPestana.value = true },
+                ayudaDescripcion = "Ayuda de Servicios",
+                actions = {
+                    BotonFiltro(state.filtro.activos, TextosServicios.FILTRAR, onClick = { acciones.onHoja(HojaServicios.FILTRO) }, modifier = Modifier.testTag(ServiciosTags.FILTRO), enabled = state.tipos.isNotEmpty() || state.filtro.activos > 0)
+                    if (LocalPermisosApp.current.exportar) ShalevIconAction(
+                        ShalevIcons.Compartir, TextosServicios.EXPORTAR, onClick = { acciones.onHoja(HojaServicios.EXPORTAR) },
+                        enabled = state.items.isNotEmpty() || state.seleccion.isNotEmpty(), modifier = Modifier.testTag(ServiciosTags.EXPORTAR),
+                    )
+                }
+            )
         },
         bottomBar = {
             if (venta) BarraContinuarVenta(
@@ -209,7 +197,8 @@ fun ServiciosContent(
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             if (!venta && state.seleccion.isEmpty() && LocalPermisosApp.current.editarInventario) {
-                ShalevFab(ShalevIcons.Agregar, TextosServicios.AGREGAR, onClick = acciones.onAgregar, modifier = Modifier.testTag(ServiciosTags.AGREGAR))
+                // 1.0.2: el botón flotante lleva texto corto; la descripción completa queda para TalkBack.
+                ShalevFab(ShalevIcons.Agregar, TextosServicios.AGREGAR, onClick = acciones.onAgregar, etiqueta = "Agregar", modifier = Modifier.testTag(ServiciosTags.AGREGAR))
             }
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
@@ -275,6 +264,13 @@ fun ServiciosContent(
             destructive = true,
         )
     }
+
+    if (ayudaPestana.value) cu.shalev.app.ayuda.DialogoAyudaPestana(
+        pestana = cu.shalev.app.ayuda.PestanaAyuda.SERVICIOS,
+        modulos = LocalPermisosApp.current.modulos,
+        onDismiss = { ayudaPestana.value = false },
+        onVerManual = acciones.onAyuda?.let { ir -> { ayudaPestana.value = false; ir() } },
+    )
 }
 
 @Composable
@@ -283,7 +279,7 @@ private fun Buscador(state: ServiciosUiState, acciones: AccionesServicios) {
         ShalevTextField(
             filtro = FiltroEntrada.BUSQUEDA,
             value = state.filtro.texto, onValueChange = acciones.onBuscar, label = "Buscar",
-            leadingIcon = ShalevIcons.Buscar,
+            leadingIcon = ShalevIcons.Buscar, anchoCompleto = true,
             modifier = Modifier.fillMaxWidth().testTag(ServiciosTags.BUSCAR),
         )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally)) {
@@ -447,8 +443,10 @@ private fun HojaExportar(state: ServiciosUiState, acciones: AccionesServicios) {
                 modifier = Modifier.testTag(ServiciosTags.formato(f)),
                 trailing = {
                     Row {
-                        ShalevIconAction(ShalevIcons.Compartir, "Compartir ${f.etiqueta}", onClick = { acciones.onExportar(f) })
-                        if (f.guardable) ShalevIconAction(ShalevIcons.Exportar, "Guardar ${f.etiqueta} en el dispositivo", onClick = { acciones.onGuardar(f) })
+                        ShalevIconAction(ShalevIcons.Compartir, "Compartir ${f.etiqueta}", onClick = { acciones.onExportar(f) }, etiqueta = "Compartir")
+                        if (f.guardable) ShalevIconAction(
+                            ShalevIcons.Exportar, "Guardar ${f.etiqueta} en el dispositivo", onClick = { acciones.onGuardar(f) }, etiqueta = "Guardar",
+                        )
                     }
                 },
             )

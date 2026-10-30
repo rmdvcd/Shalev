@@ -221,8 +221,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.lista(
             modifier = shalevAnimateItem().testTag(PagoTags.opcion(tipo, item.id)), // P18 (A18)
             trailing = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    ShalevIconAction(ShalevIcons.Editar, "Editar ${item.texto}", onClick = { acciones.onEditar(tipo, item.id) })
-                    ShalevIconAction(ShalevIcons.Eliminar, "Eliminar ${item.texto}", onClick = { acciones.onBorrar(tipo, item.id) })
+                    ShalevIconAction(ShalevIcons.Editar, "Editar ${item.texto}", etiqueta = "Editar", onClick = { acciones.onEditar(tipo, item.id) })
+                    ShalevIconAction(ShalevIcons.Eliminar, "Eliminar ${item.texto}", etiqueta = "Eliminar", onClick = { acciones.onBorrar(tipo, item.id) })
                 }
             },
         )

@@ -191,7 +191,7 @@ fun AccionesFichaVenta(
 private fun CampoMotivo(motivo: String, onCambio: (String) -> Unit) {
     ShalevTextField(
         value = motivo, onValueChange = { onCambio(it.take(Anulacion.MOTIVO_MAX)) }, label = "${TextosAnulacion.MOTIVO} *",
-        supportingText = TextosAnulacion.MOTIVO_AYUDA, modifier = Modifier.fillMaxWidth().testTag(VentaAccionesTags.MOTIVO),
+        supportingText = TextosAnulacion.MOTIVO_AYUDA, modifier = Modifier.testTag(VentaAccionesTags.MOTIVO),
     )
 }
 

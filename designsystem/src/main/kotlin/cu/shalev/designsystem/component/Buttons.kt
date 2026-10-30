@@ -1,38 +1,31 @@
 package cu.shalev.designsystem.component
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.contentColorFor
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
@@ -44,13 +37,17 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import cu.shalev.designsystem.token.ShalevFontScale
 import cu.shalev.designsystem.token.ShalevMotion
+import cu.shalev.designsystem.token.ShalevRadius
 import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
 
-/** Botón solo icono: 12dp a cada lado de un icono de 24dp → 48 × 48dp, el área táctil mínima (Fitts). */
-private val PaddingSoloIcono = PaddingValues(horizontal = ShalevSpacing.md - ShalevSpacing.xs / 2)
+/** 1.0.2: margen ligero de los botones con texto (16dp a los lados, 8dp arriba y abajo). */
+private val PaddingTexto = PaddingValues(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs)
 
 /**
  * P18 (A01): altura de los botones. Normalmente va de 40 a 48dp. Con letra grande del sistema
@@ -70,10 +67,10 @@ private fun Modifier.alturaBoton(soloIcono: Boolean): Modifier = when {
 fun letraGrande(): Boolean = LocalDensity.current.fontScale >= ShalevFontScale.GRANDE
 
 /**
- * P24: los botones de Shalev son **solo icono**.
- * - [text] no se pinta: es la descripción que lee TalkBack y el tooltip que aparece al mantener pulsado.
- * - El ancho se ajusta al contenido con un margen ligero (48dp con icono solo). Nunca ocupan todo el ancho.
- * - P25: sin excepciones (también «Nueva venta»). La acción principal se distingue por ir rellena y centrada.
+ * P24 → 1.0.2: los botones de Shalev muestran **texto**.
+ * - [text] es la etiqueta visible, la descripción de TalkBack y el nombre accesible.
+ * - El ancho se ajusta al texto con un margen ligero; nunca ocupan todo el ancho.
+ * - [icon] se conserva en la firma por compatibilidad con las llamadas existentes: ya no se dibuja.
  */
 @Composable
 fun ShalevPrimaryButton(
@@ -84,18 +81,16 @@ fun ShalevPrimaryButton(
     enabled: Boolean = true,
     loading: Boolean = false,
 ) {
-    ConTooltip(text) {
-        Button(
-            onClick = onClick,
-            modifier = modifier.alturaBoton(true).animateContentSize(ShalevMotion.muelle()),
-            enabled = enabled && !loading,
-            shape = CircleShape,
-            contentPadding = PaddingSoloIcono,
-        ) { ButtonContent(text, icon, loading) }
-    }
+    Button(
+        onClick = onClick,
+        modifier = modifier.alturaBoton(soloIcono = false).semantics { contentDescription = text },
+        enabled = enabled && !loading,
+        shape = RoundedCornerShape(ShalevRadius.md),
+        contentPadding = PaddingTexto,
+    ) { EtiquetaBoton(text, loading) }
 }
 
-/** Acción secundaria: contorno, sin relleno. Solo icono (ver [ShalevPrimaryButton]). */
+/** Acción secundaria: contorno, sin relleno, con el texto visible (ver [ShalevPrimaryButton]). */
 @Composable
 fun ShalevSecondaryButton(
     text: String,
@@ -105,65 +100,56 @@ fun ShalevSecondaryButton(
     enabled: Boolean = true,
     loading: Boolean = false,
 ) {
-    ConTooltip(text) {
-        OutlinedButton(
-            onClick = onClick,
-            modifier = modifier.alturaBoton(true),
-            enabled = enabled && !loading,
-            shape = CircleShape,
-            contentPadding = PaddingSoloIcono,
-            border = ButtonDefaults.outlinedButtonBorder(enabled),
-        ) { ButtonContent(text, icon, loading) }
-    }
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.alturaBoton(soloIcono = false).semantics { contentDescription = text },
+        enabled = enabled && !loading,
+        shape = RoundedCornerShape(ShalevRadius.md),
+        contentPadding = PaddingTexto,
+        border = ButtonDefaults.outlinedButtonBorder(enabled),
+    ) { EtiquetaBoton(text, loading) }
 }
 
-/** Acción terciaria: sin fondo ni borde. Solo icono (ver [ShalevPrimaryButton]). */
+/** Acción terciaria: sin fondo ni borde, con el texto visible (ver [ShalevPrimaryButton]). */
 @Composable
 fun ShalevTextButton(text: String, onClick: () -> Unit, icon: ImageVector, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    ConTooltip(text) {
-        TextButton(
-            onClick = onClick,
-            modifier = modifier.alturaBoton(true),
-            enabled = enabled,
-            shape = CircleShape,
-            contentPadding = PaddingSoloIcono,
-        ) { ButtonContent(text, icon, loading = false) }
-    }
+    TextButton(
+        onClick = onClick,
+        modifier = modifier.alturaBoton(soloIcono = false).semantics { contentDescription = text },
+        enabled = enabled,
+        shape = RoundedCornerShape(ShalevRadius.md),
+        contentPadding = PaddingTexto,
+    ) { EtiquetaBoton(text, loading = false) }
 }
 
-/** Tooltip con la descripción del botón al mantenerlo pulsado (los botones solo icono no tienen texto visible). */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Etiqueta común de los botones: texto (y el indicador de carga delante cuando trabaja). */
 @Composable
-private fun ConTooltip(texto: String, content: @Composable () -> Unit) {
-    TooltipBox(
-        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-        tooltip = { PlainTooltip { Text(texto) } },
-        state = rememberTooltipState(),
-        content = content,
-    )
-}
-
-@Composable
-private fun ButtonContent(text: String, icon: ImageVector, loading: Boolean) {
+private fun EtiquetaBoton(text: String, loading: Boolean) {
     if (loading) {
         CircularProgressIndicator(
-            Modifier.size(ShalevSize.icon).semantics { contentDescription = text },
-            strokeWidth = ShalevSize.strokeRegular, color = LocalContentColor.current,
+            Modifier.size(ShalevSize.iconSmall).semantics { contentDescription = text },
+            strokeWidth = 2.dp, color = LocalContentColor.current,
         )
-    } else {
-        Icon(icon, contentDescription = text, modifier = Modifier.size(ShalevSize.icon))
+        Spacer(Modifier.width(ShalevSpacing.xs))
     }
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+    )
 }
 
 enum class IconActionStyle { Standard, Tonal, Filled }
 
 /**
- * Botón SOLO icono (Confirmar, Cancelar, Editar, Agregar, Eliminar, Compartir, Importar, Exportar, WhatsApp, SMS…).
- * - Área táctil de 48dp.
- * - [contentDescription] obligatorio: lo lee TalkBack y aparece como tooltip al mantener pulsado.
- * - [selected] = resaltado invertido (fondo primary, icono onPrimary), animado.
+ * Acción con etiqueta corta (Confirmar, Cancelar, Editar, Agregar, Eliminar, Compartir, Importar, Exportar, WhatsApp…).
+ * - 1.0.2: se dibuja **texto**, no el icono. [contentDescription] es la etiqueta visible y la que lee TalkBack.
+ * - [etiqueta] permite un texto visible más corto cuando [contentDescription] es largo (p. ej. «−1» en el conteo de billetes).
+ * - Altura de 40 a 48dp y ancho ajustado al texto, con área táctil mínima.
+ * - [selected] = resaltado invertido (fondo primary, texto onPrimary), animado.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShalevIconAction(
     icon: ImageVector,
@@ -174,6 +160,7 @@ fun ShalevIconAction(
     selected: Boolean = false,
     style: IconActionStyle = IconActionStyle.Standard,
     containerColor: Color? = null,
+    etiqueta: String? = null,
 ) {
     val cs = MaterialTheme.colorScheme
     val (bg, fg) = when {
@@ -186,19 +173,45 @@ fun ShalevIconAction(
     }
     val animBg by animateColorAsState(bg, ShalevMotion.tween(), label = "iconActionBg")
     val animFg by animateColorAsState(fg, ShalevMotion.tween(), label = "iconActionFg")
+    val texto = etiqueta ?: contentDescription
+    val base = modifier
+        .alturaBoton(soloIcono = false)
+        .semantics {
+            this.contentDescription = contentDescription
+            if (selected) this.selected = true
+        }
 
-    TooltipBox(
-        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-        tooltip = { PlainTooltip { Text(contentDescription) } },
-        state = rememberTooltipState(),
-    ) {
-        FilledIconButton(
+    if (style == IconActionStyle.Standard && !selected && containerColor == null) {
+        TextButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = modifier.size(ShalevSize.touchTarget).semantics { if (selected) this.selected = true },
-            colors = IconButtonDefaults.filledIconButtonColors(containerColor = animBg, contentColor = animFg),
-        ) { Icon(icon, contentDescription = contentDescription) }
+            modifier = base,
+            shape = RoundedCornerShape(ShalevRadius.md),
+            contentPadding = PaddingTexto,
+            colors = ButtonDefaults.textButtonColors(contentColor = animFg),
+        ) { EtiquetaAccion(texto) }
+    } else {
+        Button(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = base,
+            shape = RoundedCornerShape(ShalevRadius.md),
+            contentPadding = PaddingTexto,
+            colors = ButtonDefaults.buttonColors(containerColor = animBg, contentColor = animFg),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+        ) { EtiquetaAccion(texto) }
     }
+}
+
+@Composable
+private fun EtiquetaAccion(texto: String) {
+    Text(
+        texto,
+        style = MaterialTheme.typography.labelLarge,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+    )
 }
 
 private fun Color.takeOrElse(fallback: Color) = if (this == Color.Unspecified) fallback else this

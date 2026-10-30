@@ -215,27 +215,35 @@ fun RegistrosContent(
     accionesClientes: AccionesClientes = AccionesClientes(),
 ) {
     val tipo = state.tipo
+    // 1.0.2: ayuda de la pestaña (botón «?» de la esquina superior izquierda).
+    val ayudaPestana = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Scaffold(
         topBar = {
-            ShalevTopBar(title = TextosRegistros.TITULO, actions = {
-                if (tipo != null) {
-                    val n = state.filtro.activos
-                    val textoFiltro = if (tipo == TipoRegistro.MOVIMIENTOS) TextosRegistros.FILTRAR_FECHA else TextosRegistros.FILTRAR
-                    BadgedBox(badge = {
-                        if (n > 0) ShalevBadge(n, Modifier.clearAndSetSemantics { })
-                    }) {
-                        ShalevIconAction(
-                            ShalevIcons.Filtrar, descripcionFiltro(textoFiltro, n),
-                            onClick = acciones.onAbrirFiltro, selected = n > 0, modifier = Modifier.testTag(RegistrosTags.FILTRO),
+            ShalevTopBar(
+                title = TextosRegistros.TITULO,
+                onAyuda = { ayudaPestana.value = true },
+                ayudaDescripcion = "Ayuda de Registros",
+                actions = {
+                    if (tipo != null) {
+                        val n = state.filtro.activos
+                        val textoFiltro = if (tipo == TipoRegistro.MOVIMIENTOS) TextosRegistros.FILTRAR_FECHA else TextosRegistros.FILTRAR
+                        BadgedBox(badge = {
+                            if (n > 0) ShalevBadge(n, Modifier.clearAndSetSemantics { })
+                        }) {
+                            ShalevIconAction(
+                                ShalevIcons.Filtrar, descripcionFiltro(textoFiltro, n),
+                                onClick = acciones.onAbrirFiltro, selected = n > 0, modifier = Modifier.testTag(RegistrosTags.FILTRO),
+                                etiqueta = textoFiltro,
+                            )
+                        }
+                        val exportar = LocalPermisosApp.current.exportar
+                        if (exportar) ShalevIconAction(
+                            ShalevIcons.Compartir, TextosRegistros.EXPORTAR, onClick = acciones.onAbrirExportar,
+                            enabled = state.puedeCompartir && !state.exportando, modifier = Modifier.testTag(RegistrosTags.EXPORTAR),
                         )
                     }
-                    val exportar = LocalPermisosApp.current.exportar
-                    if (exportar) ShalevIconAction(
-                        ShalevIcons.Compartir, TextosRegistros.EXPORTAR, onClick = acciones.onAbrirExportar,
-                        enabled = state.puedeCompartir && !state.exportando, modifier = Modifier.testTag(RegistrosTags.EXPORTAR),
-                    )
                 }
-            })
+            )
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
     ) { padding ->
@@ -256,6 +264,13 @@ fun RegistrosContent(
     val vendedores = if (LocalPermisosApp.current.esSecundaria) emptyList() else state.vendedores
     if (state.hojaFiltro && tipo != null) HojaFiltro(state.filtro, tipo, acciones, vendedores)
     if (state.hojaExportar && tipo != null) HojaExportar(state, tipo, acciones)
+
+    if (ayudaPestana.value) cu.shalev.app.ayuda.DialogoAyudaPestana(
+        pestana = cu.shalev.app.ayuda.PestanaAyuda.REGISTROS,
+        modulos = LocalPermisosApp.current.modulos,
+        onDismiss = { ayudaPestana.value = false },
+        onVerManual = acciones.onAyuda?.let { ir -> { ayudaPestana.value = false; ir() } },
+    )
 }
 
 /** Prompt 14: PDF o Excel de lo que se ve; cada formato se puede enviar a otra app o guardar en el teléfono. */
@@ -278,12 +293,12 @@ private fun HojaExportar(state: RegistrosUiState, tipo: TipoRegistro, acciones: 
                 trailing = {
                     Row {
                         ShalevIconAction(
-                            ShalevIcons.Compartir, "Enviar $etiqueta a otra app", onClick = { acciones.onEnviar(f) },
-                            modifier = Modifier.testTag(RegistrosTags.enviar(f)),
+                            ShalevIcons.Compartir, "Enviar $etiqueta a otra app", etiqueta = "Enviar",
+                            onClick = { acciones.onEnviar(f) }, modifier = Modifier.testTag(RegistrosTags.enviar(f)),
                         )
                         ShalevIconAction(
-                            ShalevIcons.Exportar, "Guardar $etiqueta en el teléfono", onClick = { acciones.onGuardar(f) },
-                            modifier = Modifier.testTag(RegistrosTags.guardar(f)),
+                            ShalevIcons.Exportar, "Guardar $etiqueta en el teléfono", etiqueta = "Guardar",
+                            onClick = { acciones.onGuardar(f) }, modifier = Modifier.testTag(RegistrosTags.guardar(f)),
                         )
                     }
                 },
@@ -351,7 +366,7 @@ private fun Buscador(state: RegistrosUiState, tipo: TipoRegistro, acciones: Acci
         ShalevTextField(
             filtro = FiltroEntrada.BUSQUEDA,
             value = state.filtro.texto, onValueChange = acciones.onBuscar, label = "Buscar",
-            placeholder = TextosRegistros.buscar(tipo), leadingIcon = ShalevIcons.Buscar,
+            placeholder = TextosRegistros.buscar(tipo), leadingIcon = ShalevIcons.Buscar, anchoCompleto = true,
             modifier = Modifier.fillMaxWidth().testTag(RegistrosTags.BUSCAR),
         )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally)) { // P28: contador (+ filtro) centrados
@@ -601,7 +616,7 @@ private fun HojaFiltro(actual: FiltroRegistros, tipo: TipoRegistro, acciones: Ac
                 label = "Desde (CUP)", placeholder = "Sin mínimo",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 isError = CamposFiltroRegistros.MIN in errores, errorText = errores[CamposFiltroRegistros.MIN],
-                modifier = Modifier.fillMaxWidth().testTag(RegistrosTags.FILTRO_MIN),
+                modifier = Modifier.testTag(RegistrosTags.FILTRO_MIN),
             )
             ShalevTextField(
                 filtro = FiltroEntrada.DINERO,
@@ -609,7 +624,7 @@ private fun HojaFiltro(actual: FiltroRegistros, tipo: TipoRegistro, acciones: Ac
                 label = "Hasta (CUP)", placeholder = "Sin máximo",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 isError = CamposFiltroRegistros.MAX in errores, errorText = errores[CamposFiltroRegistros.MAX],
-                modifier = Modifier.fillMaxWidth().testTag(RegistrosTags.FILTRO_MAX),
+                modifier = Modifier.testTag(RegistrosTags.FILTRO_MAX),
             )
         }
         // 0.20.0 (H1): con apps secundarias, quién vendió. Con un solo nombre no aporta nada (Hick) y no se muestra.

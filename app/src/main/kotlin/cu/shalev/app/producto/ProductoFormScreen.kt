@@ -203,7 +203,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
             filtro = FiltroEntrada.NOMBRE,
             value = f.nombre, onValueChange = a.onNombre, label = "Nombre *", isError = Campos.NOMBRE in err, errorText = err[Campos.NOMBRE], validarAlSalir = true, forzarError = state.intentado,
             imeAction = ImeAction.Next,
-            modifier = Modifier.fillMaxWidth().testTag(ProductoFormTags.NOMBRE),
+            modifier = Modifier.testTag(ProductoFormTags.NOMBRE),
         )
         ShalevTextField(
             filtro = FiltroEntrada.TEXTO,
@@ -211,7 +211,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
             value = f.descripcion, onValueChange = a.onDescripcion, label = "Descripción", placeholder = ProductoFormLogic.EJEMPLO_DESCRIPCION,
             supportingText = ProductoFormLogic.ayudaDescripcion(f.descripcion), imeAction = ImeAction.Next,
             isError = Campos.DESCRIPCION in err, errorText = err[Campos.DESCRIPCION], validarAlSalir = true, forzarError = state.intentado,
-            modifier = Modifier.fillMaxWidth().testTag(ProductoFormTags.DESCRIPCION),
+            modifier = Modifier.testTag(ProductoFormTags.DESCRIPCION),
         )
 
         if (f.esElaborado) {
@@ -234,7 +234,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
                 value = f.precioCosto, onValueChange = a.onCosto, label = "Precio de costo (CUP) *", placeholder = "0.00", keyboardOptions = numero,
                 isError = Campos.PRECIO_COSTO in err, errorText = err[Campos.PRECIO_COSTO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Por unidad",
                 imeAction = ImeAction.Next,
-            modifier = Modifier.fillMaxWidth().testTag(ProductoFormTags.COSTO),
+            modifier = Modifier.testTag(ProductoFormTags.COSTO),
             )
         }
         ShalevTextField(
@@ -242,7 +242,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
             value = f.precioVenta, onValueChange = a.onVenta, label = "Precio de venta (CUP) *", placeholder = "0.00", keyboardOptions = numero,
             isError = f.precioVenta.isNotBlank() && Campos.PRECIO_VENTA in err, errorText = err[Campos.PRECIO_VENTA], validarAlSalir = false, forzarError = state.intentado, supportingText = "Por unidad",
             imeAction = if (f.esElaborado) ImeAction.Done else ImeAction.Next, onImeAction = if (f.esElaborado) a.onGuardar else null,
-            modifier = Modifier.fillMaxWidth().testTag(ProductoFormTags.VENTA),
+            modifier = Modifier.testTag(ProductoFormTags.VENTA),
         )
         // P26: un Elaborado no tiene existencias ni niveles propios (alcanza según sus insumos).
         if (!f.esElaborado) {
@@ -251,7 +251,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
                 value = f.cantidad, onValueChange = a.onCantidad, label = "Cantidad *", placeholder = "0", keyboardOptions = entero,
                 isError = Campos.CANTIDAD in err, errorText = err[Campos.CANTIDAD], validarAlSalir = true, forzarError = state.intentado, supportingText = "Unidades que tienes",
                 imeAction = ImeAction.Next,
-                modifier = Modifier.fillMaxWidth().testTag(ProductoFormTags.CANTIDAD),
+                modifier = Modifier.testTag(ProductoFormTags.CANTIDAD),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
                 ShalevTextField(
@@ -299,7 +299,7 @@ private fun CampoCategoria(
             filtro = FiltroEntrada.NOMBRE,
             value = valor, onValueChange = { onValor(it); abierto = true }, label = "Categoría *",
             isError = error != null, errorText = error, validarAlSalir = true, forzarError = forzarError, supportingText = "Elige o escribe una nueva",
-            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable).testTag(ProductoFormTags.CATEGORIA),
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).testTag(ProductoFormTags.CATEGORIA),
         )
         ExposedDropdownMenu(expanded = abierto && opciones.isNotEmpty(), onDismissRequest = { abierto = false }) {
             opciones.forEach { c ->
