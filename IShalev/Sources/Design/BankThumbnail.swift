@@ -26,20 +26,4 @@ struct ShalevBankThumbnail: View {
     var height: CGFloat = 24
     
     var body: some View {
-        if let nombreImagen = BancoCubanoThumbnail.imagen(para: banco),
-           let uiImage = UIImage(named: nombreImagen) {
-            Image(uiImage: uiImage)
-                .resizable()
-                .scaledToFit()
-                .frame(width: width, height: height)
-                .accessibilityLabel("Logo de \(banco.nombre)")
-        } else {
-            // Fallback a SF Symbol si la imagen no existe
-            Image(systemName: "creditcard.fill")
-                .font(.shalevIcono(17, weight: .semibold))
-                .foregroundStyle(Color.shalevSecondaryText)
-                .frame(width: width, height: height)
-                .accessibilityLabel("Logo de \(banco.nombre)")
-        }
-    }
-}
+        if let nombreImagen = BancoCubanoThumbnail.imagen(para: banco),\n           let uiImage = UIImage(named: nombreImagen) {\n            Image(uiImage: uiImage)\n                .resizable()\n                .scaledToFit()\n                .frame(width: width, height: height)\n                .accessibilityLabel("Logo de \(banco.nombre)")\n        } else {\n            // Fallback a SF Symbol si la imagen no existe\n            Image(systemName: "creditcard.fill")\n                .font(.shalevIcono(17, weight: .semibold))\n                .foregroundStyle(Color.shalevSecondaryText)\n                .frame(width: width, height: height)\n                .accessibilityLabel("Logo de \(banco.nombre)")\n        }\n    }\n}
