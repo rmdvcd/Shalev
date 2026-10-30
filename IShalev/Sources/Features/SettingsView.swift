@@ -681,9 +681,17 @@ private struct PaymentSettingsView: View {
                     Image(systemName: selected ? "checkmark.square.fill" : "square")
                         .font(.shalev(19))
                         .foregroundStyle(selected ? Color.shalevPrimary : Color.shalevSecondaryText)
-                    Image(systemName: kind.symbol)
-                        .font(.shalev(17))
-                        .foregroundStyle(Color.shalevText)
+                    
+                    // Miniatura del banco si es tarjeta (basado en el prefijo)
+                    if kind == .card, let bank = bancoCubano(title) {
+                        ShalevBankThumbnail(banco: bank)
+                            .padding(.leading, 4)
+                    } else {
+                        Image(systemName: kind.symbol)
+                            .font(.shalev(17))
+                            .foregroundStyle(Color.shalevText)
+                    }
+                    
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title).font(.shalev(15)).foregroundStyle(Color.shalevText)
                         if let subtitle {
@@ -720,7 +728,7 @@ private struct PaymentSettingsView: View {
         .background(selected ? Color.shalevPrimaryContainer : Color.shalevSurface)
     }
 
-    private var floatingAdd: some View {
+    private func floatingAdd: some View {
         VStack(alignment: .trailing, spacing: 10) {
             if expanded {
                 addPill("Tarjeta o cuenta", symbol: "creditcard.fill") {
@@ -732,7 +740,7 @@ private struct PaymentSettingsView: View {
                     editing = PaymentDraft(kind: .phone)
                 }
             }
-            ShalevFloatingButton(title: expanded ? "Cerrar acciones" : "Agregar",
+            ShalevFloatingButton(title: expanded ? "Cerrar" : "Agregar",
                                  symbol: expanded ? "xmark" : "plus") {
                 withAnimation(ShalevMotion.cambio(reducirMovimiento)) { expanded.toggle() }
             }
