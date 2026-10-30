@@ -1,0 +1,7 @@
+# Los archivos de prueba se guardan byte a byte: no se normalizan saltos de línea
+# (el .csv imita a Excel con BOM y CRLF) ni se tocan los binarios.
+*.jpg binary
+*.pdf binary
+*.xlsx binary
+*.docx binary
+*.csv -text
