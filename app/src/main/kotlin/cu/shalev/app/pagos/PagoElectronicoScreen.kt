@@ -126,9 +126,9 @@ fun PagoElectronicoContent(
                         FilaPago("Tarjeta o cuenta", ShalevIcons.PagoElectronico) { expandido = false; acciones.onNuevo(TipoCuentaPago.TARJETA) }
                     }
                 }
-                ShalevFab(
+                    ShalevFab(
                     ShalevIcons.Agregar,
-                    if (expandido) "Cerrar acciones" else "Agregar",
+                    if (expandido) "Cerrar" else "Agregar",
                     onClick = { expandido = !expandido },
                 )
             }
@@ -232,10 +232,24 @@ private fun androidx.compose.foundation.lazy.LazyListScope.lista(
 /** Icono monocromático común para todas las tarjetas. */
 @Composable
 private fun IconoTarjeta(banco: BancoCubano, modifier: Modifier = Modifier) {
-    Icon(
-        ShalevIcons.PagoElectronico, contentDescription = banco.nombre,
-        modifier = modifier.size(ShalevSize.icon), tint = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    val recurso = when (banco) {
+        BancoCubano.BPA -> R.drawable.bpa_miniatura
+        BancoCubano.BANDEC -> R.drawable.bandec_miniatura
+        BancoCubano.BANMET -> R.drawable.banmet_miniatura
+        else -> null
+    }
+    if (recurso != null) {
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.graphics.painterResource(id = recurso),
+            contentDescription = banco.nombre,
+            modifier = modifier.size(ShalevSize.icon),
+        )
+    } else {
+        Icon(
+            ShalevIcons.PagoElectronico, contentDescription = banco.nombre,
+            modifier = modifier.size(ShalevSize.icon), tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
