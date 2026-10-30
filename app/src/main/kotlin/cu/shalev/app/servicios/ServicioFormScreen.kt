@@ -168,7 +168,7 @@ private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, modi
             filtro = FiltroEntrada.NOMBRE,
             value = f.nombre, onValueChange = a.onNombre, label = "Nombre *", placeholder = "Corte de pelo",
             isError = CamposServicio.NOMBRE in err, errorText = err[CamposServicio.NOMBRE], validarAlSalir = true, forzarError = state.intentado,
-            imeAction = ImeAction.Next, modifier = Modifier.fillMaxWidth().testTag(ServicioFormTags.NOMBRE),
+            imeAction = ImeAction.Next, modifier = Modifier.testTag(ServicioFormTags.NOMBRE),
         )
         CampoTipo(f.tipo, state.tipos, err[CamposServicio.TIPO], state.intentado, a.onTipo)
         ShalevTextField(
@@ -177,7 +177,7 @@ private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, modi
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             isError = CamposServicio.IMPORTE in err, errorText = err[CamposServicio.IMPORTE], validarAlSalir = true, forzarError = state.intentado,
             supportingText = "Lo que cobras cada vez", imeAction = ImeAction.Next,
-            modifier = Modifier.fillMaxWidth().testTag(ServicioFormTags.IMPORTE),
+            modifier = Modifier.testTag(ServicioFormTags.IMPORTE),
         )
         ShalevTextField(
             filtro = FiltroEntrada.TEXTO,
@@ -185,7 +185,7 @@ private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, modi
             value = f.descripcion, onValueChange = a.onDescripcion, label = "Descripción", placeholder = "A domicilio, 30 minutos",
             supportingText = cu.shalev.app.producto.ProductoFormLogic.ayudaDescripcion(f.descripcion),
             isError = CamposServicio.DESCRIPCION in err, errorText = err[CamposServicio.DESCRIPCION], validarAlSalir = true, forzarError = state.intentado,
-            modifier = Modifier.fillMaxWidth().testTag(ServicioFormTags.DESCRIPCION),
+            modifier = Modifier.testTag(ServicioFormTags.DESCRIPCION),
         )
         Insumos(state, a)
         if (state.intentado && err.isNotEmpty()) {
@@ -207,7 +207,7 @@ private fun CampoTipo(valor: String, tipos: List<String>, error: String?, forzar
             filtro = FiltroEntrada.NOMBRE,
             value = valor, onValueChange = { onValor(it); abierto = true }, label = "Tipo *", placeholder = "Peluquería",
             isError = error != null, errorText = error, validarAlSalir = true, forzarError = forzarError, supportingText = "Elige o escribe uno nuevo",
-            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable).testTag(ServicioFormTags.TIPO),
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).testTag(ServicioFormTags.TIPO),
         )
         ExposedDropdownMenu(expanded = abierto && opciones.isNotEmpty(), onDismissRequest = { abierto = false }) {
             opciones.forEach { t -> DropdownMenuItem(text = { Text(t) }, onClick = { onValor(t); abierto = false }) }

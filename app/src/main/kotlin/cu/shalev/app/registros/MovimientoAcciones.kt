@@ -203,11 +203,11 @@ private fun DialogoCorregir(i: ItemMovimiento, s: MovimientoAccionesUiState, vm:
             ShalevTextField(
                 value = s.cantidad, onValueChange = vm::cantidad, label = "${TextosMovimiento.CANTIDAD} *",
                 supportingText = TextosMovimiento.ayuda(i), isError = s.error, errorText = TextosMovimiento.FORMATO,
-                filtro = FiltroEntrada.CANTIDAD, modifier = Modifier.fillMaxWidth().testTag(MovimientoAccionesTags.CANTIDAD),
+                filtro = FiltroEntrada.CANTIDAD, modifier = Modifier.testTag(MovimientoAccionesTags.CANTIDAD),
             )
             ShalevTextField(
                 value = s.motivo, onValueChange = vm::motivo, label = "${TextosMovimiento.MOTIVO} *",
-                supportingText = TextosMovimiento.MOTIVO_AYUDA, modifier = Modifier.fillMaxWidth().testTag(MovimientoAccionesTags.MOTIVO),
+                supportingText = TextosMovimiento.MOTIVO_AYUDA, modifier = Modifier.testTag(MovimientoAccionesTags.MOTIVO),
             )
         }
     }

@@ -132,7 +132,7 @@ fun PreciosContent(
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             if (state.cargado && state.productos.isNotEmpty()) {
-                ShalevFab(ShalevIcons.Agregar, "Nuevo ajuste de precios", onClick = acciones.onNuevo, modifier = Modifier.testTag(PreciosTags.NUEVO))
+                ShalevFab(ShalevIcons.Agregar, "Nuevo ajuste de precios", onClick = acciones.onNuevo, etiqueta = "Nuevo", modifier = Modifier.testTag(PreciosTags.NUEVO))
             }
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },

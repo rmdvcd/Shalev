@@ -384,7 +384,8 @@ fun ModificarVentaContent(s: ModificarVentaUiState, a: AccionesModificar) {
                 item {
                     ShalevTextField(
                         value = s.busqueda, onValueChange = a.onBuscar, label = TextosModificar.BUSCAR,
-                        modifier = Modifier.fillMaxWidth().testTag(ModificarTags.BUSCAR),
+                        anchoCompleto = true,
+            modifier = Modifier.fillMaxWidth().testTag(ModificarTags.BUSCAR),
                     )
                 }
                 items(s.resultados, key = { "r${it.producto.id}" }) { r ->
@@ -394,7 +395,7 @@ fun ModificarVentaContent(s: ModificarVentaUiState, a: AccionesModificar) {
                         subtitleResaltado = ShalevTextos.datoTexto(Money.format(p.precioVenta)),
                         indicatorColor = null,
                         onClick = { a.onAnadir(r) },
-                        trailing = { ShalevIconAction(ShalevIcons.Agregar, "Añadir ${p.nombreCompleto}", onClick = { a.onAnadir(r) }) },
+                        trailing = { ShalevIconAction(ShalevIcons.Agregar, "Añadir ${p.nombreCompleto}", etiqueta = "Añadir", onClick = { a.onAnadir(r) }) },
                         modifier = Modifier.testTag(ModificarTags.resultado(p.id)),
                     )
                 }
@@ -428,7 +429,7 @@ fun ModificarVentaContent(s: ModificarVentaUiState, a: AccionesModificar) {
             item {
                 ShalevTextField(
                     value = s.motivo, onValueChange = a.onMotivo, label = "${TextosAnulacion.MOTIVO} *",
-                    supportingText = TextosAnulacion.MOTIVO_AYUDA, modifier = Modifier.fillMaxWidth().padding(top = ShalevSpacing.md).testTag(VentaAccionesTags.MOTIVO),
+                    supportingText = TextosAnulacion.MOTIVO_AYUDA, modifier = Modifier.padding(top = ShalevSpacing.md).testTag(VentaAccionesTags.MOTIVO),
                 )
             }
             s.error?.let { e ->

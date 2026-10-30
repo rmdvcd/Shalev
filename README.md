@@ -115,7 +115,7 @@ Versiones principales (`gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 8.7.3, C
 
 - **DI:** Hilt. **Navegación:** Navigation Compose 2.8 con rutas `@Serializable`.
 - **Arranque:** splash del sistema → `RootViewModel` → *Bloqueo* (si la licencia no permite el uso) → *Onboarding* (primera vez) → pantalla principal. Bloqueo y Onboarding están fuera del NavHost: ni Atrás ni un enlace pueden saltárselas.
-- **Barra inferior:** Inicio, Inventario, Servicios, Registros, Ajustes (solo iconos, resaltado invertido). Se pasa de una sección a otra deslizando el dedo hacia los lados.
+- **Barra inferior:** Inicio, Inventario, Servicios, Registros, Ajustes (icono con el nombre debajo desde la 1.0.2, resaltado invertido). Se pasa de una sección a otra deslizando el dedo hacia los lados. Cada pestaña principal tiene un botón **?** arriba a la izquierda con su ayuda.
 
 ### Pruebas
 
@@ -172,7 +172,7 @@ Shalev es **cliente** del contrato v1 de GL, sin cambiarlo. Detalle completo en 
 
 | Función | Resumen |
 |---|---|
-| **Escaneo OCR e importación documental** | En **Inventario**, **Servicios** y **Nueva venta** (Android e iOS): reconocimiento de texto local, gratuito e ilimitado (ML Kit Text Recognition v2 en Android y Apple Vision en iOS) más importación directa de **PDF**, **Excel (`.xlsx` / `.csv`)** y **Word (`.docx`)**, con lienzo visual interactivo (toque sobre bloques o arrastre de rectángulo) y mapeo de columnas a campos del formulario |
+| **Escaneo OCR e importación documental** | En **Nueva venta** (Android e iOS): reconocimiento de texto local, gratuito e ilimitado (ML Kit Text Recognition v2 en Android y Apple Vision en iOS) más importación directa de **PDF**, **Excel (`.xlsx` / `.csv`)** y **Word (`.docx`)**, con lienzo visual interactivo (toque sobre bloques o arrastre de rectángulo) y mapeo de columnas a campos del formulario. El 2026-10-30 (1.0.2) se **retiró el escáner de Inventario y Servicios**: allí el alta es manual |
 | **Ampliar apps secundarias (`amplia`)** | En **Ajustes → Licencia** (Android e iOS) y en GL ([parche listo para `rmdvcd/GL`](docs/gl-ampliar-secundarias.patch)): permite añadir secundarias hasta un total de 10 sobre la licencia vigente sin alterar su vencimiento (`venceEn` o `PERPETUA`), pagando solo las nuevas secundarias a tarifa fija (`1 000 / 5 000 / 9 000 / 17 000 CUP`) |
 | **Blindaje de entradas y capacidades** | Cálculo de topes compartidos entre recetas (`Elaborado`, `Servicio` e `Insumo` vendible) en venta nueva y al modificar ventas, tope de salidas de caja según efectivo disponible y filtros de entrada sincronizados en Android e iOS |
 | **Miniaturas de 13 billetes CUP y spinners `◄` / `►`** | El conteo de efectivo muestra las miniaturas oficiales del BCC para `1, 3, 5, 10, 20, 50, 100, 200, 500, 1 000, 2 000, 5 000 y 20 000 CUP` en lugar de etiquetas de texto, y todos los contadores numéricos usan `◄` y `►` |

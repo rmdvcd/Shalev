@@ -112,7 +112,7 @@ fun DialogoCierreCompleto(
                             label = "${l.nombre} (${l.unidad})",
                             supportingText = "Esperado: ${ConteoForm.formato(l.esperado, l.entidad)} ${l.unidad}",
                             keyboardOptions = KeyboardOptions(keyboardType = if (l.entidad == TipoEntidad.PRODUCTO) KeyboardType.Number else KeyboardType.Decimal),
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier,
                         )
                     }
                 }
@@ -126,7 +126,7 @@ fun DialogoCierreCompleto(
                 }
                 if (conteo.tieneDiferencias) ShalevTextField(
                     value = motivo, onValueChange = { motivo = it.take(160) }, label = "Motivo del ajuste *",
-                    supportingText = "De 3 a 160 caracteres. Los ajustes quedarán registrados.", modifier = Modifier.fillMaxWidth(),
+                    supportingText = "De 3 a 160 caracteres. Los ajustes quedarán registrados.", modifier = Modifier,
                 )
             }
             ShalevTextButton("Atrás", onClick = { omitido = false; paso-- }, icon = ShalevIcons.Listo, enabled = !guardando)

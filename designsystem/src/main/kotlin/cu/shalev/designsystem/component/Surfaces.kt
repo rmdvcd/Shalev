@@ -1,8 +1,5 @@
 package cu.shalev.designsystem.component
 
-import cu.shalev.designsystem.theme.ShalevTextos
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -10,11 +7,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.material3.Icon
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -31,13 +24,18 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
@@ -45,6 +43,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +52,7 @@ import cu.shalev.designsystem.R
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.ilustracion.ShalevIlustracion
 import cu.shalev.designsystem.ilustracion.ShalevIlustracionImagen
+import cu.shalev.designsystem.theme.ShalevTextos
 import cu.shalev.designsystem.theme.ShalevTheme
 import cu.shalev.designsystem.token.ShalevElevation
 import cu.shalev.designsystem.token.ShalevMotion
@@ -81,6 +81,11 @@ fun ShalevCard(
     onClick: (() -> Unit)? = null,
     /** true = la card mide lo que mide su contenido (en vez de ocupar todo el ancho que le den). */
     ajustarAlContenido: Boolean = false,
+    /**
+     * 1.0.2: relleno vertical de la card. Por defecto 16dp; los contenedores de Inicio usan uno ligero (8dp)
+     * para que la tarjeta quede ajustada al texto que contiene.
+     */
+    paddingVertical: Dp = ShalevSpacing.md,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -97,7 +102,7 @@ fun ShalevCard(
         // P28: lo que va solo en su fila (título, texto de ayuda, botón, grupo de chips) se centra. Las filas de
         // tabla (ShalevListItem) y los campos a todo el ancho no cambian.
         Column(
-            Modifier.padding(ShalevSpacing.md),
+            Modifier.padding(horizontal = ShalevSpacing.md, vertical = paddingVertical),
             verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

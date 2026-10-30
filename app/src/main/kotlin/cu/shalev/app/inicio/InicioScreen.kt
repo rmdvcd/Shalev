@@ -272,6 +272,8 @@ fun InicioContent(
 ) {
     val permisos = cu.shalev.app.common.LocalPermisosApp.current
     val acordeones = remember { AcordeonesInicio(acordeonesAbiertos) }
+    // 1.0.2: ayuda de la pestaña (botón «?» de la esquina superior izquierda).
+    var ayudaPestana by remember { mutableStateOf(false) }
     // 0.27.0 (T2): con letra grande caben menos alertas por fila (ancho de pantalla menos el relleno lateral).
     val maxAlertas = alertasPorFila(
         androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp - 2 * ShalevSpacing.md.value,
@@ -279,7 +281,10 @@ fun InicioContent(
     )
     Scaffold(
         topBar = {
-            ShalevTopBar(title = "Shalev", marca = true)
+            ShalevTopBar(
+                title = "Shalev", marca = true,
+                onAyuda = { ayudaPestana = true }, ayudaDescripcion = "Ayuda de Inicio",
+            )
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
     ) { padding ->
@@ -403,9 +408,10 @@ fun InicioContent(
                         precios(Modifier.fillMaxWidth())
                     }
                 } else {
-                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
-                        pago(Modifier.weight(1f).fillMaxHeight())
-                        precios(Modifier.weight(1f).fillMaxHeight())
+                    // 1.0.2: cada tarjeta se ajusta a su propio texto (sin estirarse a la altura de la otra).
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
+                        pago(Modifier.weight(1f))
+                        precios(Modifier.weight(1f))
                     }
                 }
             }
@@ -424,12 +430,12 @@ fun InicioContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     ShalevFab(
-                        ShalevIcons.Venta, "Nueva venta", onClick = acciones.onNuevaVenta,
+                        ShalevIcons.Venta, "Nueva venta", onClick = acciones.onNuevaVenta, etiqueta = "Vender",
                         modifier = Modifier.testTag(InicioTags.NUEVA_VENTA),
                     )
                     ShalevFab(
                         ShalevIcons.Efectivo, cu.shalev.app.caja.TextosCaja.MOVIMIENTO_TITULO, onClick = acciones.onMovimientoCaja,
-                        modifier = Modifier.testTag(InicioTags.CAJA),
+                        etiqueta = "Caja", modifier = Modifier.testTag(InicioTags.CAJA),
                     )
                 }
             }
@@ -475,6 +481,16 @@ fun InicioContent(
             dismissDescription = TextosInicio.AHORA_NO,
         )
     }
+
+    if (ayudaPestana) cu.shalev.app.ayuda.DialogoAyudaPestana(
+        pestana = cu.shalev.app.ayuda.PestanaAyuda.INICIO,
+        modulos = permisos.modulos,
+        onDismiss = { ayudaPestana = false },
+        onVerManual = {
+            ayudaPestana = false
+            acciones.onNavigate(Route.Ayuda)
+        },
+    )
 }
 
 // ---------------- Actualización (0.25.0, §6) ----------------
@@ -547,7 +563,8 @@ private fun TurnoContenedor(
     zona: ZoneId,
 ) {
     val abierto = state.turnoAbierto
-    ShalevCard(modifier = Modifier.testTag(InicioTags.TURNO)) {
+    // 1.0.2: contenedor ajustado a su texto, con relleno vertical ligero.
+    ShalevCard(modifier = Modifier.testTag(InicioTags.TURNO), paddingVertical = ShalevSpacing.xs) {
         Row(
             Modifier.fillMaxWidth()
                 .toggleable(value = abierto, enabled = !state.cambiandoTurno, role = Role.Switch, onValueChange = acciones.onTurno),
@@ -618,7 +635,7 @@ private fun LazyListScope.alertas(alertas: List<AlertaUi>, acciones: AccionesIni
         desde += cuantas
         item(key = "alertas_$fila") {
             Row(
-                Modifier.fillMaxWidth().height(IntrinsicSize.Min).then(shalevAnimateItem()),
+                Modifier.fillMaxWidth().then(shalevAnimateItem()),
                 horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally),
             ) {
                 val hueco = (porFila - cuantas) / 2f
@@ -627,7 +644,7 @@ private fun LazyListScope.alertas(alertas: List<AlertaUi>, acciones: AccionesIni
                     ContadorAlerta(
                         etiqueta = a.etiqueta, cantidad = a.cantidad, tono = a.tono,
                         onClick = { acciones.onVerAlerta(a.tipo) },
-                        modifier = Modifier.weight(1f).fillMaxHeight().testTag(InicioTags.alerta(a.tipo)),
+                        modifier = Modifier.weight(1f).testTag(InicioTags.alerta(a.tipo)),
                     )
                 }
                 if (hueco > 0f) Spacer(Modifier.weight(hueco))
@@ -655,7 +672,8 @@ private fun ContadorAlerta(
         ShalevCard(
             onClick = onClick,
             tone = if (relleno) CardTone.Error else CardTone.Default,
-            modifier = Modifier.fillMaxHeight().semantics(mergeDescendants = true) { contentDescription = "$etiqueta: $cantidad" },
+            paddingVertical = ShalevSpacing.xs,
+            modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = "$etiqueta: $cantidad" },
         ) {
             // 0.27.0 (T14): contenido centrado; la tarjeta mide lo que su contenido y el texto puede ocupar 2 líneas.
             Column(Modifier.fillMaxWidth().clearAndSetSemantics { }, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -701,7 +719,8 @@ private fun MedallaPuesto(numero: Int, modifier: Modifier = Modifier) {
 
 @Composable
 private fun Acceso(titulo: String, detalle: androidx.compose.ui.text.AnnotatedString, icono: ImageVector, onClick: () -> Unit, modifier: Modifier) {
-    ShalevCard(onClick = onClick, tone = CardTone.Tonal, modifier = modifier) {
+    // 1.0.2: la tarjeta mide lo que su texto, con un relleno vertical ligero.
+    ShalevCard(onClick = onClick, tone = CardTone.Tonal, modifier = modifier, paddingVertical = ShalevSpacing.xs) {
         Icon(icono, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         // 0.27.0 (T2): con letra grande el texto pasa a varias líneas y la tarjeta crece.
         Text(titulo, style = MaterialTheme.typography.titleSmall)
@@ -918,7 +937,9 @@ private fun Vacio(texto: String) {
 
 @Composable
 private fun Cargando() {
-    Box(Modifier.fillMaxWidth().height(ShalevSize.chartHeight), contentAlignment = Alignment.Center) { ShalevLoading() }
+    Box(Modifier.fillMaxWidth().height(ShalevSize.chartHeight), contentAlignment = Alignment.Center) {
+        ShalevLoading(forma = cu.shalev.designsystem.component.FormaSkeleton.GRAFICO)
+    }
 }
 
 @Composable

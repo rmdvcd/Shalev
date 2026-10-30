@@ -2,6 +2,10 @@
 
 > **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización Android: **2026-10-28**. La app principal sigue siendo Android. El antiguo Flutter/iOS y la web de escritorio se retiraron; la nueva contraparte SwiftUI vive en `IShalev/` y tiene una sección de verificación independiente al final de este documento.
 
+## 2026-10-30 — Lote de interfaz (PR #67) compilado y con tests en verde en el CI
+
+El lote de interfaz del 2026-10-30 (botones con texto, etiquetas en la barra inferior, skeleton de carga, ayuda «?» por pestaña, campos ajustados a su contenido, contenedores de Inicio y cierre de turno con 0 CUP) se escribió en un entorno **sin JDK ni Android SDK**, así que se verificó con el CI: run `41077020680` (PR #67) **en verde en los 5 trabajos** — API mínima 26, lint con baseline, permisos del manifiesto, tests JVM + compilación de instrumentados y release R8 + APK debug. Queda **regrabar las capturas Roborazzi** (`./gradlew :app:recordRoborazziDebug`) en un equipo con JDK 17 y Android SDK, porque cambia el aspecto de casi todas las pantallas y el CI no las verifica.
+
 ## Auditoría UI · UX · IX de Shalev e IShalev (2026-10-28)
 
 Auditoría de las dos apps contra la guía UI/UX/IX adjunta por el dueño (alcance total: ventanas, componentes y emergentes). Informe en [`docs/AUDITORIA_UI_UX_IX_2026-10-28.md`](AUDITORIA_UI_UX_IX_2026-10-28.md). Se implementaron **todos los hallazgos accionables de IShalev (13 de 13)**: Dynamic Type completo hasta `AX5` (`3,2×`) con reflow `ShalevFilaAdaptable` (`IX-001` + `IX-013`), área táctil de 44 pt en 20 controles (`IX-002`), Reducir movimiento (`IX-003`), Reducir transparencia (`IX-004`), vibración (`IX-005`), etiquetas y valores de VoiceOver (`A11Y-006/007/008`), alturas elásticas (`UI-010`), paleta de Shalev en QR (`UI-011`), `@FocusState` + `.submitLabel` + `.textContentType` en los 7 formularios multicampo (`IX-012`) y `.refreshable` en `SyncView` (`UX-014`). Además se arreglaron **dos pruebas que `main` tenía rotas** desde el commit base `d125513`.

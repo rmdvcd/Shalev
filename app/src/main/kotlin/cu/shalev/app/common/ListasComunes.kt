@@ -56,6 +56,8 @@ fun BotonFiltro(
         ShalevIconAction(
             ShalevIcons.Filtrar, descripcionFiltro(texto, activos),
             onClick = onClick, selected = activos > 0, enabled = enabled, modifier = modifier,
+            // 1.0.2: el texto visible es el corto; el conteo de filtros sigue en la descripción para TalkBack.
+            etiqueta = texto,
         )
     }
 }
@@ -145,7 +147,8 @@ fun HojaAgregarInsumo(
         } else {
             ShalevTextField(
                 filtro = FiltroEntrada.BUSQUEDA, value = buscar, onValueChange = { buscar = it },
-                label = "Buscar insumo", leadingIcon = ShalevIcons.Buscar, modifier = Modifier.fillMaxWidth(),
+                label = "Buscar insumo", leadingIcon = ShalevIcons.Buscar, anchoCompleto = true,
+                modifier = Modifier.fillMaxWidth(),
             )
             if (lista.isEmpty()) ShalevSecondaryText("Ningún insumo coincide.", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             lista.forEach { i ->

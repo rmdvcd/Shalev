@@ -1,5 +1,27 @@
 # Shalev - Historial de desarrollo
 
+## 2026-10-30 - Botones con texto, skeleton de carga, ayuda por pestaña y ajustes de la interfaz
+
+Ocho cambios pedidos por el dueño. **No cambia la versión declarada** (sigue 1.0.1, `versionCode` 54): es un lote de interfaz, no una publicación.
+
+**(1) Se retira el escáner de Inventario y Servicios.** Desaparecen el icono «Escanear o importar inventario / servicios», su estado local, la hoja `HojaImportarOcr` de esas dos pantallas y el campo `onImportarOcr` de `AccionesInventario` / `AccionesServicios`. El módulo `app/ocr/` **se conserva** porque «Escanear o importar líneas de venta» sigue disponible en Venta; `shalevPermisos` no cambia (el OCR no pedía permisos nuevos).
+
+**(2) Texto debajo de los iconos de la barra inferior.** `ShalevNavigationBar` pinta `label = { Text(item.label) }` con `alwaysShowLabel = true` (estilo `labelSmall`, una línea) y colores de texto seleccionado/no seleccionado. Ya no hace falta el tooltip: la etiqueta está a la vista y sigue siendo el nombre accesible.
+
+**(3) Texto en vez de iconos en todos los botones, también en ventanas y diálogos.** `ShalevPrimaryButton`, `ShalevSecondaryButton`, `ShalevTextButton`, `ShalevIconAction` y `ShalevFab` dibujan su etiqueta (40–48dp de alto, esquinas redondeadas, relleno 16×8dp) y mantienen la descripción accesible en la semántica, de modo que `onNodeWithContentDescription` y TalkBack siguen igual. `ShalevIconAction` gana `etiqueta` para textos cortos (el conteo de billetes usa «−1»/«+1»); `ShalevFab` la usa para «Vender», «Caja», «Nuevo» y «Agregar». Los `icon` se conservan en las firmas para no tocar las ~110 llamadas, pero ya no se dibujan. Solo la flecha «Atrás» y la «X» de borrar de los campos siguen siendo iconos (convención de la plataforma).
+
+**(4) Skeleton en las pantallas de carga.** Nuevo `designsystem/component/Skeleton.kt` con `FormaSkeleton` (LISTA, TARJETA, GRAFICO, FILA) y bloques grises **estáticos** (sin `rememberInfiniteTransition`: la app no usa animaciones infinitas, que impedirían que los tests de Compose queden inactivos). `ShalevLoading` pasa a dibujar el marcador en lugar de la rueda, así que las 16 pantallas que ya lo usaban (Inicio, Inventario, Servicios, Registros, Venta, Precios, Licencia, formularios, arranque) cambian sin tocar cada llamada; el hueco de los gráficos de Inicio usa `GRAFICO`.
+
+**(5) Ayuda «?» en la esquina superior izquierda de cada pestaña principal.** `ShalevTopBar` gana `onAyuda` y dibuja `ShalevBotonAyuda` («?», 48dp) en el hueco de navegación. `AyudaPestana.kt` mapea cada pestaña (Inicio, Inventario, Servicios, Registros, Ajustes) a los temas del manual que ya existen en `AyudaContenido` y los muestra en un diálogo con «Ver todo el manual» (lleva a Ajustes → Ayuda). No hay texto nuevo que mantener: si el manual cambia, la ayuda contextual cambia con él.
+
+**(6) Cierre de turno con 0 CUP esperados.** `DialogoContado` calcula `esperadoCero` desde el arqueo: en ese caso abre directamente en el **total suelto** (sin la rejilla de billetes) y con el contado a «0», y deja «Contar billetes por denominación» como opción. El conteo por billetes sigue igual cuando el esperado no es 0 o cuando el turno no tiene arqueo (turnos anteriores a 0.25.0).
+
+**(7) Campos de texto ajustados a su contenido.** `ShalevTextField` deja de ocupar todo el ancho: se mide por su contenido con un mínimo de 112dp (`ShalevSize.textFieldAnchoMin`) y gana `anchoCompleto` para los **buscadores**, que lo conservan (Inventario, Servicios, Registros, corrección de venta y el buscador de insumos). Se quitaron los `Modifier.fillMaxWidth()` de los 43 campos que no son buscadores, incluidos los formularios de producto, servicio, insumo, perfil, licencia, onboarding y los diálogos de caja.
+
+**(8) Contenedores de Inicio ajustados al texto.** Se retiran los `fillMaxHeight()` de las tarjetas de accesos y de alertas (y el `height(IntrinsicSize.Min)` que las igualaba) para que cada tarjeta mida su propio texto, y `ShalevCard` gana `paddingVertical` (16dp por defecto) que en Inicio se usa ligero (8dp) en el turno, los accesos y los contadores de alerta.
+
+**Verificación.** El entorno donde se escribió no tiene JDK ni Android SDK, así que se comprobó con el CI: run `41077020680` del PR #67 **en verde en los 5 trabajos** (API mínima 26, lint, permisos del manifiesto, tests JVM + compilación de instrumentados, release R8 y APK debug). Los tests JVM del diseño (`AuditoriaUiTest`) siguen pasando porque la semántica (`contentDescription`, `selected`) no cambió. Cambia el aspecto de casi todas las pantallas, así que las capturas Roborazzi hay que regrabarlas (`./gradlew :app:recordRoborazziDebug`): el CI no las verifica de forma ordinaria.
+
 ## 2026-10-27 - Vinculación por datos móviles, cierre automático del cuadro de Actualizar e insumos en las estadísticas (1.0.1)
 
 Tres cambios pedidos por el dueño; `versionName` pasa a **1.0.1** (`versionCode` **54**).

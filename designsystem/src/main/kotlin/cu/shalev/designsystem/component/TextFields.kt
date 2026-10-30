@@ -3,6 +3,7 @@ package cu.shalev.designsystem.component
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,8 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.token.ShalevRadius
 import cu.shalev.designsystem.token.ShalevSize
@@ -76,6 +77,11 @@ fun ShalevTextField(
      * defecto, se usa también el teclado del filtro (numérico, teléfono…).
      */
     filtro: FiltroEntrada = FiltroEntrada.TEXTO,
+    /**
+     * 1.0.2: por defecto el campo se ajusta a su contenido (el texto y la etiqueta), con un ancho mínimo cómodo.
+     * Los **buscadores** pasan `anchoCompleto = true`: ocupan todo el ancho disponible.
+     */
+    anchoCompleto: Boolean = false,
 ) {
     val cs = MaterialTheme.colorScheme
     val showClear = clearable && value.isNotEmpty() && enabled && !readOnly
@@ -95,7 +101,10 @@ fun ShalevTextField(
     OutlinedTextField(
         value = value,
         onValueChange = cambiar,
-        modifier = modifier.fillMaxWidth().heightIn(min = ShalevSize.textField).onFocusChanged { f ->
+        modifier = modifier
+            .heightIn(min = ShalevSize.textField)
+            .then(if (anchoCompleto) Modifier.fillMaxWidth() else Modifier.widthIn(min = ShalevSize.textFieldAnchoMin))
+            .onFocusChanged { f ->
             salio = ShalevValidacion.salioTrasEditar(salio, conFoco, f.isFocused, editado)
             conFoco = f.isFocused
         },

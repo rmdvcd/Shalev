@@ -29,7 +29,7 @@ Módulo `:designsystem`. **Regla única: ninguna pantalla define colores, tamañ
 
 | Decisión | Motivo |
 |---|---|
-| **5 destinos en la barra inferior**, solo iconos con resaltado invertido | Requisito de Shalev.txt. El nombre sale en el tooltip y en TalkBack. **Desviación documentada** de la regla HIG «etiquetas de texto en la barra inferior» (auditada el 2026-10-28 y aceptada por el dueño en las dos apps): las mitigaciones son nombre y posición por lector de pantalla, SF Symbols/`ShalevIcons` de significado inequívoco y selección por relleno + inversión, no solo por color. Ver [docs/AUDITORIA_UI_UX_IX_2026-10-28.md](docs/AUDITORIA_UI_UX_IX_2026-10-28.md) (UI-009 y AND-005) |
+| **5 destinos en la barra inferior**, icono con **texto debajo** (1.0.2; antes solo iconos) y resaltado invertido | Requisito de Shalev.txt. El nombre sale en el tooltip y en TalkBack. **Desviación documentada** de la regla HIG «etiquetas de texto en la barra inferior» (auditada el 2026-10-28 y aceptada por el dueño en las dos apps): las mitigaciones son nombre y posición por lector de pantalla, SF Symbols/`ShalevIcons` de significado inequívoco y selección por relleno + inversión, no solo por color. Ver [docs/AUDITORIA_UI_UX_IX_2026-10-28.md](docs/AUDITORIA_UI_UX_IX_2026-10-28.md) (UI-009 y AND-005) |
 | **Nada bloquea salvo la licencia** | El asistente se puede omitir paso a paso o entero; lo pendiente se retoma en *Ajustes → Completar configuración* |
 | **Valores recomendados** si se omiten los avisos: 5 (bajo) / 1 (crítico) | El usuario no tiene que entender los umbrales para empezar |
 | **Permisos en contexto:** cámara al hacer una foto o escanear un QR, con explicación previa; internet con consentimiento propio (*Preguntar / Permitidas / Nunca*) | Pedir solo cuando se entiende para qué; siempre hay alternativa manual |
@@ -70,7 +70,7 @@ Módulo `:designsystem`. **Regla única: ninguna pantalla define colores, tamañ
 ### 2.3 Accesibilidad
 
 - Contraste **WCAG 2.1 AA** verificado por test (texto ≥ 4.5:1, elementos de UI ≥ 3:1, gráficos ≥ 3:1).
-- Área táctil ≥ 48dp; todos los botones de solo icono tienen descripción y tooltip.
+- Área táctil ≥ 48dp; **1.0.2: todos los botones muestran su texto** y conservan su descripción accesible. Solo la flecha «Atrás» y la «X» de borrar del campo de texto siguen siendo iconos (convención de la plataforma).
 - Texto en `sp`: respeta el tamaño de letra del sistema.
 - Indicadores de color siempre acompañados de texto o descripción (estado de stock en TalkBack, contadores con número).
 - **Filtros con contador (0.31.0):** el número va en la descripción del botón («Filtrar, 2 filtros activos»); el badge es decorativo y no se lee como nodo suelto.
@@ -141,9 +141,9 @@ Botones solo icono (en 0.15.1 también «Nueva venta»), todas las ventanas cent
 
 ## Ajustes 0.15.1
 
-- **Nueva venta:** solo icono (carrito relleno), centrada junto a Escanear (tonal), con 24dp entre ellas. Ya no hay ningún botón con texto.
+- **Nueva venta:** botón flotante con texto («Vender»), junto a «Caja», con 24dp entre ellos. **1.0.2: todos los botones llevan texto**; se retira la regla P24 de «solo icono».
 - **Período:** `ShalevComboBox` con aspecto de tarjeta tonal, igual que los accesos de Inicio. El icono va en un círculo y encima se ve la etiqueta con el valor en negrita; la flecha gira al abrir. El menú tiene radio 16dp y la opción elegida resaltada con ✓.
-- **Guardar = Confirmar (✓):** un solo icono para «aceptar» en toda la app (Jakob).
+- **Guardar = Confirmar:** la misma acción y la misma palabra («Guardar» / «Confirmar») en toda la app (Jakob). **1.0.2:** el texto sustituye al icono ✓.
 - **Registros identificados por fecha:** Ventas «01/10/2026 14:32», Transferencias fecha + cliente, Movimientos fecha + artículo, Turnos «30/09/2026» + horas · persona. Los títulos pasan a «Venta del …», «Transferencia del …», «Movimiento del …» y «Turno del …». Ningún id interno se muestra, se comparte ni se exporta. El Nº de transacción bancario sí se mantiene: es un dato del banco.
 
 ## Cambios 0.16.0 — Elaborados sin producción
