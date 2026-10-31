@@ -37,6 +37,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.graphics.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.animation.AnimatedVisibility
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.app.common.SecureWindow
@@ -126,7 +128,7 @@ fun PagoElectronicoContent(
                         FilaPago("Tarjeta o cuenta", ShalevIcons.PagoElectronico) { expandido = false; acciones.onNuevo(TipoCuentaPago.TARJETA) }
                     }
                 }
-                    ShalevFab(
+                ShalevFab(
                     ShalevIcons.Agregar,
                     if (expandido) "Cerrar" else "Agregar",
                     onClick = { expandido = !expandido },
