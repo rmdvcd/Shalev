@@ -64,7 +64,7 @@ APP=$(resolver app androidx.compose.ui:ui:1.7.6 androidx.compose.foundation:foun
   androidx.lifecycle:lifecycle-runtime-compose:2.8.7 androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7 \
   androidx.navigation:navigation-compose:2.8.5 androidx.core:core-splashscreen:1.0.1 androidx.camera:camera-core:1.4.1 \
   androidx.camera:camera-camera2:1.4.1 androidx.camera:camera-lifecycle:1.4.1 androidx.camera:camera-view:1.4.1 \
-  com.google.mlkit:barcode-scanning:17.3.0 com.google.mlkit:text-recognition:16.0.1 io.coil-kt.coil3:coil-compose:3.0.4 androidx.hilt:hilt-navigation-compose:1.2.0 \
+  com.google.mlkit:barcode-scanning:17.3.0 io.coil-kt.coil3:coil-compose:3.0.4 androidx.hilt:hilt-navigation-compose:1.2.0 \
   com.google.zxing:core:3.5.3 androidx.biometric:biometric:1.1.0 androidx.fragment:fragment-ktx:1.8.5 \
   androidx.lifecycle:lifecycle-process:2.8.7 androidx.profileinstaller:profileinstaller:1.4.1 \
   androidx.room:room-runtime:2.6.1 androidx.room:room-ktx:2.6.1 androidx.datastore:datastore-preferences:1.1.1 \

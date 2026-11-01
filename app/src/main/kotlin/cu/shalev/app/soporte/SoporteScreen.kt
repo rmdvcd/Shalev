@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -110,7 +111,7 @@ fun SoporteContent(
             )
             ShalevCard(modifier = Modifier.fillMaxWidth().testTag(SoporteTags.FICHA)) {
                 SelectionContainer {
-                    // 0.31.0 (P8): cada fila centrada y en el orden Icono, Descripción, Texto.
+                    // 2026-10-31: cada fila alinea el icono y el texto seleccionable a la izquierda.
                     Column {
                         SoporteInfo.filas.forEach { (etiqueta, valor) -> FilaSoporte(etiqueta, valor) }
                     }
@@ -128,22 +129,23 @@ fun SoporteContent(
     }
 }
 
-/**
- * 0.31.0 (P8): una fila de la ficha, centrada y en el orden que se lee sin esfuerzo: el icono de qué es, la
- * descripción (qué significa) y el texto (el dato en sí, que se puede seleccionar y copiar).
- */
+/** Cada dato de contacto: icono, separación constante y texto seleccionable alineado a la izquierda. */
 @Composable
 private fun FilaSoporte(etiqueta: String, valor: String) {
-    Column(
+    androidx.compose.foundation.layout.Row(
         Modifier.fillMaxWidth().padding(vertical = ShalevSpacing.xs),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
     ) {
-        Icon(SoporteInfo.icono(etiqueta), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Text(
-            etiqueta, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Icon(
+            SoporteInfo.icono(etiqueta), contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(ShalevSize.icon),
         )
-        Text(valor, style = ShalevTextos.datoEn(MaterialTheme.typography.bodyLarge), textAlign = TextAlign.Center)
+        Text(
+            ShalevTextos.resaltar("$etiqueta: $valor", valor),
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Start,
+            modifier = Modifier.weight(1f),
+        )
     }
 }

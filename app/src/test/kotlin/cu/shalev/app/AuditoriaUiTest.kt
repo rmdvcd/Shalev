@@ -15,8 +15,11 @@ import cu.shalev.app.precios.AccionesPrecios
 import cu.shalev.app.precios.PreajusteForm
 import cu.shalev.app.precios.PreciosContent
 import cu.shalev.app.precios.PreciosUiState
+import cu.shalev.designsystem.component.IconActionStyle
 import cu.shalev.designsystem.component.ShalevAccordionCard
 import cu.shalev.designsystem.component.ShalevCard
+import cu.shalev.designsystem.component.ShalevDialog
+import cu.shalev.designsystem.component.ShalevFab
 import cu.shalev.designsystem.component.ShalevIconAction
 import cu.shalev.designsystem.component.ShalevListItem
 import cu.shalev.designsystem.icon.ShalevIcons
@@ -32,9 +35,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Auditoría de UI de la 0.31.0: comprueba los arreglos de semántica y el formulario de Precios a 360 dp.
- * Son pruebas de comportamiento, no capturas: fallan si el título deja de ser encabezado, si un componente
- * no conmutable anuncia «seleccionado = false» o si el chip de Transferencia vuelve a aplastarse.
+ * Auditoría de UI: comprueba semántica accesible, iconos y etiquetas de ventanas, además del formulario de Precios a 360 dp.
+ * Son pruebas de comportamiento, no capturas: detectan etiquetas visibles incorrectas, selección anunciada sin estado
+ * conmutable y el chip de Transferencia aplastado.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -88,6 +91,46 @@ class AuditoriaUiTest {
 
         val config = rule.onNodeWithContentDescription("Filtrar").fetchSemanticsNode().config
         assertTrue(config[SemanticsProperties.Selected])
+    }
+
+    @Test
+    fun lasAccionesMuestranIconoYConservanDescripcionAccesible() {
+        rule.setContent { ShalevTheme { ShalevIconAction(ShalevIcons.Agregar, "Agregar producto", onClick = {}) } }
+
+        rule.onNodeWithContentDescription("Agregar producto").assertExists()
+        rule.onNodeWithText("Agregar producto").assertDoesNotExist()
+    }
+
+    @Test
+    fun elFabEsSoloIconoPorDefectoYSigueTeniendoDescripcion() {
+        rule.setContent { ShalevTheme { ShalevFab(ShalevIcons.Agregar, "Agregar producto", onClick = {}) } }
+
+        rule.onNodeWithContentDescription("Agregar producto").assertExists()
+        rule.onNodeWithText("Agregar producto").assertDoesNotExist()
+    }
+
+    @Test
+    fun lasDecisionesDeVentanaConservanTextoYLasDemasUsanIcono() {
+        rule.setContent {
+            ShalevTheme {
+                ShalevDialog(
+                    title = "Prueba de acciones",
+                    onDismiss = {},
+                    onConfirm = {},
+                    content = {
+                        ShalevIconAction(ShalevIcons.Eliminar, "Eliminar", onClick = {}, style = IconActionStyle.Tonal)
+                        ShalevIconAction(ShalevIcons.AhoraNo, "Omitir", onClick = {}, style = IconActionStyle.Tonal)
+                        ShalevIconAction(ShalevIcons.Exportar, "Exportar", onClick = {}, style = IconActionStyle.Tonal)
+                    },
+                )
+            }
+        }
+
+        listOf("Confirmar", "Eliminar", "Omitir", "Cancelar").forEach { etiqueta ->
+            rule.onNodeWithText(etiqueta).assertExists()
+        }
+        rule.onNodeWithText("Exportar").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Exportar").assertExists()
     }
 
     @Test

@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -23,34 +26,32 @@ import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
 
 /**
- * 1.0.2: formas del marcador de carga. Se dibujan con bloques grises en el sitio donde irá el contenido, en lugar de
- * una rueda: la pantalla conserva la estructura que tendrá (menos saltos al cargar).
- *
- * Los bloques son **estáticos a propósito**: no hay `rememberInfiniteTransition` (la app no usa animaciones infinitas,
- * porque impiden que los tests de Compose queden inactivos y porque «Quitar animaciones» debe dejarlas quietas).
+ * Formas del marcador de carga. Los «huesos» siguen la geometría y el orden de los componentes reales (idea de
+ * Boneyard, adaptada a Compose): filas con miniatura, texto y valor; tarjetas; y gráfico. Son declarativos y estáticos
+ * para respetar «Quitar animaciones» y no dejar transiciones infinitas activas en los tests de Compose.
  */
 enum class FormaSkeleton {
-    /** Filas de una lista: miniatura + dos líneas (Inventario, Registros, Servicios…). */
+    /** Filas de una lista/tabla: indicador, miniatura, hasta tres líneas y valor. */
     LISTA,
 
     /** Tarjetas apiladas (Inicio, ajustes, resúmenes). */
     TARJETA,
 
-    /** Un bloque alto, con la altura de un gráfico. */
+    /** Un gráfico con encabezado, resumen y barras. */
     GRAFICO,
 
     /** Una sola fila (cabeceras, totales). */
     FILA,
 }
 
-/** Marcador de carga con la forma indicada. Va dentro de un contenedor con el tamaño de la pantalla o de la sección. */
+/** Marcador de carga: conserva la silueta del contenido mientras los datos aún no están disponibles. */
 @Composable
 fun ShalevSkeleton(modifier: Modifier = Modifier, forma: FormaSkeleton = FormaSkeleton.LISTA) {
     Box(modifier.clearAndSetSemantics { }) {
         when (forma) {
             FormaSkeleton.LISTA -> Column(
                 Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
-                verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
+                verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
             ) {
                 repeat(6) { FilaSkeleton() }
             }
@@ -59,43 +60,81 @@ fun ShalevSkeleton(modifier: Modifier = Modifier, forma: FormaSkeleton = FormaSk
                 Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
                 verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
             ) {
-                repeat(3) { Bloque(Modifier.fillMaxWidth().height(88.dp)) }
+                repeat(3) { TarjetaSkeleton() }
             }
 
             FormaSkeleton.GRAFICO -> Column(
                 Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
                 verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
             ) {
-                Bloque(Modifier.fillMaxWidth(0.4f).height(20.dp))
-                Bloque(Modifier.fillMaxWidth().height(ShalevSize.chartHeight))
+                Hueso(Modifier.fillMaxWidth(0.38f).height(18.dp))
+                Hueso(Modifier.fillMaxWidth(0.72f).height(12.dp))
+                GraficoSkeleton()
             }
 
-            FormaSkeleton.FILA -> FilaSkeleton()
+            FormaSkeleton.FILA -> FilaSkeleton(compacta = true)
         }
     }
 }
 
+/** Fila ósea alineada como ShalevListItem: indicador, miniatura, título/subtítulo y valor. */
 @Composable
-private fun FilaSkeleton() {
+private fun FilaSkeleton(compacta: Boolean = false) {
     Row(
-        Modifier.fillMaxWidth(),
+        Modifier.fillMaxWidth().padding(vertical = ShalevSpacing.xs),
         horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
     ) {
-        Bloque(Modifier.size(ShalevSize.miniatura), CircleShape)
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-            Bloque(Modifier.fillMaxWidth(0.65f).height(16.dp))
-            Bloque(Modifier.fillMaxWidth(0.4f).height(12.dp))
+        Hueso(Modifier.size(ShalevSize.indicatorWidth, ShalevSize.indicatorHeight))
+        Hueso(Modifier.size(if (compacta) ShalevSize.icon else ShalevSize.miniatura), CircleShape)
+        Column(
+            Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+        ) {
+            Hueso(Modifier.fillMaxWidth(0.78f).height(16.dp))
+            Hueso(Modifier.fillMaxWidth(0.5f).height(12.dp))
+        }
+        Hueso(Modifier.width(52.dp).height(16.dp))
+    }
+}
+
+/** Tres líneas óseas con proporciones variables, como una tarjeta de resumen. */
+@Composable
+private fun TarjetaSkeleton() {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
+        verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+    ) {
+        Hueso(Modifier.fillMaxWidth(0.42f).height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+                Hueso(Modifier.fillMaxWidth(0.82f).height(20.dp))
+                Hueso(Modifier.fillMaxWidth(0.55f).height(12.dp))
+            }
+            Hueso(Modifier.width(64.dp).height(24.dp))
         }
     }
 }
 
-/** Bloque gris del marcador. [forma] permite círculos (miniaturas) y esquinas redondeadas (tarjetas, líneas). */
+/** Silueta de barras, sin rejilla ni animación infinita. */
 @Composable
-private fun Bloque(modifier: Modifier = Modifier, forma: Shape = Esquinas) {
-    Box(modifier.clip(forma).background(MaterialTheme.colorScheme.onSurface.copy(alpha = ALFA_BLOQUE)))
+private fun GraficoSkeleton() {
+    val alturas = listOf(0.45f, 0.74f, 0.56f, 0.9f, 0.62f, 0.8f, 0.38f)
+    Row(
+        Modifier.fillMaxWidth().height(ShalevSize.chartHeight).padding(top = ShalevSpacing.md),
+        horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+        verticalAlignment = androidx.compose.ui.Alignment.Bottom,
+    ) {
+        alturas.forEach { altura ->
+            Hueso(Modifier.weight(1f).fillMaxHeight(altura).clip(Esquinas))
+        }
+    }
 }
 
-/** Opacidad de los bloques del marcador: visible sobre `surface` en claro y en oscuro sin parecer un error. */
-private const val ALFA_BLOQUE = 0.12f
+@Composable
+private fun Hueso(modifier: Modifier = Modifier, forma: Shape = Esquinas) {
+    Box(modifier.clip(forma).background(MaterialTheme.colorScheme.onSurface.copy(alpha = ALFA_HUESO)))
+}
 
+private const val ALFA_HUESO = 0.12f
 private val Esquinas = RoundedCornerShape(ShalevRadius.sm)

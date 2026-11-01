@@ -6,17 +6,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalContentColor
@@ -27,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -66,11 +66,20 @@ private fun Modifier.alturaBoton(soloIcono: Boolean): Modifier = when {
 @ReadOnlyComposable
 fun letraGrande(): Boolean = LocalDensity.current.fontScale >= ShalevFontScale.GRANDE
 
+/** En ventanas emergentes, las decisiones irreversibles o de salida conservan su etiqueta escrita. */
+val LocalShalevVentana = compositionLocalOf { false }
+
+private val ETIQUETAS_TEXTO_EN_VENTANA = setOf("Confirmar", "Eliminar", "Omitir", "Cancelar")
+
+private fun String.textoConservadoEnVentana(): String? = trim().takeIf { it in ETIQUETAS_TEXTO_EN_VENTANA }
+
+@Composable
+private fun Modifier.formaBoton(mostrarTexto: Boolean): Modifier =
+    if (mostrarTexto) alturaBoton(soloIcono = false) else size(ShalevSize.touchTarget)
+
 /**
- * P24 → 1.0.2: los botones de Shalev muestran **texto**.
- * - [text] es la etiqueta visible, la descripción de TalkBack y el nombre accesible.
- * - El ancho se ajusta al texto con un margen ligero; nunca ocupan todo el ancho.
- * - [icon] se conserva en la firma por compatibilidad con las llamadas existentes: ya no se dibuja.
+ * Botón principal con icono visible y etiqueta accesible. [mostrarTexto] permite conservar una etiqueta cuando hace
+ * falta; dentro de diálogos/ventanas se conserva automáticamente «Confirmar», «Eliminar», «Omitir» y «Cancelar».
  */
 @Composable
 fun ShalevPrimaryButton(
@@ -80,17 +89,22 @@ fun ShalevPrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     loading: Boolean = false,
+    mostrarTexto: Boolean = false,
 ) {
+    val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
+    val dibujarTexto = mostrarTexto || textoVentana != null
     Button(
         onClick = onClick,
-        modifier = modifier.alturaBoton(soloIcono = false).semantics { contentDescription = text },
+        modifier = modifier.formaBoton(dibujarTexto).semantics { contentDescription = text },
         enabled = enabled && !loading,
         shape = RoundedCornerShape(ShalevRadius.md),
-        contentPadding = PaddingTexto,
-    ) { EtiquetaBoton(text, loading) }
+        contentPadding = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp),
+    ) {
+        if (dibujarTexto) EtiquetaBoton(textoVentana ?: text, loading) else ContenidoIcono(icon, text, loading)
+    }
 }
 
-/** Acción secundaria: contorno, sin relleno, con el texto visible (ver [ShalevPrimaryButton]). */
+/** Acción secundaria con icono visible (o etiqueta si se solicita en un diálogo). */
 @Composable
 fun ShalevSecondaryButton(
     text: String,
@@ -99,30 +113,59 @@ fun ShalevSecondaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     loading: Boolean = false,
+    mostrarTexto: Boolean = false,
 ) {
+    val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
+    val dibujarTexto = mostrarTexto || textoVentana != null
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.alturaBoton(soloIcono = false).semantics { contentDescription = text },
+        modifier = modifier.formaBoton(dibujarTexto).semantics { contentDescription = text },
         enabled = enabled && !loading,
         shape = RoundedCornerShape(ShalevRadius.md),
-        contentPadding = PaddingTexto,
+        contentPadding = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp),
         border = ButtonDefaults.outlinedButtonBorder(enabled),
-    ) { EtiquetaBoton(text, loading) }
+    ) {
+        if (dibujarTexto) EtiquetaBoton(textoVentana ?: text, loading) else ContenidoIcono(icon, text, loading)
+    }
 }
 
-/** Acción terciaria: sin fondo ni borde, con el texto visible (ver [ShalevPrimaryButton]). */
+/** Acción terciaria con icono visible y etiqueta accesible. */
 @Composable
-fun ShalevTextButton(text: String, onClick: () -> Unit, icon: ImageVector, modifier: Modifier = Modifier, enabled: Boolean = true) {
+fun ShalevTextButton(
+    text: String,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    mostrarTexto: Boolean = false,
+) {
+    val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
+    val dibujarTexto = mostrarTexto || textoVentana != null
     TextButton(
         onClick = onClick,
-        modifier = modifier.alturaBoton(soloIcono = false).semantics { contentDescription = text },
+        modifier = modifier.formaBoton(dibujarTexto).semantics { contentDescription = text },
         enabled = enabled,
         shape = RoundedCornerShape(ShalevRadius.md),
-        contentPadding = PaddingTexto,
-    ) { EtiquetaBoton(text, loading = false) }
+        contentPadding = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp),
+    ) {
+        if (dibujarTexto) EtiquetaBoton(textoVentana ?: text, loading = false) else Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
+    }
 }
 
-/** Etiqueta común de los botones: texto (y el indicador de carga delante cuando trabaja). */
+/** En modo compacto conserva el indicador de carga; el texto está disponible para TalkBack en el botón. */
+@Composable
+private fun ContenidoIcono(icon: ImageVector, descripcion: String, loading: Boolean) {
+    if (loading) {
+        CircularProgressIndicator(
+            Modifier.size(ShalevSize.iconSmall).semantics { contentDescription = descripcion },
+            strokeWidth = 2.dp, color = LocalContentColor.current,
+        )
+    } else {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
+    }
+}
+
+/** Etiqueta común de los botones de diálogo cuando se conserva texto. */
 @Composable
 private fun EtiquetaBoton(text: String, loading: Boolean) {
     if (loading) {
@@ -130,7 +173,7 @@ private fun EtiquetaBoton(text: String, loading: Boolean) {
             Modifier.size(ShalevSize.iconSmall).semantics { contentDescription = text },
             strokeWidth = 2.dp, color = LocalContentColor.current,
         )
-        Spacer(Modifier.width(ShalevSpacing.xs))
+        androidx.compose.foundation.layout.Spacer(Modifier.size(ShalevSpacing.xs))
     }
     Text(
         text,
@@ -144,11 +187,8 @@ private fun EtiquetaBoton(text: String, loading: Boolean) {
 enum class IconActionStyle { Standard, Tonal, Filled }
 
 /**
- * Acción con etiqueta corta (Confirmar, Cancelar, Editar, Agregar, Eliminar, Compartir, Importar, Exportar, WhatsApp…).
- * - 1.0.2: se dibuja **texto**, no el icono. [contentDescription] es la etiqueta visible y la que lee TalkBack.
- * - [etiqueta] permite un texto visible más corto cuando [contentDescription] es largo (p. ej. «−1» en el conteo de billetes).
- * - Altura de 40 a 48dp y ancho ajustado al texto, con área táctil mínima.
- * - [selected] = resaltado invertido (fondo primary, texto onPrimary), animado.
+ * Acción de icono con área táctil mínima de 48dp y una descripción accesible completa.
+ * En diálogos y ventanas emergentes conserva las etiquetas Confirmar, Eliminar, Omitir y Cancelar.
  */
 @Composable
 fun ShalevIconAction(
@@ -161,6 +201,7 @@ fun ShalevIconAction(
     style: IconActionStyle = IconActionStyle.Standard,
     containerColor: Color? = null,
     etiqueta: String? = null,
+    mostrarTexto: Boolean = false,
 ) {
     val cs = MaterialTheme.colorScheme
     val (bg, fg) = when {
@@ -174,12 +215,22 @@ fun ShalevIconAction(
     val animBg by animateColorAsState(bg, ShalevMotion.tween(), label = "iconActionBg")
     val animFg by animateColorAsState(fg, ShalevMotion.tween(), label = "iconActionFg")
     val texto = etiqueta ?: contentDescription
+    val textoVentana = if (LocalShalevVentana.current) {
+        contentDescription.textoConservadoEnVentana() ?: etiqueta?.textoConservadoEnVentana()
+    } else null
+    val textoVisible = textoVentana ?: texto
+    val dibujarTexto = mostrarTexto || textoVentana != null
     val base = modifier
-        .alturaBoton(soloIcono = false)
+        .formaBoton(dibujarTexto)
         .semantics {
             this.contentDescription = contentDescription
             if (selected) this.selected = true
         }
+    val relleno = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp)
+    val contenido: @Composable RowScope.() -> Unit = {
+        if (dibujarTexto) EtiquetaAccion(textoVisible)
+        else Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
+    }
 
     if (style == IconActionStyle.Standard && !selected && containerColor == null) {
         TextButton(
@@ -187,19 +238,21 @@ fun ShalevIconAction(
             enabled = enabled,
             modifier = base,
             shape = RoundedCornerShape(ShalevRadius.md),
-            contentPadding = PaddingTexto,
+            contentPadding = relleno,
             colors = ButtonDefaults.textButtonColors(contentColor = animFg),
-        ) { EtiquetaAccion(texto) }
+            content = contenido,
+        )
     } else {
         Button(
             onClick = onClick,
             enabled = enabled,
             modifier = base,
             shape = RoundedCornerShape(ShalevRadius.md),
-            contentPadding = PaddingTexto,
+            contentPadding = relleno,
             colors = ButtonDefaults.buttonColors(containerColor = animBg, contentColor = animFg),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
-        ) { EtiquetaAccion(texto) }
+            content = contenido,
+        )
     }
 }
 

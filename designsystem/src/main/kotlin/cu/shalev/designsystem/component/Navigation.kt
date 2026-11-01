@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,8 +80,8 @@ fun ShalevNavigationBar(
 }
 
 /**
- * 1.0.2: botón de ayuda «?» de la esquina superior izquierda de cada pestaña principal.
- * Va en el hueco de navegación de [ShalevTopBar]; abre el contenido de ayuda de esa pestaña.
+ * Icono compartido de Ayuda en la esquina superior izquierda; abre el contenido de esa pestaña.
+ * Va en el hueco de navegación de [ShalevTopBar]. El acceso textual al manual en Ajustes no duplica este icono.
  */
 @Composable
 fun ShalevBotonAyuda(
@@ -98,7 +97,7 @@ fun ShalevBotonAyuda(
         contentPadding = PaddingValues(0.dp),
         border = BorderStroke(1.dp, cs.outlineVariant),
     ) {
-        Text("?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = cs.primary)
+        Icon(ShalevIcons.Ayuda, contentDescription = null, tint = cs.primary, modifier = Modifier.size(ShalevSize.icon))
     }
 }
 
@@ -114,7 +113,7 @@ fun ShalevTopBar(
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     marca: Boolean = false,
-    /** 1.0.2: ayuda de la pestaña; se dibuja como «?» en la esquina superior izquierda. */
+    /** Ayuda de la pestaña; dibuja `ShalevIcons.Ayuda`. */
     onAyuda: (() -> Unit)? = null,
     ayudaDescripcion: String = "Ayuda de esta pestaña",
     actions: @Composable RowScope.() -> Unit = {},

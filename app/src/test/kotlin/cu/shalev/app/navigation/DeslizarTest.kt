@@ -6,8 +6,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** 0.27.0 (T5): deslizar entre secciones solo en las 5 rutas raíz y sin nada que lo bloquee. */
+/** El gesto de deslizar solo está activo en los 4 destinos principales y cuando no hay bloqueos. */
 class DeslizarTest {
+    @Test fun ajustesNoFormaParteDeLaBarraInferior() {
+        assertEquals(4, TopLevel.entries.size)
+        assertFalse(TopLevel.entries.any { it.route == Route.Ajustes })
+    }
+
     @Test fun soloEnRutaRaizYSinBloqueos() {
         assertTrue(deslizarPermitido(enRutaRaiz = true, enSeleccionVenta = false, bloqueado = false))
         assertFalse(deslizarPermitido(enRutaRaiz = false, enSeleccionVenta = false, bloqueado = false)) // subpantalla

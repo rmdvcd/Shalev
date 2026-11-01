@@ -1,5 +1,17 @@
 # Shalev - Historial de desarrollo
 
+## 2026-10-31 - Acciones con iconos, Ajustes en Inicio y retirada del escáner documental de Android
+
+Cambios visuales pedidos por el dueño; no se modifica la versión declarada (1.0.1, `versionCode` 54).
+
+- **Acciones:** botones, filtros, exportación, acciones de fila, SMS, WhatsApp y spinners dibujan sus iconos (con descripciones accesibles). Se revisaron los selectores de cantidades, empleados, niveles de inventario, billetes CUP y apps secundarias: usan flechas iconográficas `Disminuir`/`Aumentar` con etiquetas accesibles, no caracteres `◄`/`►` pintados como texto. En iOS, `ShalevSpinnerButton` y `ShalevStepper` usan SF Symbols (`chevron.left`/`chevron.right`) en vez de los glifos textuales. Confirmar, Eliminar, Omitir y Cancelar conservan sus etiquetas en diálogos y ventanas emergentes. Los FAB también priorizan el icono. Los accesos de Inicio usan carrito y terminal de punto de venta y quedan debajo del banner de licencia, antes de las alertas. Ajustes sale de la navegación inferior y se abre desde la esquina superior derecha de Inicio. El icono superior de Ayuda usa `ShalevIcons.Ayuda`; el acceso textual al manual en Ajustes permanece sin icono duplicado.
+- **Filas:** el contenido textual de las filas limita título/subtítulo/valor a un máximo de tres líneas; Inventario combina stock y categoría en una línea y abrevia textos largos con puntos suspensivos. Los logos de BPA, BANDEC y BANMET aparecen en las filas de tarjetas/cuentas en lugar del icono genérico.
+- **Carga:** `ShalevSkeleton` adopta huesos estructurados de inspiración Boneyard (fila, tarjeta y gráfico) que siguen la geometría nativa de Shalev; se mantienen estáticos para respetar reducir movimiento y no dejar animaciones infinitas en los tests.
+- **Soporte:** cada dato del desarrollador se presenta como icono, separación y texto seleccionable alineado a la izquierda.
+- **Escáner documental Android:** se elimina el acceso de Venta y el módulo completo `app/ocr/` (OCR, cámara y lectura/importación de PDF, Excel y Word), junto con `mlkit-text`, su versión del catálogo y su referencia en `tools/verificacion/verificar.sh`. Se conserva CameraX + ML Kit Barcode para el QR de vinculación y la cámara para fotos.
+
+**Verificación:** no se pudieron ejecutar Gradle ni `swift test`: este entorno no dispone de Java/Android SDK ni de Swift/Xcode. `shalevTests`, `shalevCheck`, `verifyRoborazziDebug`, la compilación iOS y las pruebas en dispositivo quedan pendientes; las capturas deben regrabarse por los cambios visuales.
+
 ## 2026-10-30 - Botones con texto, skeleton de carga, ayuda por pestaña y ajustes de la interfaz
 
 Ocho cambios pedidos por el dueño. **No cambia la versión declarada** (sigue 1.0.1, `versionCode` 54): es un lote de interfaz, no una publicación.

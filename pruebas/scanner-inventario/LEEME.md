@@ -1,6 +1,8 @@
-# 5 archivos para probar a mano el escáner de inventario
+# Archivo histórico: muestras del antiguo escáner de inventario
 
-Estos archivos están hechos para el asistente **Inventario → «Escanear o importar inventario»**
+> **Esta función se retiró de Android el 2026-10-31.** Los archivos siguientes se conservan como material histórico; las instrucciones de prueba ya no se pueden ejecutar en la app actual y el módulo `app/ocr/` ya no existe.
+
+Estos archivos se prepararon para el antiguo asistente **Inventario → «Escanear o importar inventario»**
 (`app/src/main/kotlin/cu/shalev/app/ocr/`). Cubren las cinco fuentes reales que acepta:
 foto (manuscrito y galería), PDF, Excel `.xlsx`, CSV y Word `.docx`.
 

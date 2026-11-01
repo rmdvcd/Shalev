@@ -56,8 +56,6 @@ fun BotonFiltro(
         ShalevIconAction(
             ShalevIcons.Filtrar, descripcionFiltro(texto, activos),
             onClick = onClick, selected = activos > 0, enabled = enabled, modifier = modifier,
-            // 1.0.2: el texto visible es el corto; el conteo de filtros sigue en la descripción para TalkBack.
-            etiqueta = texto,
         )
     }
 }

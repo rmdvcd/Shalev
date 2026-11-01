@@ -109,7 +109,7 @@ fun MainScaffold(snapshot: Licencia) {
     Box(Modifier.fillMaxSize().then(if (bloquear) Modifier.clearAndSetSemantics { } else Modifier)) {
     Scaffold(
         bottomBar = {
-            // Solo en los 5 destinos principales; Venta/Licencia/Perfil son pantallas completas.
+            // Solo en los destinos principales; Ajustes también es una pantalla completa abierta desde Inicio.
             AnimatedVisibility(
                 visible = selected != null,
                 enter = slideInVertically(ShalevMotion.muelleEntrada()) { it },
@@ -244,7 +244,7 @@ fun MainScaffold(snapshot: Licencia) {
                 RegistrosScreen(onNavigate = nav::navigateTo)
             }
             composable<Route.TurnoDetalle> { TurnoDetalleScreen(onBack = { nav.popBackStack() }) }
-            composable<Route.Ajustes> { AjustesScreen(onNavigate = nav::navigateTo) }
+            composable<Route.Ajustes> { AjustesScreen(onNavigate = nav::navigateTo, onBack = { nav.popBackStack() }) }
             composable<Route.Venta> { e ->
                 val tipo = e.toRoute<Route.Venta>().tipo
                 val seleccion = e.savedStateHandle.getStateFlow<LongArray?>(KEY_VENTA_SELECCION, null).collectAsStateWithLifecycle().value
