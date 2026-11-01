@@ -29,6 +29,14 @@ class PagoLogicTest {
         assertNull(bancoPorTarjeta("123"))
     }
 
+    @Test fun elPrefijoQueDecideLaMiniaturaSonLosCuatroPrimerosDigitos() {
+        assertEquals("9205", prefijoCuenta("9205-1299-0000-1234"))
+        assertEquals("9225", prefijoCuenta(" 9225 0000 0000 1234 "))
+        assertNull(prefijoCuenta("123"))
+        assertNull(prefijoCuenta(""))
+        assertEquals("Prefijo 9205 · identificación orientativa", TextosPago.bancoEstimado("9205"))
+    }
+
     @Test fun cadaBancoUsaLaMiniaturaConSuLogo() {
         assertEquals(R.drawable.bpa_miniatura, miniaturaBanco(bancoPorTarjeta("9205")!!))
         assertEquals(R.drawable.bandec_miniatura, miniaturaBanco(bancoPorTarjeta("9225")!!))

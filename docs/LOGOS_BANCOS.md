@@ -28,11 +28,15 @@ La app ignora separadores y espacios, compara los primeros cuatro dígitos y dej
 
 En Pago electrónico se muestra un aviso de que el logo se estima por el prefijo y no verifica el banco ni la titularidad. La confirmación real debe hacerse en Transfermóvil o con el titular, independientemente del logo mostrado.
 
-## Presentación (0.30.1)
+## Presentación (2026-11-01)
 
-- Los tres logos se muestran en una **caja de 96 × 48 dp** (`MedidasLogoBanco`), con esquinas redondeadas del token `ShalevRadius.sm` y fondo blanco, para que BPA, BANDEC y BANMET ocupen exactamente el mismo espacio en la lista y en la hoja de edición. Los PNG no se modificaron.
-- BANDEC (rojo a sangre, sin margen propio) se recorta para llenar la caja (`ContentScale.Crop`); BPA (transparente) y BANMET (fondo blanco y formato muy alargado) se ajustan completos (`ContentScale.Fit`) con 6 dp de margen, sin deformarse.
-- El recurso de cada tarjeta lo decide `recursoLogoBanco(banco)`, que parte del mismo `bancoPorTarjeta` (primeros 4 dígitos) que el resto de la pantalla; no hay una segunda tabla.
+- El logo se pinta con `Image(painterResource(miniaturaBanco(banco)), ContentScale.Fit)` dentro de un cuadro de
+  `ShalevSize.miniatura` (40 dp), sin fondo ni borde propios. Los PNG no se modificaron.
+- BANDEC (rojo a sangre) y BANMET (fondo verde) llenan casi todo el cuadro; BPA es transparente y muy alargado, así
+  que se ve más pequeño. Si se quiere igualar el peso visual, el cambio va en el recurso, no en la tabla de prefijos.
+- El recurso de cada tarjeta lo decide `miniaturaBanco(bancoPorTarjeta(...))`: una sola tabla, la de los 4 primeros
+  dígitos. No existe una segunda correspondencia banco → archivo.
+- La hoja de edición muestra el mismo logo como vista previa en cuanto hay 4 dígitos: primero el logo, luego el nombre del banco y «Prefijo 9205 · identificación orientativa» (`prefijoCuenta` + `TextosPago.bancoEstimado`).
 
 ## Revisión de la asignación por prefijo (0.30.1)
 
@@ -46,4 +50,29 @@ Por eso el mapeo sigue siendo conservador y la pantalla de Pago electrónico man
 
 ## Miniaturas en Pago electrónico (2026-11-01)
 
-Se corrigió la correspondencia entre banco, nombre de recurso y contenido de las tres miniaturas. Los prefijos y la advertencia de identificación orientativa no cambian.
+Los archivos estaban **intercambiados**: `bpa_miniatura.png` contenía el monograma «bm» del Banco Metropolitano y
+`banmet_miniatura.png` contenía el logotipo «bpa» del Banco Popular de Ahorro. El código sí asignaba bien cada nombre a
+su banco, así que el efecto visible era el peor posible: una tarjeta `9205` (BPA) mostraba el logo de BANMET y una
+`9226` (BANMET) mostraba el de BPA. `bandec_miniatura.png` ya era correcto. La nota anterior de esta misma fecha
+afirmaba que la correspondencia estaba corregida, pero solo se habían renombrado los archivos: el contenido seguía
+cruzado. Ahora cada PNG contiene su propio logotipo y `PagoLogicTest` sigue comprobando qué recurso usa cada prefijo.
+
+### Selección de miniatura por los 4 primeros dígitos
+
+![Selección de miniaturas por prefijo](pago_miniaturas_prefijos.png)
+
+| 4 primeros dígitos | Miniatura | Banco mostrado | Resultado |
+|---|---|---|---|
+| `9205` | `bpa_miniatura.png` | Banco Popular de Ahorro (BPA) | logo estimado (prefijo ambiguo) |
+| `9225` | `bandec_miniatura.png` | Banco de Crédito y Comercio (BANDEC) | logo estimado |
+| `9226` | `banmet_miniatura.png` | Banco Metropolitano (BANMET) | logo estimado (prefijo ambiguo) |
+| `9204`, `9224` | — | Sin logo | los comparten BANDEC y BPA / Metropolitano |
+| `9235` | — | Sin logo | varios bancos |
+| `9227`, `9598` y otros | — | Sin logo | prefijo no listado |
+| Menos de 4 dígitos | — | Sin logo | no hay prefijo que comparar |
+
+La regla no cambió: se quitan espacios y guiones y se comparan solo los 4 primeros dígitos. Las filas «logo estimado»
+siguen siendo orientativas: el catálogo público de prefijos cubanos (QvaPay, versión 0.5.2 del 2026-10-21) atribuye
+`9225` y también `9226` a BANDEC ([qvapay/cuban_cards_prefixes](https://github.com/qvapay/cuban_cards_prefixes)), mientras que una [fuente comercial](https://veltropay.es/servicios/recargas-mlc) asigna `9226` a Banco Metropolitano. Si se quiere
+pasar a un mapeo más conservador —`9225` y `9226` → BANDEC, `9205`/`9204`/`9224` sin logo, y añadir `9238` → BPA,
+`9234`/`9598` → BANMET— se cambia solo `BancoCubano` y sus pruebas.

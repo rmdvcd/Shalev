@@ -3,6 +3,7 @@
 ## Ajustes de interfaz y miniaturas (2026-11-01)
 
 - Inventario resalta las filas con avisos; los indicadores de desplazamiento aparecen en Inventario, el asistente y las ventanas cuando hay contenido oculto.
+- **Miniaturas de Pago electrónico:** `bpa_miniatura.png` y `banmet_miniatura.png` tenían el contenido intercambiado (BPA mostraba el monograma de BANMET y al revés). Se intercambiaron los archivos; la tabla de prefijos no cambió. `docs/pago_miniaturas_prefijos.png` muestra la miniatura que sale con cada uno de los 4 primeros dígitos.
 - Se corrigieron los recursos de los tres bancos y sus pruebas; el prefijo sigue siendo orientativo. El contador y su resumen ordenan billetes de mayor a menor sin alterar el estado guardado.
 - Los datos del asistente se agrupan, y Precios usa un botón de dos estados y un desplegable de pago. Los ajustes siguen usando productos seleccionados; cantidad, excepciones y servicios aún no están implementados.
 - Pendiente compilar, ejecutar pruebas y regrabar capturas de Android: este entorno no dispone de Java ni Android SDK.

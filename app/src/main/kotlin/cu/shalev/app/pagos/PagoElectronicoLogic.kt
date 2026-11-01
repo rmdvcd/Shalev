@@ -16,11 +16,16 @@ enum class BancoCubano(val nombre: String, val sigla: String, val prefijos: Set<
     BANMET("Banco Metropolitano", "BANMET", setOf("9226")),
 }
 
+/** Los 4 primeros dígitos que deciden la miniatura (se ignoran espacios y guiones); null si aún no hay 4. */
+fun prefijoCuenta(numero: String): String? {
+    val digitos = numero.filter(Char::isDigit)
+    return if (digitos.length < 4) null else digitos.take(4)
+}
+
 /** Identificación visual no autoritativa; los prefijos desconocidos o ambiguos se dejan sin logo. */
 fun bancoPorTarjeta(numero: String): BancoCubano? {
-    val digitos = numero.filter(Char::isDigit)
-    if (digitos.length < 4) return null
-    return BancoCubano.entries.firstOrNull { banco -> banco.prefijos.any(digitos::startsWith) }
+    val prefijo = prefijoCuenta(numero) ?: return null
+    return BancoCubano.entries.firstOrNull { banco -> prefijo in banco.prefijos }
 }
 
 object TextosPago {
@@ -29,6 +34,9 @@ object TextosPago {
         "el dinero y el teléfono que recibe el mensaje de confirmación. Elige cuáles usar."
     const val AVISO_BANCOS = "Los logos se estiman por el prefijo; no verifican el banco ni la titularidad."
     const val BANCO_ESTIMADO = "Identificación orientativa por prefijo"
+
+    /** Vista previa de la hoja: deja a la vista el prefijo que eligió la miniatura. */
+    fun bancoEstimado(prefijo: String) = "Prefijo $prefijo · identificación orientativa"
     const val TELEFONO = "Teléfono de confirmación"
     const val TARJETA = "Tarjeta o cuenta que recibe el dinero"
     const val NINGUNO = "Ninguno"

@@ -229,6 +229,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.lista(
 }
 
 // Un único recurso por banco; la identificación por prefijo sigue siendo orientativa.
+// Cada PNG contiene su propio logotipo: bpa_miniatura → «bpa», bandec_miniatura → «bandec»,
+// banmet_miniatura → monograma «bm». No volver a intercambiar los archivos (ver docs/LOGOS_BANCOS.md).
 internal fun miniaturaBanco(banco: BancoCubano): Int = when (banco) {
     BancoCubano.BPA -> R.drawable.bpa_miniatura
     BancoCubano.BANDEC -> R.drawable.bandec_miniatura
@@ -277,7 +279,10 @@ private fun EdicionSheet(e: EdicionPago, guardando: Boolean, acciones: AccionesL
             keyboardOptions = KeyboardOptions(keyboardType = if (telefono) KeyboardType.Phone else KeyboardType.Number),
         )
         if (!telefono) {
-            bancoPorTarjeta(e.numero)?.let { banco ->
+            // Vista previa: el prefijo visible deja claro por qué se eligió esa miniatura.
+            val prefijo = prefijoCuenta(e.numero)
+            val banco = prefijo?.let { bancoPorTarjeta(e.numero) }
+            if (prefijo != null && banco != null) {
                 Row(
                     Modifier.fillMaxWidth().testTag(PagoTags.bancoPreview(banco)),
                     verticalAlignment = Alignment.CenterVertically,
@@ -285,7 +290,7 @@ private fun EdicionSheet(e: EdicionPago, guardando: Boolean, acciones: AccionesL
                     IconoTarjeta(banco)
                     Column(Modifier.padding(start = ShalevSpacing.xs)) {
                         Text(banco.nombre, style = MaterialTheme.typography.titleSmall)
-                        ShalevSecondaryText(TextosPago.BANCO_ESTIMADO)
+                        ShalevSecondaryText(TextosPago.bancoEstimado(prefijo))
                     }
                 }
             }
