@@ -148,7 +148,7 @@ jobs:
           fi
 
       - name: Publicar el artefacto de simulador
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: IShalev-iOS-Simulator
           path: ${{ runner.temp }}/IShalev-iOS-Simulator.zip
@@ -156,7 +156,7 @@ jobs:
           retention-days: 7
 
       - name: Publicar IShalev.ipa sin firma
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: IShalev-iOS-IPA
           path: ${{ runner.temp }}/IShalev.ipa
