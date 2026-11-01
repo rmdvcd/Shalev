@@ -114,7 +114,7 @@ fun AyudaScreen(onBack: () -> Unit) {
                                 )
                                 Text(
                                     categoria.detalle, style = MaterialTheme.typography.bodySmall,
-                                    textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs),
                                 )
                             }
                         }
@@ -140,7 +140,7 @@ fun AyudaScreen(onBack: () -> Unit) {
                             tema.pasos.forEachIndexed { n, paso ->
                                 Text(
                                     "${n + 1}. $paso", style = MaterialTheme.typography.bodyMedium,
-                                    textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs),
                                 )
                             }
                             tema.esquema?.let { Esquema(it, Modifier.padding(top = ShalevSpacing.xs)) }

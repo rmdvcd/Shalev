@@ -131,6 +131,20 @@ class InventarioViewModelTest {
         assertEquals(3, otra.state.value.items.size)
     }
 
+    @Test fun alertaEnInventarioYaAbiertoSustituyeFiltrosAnteriores() = runTest {
+        cargar()
+        val vm = vm()
+        vm.buscar("galletas")
+        vm.aplicarFiltro(FiltroInventario(categoria = "Dulces"))
+        vm.alternar(2)
+        AlertaPendiente.pedir(TipoAlerta.SIN_EXISTENCIA)
+        vm.aplicarAlertaPendiente()
+        assertEquals(FiltroInventario(alerta = TipoAlerta.SIN_EXISTENCIA), vm.state.value.filtro)
+        assertEquals(listOf(3L), vm.state.value.items.map { it.producto.id })
+        assertTrue(vm.state.value.seleccion.isEmpty())
+        assertNull(AlertaPendiente.consumir())
+    }
+
     @Test fun buscadorYFiltroDeCategoria() = runTest {
         cargar()
         val vm = vm()
@@ -228,16 +242,17 @@ class InventarioViewModelTest {
         vm.exportar(FormatoSalida.TARJETAS)
         assertEquals(listOf(2L), renderer.renderizados.single().map { it.id })
         assertEquals("image/png", eventos.filterIsInstance<EventoInventario.Compartir>().single().mime)
-        // Imagen = lista de precios en PNG (Prompt 14): sin costo ni existencias.
+        // Un solo artículo usa una tarjeta; varios usan una lista de precios.
         eventos.clear()
         vm.exportar(FormatoSalida.IMAGEN)
-        val t0 = tablaPng.renderizadas.single()
-        assertEquals(listOf("Categoría", "Producto", "Precio"), t0.columnas)
-        assertEquals(1, t0.filas.size)
-        val png = eventos.filterIsInstance<EventoInventario.Compartir>().single()
-        assertEquals("image/png", png.mime)
-        assertEquals("Shalev_precios_2026-09-30_1.png", png.archivos.single().name)
-        assertEquals(1, renderer.renderizados.size) // la imagen no usa el renderizador de tarjetas
+        assertEquals(listOf(2L), renderer.renderizados.last().map { it.id })
+        assertTrue(tablaPng.renderizadas.isEmpty())
+        vm.alternar(1)
+        vm.exportar(FormatoSalida.IMAGEN)
+        val tabla = tablaPng.renderizadas.single()
+        assertEquals(listOf("Categoría", "Producto", "Precio"), tabla.columnas)
+        assertEquals(2, tabla.filas.size)
+        assertEquals("image/png", eventos.filterIsInstance<EventoInventario.Compartir>().last().mime)
     }
 
     @Test fun errorAlExportarSeAvisaSinDetalles() = runTest {

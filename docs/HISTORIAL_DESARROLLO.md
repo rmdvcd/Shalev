@@ -1,3 +1,10 @@
+## Ajustes de exportación y navegación de inventario (2026-11-01)
+
+- Las filas de formatos son acciones directas; Imagen genera tarjeta individual o lista según la cantidad. Registros y detalle de turno comparten PDF/Excel.
+- Las alertas de Inicio reemplazan los filtros anteriores incluso al recuperar Inventario; se destaca el stock y se usa un desplegable para la unidad de insumos.
+- El asistente limita las secundarias previstas a la cuota de la prueba o licencia y se aclararon instrucciones de Ayuda.
+- Pendiente verificar compilación, pruebas y flujos en dispositivo: el entorno de trabajo no dispone de Java ni SDK Android.
+
 # Shalev - Historial de desarrollo
 
 ## 2026-10-31 - Acciones con iconos, Ajustes en Inicio y retirada del escáner documental de Android

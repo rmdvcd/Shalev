@@ -76,11 +76,11 @@ class OnboardingViewModel @Inject constructor(
                 niveles = NivelesForm.desde(prefs.niveles),
                 licencia = licencia,
                 modulos = prefs.modulos,
-                empleados = prefs.empleadosPrevistos,
+                empleados = prefs.empleadosPrevistos.coerceIn(0, licencia.secundariasPermitidas),
             )
         }
         viewModelScope.launch {
-            licenciaRepo.snapshot.filterNotNull().collect { l -> _state.update { it.copy(licencia = l) } }
+            licenciaRepo.snapshot.filterNotNull().collect { l -> _state.update { it.copy(licencia = l, empleados = it.empleados.coerceAtMost(l.secundariasPermitidas)) } }
         }
         viewModelScope.launch {
             ajustesDispositivo.ajustes.collect { a -> _state.update { it.copy(accesoClave = a.accesoConClave) } }
@@ -100,7 +100,7 @@ class OnboardingViewModel @Inject constructor(
     fun alternarModulo(m: cu.shalev.domain.model.Modulo) = _state.update { it.copy(modulos = cu.shalev.domain.model.Modulo.alternar(it.modulos, m)) }
     /** 0.27.0 (T11): ya confirmada la identidad por la pantalla. */
     fun guardarAccesoClave(activo: Boolean) { viewModelScope.launch { guardarAcceso(activo) } }
-    fun cambiarEmpleados(n: Int) = _state.update { it.copy(empleados = n.coerceIn(0, cu.shalev.domain.model.Vinculacion.SECUNDARIAS_MAX)) }
+    fun cambiarEmpleados(n: Int) = _state.update { it.copy(empleados = n.coerceIn(0, it.licencia?.secundariasPermitidas ?: 0)) }
 
     // ---------- Navegación ----------
 

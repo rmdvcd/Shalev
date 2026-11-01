@@ -436,25 +436,13 @@ private fun HojaExportar(state: ServiciosUiState, acciones: AccionesServicios) {
             value = state.comentarioPromocion, onValueChange = acciones.onComentarioPromocion,
             label = "Encabezado de promoción (opcional)",
         )
-        // 1.0.3: cada opción es icono + texto (toda la fila), sin botones a la derecha.
-        FORMATOS_EXPORTAR_SERVICIOS.forEach { f ->
-            val iconoFormato = cu.shalev.app.common.iconoFormato(f)
+        listOf(FormatoSalida.PDF, FormatoSalida.EXCEL, FormatoSalida.IMAGEN).forEach { f ->
             ShalevListItem(
-                title = f.etiqueta, indicatorColor = null,
-                leading = iconoFormato?.let { ic -> { Icon(ic, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) } },
-                modifier = Modifier.testTag(ServiciosTags.formato(f)),
-            )
-            ShalevListItem(
-                title = "Compartir ${f.etiqueta}", indicatorColor = null,
-                leading = { Icon(ShalevIcons.Compartir, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                title = if (f == FormatoSalida.IMAGEN && n == 1) "Tarjeta promocional" else f.etiqueta,
+                indicatorColor = null,
+                leading = { Icon(cu.shalev.app.common.iconoFormato(f), contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
                 onClick = { acciones.onExportar(f) },
-                modifier = Modifier.testTag("${ServiciosTags.formato(f)}_compartir"),
-            )
-            if (f.guardable) ShalevListItem(
-                title = "Guardar ${f.etiqueta} en el dispositivo", indicatorColor = null,
-                leading = { Icon(ShalevIcons.Exportar, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
-                onClick = { acciones.onGuardar(f) },
-                modifier = Modifier.testTag("${ServiciosTags.formato(f)}_guardar"),
+                modifier = Modifier.testTag(ServiciosTags.formato(f)),
             )
         }
     }

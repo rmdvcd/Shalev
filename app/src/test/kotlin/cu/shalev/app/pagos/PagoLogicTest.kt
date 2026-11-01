@@ -1,5 +1,6 @@
 package cu.shalev.app.pagos
 
+import cu.shalev.app.R
 import cu.shalev.core.result.AppError
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -26,6 +27,12 @@ class PagoLogicTest {
         assertNull(bancoPorTarjeta("9224-0000-0000-1234")) // las fuentes consultadas se contradicen
         assertNull(bancoPorTarjeta("9204-0000-0000-1234")) // el prefijo CUP no basta para identificar el banco
         assertNull(bancoPorTarjeta("123"))
+    }
+
+    @Test fun cadaBancoUsaLaMiniaturaConSuLogo() {
+        assertEquals(R.drawable.bandec_miniatura, miniaturaBanco(bancoPorTarjeta("9205")!!))
+        assertEquals(R.drawable.bpa_miniatura, miniaturaBanco(bancoPorTarjeta("9225")!!))
+        assertEquals(R.drawable.banmet_miniatura, miniaturaBanco(bancoPorTarjeta("9226")!!))
     }
 
     @Test fun elLogoSeDecideSoloPorLosCuatroPrimerosDigitos() {

@@ -143,6 +143,7 @@ fun InventarioScreen(
     // CreateDocument fija el tipo MIME al crearse: uno por formato guardable.
     val guardarPdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.PDF.mime)) { viewModel.guardarEn(it?.toString()) }
     val guardarXlsx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.XLSX.mime)) { viewModel.guardarEn(it?.toString()) }
+    LaunchedEffect(viewModel) { viewModel.aplicarAlertaPendiente() }
     LaunchedEffect(mensajeInicial) {
         if (mensajeInicial != null) { onMensajeMostrado(); snackbar.showSnackbar(mensajeInicial) }
     }
@@ -409,7 +410,7 @@ private fun Fila(i: ItemInventario, marcado: Boolean, acciones: AccionesInventar
                     maxLines = 1,
                 )
             }
-            ShalevSecondaryText("${valorFila(i)} · ${categoriaFila(i)}", maxLines = 1)
+            ShalevSecondaryText(ShalevTextos.resaltar("${valorFila(i)} · ${categoriaFila(i)}", valorFila(i)), maxLines = 1)
         }
         Column(horizontalAlignment = Alignment.End) {
             venta?.let {
@@ -550,7 +551,8 @@ private fun HojaFiltro(state: InventarioUiState, acciones: AccionesInventario) {
 @Composable
 private fun HojaExportar(state: InventarioUiState, acciones: AccionesInventario) {
     val n = if (state.seleccion.isNotEmpty()) state.seleccion.size else state.items.size
-    val promocionable = (if (state.seleccion.isNotEmpty()) state.elementosFijados else state.items).any { !it.producto.esInsumo }
+    val cantidadPromocion = (if (state.seleccion.isNotEmpty()) state.elementosFijados else state.items).count { !it.producto.esInsumo }
+    val promocionable = cantidadPromocion > 0
     ShalevBottomSheet(onDismiss = acciones.onCerrarHoja, title = TextosInventario.EXPORTAR) {
         ShalevSecondaryText(
             if (state.seleccion.isNotEmpty()) "${TextosInventario.productos(n)} seleccionados" else "Lo que ves: ${TextosInventario.productos(n)}",
@@ -559,26 +561,14 @@ private fun HojaExportar(state: InventarioUiState, acciones: AccionesInventario)
             value = state.comentarioPromocion, onValueChange = acciones.onComentarioPromocion,
             label = "Encabezado de promoción (opcional)",
         )
-        // 1.0.3: cada formato ofrece «Compartir» (y «Guardar», si procede) como fila independiente con icono + texto,
-        // sin botones a la derecha (toda la fila es el blanco táctil).
-        FormatoSalida.EXPORTAR.filter { it.interno || promocionable }.forEach { f ->
-            val iconoFormato = cu.shalev.app.common.iconoFormato(f)
+        listOf(FormatoSalida.PDF, FormatoSalida.EXCEL, FormatoSalida.IMAGEN)
+            .filter { it.interno || promocionable }.forEach { f ->
             ShalevListItem(
-                title = f.etiqueta, subtitle = f.destinatario, indicatorColor = null,
-                leading = { Icon(iconoFormato, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
-                modifier = Modifier.testTag(InventarioTags.formato(f)),
-            )
-            ShalevListItem(
-                title = "Compartir ${f.etiqueta}", indicatorColor = null,
-                leading = { Icon(ShalevIcons.Compartir, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                title = if (f == FormatoSalida.IMAGEN && cantidadPromocion == 1) "Tarjeta promocional" else f.etiqueta,
+                subtitle = f.destinatario, indicatorColor = null,
+                leading = { Icon(cu.shalev.app.common.iconoFormato(f), contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
                 onClick = { acciones.onExportar(f) },
-                modifier = Modifier.testTag("${InventarioTags.formato(f)}_compartir"),
-            )
-            if (f.guardable) ShalevListItem(
-                title = "Guardar ${f.etiqueta} en el dispositivo", indicatorColor = null,
-                leading = { Icon(ShalevIcons.Exportar, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
-                onClick = { acciones.onGuardar(f) },
-                modifier = Modifier.testTag("${InventarioTags.formato(f)}_guardar"),
+                modifier = Modifier.testTag(InventarioTags.formato(f)),
             )
         }
     }

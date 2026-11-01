@@ -228,16 +228,17 @@ private fun androidx.compose.foundation.lazy.LazyListScope.lista(
     }
 }
 
+// Los nombres de los PNG están cruzados; se seleccionan por su contenido visual.
+internal fun miniaturaBanco(banco: BancoCubano): Int = when (banco) {
+    BancoCubano.BPA -> R.drawable.bandec_miniatura
+    BancoCubano.BANDEC -> R.drawable.bpa_miniatura
+    BancoCubano.BANMET -> R.drawable.banmet_miniatura
+}
+
 /** Miniatura del logo del banco estimado por el prefijo de la cuenta. */
 @Composable
 private fun IconoTarjeta(banco: BancoCubano, modifier: Modifier = Modifier) {
-    // Los tres PNG tienen nombres cruzados: bpa_miniatura contiene el logo de BANMET, banmet_miniatura el de BANDEC
-    // y bandec_miniatura el de BPA; se elige cada recurso por el contenido real, no por el nombre del archivo.
-    val recurso = when (banco) {
-        BancoCubano.BPA -> R.drawable.bandec_miniatura
-        BancoCubano.BANDEC -> R.drawable.banmet_miniatura
-        BancoCubano.BANMET -> R.drawable.bpa_miniatura
-    }
+    val recurso = miniaturaBanco(banco)
     Image(
         painter = painterResource(id = recurso),
         contentDescription = banco.nombre,

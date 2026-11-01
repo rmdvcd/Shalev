@@ -16,6 +16,8 @@ Nombres de archivo sin datos personales: `Shalev_<qué>_<aaaa-mm-dd>.<ext>`, con
 
 ## Alcance de exportación vigente (revisado el 2026-10-09)
 
+En Inventario y Servicios, la opción Imagen genera una tarjeta promocional para un elemento o una lista de precios para varios. PDF, Excel e Imagen abren el menú de compartir del sistema; en Registros y el detalle de turno se ofrecen PDF y Excel.
+
 Esta tabla sustituye los alcances de las versiones anteriores descritas más abajo; no cambia el formato
 binario de los respaldos ni los escritores PDF/XLSX.
 

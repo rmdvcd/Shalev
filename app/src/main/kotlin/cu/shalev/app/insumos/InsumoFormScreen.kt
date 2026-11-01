@@ -35,7 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.app.common.rememberSalidaProtegida
 import cu.shalev.designsystem.component.FiltroEntrada
 import cu.shalev.designsystem.component.ShalevBarraAcciones
-import cu.shalev.designsystem.component.ShalevChip
+import cu.shalev.designsystem.component.ShalevComboBox
 import cu.shalev.designsystem.component.ShalevEmptyState
 import cu.shalev.designsystem.component.ShalevLoading
 import cu.shalev.designsystem.component.ShalevPrimaryButton
@@ -158,15 +158,11 @@ private fun Formulario(state: InsumoFormUiState, a: AccionesInsumoForm, modifier
             imeAction = ImeAction.Next,
             modifier = Modifier.testTag(InsumoFormTags.CANTIDAD),
         )
-        Text("Se mide en", style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().semantics { heading() })
-        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs, Alignment.CenterHorizontally)) {
-            UnidadMedida.entries.forEach { u ->
-                ShalevChip(
-                    InsumoFormLogic.etiqueta(u), selected = f.unidad == u, onClick = { a.onUnidad(u) },
-                    modifier = Modifier.testTag(InsumoFormTags.unidad(u)),
-                )
-            }
-        }
+        ShalevComboBox(
+            label = "Unidad de medida", opciones = UnidadMedida.entries, seleccion = f.unidad,
+            etiqueta = InsumoFormLogic::etiqueta, onSeleccion = a.onUnidad,
+            tagOpcion = InsumoFormTags::unidad,
+        )
 
         ShalevTextField(
             filtro = FiltroEntrada.DINERO,

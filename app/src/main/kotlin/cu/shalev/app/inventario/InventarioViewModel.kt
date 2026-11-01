@@ -192,6 +192,13 @@ class InventarioViewModel @Inject constructor(
 
     // ---------------- Buscador y filtro ----------------
 
+    fun aplicarAlertaPendiente() {
+        AlertaPendiente.consumir()?.let { alerta ->
+            filtro.value = FiltroInventario(alerta = alerta)
+            seleccion.value = emptySet()
+        }
+    }
+
     fun buscar(texto: String) = filtro.update { it.copy(texto = texto.take(80)) }
     fun aplicarFiltro(f: FiltroInventario) { filtro.update { f.copy(texto = it.texto) }; cerrarHoja() }
     fun quitarFiltros() = filtro.update { FiltroInventario() }
@@ -340,7 +347,8 @@ class InventarioViewModel @Inject constructor(
         trabajar {
             when (formato) {
                 FormatoSalida.IMAGEN -> {
-                    val fs = imagenTabla.renderizar(TablasExport.listaPrecios(ps), "Shalev_precios_${Dates.localDate(clock.now(), ZoneId.systemDefault())}")
+                    val fs = if (ps.size == 1) tarjetas.renderizar(ps, comentario)
+                    else imagenTabla.renderizar(TablasExport.listaPrecios(ps), "Shalev_precios_${Dates.localDate(clock.now(), ZoneId.systemDefault())}")
                     emitir(EventoInventario.Compartir(fs, "image/png", TextosInventario.TITULO))
                 }
                 FormatoSalida.TARJETAS -> {
