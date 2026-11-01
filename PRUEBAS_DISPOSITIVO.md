@@ -110,3 +110,12 @@ actividad real de Android y hardware):
 | La secundaria no ve a la principal | wifis distintas, aislamiento de clientes del router o VPN activa | Misma red, sin VPN; probar con la zona wifi del emisor |
 | El QR de migración «no vale» | La clave del QR es de un solo uso y caduca con la sesión | Generar un QR nuevo desde el emisor y reintentar |
 | Una captura Roborazzi cambió sola | Cambio visual real o fuente/escala del emulador | Revisar el diff en `app/capturas/`; si es el cambio buscado, versionar la nueva imagen (ver `CAPTURAS.md`) |
+
+
+### Movimiento y accesibilidad
+
+- Cambiar entre las secciones con la barra y deslizando en ambos sentidos; repetir rápidamente y volver con Atrás. La salida y la entrada deben seguir la dirección del gesto; al tocar la barra debe haber fundido.
+- Hacer aparecer, cambiar y resolver alertas de inventario: comprobar que no haya saltos importantes y que la alerta visible abra su filtro.
+- Cambiar períodos y datos de gráficos: los valores nuevos deben quedar legibles y no reiniciarse desde cero mientras el gráfico sigue visible.
+- Abrir y cerrar ventanas con Atrás y tocando fuera, también con teclado y cambios sin guardar. Intentar toques repetidos durante la salida; verificar que confirmar o guardar no se duplique.
+- Repetir con «Quitar animaciones», TalkBack, letra grande, claro/oscuro y navegación por gestos; comprobar fluidez en un dispositivo real.

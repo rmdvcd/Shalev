@@ -4,7 +4,10 @@ import cu.shalev.designsystem.theme.ShalevTextos
 import cu.shalev.designsystem.component.BannerTone
 import cu.shalev.app.notificacion.rememberPedirPermisoAviso
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -629,31 +632,42 @@ private fun NuevaVentaDialog(turnoAbierto: Boolean, acciones: AccionesInicio, ti
 // ---------------- Alertas ----------------
 
 private fun LazyListScope.alertas(alertas: List<AlertaUi>, acciones: AccionesInicio, maxPorFila: Int) {
-    if (alertas.isEmpty()) return
-    item(key = "alertas_titulo") { Seccion("Alertas de inventario") }
-    // 0.27.0 (T14): reparto equitativo (1, 2, 3, 2+2, 3+2, 3+3…); en cada fila, mismo ancho y misma altura. Una fila
-    // incompleta queda centrada con el mismo ancho por tarjeta que la fila más llena.
-    val reparto = repartoAlertas(alertas.size, maxPorFila)
-    val porFila = reparto.firstOrNull() ?: 1
-    var desde = 0
-    reparto.forEachIndexed { fila, cuantas ->
-        val grupo = alertas.subList(desde, desde + cuantas)
-        desde += cuantas
-        item(key = "alertas_$fila") {
-            Row(
-                Modifier.fillMaxWidth().then(shalevAnimateItem()),
-                horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally),
+    // Se conserva el contenido anterior durante la salida, incluso al quedar sin alertas.
+    item(key = "alertas") {
+        AnimatedContent(
+            targetState = alertas,
+            contentKey = { lista -> lista.map { it.tipo } },
+            transitionSpec = { fadeIn(ShalevMotion.tween(ShalevMotion.SHORT)) togetherWith fadeOut(ShalevMotion.tween(ShalevMotion.SHORT)) },
+            label = "alertas",
+        ) { visibles ->
+            Column(
+                modifier = if (visibles.map { it.tipo } != alertas.map { it.tipo }) Modifier.clearAndSetSemantics { } else Modifier,
+                verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
             ) {
-                val hueco = (porFila - cuantas) / 2f
-                if (hueco > 0f) Spacer(Modifier.weight(hueco))
-                grupo.forEach { a ->
-                    ContadorAlerta(
-                        etiqueta = a.etiqueta, cantidad = a.cantidad, tono = a.tono,
-                        onClick = { acciones.onVerAlerta(a.tipo) },
-                        modifier = Modifier.weight(1f).testTag(InicioTags.alerta(a.tipo)),
-                    )
+                if (visibles.isNotEmpty()) {
+                    Seccion("Alertas de inventario")
+                    val reparto = repartoAlertas(visibles.size, maxPorFila)
+                    val porFila = reparto.firstOrNull() ?: 1
+                    var desde = 0
+                    reparto.forEach { cuantas ->
+                        val grupo = visibles.subList(desde, desde + cuantas)
+                        desde += cuantas
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally)) {
+                            val hueco = (porFila - cuantas) / 2f
+                            if (hueco > 0f) Spacer(Modifier.weight(hueco))
+                            grupo.forEach { a ->
+                                androidx.compose.runtime.key(a.tipo) {
+                                    ContadorAlerta(
+                                        etiqueta = a.etiqueta, cantidad = a.cantidad, tono = a.tono,
+                                        onClick = { if (visibles.map { it.tipo } == alertas.map { it.tipo }) acciones.onVerAlerta(a.tipo) },
+                                        modifier = Modifier.weight(1f).testTag(InicioTags.alerta(a.tipo)),
+                                    )
+                                }
+                            }
+                            if (hueco > 0f) Spacer(Modifier.weight(hueco))
+                        }
+                    }
                 }
-                if (hueco > 0f) Spacer(Modifier.weight(hueco))
             }
         }
     }
@@ -661,7 +675,7 @@ private fun LazyListScope.alertas(alertas: List<AlertaUi>, acciones: AccionesIni
 
 /**
  * Contador de alerta: número en el color semántico de la alerta (AA en ambos temas). Contador 0 → oculto
- * (con animación). Pulsar → navega a Inventario filtrado.
+ * (con un fundido de la sección). Pulsar → navega a Inventario filtrado.
  * 0.21.1 (H4): SinExistencia va relleno (fondo error, número y texto onError) para no confundirse con
  * «Stock crítico», que usa el mismo rojo sobre la superficie.
  */
@@ -673,7 +687,7 @@ private fun ContadorAlerta(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    AnimatedVisibility(visible = cantidad > 0, modifier = modifier, enter = ShalevMotion.enterVertical, exit = ShalevMotion.exitVertical) {
+    Box(modifier) {
         val relleno = tono == AlertTone.SinExistencia
         ShalevCard(
             onClick = onClick,

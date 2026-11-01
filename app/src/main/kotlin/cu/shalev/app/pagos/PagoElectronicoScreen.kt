@@ -125,7 +125,7 @@ fun PagoElectronicoContent(
                     }
                 }
                 ShalevFab(
-                    ShalevIcons.Agregar,
+                    if (expandido) ShalevIcons.Cancelar else ShalevIcons.Agregar,
                     if (expandido) "Cerrar" else "Agregar",
                     onClick = { expandido = !expandido },
                 )

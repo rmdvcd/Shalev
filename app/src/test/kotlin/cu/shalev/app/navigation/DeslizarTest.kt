@@ -27,6 +27,15 @@ class DeslizarTest {
         assertEquals(CambioSeccion.FUNDIDO, cambioSeccion(0))
     }
 
+    @Test fun direccionDelGestoSoloAplicaAlOrigenYDestinoCorrespondientes() {
+        val gesto = GestoSeccion("entrada-1", "INVENTARIO", -1)
+        assertEquals(CambioSeccion.ATRAS, cambioSeccion(gesto, "entrada-1", "INVENTARIO"))
+        assertEquals(CambioSeccion.FUNDIDO, cambioSeccion(gesto, "entrada-2", "INVENTARIO"))
+        assertEquals(CambioSeccion.FUNDIDO, cambioSeccion(gesto, "entrada-1", "SERVICIOS"))
+        assertEquals(CambioSeccion.FUNDIDO, cambioSeccion(null, "entrada-1", "INVENTARIO"))
+        assertEquals(CambioSeccion.ADELANTE, cambioSeccion(gesto.copy(direccion = 1), "entrada-1", "INVENTARIO"))
+    }
+
     @Test fun elBloqueoCuentaLosComponentesQueLoPiden() {
         val b = BloqueoGestos()
         assertFalse(b.activo)

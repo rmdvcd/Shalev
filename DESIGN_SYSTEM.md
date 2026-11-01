@@ -144,7 +144,7 @@ No hay valores intermedios (4, 12, 20…).
   - Medalla del Top 3: 28–32dp (círculo local de Inicio).
   - Trazos internos (P19): `strokeHairline` = 1dp (línea base de gráficos), `strokeRegular` = 2dp (área y spinner), `chartBarMax` = 28dp.
   - `fabClearance` = 88dp (hueco al final de las listas con FAB), `qr` = 240dp, `campoCantidad` = 112dp, `contentMaxWidth` = 600dp (ancho máximo de formularios, con `Modifier.shalevContentWidth()`).
-- **Motion** (`ShalevMotion`). **0.27.0 (T4/N4):** todo sale de aquí; nada de bucles con `delay(16)`, la animación sigue el refresco real de la pantalla (60/90/120 Hz) y respeta «Quitar animaciones» del sistema.
+- **Motion** (`ShalevMotion`). Los tokens reúnen las transiciones propias; Material también anima algunos componentes. Sin bucles con `delay(16)`: Compose sigue el refresco real y la escala de animación del sistema. Las ventanas centradas recorren media altura al entrar y al salir; los gráficos se funden al actualizar datos sin reiniciar su entrada.
   - Duraciones: `FAST` 150, `SHORT` 200, `MEDIUM` 250 y `LONG` 250 ms (antes 300).
   - `muelle()`: `spring(DampingRatioNoBouncy, StiffnessMediumLow)` para lo que cambia de tamaño o posición (botones con `loading`, barra inferior).
   - `ventanaEntra`/`ventanaSale` (N4): diálogos y hojas suben desde abajo hasta el centro con fundido (muelle) y, al cerrarse, bajan con fundido (200 ms); el velo aparece detrás.

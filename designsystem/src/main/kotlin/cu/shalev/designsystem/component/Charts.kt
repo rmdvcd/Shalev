@@ -1,6 +1,7 @@
 package cu.shalev.designsystem.component
 
 import cu.shalev.designsystem.theme.ShalevTextos
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -99,10 +100,9 @@ data class ChartSlice(val label: String, val fraction: Double, val valueText: St
 data class ChartSeries(val label: String, val values: List<Double>, val color: Color)
 
 @Composable
-private fun rememberEntrada(key: Any): Animatable<Float, *> {
+private fun rememberEntrada(): Animatable<Float, *> {
     val progreso = remember { Animatable(0f) }
-    LaunchedEffect(key) {
-        progreso.snapTo(0f)
+    LaunchedEffect(Unit) {
         progreso.animateTo(1f, ShalevMotion.muelle())
     }
     return progreso
@@ -122,10 +122,19 @@ fun ShalevBarChart(
     modifier: Modifier = Modifier,
     color: Color = ShalevTheme.colors.chart.first(),
 ) {
+    val progreso = rememberEntrada()
+    Box(modifier.fillMaxWidth().semantics { contentDescription = description }) {
+        Crossfade(targetState = values to labels, animationSpec = ShalevMotion.tween(ShalevMotion.SHORT), modifier = Modifier.clearAndSetSemantics { }, label = "barras") { (datos, nombres) ->
+            BarrasContenido(datos, nombres, color, progreso)
+        }
+    }
+}
+
+@Composable
+private fun BarrasContenido(values: List<Double>, labels: List<String>, color: Color, progreso: Animatable<Float, *>) {
     val alturas = remember(values) { ChartMath.normalizar(values) }
-    val progreso = rememberEntrada(values)
     val base = MaterialTheme.colorScheme.outlineVariant
-    Column(modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = description }) {
+    Column(Modifier.fillMaxWidth()) {
         Canvas(Modifier.fillMaxWidth().height(ShalevSize.chartHeight).clearAndSetSemantics { }) {
             if (alturas.isEmpty()) return@Canvas
             val paso = size.width / alturas.size
@@ -155,11 +164,20 @@ fun ShalevAreaChart(
     description: String,
     modifier: Modifier = Modifier,
 ) {
+    val progreso = rememberEntrada()
+    Box(modifier.fillMaxWidth().semantics { contentDescription = description }) {
+        Crossfade(targetState = series to labels, animationSpec = ShalevMotion.tween(ShalevMotion.SHORT), modifier = Modifier.clearAndSetSemantics { }, label = "área") { (datos, nombres) ->
+            AreaContenido(datos, nombres, progreso)
+        }
+    }
+}
+
+@Composable
+private fun AreaContenido(series: List<ChartSeries>, labels: List<String>, progreso: Animatable<Float, *>) {
     val normalizadas = remember(series) { ChartMath.normalizarJuntas(series.map { it.values }) }
-    val progreso = rememberEntrada(series)
     val base = MaterialTheme.colorScheme.outlineVariant
     Column(
-        modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = description },
+        Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
     ) {
         // P18 (A19): los Path se construyen una vez por tamaño y datos (drawWithCache), no en cada fotograma.
@@ -211,11 +229,20 @@ fun ShalevDonutChart(
     centerText: String? = null,
     colors: List<Color> = ShalevTheme.colors.chart,
 ) {
+    val progreso = rememberEntrada()
+    Box(modifier.fillMaxWidth().semantics { contentDescription = description }) {
+        Crossfade(targetState = slices to centerText, animationSpec = ShalevMotion.tween(ShalevMotion.SHORT), modifier = Modifier.clearAndSetSemantics { }, label = "dona") { (datos, centro) ->
+            DonaContenido(datos, centro, colors, progreso)
+        }
+    }
+}
+
+@Composable
+private fun DonaContenido(slices: List<ChartSlice>, centerText: String?, colors: List<Color>, progreso: Animatable<Float, *>) {
     val arcos = remember(slices) { ChartMath.arcos(slices.map { it.fraction }) }
-    val progreso = rememberEntrada(slices)
     val pista = MaterialTheme.colorScheme.surfaceVariant
     Column(
-        modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = description },
+        Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
     ) {

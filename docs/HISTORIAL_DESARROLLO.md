@@ -1,11 +1,18 @@
+# Shalev - Historial de desarrollo
+
+## Movimiento: navegación, alertas y gráficos (2026-11-01)
+
+- Las transiciones de pestañas usan la dirección del gesto para entrada y salida, asociada a su origen y destino; los accesos por toque conservan el fundido.
+- Las alertas se funden al cambiar su composición; los gráficos no reinician la entrada al actualizar datos y usan un fundido entre estados.
+- Las ventanas centradas usan una salida simétrica; el menú flotante de Pago electrónico cambia de + a cerrar. Se agregaron pruebas de dirección y semántica.
+- Pendiente comprobar en dispositivo fluidez, escala de animación del sistema, teclado y cierres por confirmación; el entorno no dispone de Java ni SDK Android.
+
 ## Ajustes de exportación y navegación de inventario (2026-11-01)
 
 - Las filas de formatos son acciones directas; Imagen genera tarjeta individual o lista según la cantidad. Registros y detalle de turno comparten PDF/Excel.
 - Las alertas de Inicio reemplazan los filtros anteriores incluso al recuperar Inventario; se destaca el stock y se usa un desplegable para la unidad de insumos.
 - El asistente limita las secundarias previstas a la cuota de la prueba o licencia y se aclararon instrucciones de Ayuda.
 - Pendiente verificar compilación, pruebas y flujos en dispositivo: el entorno de trabajo no dispone de Java ni SDK Android.
-
-# Shalev - Historial de desarrollo
 
 ## 2026-10-31 - Acciones con iconos, Ajustes en Inicio y retirada del escáner documental de Android
 

@@ -15,7 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -94,8 +94,8 @@ fun MainScaffold(snapshot: Licencia) {
         }
     }
 
-    // 0.31.0 (P10): dirección del último cambio de sección por deslizamiento (0 = toque en la barra).
-    var gesto by remember { mutableIntStateOf(0) }
+    // La dirección queda asociada al origen y destino de este gesto, no a otras navegaciones.
+    var gesto by remember { mutableStateOf<GestoSeccion?>(null) }
     // 0.26.0 (P73 §6): plazo de la actualización vencido → bloqueo de toda la app. Nunca en mitad de una venta (ni al
     // elegir artículos para ella) ni en Respaldo (salida «Exportar respaldo», suposición 3).
     val bloqueoVm: cu.shalev.app.actualizacion.ActualizacionViewModel = hiltViewModel()
@@ -119,7 +119,7 @@ fun MainScaffold(snapshot: Licencia) {
                     items = items,
                     selectedKey = selected?.name,
                     // 0.31.0 (P10): tocar la barra es un fundido (gesto = 0), no un desplazamiento.
-                    onSelect = { item -> gesto = 0; nav.navigateTopLevel(TopLevel.valueOf(item.key).route) },
+                    onSelect = { item -> gesto = null; nav.navigateTopLevel(TopLevel.valueOf(item.key).route) },
                 )
             }
         },
@@ -139,7 +139,7 @@ fun MainScaffold(snapshot: Licencia) {
                     val actual = selected ?: return@deslizarEntreSecciones
                     secciones.getOrNull(secciones.indexOf(actual) + dir)?.let {
                         // 0.31.0 (P10): el desplazamiento lateral lleva la dirección del dedo.
-                        gesto = dir
+                        gesto = entry?.let { e -> GestoSeccion(e.id, it.name, dir) }
                         nav.navigateTopLevel(it.route)
                     }
                 },
@@ -151,27 +151,39 @@ fun MainScaffold(snapshot: Licencia) {
             enterTransition = {
                 when {
                     !entrePestanas() -> ShalevMotion.screenForwardEnter
-                    cambioSeccion(gesto) == CambioSeccion.ATRAS -> ShalevMotion.screenBackEnter
-                    cambioSeccion(gesto) == CambioSeccion.ADELANTE -> ShalevMotion.screenForwardEnter
+                    direccionGesto(gesto) == CambioSeccion.ATRAS -> ShalevMotion.screenBackEnter
+                    direccionGesto(gesto) == CambioSeccion.ADELANTE -> ShalevMotion.screenForwardEnter
                     else -> ShalevMotion.screenEnter
                 }
             },
-            exitTransition = { if (entrePestanas() && cambioSeccion(gesto) == CambioSeccion.FUNDIDO) ShalevMotion.screenExit else ShalevMotion.screenForwardExit },
+            exitTransition = {
+                if (!entrePestanas()) ShalevMotion.screenForwardExit else when (direccionGesto(gesto)) {
+                    CambioSeccion.FUNDIDO -> ShalevMotion.screenExit
+                    CambioSeccion.ADELANTE -> ShalevMotion.screenForwardExit
+                    CambioSeccion.ATRAS -> ShalevMotion.screenBackExit
+                }
+            },
             popEnterTransition = {
                 when {
                     !entrePestanas() -> ShalevMotion.screenBackEnter
-                    cambioSeccion(gesto) == CambioSeccion.ATRAS -> ShalevMotion.screenBackEnter
-                    cambioSeccion(gesto) == CambioSeccion.ADELANTE -> ShalevMotion.screenForwardEnter
+                    direccionGesto(gesto) == CambioSeccion.ATRAS -> ShalevMotion.screenBackEnter
+                    direccionGesto(gesto) == CambioSeccion.ADELANTE -> ShalevMotion.screenForwardEnter
                     else -> ShalevMotion.screenEnter
                 }
             },
-            popExitTransition = { if (entrePestanas() && cambioSeccion(gesto) == CambioSeccion.FUNDIDO) ShalevMotion.screenExit else ShalevMotion.screenBackExit },
+            popExitTransition = {
+                if (!entrePestanas()) ShalevMotion.screenBackExit else when (direccionGesto(gesto)) {
+                    CambioSeccion.FUNDIDO -> ShalevMotion.screenExit
+                    CambioSeccion.ADELANTE -> ShalevMotion.screenForwardExit
+                    CambioSeccion.ATRAS -> ShalevMotion.screenBackExit
+                }
+            },
         ) {
             composable<Route.Inicio> { e ->
                 val mensaje = e.savedStateHandle.getStateFlow<String?>(KEY_INICIO_MENSAJE, null).collectAsStateWithLifecycle().value
                 InicioScreen(
                     onNavigate = nav::navigateTo,
-                    onVerAlerta = nav::abrirAlertaInventario,
+                    onVerAlerta = { tipo -> gesto = null; nav.abrirAlertaInventario(tipo) },
                     mensajeInicial = mensaje,
                     onMensajeMostrado = { e.savedStateHandle[KEY_INICIO_MENSAJE] = null },
                 )
@@ -343,6 +355,9 @@ private fun NavBackStackEntry.enSeleccionVenta(): Boolean =
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.entrePestanas(): Boolean =
     initialState.esPrincipal() && targetState.esPrincipal()
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.direccionGesto(gesto: GestoSeccion?): CambioSeccion =
+    cambioSeccion(gesto, initialState.id, TopLevel.entries.firstOrNull { targetState.destination.isIn(it.route) }?.name)
 
 /** Cambio de pestaña: una sola instancia por destino, conserva estado. */
 private fun NavHostController.navigateTopLevel(route: Route) = navigate(route) {
