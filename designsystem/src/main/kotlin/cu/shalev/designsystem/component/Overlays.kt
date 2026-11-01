@@ -89,12 +89,13 @@ fun ShalevSnackbarHost(state: SnackbarHostState, modifier: Modifier = Modifier) 
 }
 
 /**
- * Diálogo con el título centrado arriba (0.27.0: sin logo). Confirmar/Cancelar conservan texto; las demás acciones
- * usan iconos accesibles. [destructive] pinta la confirmación en color de error (eliminar).
+ * Diálogo con el título centrado arriba (0.27.0: sin logo). El pie solo muestra la acción de confirmación (icono);
+ * se descarta tocando fuera o con el botón atrás del sistema. [destructive] pinta la confirmación en color de error.
  *
- * P24: ventana emergente **centrada**; título centrado arriba; los botones Cancelar y Confirmar, centrados y con
- * separación media (16dp). La confirmación va rellena (Von Restorff). El contenido largo se
- * desplaza dentro del diálogo y los botones siguen siempre a la vista.
+ * P24: ventana emergente **centrada**; título centrado arriba; el botón de confirmar queda centrado. La confirmación
+ * va rellena (Von Restorff). El contenido largo se desplaza dentro del diálogo y el botón sigue siempre a la vista.
+ *
+ * 1.0.3: sin botón Cancelar en el pie (redundante: se cierra tocando fuera o con Atrás).
  */
 @Composable
 fun ShalevDialog(
@@ -104,15 +105,15 @@ fun ShalevDialog(
     modifier: Modifier = Modifier,
     text: String? = null,
     confirmDescription: String = "Confirmar",
-    dismissDescription: String = "Cancelar",
+    dismissDescription: String = "Cerrar",
     destructive: Boolean = false,
     confirmEnabled: Boolean = true,
     confirmLoading: Boolean = false,
     confirmTag: String? = null,
     confirmIcon: ImageVector? = null,
     /**
-     * 0.31.0: acción suelta en la **esquina inferior derecha** de la ventana (p. ej. «Omitir»). Cancelar y Confirmar
-     * siguen centrados; con `esquina = null` el pie es el de siempre. Va antes de [content] para no romper la lambda
+     * 0.31.0: acción suelta en la **esquina inferior derecha** de la ventana (p. ej. «Omitir»). La confirmación
+     * sigue centrada; con `esquina = null` el pie es el de siempre. Va antes de [content] para no romper la lambda
      * final de las llamadas.
      */
     esquina: (@Composable () -> Unit)? = null,
@@ -123,12 +124,10 @@ fun ShalevDialog(
         onDismiss = onDismiss,
         title = title,
         modifier = modifier,
-        footer = { cerrar ->
-            // 1.0.2: con acciones de texto, la acción de la esquina va en su propia línea a la derecha para que
-            // no se pise con Cancelar/Confirmar; sin ella, el pie es la fila centrada de siempre.
-            Column(Modifier.fillMaxWidth()) {
+        footer = { _ ->
+            // 1.0.3: pie con solo la acción de confirmación centrada; la acción de la esquina va en su línea.
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 ShalevButtonRow {
-                    ShalevIconAction(ShalevIcons.Cancelar, dismissDescription, cerrar)
                     if (onConfirm != null) {
                         if (confirmLoading) {
                             Box(Modifier.size(ShalevSize.touchTarget), contentAlignment = Alignment.Center) {
@@ -148,7 +147,7 @@ fun ShalevDialog(
                     }
                 }
                 esquina?.let { accion ->
-                    Box(Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs), contentAlignment = Alignment.CenterEnd) { accion() }
+                    Box(Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs), contentAlignment = Alignment.Center) { accion() }
                 }
             }
         },

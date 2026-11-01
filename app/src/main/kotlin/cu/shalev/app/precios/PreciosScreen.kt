@@ -205,9 +205,9 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
         onDismiss = acciones.onCerrar,
         sinGuardar = f.copy(busqueda = inicial.busqueda, mostrarErrores = inicial.mostrarErrores) != inicial,
         title = if (f.nuevo) "Nuevo ajuste de precios" else "Editar ajuste",
+        // 1.0.3: sin botón Cancelar en el pie (se cierra tocando fuera o con Atrás).
         footer = {
             if (!f.nuevo) ShalevIconAction(ShalevIcons.Eliminar, "Eliminar ajuste", onClick = acciones.onBorrar)
-            ShalevTextButton("Cancelar", icon = ShalevIcons.Cancelar, onClick = acciones.onCerrar)
             ShalevPrimaryButton("Guardar", icon = ShalevIcons.Guardar, onClick = acciones.onGuardar, loading = state.guardando, modifier = Modifier.testTag(PreciosTags.GUARDAR))
         },
     ) {

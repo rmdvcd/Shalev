@@ -66,12 +66,13 @@ private fun Modifier.alturaBoton(soloIcono: Boolean): Modifier = when {
 @ReadOnlyComposable
 fun letraGrande(): Boolean = LocalDensity.current.fontScale >= ShalevFontScale.GRANDE
 
-/** En ventanas emergentes, las decisiones irreversibles o de salida conservan su etiqueta escrita. */
+/**
+ * En ventanas emergentes y cuadros de diálogo los botones son siempre solo icono (1.0.3):
+ * no se conservan etiquetas escritas. La etiqueta textual se usa como `contentDescription` para TalkBack.
+ */
 val LocalShalevVentana = compositionLocalOf { false }
 
-private val ETIQUETAS_TEXTO_EN_VENTANA = setOf("Confirmar", "Eliminar", "Omitir", "Cancelar")
-
-private fun String.textoConservadoEnVentana(): String? = trim().takeIf { it in ETIQUETAS_TEXTO_EN_VENTANA }
+private fun String.textoConservadoEnVentana(): String? = null
 
 @Composable
 private fun Modifier.formaBoton(mostrarTexto: Boolean): Modifier =
@@ -79,7 +80,7 @@ private fun Modifier.formaBoton(mostrarTexto: Boolean): Modifier =
 
 /**
  * Botón principal con icono visible y etiqueta accesible. [mostrarTexto] permite conservar una etiqueta cuando hace
- * falta; dentro de diálogos/ventanas se conserva automáticamente «Confirmar», «Eliminar», «Omitir» y «Cancelar».
+ * falta (fuera de diálogos/ventanas); dentro de diálogos/ventanas todos los botones son solo icono (1.0.3).
  */
 @Composable
 fun ShalevPrimaryButton(

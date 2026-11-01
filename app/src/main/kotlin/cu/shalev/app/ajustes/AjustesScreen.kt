@@ -148,14 +148,12 @@ fun AjustesContent(
     // 0.31.0 (P5): el cuadro de «Actualizar» lo abre el propio proceso (barra circular + resultado).
     // 1.0.1: al terminar con «Actualizado» o «Estas al día» el cuadro se cierra solo (el proceso lo cierra).
     val dialogoActualizaciones = actualizacion.proceso != null
-    val ayudaPestana = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Scaffold(
         topBar = {
+            // 1.0.3: en Ajustes el acceso al manual es la fila «Ayuda» del listado; no se repite el icono arriba.
             ShalevTopBar(
                 title = "Ajustes",
                 onBack = onBack,
-                onAyuda = { ayudaPestana.value = true },
-                ayudaDescripcion = "Ayuda de Ajustes",
             )
         },
         snackbarHost = { cu.shalev.designsystem.component.ShalevSnackbarHost(snackbar) },
@@ -208,8 +206,8 @@ fun AjustesContent(
                     ShalevIcons.Sincronizar, modifier = Modifier.testTag(AjustesTags.ACTUALIZACIONES),
                 ) { onActualizarAhora() }
             }
-            // El acceso al manual se conserva, sin repetir el icono de Ayuda que ya identifica la acción contextual.
-            item { Entry("Ayuda", "Manual breve de uso", null, modifier = Modifier.testTag(AjustesTags.AYUDA)) { onNavigate(Route.Ayuda) } }
+            // 1.0.3: la fila «Ayuda» usa el mismo icono de Ayuda que el botón contextual del resto de pestañas.
+            item { Entry("Ayuda", "Manual breve de uso", ShalevIcons.Ayuda, modifier = Modifier.testTag(AjustesTags.AYUDA)) { onNavigate(Route.Ayuda) } }
             item { Entry("Soporte", "Datos de contacto del desarrollador", ShalevIcons.Soporte, modifier = Modifier.testTag(AjustesTags.SOPORTE)) { onNavigate(Route.Soporte) } }
         }
     }
@@ -247,12 +245,6 @@ fun AjustesContent(
         )
     }
 
-    if (ayudaPestana.value) cu.shalev.app.ayuda.DialogoAyudaPestana(
-        pestana = cu.shalev.app.ayuda.PestanaAyuda.AJUSTES,
-        modulos = state.permisos.modulos,
-        onDismiss = { ayudaPestana.value = false },
-        onVerManual = { ayudaPestana.value = false; onNavigate(Route.Ayuda) },
-    )
 }
 
 @Composable

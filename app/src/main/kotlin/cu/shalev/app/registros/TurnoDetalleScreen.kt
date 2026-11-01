@@ -178,18 +178,25 @@ fun TurnoDetalleContent(
 private fun HojaExportarTurno(d: DetalleTurno, a: AccionesExportarTurno) {
     ShalevBottomSheet(onDismiss = a.onCerrar, title = TextosTurno.COMPARTIR) {
         ShalevSecondaryText(TextosTurno.alcanceExportar(d))
+        // 1.0.3: cada opción es icono + texto (toda la fila), sin botones a la derecha.
         listOf(FormatoExport.PDF, FormatoExport.XLSX).forEach { f ->
             val etiqueta = if (f == FormatoExport.PDF) "PDF" else "Excel"
             ShalevListItem(
                 title = etiqueta, indicatorColor = null,
                 leading = { Icon(cu.shalev.app.common.iconoFormato(f), contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
                 modifier = Modifier.testTag(TurnoDetalleTags.formato(f)),
-                trailing = {
-                    Row {
-                        ShalevIconAction(ShalevIcons.Compartir, "Enviar $etiqueta a otra app", etiqueta = "Enviar", onClick = { a.onEnviar(f) }, modifier = Modifier.testTag(TurnoDetalleTags.enviar(f)))
-                        ShalevIconAction(ShalevIcons.Exportar, "Guardar $etiqueta en el teléfono", etiqueta = "Guardar", onClick = { a.onGuardar(f) }, modifier = Modifier.testTag(TurnoDetalleTags.guardar(f)))
-                    }
-                },
+            )
+            ShalevListItem(
+                title = "Enviar $etiqueta a otra app", indicatorColor = null,
+                leading = { Icon(ShalevIcons.Compartir, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                onClick = { a.onEnviar(f) },
+                modifier = Modifier.testTag(TurnoDetalleTags.enviar(f)),
+            )
+            ShalevListItem(
+                title = "Guardar $etiqueta en el teléfono", indicatorColor = null,
+                leading = { Icon(ShalevIcons.Exportar, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                onClick = { a.onGuardar(f) },
+                modifier = Modifier.testTag(TurnoDetalleTags.guardar(f)),
             )
         }
     }
