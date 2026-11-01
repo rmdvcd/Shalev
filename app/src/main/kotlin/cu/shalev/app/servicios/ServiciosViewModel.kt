@@ -252,7 +252,7 @@ class ServiciosViewModel @Inject constructor(
         trabajar {
             if (!formato.interno) {
                 val productos = xs.map { ServiciosLogic.productoPromocional(it.servicio) }
-                val fs = if (formato == FormatoSalida.TARJETAS) tarjetas.renderizar(productos, comentario)
+                val fs = if (formato == FormatoSalida.TARJETAS || productos.size == 1) tarjetas.renderizar(productos, comentario)
                     else imagenTabla.renderizar(TablasExport.listaPrecios(productos), "Shalev_servicios")
                 emitir(EventoServicios.CompartirImagenes(fs))
                 return@trabajar

@@ -406,11 +406,10 @@ Shalev distingue claramente entre los **documentos internos de administración**
 
 | Desde dónde | Formato | Destinatario | Qué contiene y cómo sale |
 |---|---|---|---|
-| **Inventario** | **PDF / Excel (`.xlsx`)** | Uso interno *(incluye costos)* | Informe completo de artículos e insumos con existencias, costos, precios y caducidad. Se puede **Guardar** en el teléfono o **Enviar**. |
-| **Inventario** | **Imagen (`.png`)** | Para clientes *(sin costos)* | Lista limpia de precios ordenada por categoría y producto (hasta 25 filas por imagen; excluye insumos sin venta). |
-| **Inventario** | **Tarjetas promocionales (`.png`)** | Para clientes *(sin costos)* | Catálogo visual con foto, nombre, categoría y precio (hasta 6 tarjetas por imagen). Admite un **Encabezado de promoción opcional** de hasta 160 caracteres arriba de cada imagen (p. ej. *«¡Ofertas del fin de semana en Cafetería María!»*). |
+| **Inventario** | **PDF / Excel (`.xlsx`)** | Uso interno *(incluye costos)* | Informe completo de artículos e insumos con existencias, costos, precios y caducidad. Al tocar el formato se abre el menú del sistema para compartirlo. |
+| **Inventario** | **Imagen (`.png`)** | Para clientes *(sin costos)* | Un producto genera una tarjeta promocional; varios generan una lista de precios (hasta 25 filas por imagen). Los insumos se excluyen. |
 | **Ficha de un producto** | **Imagen / Tarjeta (`.png`)** | Para clientes *(sin costos)* | Tarjeta grande individual del producto lista para publicar en estados de WhatsApp, Telegram o redes sociales. |
-| **Servicios** | **PDF / Excel** e **Imagen / Tarjetas** | Interno o para clientes | Informe administrativo completo en PDF/Excel o catálogo promocional de servicios en PNG sin costos. |
+| **Servicios** | **PDF / Excel** e **Imagen** | Interno o para clientes | Informe en PDF/Excel; la imagen es una tarjeta para un servicio o una lista de precios para varios. |
 | **Registros** *(Ventas, Servicios, Transferencias, Movimientos)* | **PDF / Excel (`.xlsx`)** | Uso interno | Tablas con totales calculados, importes en formato CUP listos para sumar en Excel y páginas A4 automáticas (en horizontal cuando superan 5 columnas). |
 | **Detalle de un Turno** | **PDF / Excel (`.xlsx`)** | Uso interno | Informe integral del turno: resumen, arqueo de caja, billetes contados, conciliación de inventario, ventas y movimientos. |
 

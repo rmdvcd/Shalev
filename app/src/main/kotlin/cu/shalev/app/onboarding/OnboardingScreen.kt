@@ -466,7 +466,7 @@ private fun PasoEmpleados(state: OnboardingUiState, acciones: OnboardingAcciones
         )
         ShalevIconAction(
             ShalevIcons.Aumentar, "Un empleado más", onClick = { acciones.onEmpleados(state.empleados + 1) },
-            enabled = state.empleados < cu.shalev.domain.model.Vinculacion.SECUNDARIAS_MAX, style = IconActionStyle.Tonal,
+            enabled = state.empleados < (state.licencia?.secundariasPermitidas ?: 0), style = IconActionStyle.Tonal,
         )
     }
     Explicacion(TextosTour.EMPLEADOS_AYUDA)

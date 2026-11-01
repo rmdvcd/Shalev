@@ -30,7 +30,7 @@ object InventarioFiltro {
         insumos: List<Insumo> = emptyList(),
     ): VistaInventario {
         val porInsumo = insumos.associateBy { IdArticulo.deInsumo(it.id) }
-        val repetidos = Identificacion.productosPorDiferenciar(ps) // 0.24.0
+        val repetidos = Identificacion.productosPorDiferenciar(ps.filterNot { it.eliminado }) // Igual que las alertas de Inicio
         val activos = (ps.filterNot { it.eliminado } + insumos.map { it.comoProducto() }).sortedByDescending { it.creadoEn }
         val q = plano(f.texto)
         val elementosCompletos = activos.map { p ->

@@ -57,7 +57,7 @@ object AyudaContenido {
         TemaAyuda(
             "Primeros pasos",
             listOf(
-                "Abajo tienes 5 botones: Inicio, Inventario, Servicios, Registros y Ajustes.",
+                "Abajo están las secciones disponibles para tu negocio: Inicio, Inventario, Servicios, Registros y Ajustes.",
                 "Desliza a la izquierda o a la derecha para pasar de una sección a otra.",
                 "En Ajustes → Completar configuración escribe tus datos y elige los avisos.",
                 "Tienes 7 días de prueba gratis. Después hace falta una licencia.",
@@ -87,9 +87,10 @@ object AyudaContenido {
         TemaAyuda(
             "Cobrar por transferencia",
             listOf(
-                "En Ajustes → Pago electrónico agrega tu teléfono y tu tarjeta.",
-                "Toca el que quieras usar para cobrar: queda marcado \"En uso\".",
-                "En la venta por transferencia anota los datos del cliente y el nº de transacción.",
+                "En Inicio → Pago electrónico agrega tu teléfono y tu tarjeta.",
+                "Marca el teléfono y la tarjeta que usarás para cobrar.",
+                "En la venta, muestra el QR y el importe al cliente. El QR no incluye el importe.",
+                "Completa los datos del cliente y registra la transacción con el SMS recibido.",
             ),
             CategoriaAyuda.VENDER,
         ),
@@ -117,10 +118,10 @@ object AyudaContenido {
         TemaAyuda(
             "Buscar y filtrar el inventario",
             listOf(
-                "El buscador encuentra por nombre, categoría o código.",
-                "Toca Filtrar y elige el Estado: Todos, Stock bajo, Stock crítico, Próximos a caducar o Sin existencia.",
+                "El buscador encuentra por nombre, descripción o categoría.",
+                "Toca Filtrar para elegir una alerta, un tipo o una categoría. También puedes tocar una alerta de Inicio.",
                 "También puedes filtrar por Tipo (artículos, elaborados o insumos) y por Categoría.",
-                "El chip bajo el buscador resume el filtro activo; Quitar filtros lo borra.",
+                "Quitar filtros devuelve la lista completa.",
             ),
             CategoriaAyuda.INVENTARIO,
         ),
@@ -128,7 +129,7 @@ object AyudaContenido {
             "Insumos y elaborados",
             listOf(
                 "Los insumos (harina, azúcar…) están en Inventario, en la categoría Insumos.",
-                "Para crear uno: Inventario → + → Escribir y elige la categoría Insumos.",
+                "Para crear uno, toca + en Inventario y selecciona la opción de insumo.",
                 "Si le pones precio de venta a un insumo, también lo puedes vender.",
                 "Crea el producto elaborado con su receta. Al venderlo, sus insumos se descuentan solos.",
                 "Verás para cuántos alcanzan los insumos; si no alcanzan, no se puede vender.",
@@ -158,9 +159,9 @@ object AyudaContenido {
         TemaAyuda(
             "Licencia",
             listOf(
-                "Ajustes → Licencia muestra cuántos días te quedan. Sigue los 3 pasos.",
-                "Paso 1: revisa tus datos. Paso 2: elige el tipo, WhatsApp o SMS, y toca Solicitar. Solo pulsa Enviar.",
-                "Paso 3: copia todo el mensaje que te respondan, toca Pegar y luego Activar.",
+                "Ajustes → Licencia muestra el estado de tu licencia y los pasos para solicitarla.",
+                "Paso 1: revisa tus datos. Paso 2: elige el tipo, WhatsApp o SMS, y toca Solicitar. Revisa y envía el mensaje.",
+                "Paso 3: copia el código recibido, toca Pegar y luego Activar.",
                 "Si la activación llega en varios SMS, copia y pega todos.",
                 "Para renovar con lo mismo, toca Renovar igual. Si renuevas antes de que venza no pierdes días.",
             ),

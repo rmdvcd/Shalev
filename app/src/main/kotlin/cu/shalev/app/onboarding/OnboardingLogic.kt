@@ -65,7 +65,7 @@ object TextosTour {
     const val OBJETIVO_EXPLICACION = "Marca lo que harás con Shalev. Lo que no marques no aparecerá."
     const val VENTAS_ACTIVA_INVENTARIO = "Vender productos necesita el inventario: se activa también."
     const val EMPLEADOS_EXPLICACION = "Cada empleado usa su propia app secundaria."
-    const val EMPLEADOS_AYUDA = "Puedes cambiarlo al pedir la licencia."
+    const val EMPLEADOS_AYUDA = "Puedes elegir hasta el límite de tu prueba o licencia. Para más apps, solicita una ampliación de licencia."
     /** 0.27.0 (T11/T9). */
     const val ACCESO_EXPLICACION = "Si quieres, Shalev pedirá tu huella, tu cara o el PIN del teléfono al abrirla."
     const val TIPO_DEFINITIVO = "El tipo de app no se puede cambiar después. Para cambiarlo habría que borrar los datos de la app."

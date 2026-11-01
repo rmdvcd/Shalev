@@ -67,11 +67,12 @@ class ServiciosViewModelTest {
         val ev = eventos(vm)
         vm.exportar(cu.shalev.app.inventario.FormatoSalida.IMAGEN)
         assertTrue(ev.last() is EventoServicios.CompartirImagenes)
-        assertTrue(tablaPng.renderizadas.single().columnas.none { it == "Insumos" || it == "Costo" })
+        assertEquals("Corte", tarjetas.renderizados.single().single().nombre)
+        assertTrue(tablaPng.renderizadas.isEmpty())
         vm.comentarioPromocion("Oferta semanal")
         vm.exportar(cu.shalev.app.inventario.FormatoSalida.TARJETAS)
-        assertEquals("Oferta semanal", tarjetas.comentarios.single())
-        assertEquals("Corte", tarjetas.renderizados.single().single().nombre)
+        assertEquals("Oferta semanal", tarjetas.comentarios.last())
+        assertEquals("Corte", tarjetas.renderizados.last().single().nombre)
     }
 
     private fun TestScope.eventos(vm: ServiciosViewModel): MutableList<EventoServicios> {
