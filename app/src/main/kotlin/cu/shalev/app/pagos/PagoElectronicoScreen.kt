@@ -237,7 +237,7 @@ internal fun miniaturaBanco(banco: BancoCubano): Int = when (banco) {
     BancoCubano.BANMET -> R.drawable.banmet_miniatura
 }
 
-/** Miniatura del logo del banco estimado por el prefijo de la cuenta. */
+/** Miniatura del logo del banco estimado por los dígitos 5–8 de la cuenta. */
 @Composable
 private fun IconoTarjeta(banco: BancoCubano, modifier: Modifier = Modifier) {
     val recurso = miniaturaBanco(banco)
@@ -272,17 +272,16 @@ private fun EdicionSheet(e: EdicionPago, guardando: Boolean, acciones: AccionesL
             value = e.numero,
             onValueChange = { v -> acciones.onCambiarEdicion { it.copy(numero = v) } },
             label = if (telefono) "Número de teléfono" else "Número de tarjeta o cuenta",
-            placeholder = if (telefono) "5123 4567" else "9205 0000 0000 0000",
+            placeholder = if (telefono) "5123 4567" else "9205 1299 0000 0000",
             leadingIcon = if (telefono) ShalevIcons.Telefono else ShalevIcons.PagoElectronico,
             isError = e.error != null, validarAlSalir = true, forzarError = e.mostrarErrores,
             errorText = e.error,
             keyboardOptions = KeyboardOptions(keyboardType = if (telefono) KeyboardType.Phone else KeyboardType.Number),
         )
         if (!telefono) {
-            // Vista previa: el prefijo visible deja claro por qué se eligió esa miniatura.
-            val prefijo = prefijoCuenta(e.numero)
-            val banco = prefijo?.let { bancoPorTarjeta(e.numero) }
-            if (prefijo != null && banco != null) {
+            // Vista previa: el código (dígitos 5–8) deja claro por qué se eligió esa miniatura.
+            val banco = bancoPorTarjeta(e.numero)
+            if (banco != null) {
                 Row(
                     Modifier.fillMaxWidth().testTag(PagoTags.bancoPreview(banco)),
                     verticalAlignment = Alignment.CenterVertically,
@@ -290,7 +289,7 @@ private fun EdicionSheet(e: EdicionPago, guardando: Boolean, acciones: AccionesL
                     IconoTarjeta(banco)
                     Column(Modifier.padding(start = ShalevSpacing.xs)) {
                         Text(banco.nombre, style = MaterialTheme.typography.titleSmall)
-                        ShalevSecondaryText(TextosPago.bancoEstimado(prefijo))
+                        ShalevSecondaryText(TextosPago.bancoEstimado(banco.codigo))
                     }
                 }
             }

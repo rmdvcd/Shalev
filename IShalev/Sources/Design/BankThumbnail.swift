@@ -1,7 +1,7 @@
 import SwiftUI
 
 // MARK: - Miniaturas de Bancos Cubanos
-// Generadas para los prefijos: BPA (9205), BANDEC (9225), BANMET (9226)
+// Código de banco en los dígitos 5–8: BPA 1299, BANDEC 0699, BANMET 9598
 
 enum BancoCubanoThumbnail: String {
     case bpa = "bpa_miniatura"

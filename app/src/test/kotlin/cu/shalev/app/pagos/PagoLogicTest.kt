@@ -20,37 +20,41 @@ class PagoLogicTest {
         assertEquals(TextosPago.ERROR_TARJETA, errorTarjeta("9205"))
     }
 
-    @Test fun logosBancariosUsanSoloPrefijosNoAmbiguos() {
-        assertEquals(BancoCubano.BPA, bancoPorTarjeta("9205-1299-0000-1234"))
-        assertEquals(BancoCubano.BANDEC, bancoPorTarjeta("9225-0000-0000-1234"))
-        assertEquals(BancoCubano.BANMET, bancoPorTarjeta("9226-0000-0000-1234"))
-        assertNull(bancoPorTarjeta("9224-0000-0000-1234")) // las fuentes consultadas se contradicen
-        assertNull(bancoPorTarjeta("9204-0000-0000-1234")) // el prefijo CUP no basta para identificar el banco
-        assertNull(bancoPorTarjeta("123"))
+    @Test fun elBancoSaleDeLosDigitos5a8NoDeLosCuatroPrimeros() {
+        // 9205 es «ahorro en CUP» y lo emiten los tres bancos: el banco lo decide el código de los dígitos 5–8.
+        assertEquals(BancoCubano.BPA, bancoPorTarjeta("9205129970876454"))
+        assertEquals(BancoCubano.BANDEC, bancoPorTarjeta("9205069995328054"))
+        assertEquals(BancoCubano.BANMET, bancoPorTarjeta("9205959870876454"))
+        // El mismo producto (9225, USD con respaldo en MLC) emitido por bancos distintos.
+        assertEquals(BancoCubano.BANDEC, bancoPorTarjeta("9225069900001234"))
+        assertEquals(BancoCubano.BPA, bancoPorTarjeta("9225129900001234"))
+        // 9206 aparece documentado en BANDEC, pero una 9206 1299 es del BPA (issue #23 del catálogo).
+        assertEquals(BancoCubano.BPA, bancoPorTarjeta("9206129900001234"))
+        // 9227 quedaba sin logo con la regla anterior; con el código 0699 es BANDEC.
+        assertEquals(BancoCubano.BANDEC, bancoPorTarjeta("9227069995328054"))
     }
 
-    @Test fun elPrefijoQueDecideLaMiniaturaSonLosCuatroPrimerosDigitos() {
-        assertEquals("9205", prefijoCuenta("9205-1299-0000-1234"))
-        assertEquals("9225", prefijoCuenta(" 9225 0000 0000 1234 "))
-        assertNull(prefijoCuenta("123"))
-        assertNull(prefijoCuenta(""))
-        assertEquals("Prefijo 9205 · identificación orientativa", TextosPago.bancoEstimado("9205"))
+    @Test fun sinCodigoDeBancoConocidoNoHayLogo() {
+        assertNull(bancoPorTarjeta("9205049900001234")) // 04xx: BICSA, sin miniatura
+        assertNull(bancoPorTarjeta("9550129970876454")) // AIS: no es red RED
+        assertNull(bancoPorTarjeta("9760129970876454")) // Clásica: no lleva código de banco
+        assertNull(bancoPorTarjeta("9205000000001234")) // 0000 no es un código conocido
+        assertNull(bancoPorTarjeta("9205129")) // todavía no hay dígitos 5–8 completos
+    }
+
+    @Test fun codigoDeBancoSonLosDigitos5a8() {
+        assertEquals("1299", codigoBanco("9205 1299 7087 6454"))
+        assertEquals("0699", codigoBanco("9205069995328054"))
+        assertEquals("9598", codigoBanco("9225-9598-0000-1234"))
+        assertNull(codigoBanco("9205129"))
+        assertNull(codigoBanco("9550129970876454"))
+        assertEquals("Código de banco 1299 · orientativo", TextosPago.bancoEstimado("1299"))
     }
 
     @Test fun cadaBancoUsaLaMiniaturaConSuLogo() {
-        assertEquals(R.drawable.bpa_miniatura, miniaturaBanco(bancoPorTarjeta("9205")!!))
-        assertEquals(R.drawable.bandec_miniatura, miniaturaBanco(bancoPorTarjeta("9225")!!))
-        assertEquals(R.drawable.banmet_miniatura, miniaturaBanco(bancoPorTarjeta("9226")!!))
-    }
-
-    @Test fun elLogoSeDecideSoloPorLosCuatroPrimerosDigitos() {
-        assertEquals(BancoCubano.BANDEC, bancoPorTarjeta("9225 0000 0000 1234"))
-        assertEquals(BancoCubano.BANDEC, bancoPorTarjeta("9225000000001234"))
-        assertEquals(BancoCubano.BANDEC, bancoPorTarjeta("9225"))
-        assertEquals(BancoCubano.BPA, bancoPorTarjeta(" 9205 - 1299 "))
-        assertNull(bancoPorTarjeta("9235-0000-0000-1234")) // compartido entre bancos: sin logo
-        assertNull(bancoPorTarjeta("9227-0000-0000-1234"))
-        assertNull(bancoPorTarjeta("5205-1299-0000-1234")) // el 9205 solo cuenta al inicio
+        assertEquals(R.drawable.bpa_miniatura, miniaturaBanco(BancoCubano.BPA))
+        assertEquals(R.drawable.bandec_miniatura, miniaturaBanco(BancoCubano.BANDEC))
+        assertEquals(R.drawable.banmet_miniatura, miniaturaBanco(BancoCubano.BANMET))
     }
 
     @Test fun enEdicionElNumeroEsObligatorio() {
