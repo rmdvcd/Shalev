@@ -96,8 +96,9 @@ class OnboardingViewModelTest {
         vm.siguiente()
         assertEquals(setOf(Modulo.VENTAS, Modulo.INVENTARIO), prefs.state.value.modulos)
         assertEquals(PasoWizard.EMPLEADOS, vm.state.value.paso)
+        assertEquals(5, vm.state.value.licencia?.secundariasPermitidas) // C4: la prueba cubre 5 secundarias
         vm.cambiarEmpleados(3); vm.cambiarEmpleados(99)
-        assertEquals(10, vm.state.value.empleados)
+        assertEquals(5, vm.state.value.empleados) // nunca pasa de la cuota de la licencia
         vm.cambiarEmpleados(2)
         vm.siguiente()
         assertEquals(2, prefs.state.value.empleadosPrevistos)

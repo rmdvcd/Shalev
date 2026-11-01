@@ -119,10 +119,9 @@ object AyudaContenido {
             "Buscar y filtrar el inventario",
             listOf(
                 "El buscador encuentra por nombre, descripción o categoría.",
-                "Toca Filtrar para elegir una alerta, un tipo o una categoría. También puedes tocar una alerta de Inicio.",
+                "Toca Filtrar para elegir una alerta, un tipo o una categoría. También vale una alerta de Inicio.",
                 "Las filas resaltadas indican avisos de existencia o caducidad; abre el artículo para ver el detalle.",
                 "Un sombreado suave en los bordes indica que hay más contenido al desplazar.",
-                "También puedes filtrar por Tipo (artículos, elaborados o insumos) y por Categoría.",
                 "Quitar filtros devuelve la lista completa.",
             ),
             CategoriaAyuda.INVENTARIO,

@@ -109,8 +109,10 @@ class AuditoriaUiTest {
         rule.onNodeWithText("Agregar producto").assertDoesNotExist()
     }
 
+    // 1.0.3: en ventanas emergentes no se dibuja etiqueta escrita (la descripción accesible sigue completa) y el pie
+    // ya no lleva Cancelar: se cierra tocando fuera o con Atrás.
     @Test
-    fun lasDecisionesDeVentanaConservanTextoYLasDemasUsanIcono() {
+    fun lasAccionesDeVentanaUsanSoloIconoYConservanLaDescripcion() {
         rule.setContent {
             ShalevTheme {
                 ShalevDialog(
@@ -126,11 +128,12 @@ class AuditoriaUiTest {
             }
         }
 
-        listOf("Confirmar", "Eliminar", "Omitir", "Cancelar").forEach { etiqueta ->
-            rule.onNodeWithText(etiqueta).assertExists()
+        listOf("Confirmar", "Eliminar", "Omitir", "Exportar").forEach { etiqueta ->
+            rule.onNodeWithContentDescription(etiqueta).assertExists()
+            rule.onNodeWithText(etiqueta).assertDoesNotExist()
         }
-        rule.onNodeWithText("Exportar").assertDoesNotExist()
-        rule.onNodeWithContentDescription("Exportar").assertExists()
+        rule.onNodeWithText("Cancelar").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Cancelar").assertDoesNotExist()
     }
 
     @Test
@@ -148,8 +151,9 @@ class AuditoriaUiTest {
         assertEquals("Filtrar, 2 filtros activos", descripcionFiltro("Filtrar", 2))
     }
 
+    // 1.0.3: el método de pago del ajuste es un selector, no una fila de chips que se aplastaba a 360 dp.
     @Test
-    fun elChipDeTransferenciaNoSeAplastaEnElFormularioDePrecios() {
+    fun elSelectorDeMetodoYElChipSeVenEnterosEnElFormularioDePrecios() {
         rule.setContent {
             ShalevTheme {
                 PreciosContent(
@@ -164,8 +168,10 @@ class AuditoriaUiTest {
         }
         rule.mainClock.advanceTimeBy(1_000)
 
-        val ancho = rule.onNodeWithText("Transferencia").fetchSemanticsNode().boundsInRoot.width
+        rule.onNodeWithText("Método de pago").assertExists()
+        rule.onNodeWithText("Cualquier pago").assertExists()
+        val ancho = rule.onNodeWithText("Subir precio").fetchSemanticsNode().boundsInRoot.width
         val minimo = with(rule.density) { 100.dp.toPx() }
-        assertTrue("el chip de Transferencia quedó aplastado: ${ancho}px (mínimo $minimo)", ancho >= minimo)
+        assertTrue("el chip quedó aplastado: ${ancho}px (mínimo $minimo)", ancho >= minimo)
     }
 }
