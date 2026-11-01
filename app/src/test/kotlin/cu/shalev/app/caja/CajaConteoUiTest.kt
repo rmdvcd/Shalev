@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
 import cu.shalev.core.money.Cup
 import cu.shalev.designsystem.theme.ShalevTheme
 import org.junit.Assert.assertEquals
@@ -43,10 +44,11 @@ class CajaConteoUiTest {
 
     @Test fun elConteoPorBilletesSeVeDeEntradaYNoSeConfirmaSinContar() {
         mostrar()
+        rule.onNodeWithTag("billetes_20000").assertExists()
         rule.onNodeWithTag("billetes_1").assertExists()
         rule.onNodeWithTag(CajaTags.CONFIRMAR).assertIsNotEnabled() // nada contado: declarar 0 descuadraría la caja
 
-        rule.onNodeWithTag("billetes_mas_1").performClick()
+        rule.onNodeWithTag("billetes_mas_1").performScrollTo().performClick()
         rule.onNodeWithTag("billetes_mas_1").performClick()
         rule.onNodeWithTag(CajaTags.CONFIRMAR).assertIsEnabled().performClick()
         assertEquals(Cup.ofPesos(2), confirmado)
@@ -54,7 +56,7 @@ class CajaConteoUiTest {
 
     @Test fun incluyeBilleteDe2000YPuedeEscribirseDirectamente() {
         mostrar()
-        rule.onNodeWithTag("billetes_1").performTextInput("1")
+        rule.onNodeWithTag("billetes_1").performScrollTo().performTextInput("1")
         rule.onNodeWithTag(CajaTags.CONFIRMAR).assertIsEnabled().performClick()
         assertEquals(Cup.ofPesos(1), confirmado)
     }

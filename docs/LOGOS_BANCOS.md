@@ -43,3 +43,7 @@ Se volvió a contrastar el mapeo con fuentes públicas. **No existe una fuente o
 - `9227` y otros: sin logo.
 
 Por eso el mapeo sigue siendo conservador y la pantalla de Pago electrónico mantiene el aviso de que el logo es una estimación. Si el banco confirma una tabla de BIN, se cambia solo `BancoCubano`/`bancoPorTarjeta` y sus pruebas (`PagoLogicTest`).
+
+## Miniaturas en Pago electrónico (2026-11-01)
+
+Se corrigió la correspondencia entre banco, nombre de recurso y contenido de las tres miniaturas. Los prefijos y la advertencia de identificación orientativa no cambian.

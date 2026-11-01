@@ -24,6 +24,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -82,6 +84,7 @@ import cu.shalev.designsystem.component.ShalevSnackbarHost
 import cu.shalev.designsystem.component.ShalevTextField
 import cu.shalev.designsystem.component.ShalevTextoAjustable
 import cu.shalev.designsystem.component.ShalevTopBar
+import cu.shalev.designsystem.component.shalevIndicadorDesplazamiento
 import cu.shalev.designsystem.component.shalevAnimateItem
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.ilustracion.ShalevIlustracion
@@ -348,8 +351,11 @@ private fun ElementosFijados(state: InventarioUiState, acciones: AccionesInventa
 @Composable
 private fun Tabla(state: InventarioUiState, acciones: AccionesInventario) {
     val visibles = state.items.filterNot { it.producto.id in state.seleccion }
+    val desplazamiento = rememberLazyListState()
     LazyColumn(
-        Modifier.fillMaxSize().testTag(InventarioTags.LISTA),
+        Modifier.fillMaxSize().testTag(InventarioTags.LISTA)
+            .shalevIndicadorDesplazamiento(MaterialTheme.colorScheme.background, { desplazamiento.canScrollBackward }, { desplazamiento.canScrollForward }),
+        state = desplazamiento,
         contentPadding = PaddingValues(start = ShalevSpacing.md, end = ShalevSpacing.md, top = ShalevSpacing.xs, bottom = ShalevSize.fabClearance),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
     ) {
@@ -373,7 +379,14 @@ private fun Fila(i: ItemInventario, marcado: Boolean, acciones: AccionesInventar
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(if (marcado) cs.primaryContainer else Color.Transparent)
+            .background(when {
+                marcado && tonoDe(i) == TonoFila.PELIGRO -> cs.error.copy(alpha = 0.18f).compositeOver(cs.primaryContainer)
+                marcado && tonoDe(i) == TonoFila.AVISO -> cs.tertiary.copy(alpha = 0.18f).compositeOver(cs.primaryContainer)
+                marcado -> cs.primaryContainer
+                tonoDe(i) == TonoFila.PELIGRO -> cs.errorContainer.copy(alpha = 0.45f)
+                tonoDe(i) == TonoFila.AVISO -> cs.tertiaryContainer.copy(alpha = 0.45f)
+                else -> Color.Transparent
+            })
             .clickable(role = Role.Button) { if (modoVenta) acciones.onAlternar(i.producto.id) else acciones.onAbrirFicha(i.producto.id) }
             .heightIn(min = ShalevSize.touchTarget)
             .padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs)

@@ -194,7 +194,7 @@ Al finalizar la jornada, desactiva el interruptor de **Turno abierto** en **Inic
 
 1. **Paso 1 — Conteo de efectivo por billetes:**
    - Shalev muestra el **Efectivo esperado** calculado automáticamente (`Fondo + Ventas en efectivo + Entradas − Salidas`).
-   - Escribe cuántos billetes tienes de cada denominación (**1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 5000 y 20000 CUP**) y añade aparte las **Monedas / otro efectivo**. Los campos vacíos valen cero.
+   - Escribe cuántos billetes tienes de cada denominación, ordenadas de mayor a menor (**20000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 3 y 1 CUP**) y añade aparte las **Monedas / otro efectivo**. Los campos vacíos valen cero.
    - ¿Prefieres no contar billete por billete? Pulsa el icono de **Omitir el conteo de billetes** (esquina inferior derecha del cuadro) para escribir directamente el total en efectivo o pulsar el botón rápido **Cuadra** cuando el efectivo contado coincide exactamente con el esperado.
 2. **Paso 2 — Conteo parcial de inventario por categorías:**
    - Para ahorrarte tiempo, Shalev **solo te pide contar los productos e insumos que se movieron durante ese turno**, organizados en pestañas por categoría (*Bebidas*, *Alimentos*, *Insumos*…). Lo que no se tocó se da por bueno.
@@ -220,7 +220,7 @@ La sección **Inventario** reúne todo lo físico que compras, transformas o ven
 
 Cada fila te da de un vistazo toda la información clave sin tener que abrirla:
 
-- **Barra lateral izquierda de color:** azul cuando todo está en orden, amarilla/petróleo en nivel bajo y roja en nivel crítico o sin existencia.
+- **Fila resaltada y barra lateral:** en nivel bajo se usa un tono de aviso; en nivel crítico o sin existencia, un tono de peligro. El texto de estado también describe la alerta.
 - **Casilla de selección y miniatura de foto:** permite marcar uno o varios artículos para exportarlos o borrarlos.
 - **Centro:** nombre (y descripción si la tiene), debajo la cantidad disponible con su unidad (`20 u`, `4.5 kg`, o *«Alcanza para 62»* si es un elaborado) y debajo la categoría.
 - **Derecha:** arriba en seminegrita el **precio de venta** y debajo, en tono secundario, el **precio de costo** para no confundirlos nunca (los insumos sin precio de venta solo muestran su costo).
@@ -347,11 +347,11 @@ En **Pago electrónico** administras la lista de teléfonos y tarjetas o cuentas
 ¿Haces un descuento en ventas grandes al por mayor o aplicas un ajuste según el método de pago? En **Precios** puedes crear reglas automáticas sin tener que cambiar uno por uno los precios guardados en tu inventario:
 
 1. Entra en **Precios** y pulsa **+** (abajo a la derecha).
-2. Elige si la regla **Sube** (hasta un `+100 %`) o **Baja** (hasta un `-90 %`) el precio y escribe el porcentaje (por ejemplo, `5` o `10`).
+2. Pulsa el botón de dos estados para elegir **Subir precio** (hasta un `+100 %`) o **Bajar precio** (hasta un `-90 %`) y escribe el porcentaje (por ejemplo, `5` o `10`).
 3. Elige cuándo se aplica:
-   - **Método de pago:** *Cualquiera*, *Solo Efectivo* o *Solo Transferencia*.
+   - **Método de pago:** elige en el desplegable *Cualquier pago*, *Efectivo* o *Transferencia*.
    - **Importe mínimo (opcional):** por ejemplo, solo en compras a partir de `5000 CUP`.
-4. Marca a qué productos se aplica y guarda con **Guardar** (Shalev te muestra una vista previa del cambio antes de guardar, pero nunca rebaja un artículo por debajo de su precio de costo).
+4. Marca a qué productos se aplica y guarda con **Guardar** (Shalev te muestra una vista previa; si el precio final queda al costo o por debajo, advierte al cobrar).
 5. En la lista de **Precios**, usa el interruptor de la derecha para encender o apagar cada regla cuando quieras.
 
 | <img src="app/capturas/claro/06c_pago_lista.png" alt="Configuración de Pago electrónico" width="240"/> | <img src="app/capturas/claro/06i_precios_lista.png" alt="Reglas automáticas de Precios" width="240"/> |

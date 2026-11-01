@@ -96,7 +96,7 @@ Desde la 0.27.0 se escribe la **v4**, que añade un byte indicador (con o sin co
 
 `turnos[].conteoCierre` es opcional, `null` en datos antiguos, sin cambiar las versiones del contenedor ni del DTO:
 
-- `billetes`: mapa denominación CUP → número de billetes (0–999999); admite 1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 5000 y 20000.
+- `billetes`: mapa denominación CUP → número de billetes (0–999999); admite 1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000 y 20000; el orden visual del contador no cambia el formato.
 - `otroCent`: monedas/otro efectivo en centavos. Si se introduce únicamente un total, el mapa está vacío y el total va aquí.
 - `inventario[]`: `entidad` (PRODUCTO/INSUMO), `id`, `nombre`, `unidad`, `esperado`, `contado`, `actualizadoEn`. Cantidades nativas: unidades para productos, milésimas para insumos. El nombre, la unidad y las cantidades son la instantánea del conteo, no se recalculan al exportar.
 - `motivo`: obligatorio con diferencias; `aprobadoPor` y `aprobadoEn` son nulos hasta que la principal aplica la conciliación. El efectivo calculado debe coincidir con `contadoCent`.

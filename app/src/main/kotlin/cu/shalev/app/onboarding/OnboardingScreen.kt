@@ -70,6 +70,7 @@ import cu.shalev.designsystem.component.ShalevSnackbarHost
 import cu.shalev.designsystem.component.ShalevStepper
 import cu.shalev.designsystem.component.ShalevTextButton
 import cu.shalev.designsystem.component.ShalevTextField
+import cu.shalev.designsystem.component.shalevIndicadorDesplazamiento
 import cu.shalev.designsystem.component.shalevContentWidth
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.theme.ShalevTextos
@@ -180,10 +181,15 @@ fun OnboardingContent(state: OnboardingUiState, acciones: OnboardingAcciones, sn
         ) { p ->
             // P28: todo centrado y repartido a partes iguales en el alto disponible (si no cabe, se desplaza con 16dp
             // entre elementos). Ver [Equitativo].
-            BoxWithConstraints(Modifier.fillMaxSize()) {
+            val desplazamiento = rememberScrollState()
+            BoxWithConstraints(
+                Modifier.fillMaxSize().shalevIndicadorDesplazamiento(
+                    MaterialTheme.colorScheme.background, { desplazamiento.canScrollBackward }, { desplazamiento.canScrollForward },
+                ),
+            ) {
                 val alto = maxHeight
                 Column(
-                    Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).heightIn(min = alto)
+                    Modifier.fillMaxWidth().imePadding().verticalScroll(desplazamiento).heightIn(min = alto)
                         .shalevContentWidth().padding(ShalevSpacing.lg).testTag(OnboardingTags.paso(p)),
                     verticalArrangement = Equitativo,
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -316,35 +322,37 @@ private fun PasoBienvenida() {
 @Composable
 private fun PasoDatos(state: OnboardingUiState, acciones: OnboardingAcciones) {
     // P28: sin título propio: la cabecera ya dice «Paso 2 de 4: Tus datos».
-    Explicacion("Se usan para pedir tu licencia y para cobrar por transferencia. Puedes dejarlos en blanco.")
-    val d = state.datos
-    val err = erroresDatos(d)
-    val forzar = state.mostrarErroresDatos
-    ShalevTextField(
-        filtro = FiltroEntrada.NOMBRE,
-        value = d.nombre, onValueChange = { v -> acciones.onDatos { it.copy(nombre = v) } }, label = "Nombre",
-        isError = "nombre" in err, errorText = err["nombre"], validarAlSalir = true, forzarError = forzar, imeAction = ImeAction.Next,
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier,
-    )
-    ShalevTextField(
-        filtro = FiltroEntrada.NOMBRE,
-        value = d.apellidos, onValueChange = { v -> acciones.onDatos { it.copy(apellidos = v) } }, label = "Apellidos",
-        isError = "apellidos" in err, errorText = err["apellidos"], validarAlSalir = true, forzarError = forzar, imeAction = ImeAction.Next,
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier,
-    )
-    ShalevTextField(
-        filtro = FiltroEntrada.CARNE,
-        value = d.ci, onValueChange = { v -> acciones.onDatos { it.copy(ci = v) } }, label = "Carné de identidad",
-        isError = "ci" in err, errorText = err["ci"], validarAlSalir = true, forzarError = forzar, imeAction = ImeAction.Next,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier,
-    )
-    ShalevTextField(
-        filtro = FiltroEntrada.TELEFONO,
-        value = d.telefono, onValueChange = { v -> acciones.onDatos { it.copy(telefono = v) } }, label = "Teléfono",
-        placeholder = "52345678", isError = "telefono" in err, errorText = err["telefono"], validarAlSalir = true, forzarError = forzar,
-        imeAction = ImeAction.Done, onImeAction = acciones.onSiguiente,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier,
-    )
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+        Explicacion("Se usan para pedir tu licencia y para cobrar por transferencia. Puedes dejarlos en blanco.")
+        val d = state.datos
+        val err = erroresDatos(d)
+        val forzar = state.mostrarErroresDatos
+        ShalevTextField(
+            filtro = FiltroEntrada.NOMBRE,
+            value = d.nombre, onValueChange = { v -> acciones.onDatos { it.copy(nombre = v) } }, label = "Nombre",
+            isError = "nombre" in err, errorText = err["nombre"], validarAlSalir = true, forzarError = forzar, imeAction = ImeAction.Next,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier,
+        )
+        ShalevTextField(
+            filtro = FiltroEntrada.NOMBRE,
+            value = d.apellidos, onValueChange = { v -> acciones.onDatos { it.copy(apellidos = v) } }, label = "Apellidos",
+            isError = "apellidos" in err, errorText = err["apellidos"], validarAlSalir = true, forzarError = forzar, imeAction = ImeAction.Next,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier,
+        )
+        ShalevTextField(
+            filtro = FiltroEntrada.CARNE,
+            value = d.ci, onValueChange = { v -> acciones.onDatos { it.copy(ci = v) } }, label = "Carné de identidad",
+            isError = "ci" in err, errorText = err["ci"], validarAlSalir = true, forzarError = forzar, imeAction = ImeAction.Next,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier,
+        )
+        ShalevTextField(
+            filtro = FiltroEntrada.TELEFONO,
+            value = d.telefono, onValueChange = { v -> acciones.onDatos { it.copy(telefono = v) } }, label = "Teléfono",
+            placeholder = "52345678", isError = "telefono" in err, errorText = err["telefono"], validarAlSalir = true, forzarError = forzar,
+            imeAction = ImeAction.Done, onImeAction = acciones.onSiguiente,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier,
+        )
+    }
 }
 
 @Composable

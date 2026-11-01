@@ -168,6 +168,8 @@ Shalev es **cliente** del contrato v1 de GL, sin cambiarlo. Detalle completo en 
 - **Actualizaciones:** antes de abrir el instalador Shalev guarda un respaldo completo (sin contraseña, en la carpeta privada de la app; no se exporta ni cuenta para el recordatorio mensual). Si no se puede guardar, no se actualiza. Al abrir la versión nueva se restaura y se borra; si la instalación se cancela, se borra sin restaurar. Las ventas hechas entre el respaldo y la instalación no entran en él. El texto de la actualización ya no menciona el repositorio ni su alojamiento.
 - **Registros → Clientes:** «Editar» y «Quitar de clientes fijos» quedan centrados en el pie de la ficha, siempre a la vista. «Editar» abre una ventana para corregir nombre, carné y teléfono, con las mismas comprobaciones de la venta; no se admite un carné que ya sea de otro cliente y sus compras anteriores quedan con los datos corregidos (carné incluido).
 
+Las filas de Inventario resaltan las alertas de existencias y los bordes del contenido desplazable indican cuando hay más elementos en Inventario, el asistente y los diálogos. En Precios se alterna subir/bajar y el método de pago se elige en un desplegable; los ajustes siguen aplicándose a productos seleccionados.
+
 ## Novedades de octubre de 2026 (importación documental, ampliación de secundarias, blindaje de capacidades y billetes CUP)
 
 | Función | Resumen |
@@ -176,7 +178,7 @@ Shalev es **cliente** del contrato v1 de GL, sin cambiarlo. Detalle completo en 
 | **Interfaz de acciones (2026-10-31)** | Acciones con iconos y descripciones accesibles; Confirmar/Eliminar/Omitir/Cancelar conservan texto en diálogos y ventanas. Inicio tiene Ajustes arriba a la derecha y los accesos de Vender/Caja entre el banner de licencia y las alertas; las filas limitan su contenido a 3 líneas. Skeleton nativo inspirado en Boneyard. |
 | **Ampliar apps secundarias (`amplia`)** | En **Ajustes → Licencia** (Android e iOS) y en GL ([parche listo para `rmdvcd/GL`](docs/gl-ampliar-secundarias.patch)): permite añadir secundarias hasta un total de 10 sobre la licencia vigente sin alterar su vencimiento (`venceEn` o `PERPETUA`), pagando solo las nuevas secundarias a tarifa fija (`1 000 / 5 000 / 9 000 / 17 000 CUP`) |
 | **Blindaje de entradas y capacidades** | Cálculo de topes compartidos entre recetas (`Elaborado`, `Servicio` e `Insumo` vendible) en venta nueva y al modificar ventas, tope de salidas de caja según efectivo disponible y filtros de entrada sincronizados en Android e iOS |
-| **Miniaturas de 13 billetes CUP y selectores numéricos** | El conteo de efectivo muestra las miniaturas oficiales del BCC para `1, 3, 5, 10, 20, 50, 100, 200, 500, 1 000, 2 000, 5 000 y 20 000 CUP` en lugar de etiquetas de texto. Cantidades, niveles, empleados y secundarias se ajustan con flechas de icono `Disminuir`/`Aumentar` y descripciones accesibles |
+| **Miniaturas de 13 billetes CUP y selectores numéricos** | El conteo de efectivo presenta las denominaciones de mayor a menor y muestra las miniaturas oficiales del BCC para `1, 3, 5, 10, 20, 50, 100, 200, 500, 1 000, 2 000, 5 000 y 20 000 CUP` en lugar de etiquetas de texto. Cantidades, niveles, empleados y secundarias se ajustan con flechas de icono `Disminuir`/`Aumentar` y descripciones accesibles |
 
 ## Novedades de la 0.27.1 (correcciones, [historial](docs/HISTORIAL_DESARROLLO.md))
 
