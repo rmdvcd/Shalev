@@ -1,14 +1,13 @@
 package cu.shalev.app.precios
 
 import cu.shalev.designsystem.component.ShalevCheckbox
+import cu.shalev.designsystem.component.ShalevComboBox
 import cu.shalev.designsystem.theme.ShalevTextos
 import cu.shalev.domain.model.nombreCompleto
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
@@ -195,7 +193,6 @@ fun PreciosContent(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, acciones: AccionesPrecios) {
     val err = state.errores          // tras pulsar Guardar (incluye «elige productos»)
@@ -212,14 +209,12 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
         },
     ) {
         Titulo("1. ¿Subir o bajar el precio?")
-        FlowRow(
-            Modifier.fillMaxWidth().selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs, Alignment.CenterHorizontally),
-            verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-        ) {
-            ShalevChip("Subir", selected = f.sube, onClick = { acciones.onCambiar { it.copy(sube = true) } }, icon = ShalevIcons.Agregar)
-            ShalevChip("Bajar", selected = !f.sube, onClick = { acciones.onCambiar { it.copy(sube = false) } }, icon = ShalevIcons.Quitar)
-        }
+        ShalevChip(
+            label = if (f.sube) "Subir precio" else "Bajar precio",
+            selected = f.sube,
+            onClick = { acciones.onCambiar { it.copy(sube = !it.sube) } },
+            icon = if (f.sube) ShalevIcons.Agregar else ShalevIcons.Quitar,
+        )
         ShalevTextField(
             filtro = FiltroEntrada.DECIMAL,
             value = f.porcentaje,
@@ -235,17 +230,13 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
         )
 
         Titulo("2. ¿Cuándo se aplica?")
-        FlowRow(
-            Modifier.fillMaxWidth().selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs, Alignment.CenterHorizontally),
-            verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-        ) {
-            ShalevChip("Cualquier pago", selected = f.metodo == null, onClick = { acciones.onCambiar { it.copy(metodo = null) } })
-            ShalevChip(etiqueta(MetodoPago.EFECTIVO), selected = f.metodo == MetodoPago.EFECTIVO, icon = ShalevIcons.Efectivo,
-                onClick = { acciones.onCambiar { it.copy(metodo = MetodoPago.EFECTIVO) } })
-            ShalevChip(etiqueta(MetodoPago.TRANSFERENCIA), selected = f.metodo == MetodoPago.TRANSFERENCIA, icon = ShalevIcons.Transferencia,
-                onClick = { acciones.onCambiar { it.copy(metodo = MetodoPago.TRANSFERENCIA) } })
-        }
+        ShalevComboBox(
+            label = "Método de pago",
+            opciones = listOf(null, MetodoPago.EFECTIVO, MetodoPago.TRANSFERENCIA),
+            seleccion = f.metodo,
+            etiqueta = { it?.let(::etiqueta) ?: "Cualquier pago" },
+            onSeleccion = { metodo -> acciones.onCambiar { it.copy(metodo = metodo) } },
+        )
         ShalevTextField(
             filtro = FiltroEntrada.DINERO,
             value = f.importeMinimo,

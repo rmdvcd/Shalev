@@ -1,5 +1,12 @@
 # Shalev - Historial de desarrollo
 
+## Ajustes de interfaz y miniaturas (2026-11-01)
+
+- Inventario resalta las filas con avisos; los indicadores de desplazamiento aparecen en Inventario, el asistente y las ventanas cuando hay contenido oculto.
+- Se corrigieron los recursos de los tres bancos y sus pruebas; el prefijo sigue siendo orientativo. El contador y su resumen ordenan billetes de mayor a menor sin alterar el estado guardado.
+- Los datos del asistente se agrupan, y Precios usa un botón de dos estados y un desplegable de pago. Los ajustes siguen usando productos seleccionados; cantidad, excepciones y servicios aún no están implementados.
+- Pendiente compilar, ejecutar pruebas y regrabar capturas de Android: este entorno no dispone de Java ni Android SDK.
+
 ## Movimiento: navegación, alertas y gráficos (2026-11-01)
 
 - Las transiciones de pestañas usan la dirección del gesto para entrada y salida, asociada a su origen y destino; los accesos por toque conservan el fundido.

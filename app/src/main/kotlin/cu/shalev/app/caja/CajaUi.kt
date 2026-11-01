@@ -281,7 +281,8 @@ fun DialogoContado(
                 modifier = Modifier.testTag(CajaTags.POR_BILLETES),
             )
             if (porBilletes) {
-                BilletesCUP.denominaciones.forEachIndexed { i, denominacion ->
+                BilletesCUP.denominaciones.indices.reversed().forEach { i ->
+                    val denominacion = BilletesCUP.denominaciones[i]
                     val actual = cantidades[i].toLongOrNull() ?: 0L
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

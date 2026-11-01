@@ -1,5 +1,10 @@
 # Shalev — Verificación real
 
+## Cambios de interfaz en curso (2026-11-01)
+
+- `./gradlew shalevTests`: no se pudo iniciar, falta Java y no hay SDK Android en este entorno.
+- `git diff --check`: sin errores. Pendientes compilación, tests, pruebas en dispositivo y regrabación/revisión de capturas por los cambios visuales.
+
 > **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización Android: **2026-10-31**. La app principal sigue siendo Android. El antiguo Flutter/iOS y la web de escritorio se retiraron; la nueva contraparte SwiftUI vive en `IShalev/` y tiene una sección de verificación independiente al final de este documento.
 
 ## 2026-10-31 — Acciones con iconos, navegación, filas y OCR Android

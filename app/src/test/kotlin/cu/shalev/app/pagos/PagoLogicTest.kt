@@ -30,8 +30,8 @@ class PagoLogicTest {
     }
 
     @Test fun cadaBancoUsaLaMiniaturaConSuLogo() {
-        assertEquals(R.drawable.bandec_miniatura, miniaturaBanco(bancoPorTarjeta("9205")!!))
-        assertEquals(R.drawable.bpa_miniatura, miniaturaBanco(bancoPorTarjeta("9225")!!))
+        assertEquals(R.drawable.bpa_miniatura, miniaturaBanco(bancoPorTarjeta("9205")!!))
+        assertEquals(R.drawable.bandec_miniatura, miniaturaBanco(bancoPorTarjeta("9225")!!))
         assertEquals(R.drawable.banmet_miniatura, miniaturaBanco(bancoPorTarjeta("9226")!!))
     }
 

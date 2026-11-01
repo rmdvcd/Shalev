@@ -274,15 +274,19 @@ private fun ShalevVentana(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.lg).padding(bottom = ShalevSpacing.xs).semantics { heading() },
                                 )
                             }
-                            Column(
-                                Modifier
-                                    .weight(1f, fill = false)
-                                    .verticalScroll(rememberScrollState())
-                                    .padding(horizontal = ShalevSpacing.lg, vertical = ShalevSpacing.xs),
-                                verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
-                                horizontalAlignment = Alignment.CenterHorizontally, // P28: lo que va solo en su fila, centrado
+                            val desplazamiento = rememberScrollState()
+                            Box(
+                                Modifier.weight(1f, fill = false)
+                                    .shalevIndicadorDesplazamiento(cs.surfaceContainerHigh, { desplazamiento.canScrollBackward }, { desplazamiento.canScrollForward }),
                             ) {
-                                CompositionLocalProvider(LocalShalevCentrado provides true) { content() }
+                                Column(
+                                    Modifier.verticalScroll(desplazamiento)
+                                        .padding(horizontal = ShalevSpacing.lg, vertical = ShalevSpacing.xs),
+                                    verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    CompositionLocalProvider(LocalShalevCentrado provides true) { content() }
+                                }
                             }
                             footer?.let { pie ->
                                 if (divisor) HorizontalDivider(color = cs.outlineVariant)

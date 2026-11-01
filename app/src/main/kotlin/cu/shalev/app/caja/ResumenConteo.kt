@@ -19,7 +19,7 @@ import cu.shalev.domain.service.TablasExport
 fun ResumenConteo(conteo: ConteoCierre) {
     Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
         Text("Conteo de cierre", style = MaterialTheme.typography.titleSmall)
-        conteo.billetes.filterValues { it != 0L }.toSortedMap().forEach { (d, n) ->
+        conteo.billetes.filterValues { it != 0L }.toSortedMap(compareByDescending { it }).forEach { (d, n) ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
                 MiniaturaBilleteCup(d)
                 Text("× $n = ${Money.format(Cup(d.toLong() * 100 * n))}", style = ShalevTextos.datoEn(MaterialTheme.typography.bodyMedium))

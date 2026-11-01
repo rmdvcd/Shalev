@@ -228,10 +228,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.lista(
     }
 }
 
-// Los nombres de los PNG están cruzados; se seleccionan por su contenido visual.
+// Un único recurso por banco; la identificación por prefijo sigue siendo orientativa.
 internal fun miniaturaBanco(banco: BancoCubano): Int = when (banco) {
-    BancoCubano.BPA -> R.drawable.bandec_miniatura
-    BancoCubano.BANDEC -> R.drawable.bpa_miniatura
+    BancoCubano.BPA -> R.drawable.bpa_miniatura
+    BancoCubano.BANDEC -> R.drawable.bandec_miniatura
     BancoCubano.BANMET -> R.drawable.banmet_miniatura
 }
 
