@@ -77,16 +77,16 @@ fun CampoFecha(
         val cerrar = remember { { abierto = false } }
         DatePickerDialog(
             onDismissRequest = cerrar,
-            // P24: Cancelar y Aceptar centrados con separación media, como en ShalevDialog (Material los alinea a la derecha).
+            // 1.0.3: sin botón Cancelar (se cierra tocando fuera o con Atrás); solo el botón de Aceptar, centrado.
             confirmButton = {
                 ShalevButtonRow {
-                    ShalevIconAction(ShalevIcons.Cancelar, "Cancelar", onClick = cerrar)
                     ShalevIconAction(
                         ShalevIcons.Confirmar, "Aceptar", style = IconActionStyle.Filled,
                         onClick = { state.selectedDateMillis?.let { onFecha(FechasUi.deMillis(it)) }; cerrar() },
                     )
                 }
             },
+            dismissButton = {},
         ) {
             DatePicker(state = state, modifier = Modifier.fillMaxWidth())
         }

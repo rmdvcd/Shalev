@@ -1,11 +1,8 @@
 package cu.shalev.designsystem.component
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -14,7 +11,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -81,7 +77,7 @@ fun ShalevNavigationBar(
 
 /**
  * Icono compartido de Ayuda en la esquina superior izquierda; abre el contenido de esa pestaña.
- * Va en el hueco de navegación de [ShalevTopBar]. El acceso textual al manual en Ajustes no duplica este icono.
+ * Va en el hueco de navegación de [ShalevTopBar]. Sin borde ni fondo: un icono limpio que usa el color primario.
  */
 @Composable
 fun ShalevBotonAyuda(
@@ -90,12 +86,9 @@ fun ShalevBotonAyuda(
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
-    OutlinedButton(
+    IconButton(
         onClick = onClick,
         modifier = modifier.size(ShalevSize.touchTarget).semantics { contentDescription = descripcion },
-        shape = CircleShape,
-        contentPadding = PaddingValues(0.dp),
-        border = BorderStroke(1.dp, cs.outlineVariant),
     ) {
         Icon(ShalevIcons.Ayuda, contentDescription = null, tint = cs.primary, modifier = Modifier.size(ShalevSize.icon))
     }

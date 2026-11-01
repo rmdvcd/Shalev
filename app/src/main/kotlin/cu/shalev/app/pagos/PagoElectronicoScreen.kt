@@ -50,7 +50,6 @@ import cu.shalev.designsystem.component.ShalevFab
 import cu.shalev.designsystem.component.ShalevIconAction
 import cu.shalev.designsystem.component.ShalevListItem
 import cu.shalev.designsystem.component.ShalevPrimaryButton
-import cu.shalev.designsystem.component.ShalevSecondaryButton
 import cu.shalev.designsystem.component.ShalevSecondaryText
 import cu.shalev.designsystem.component.ShalevSnackbarHost
 import cu.shalev.designsystem.component.ShalevTextField
@@ -232,26 +231,19 @@ private fun androidx.compose.foundation.lazy.LazyListScope.lista(
 /** Miniatura del logo del banco estimado por el prefijo de la cuenta. */
 @Composable
 private fun IconoTarjeta(banco: BancoCubano, modifier: Modifier = Modifier) {
-    // Los tres PNG históricos están guardados con nombres cruzados: el contenido, no el nombre del archivo, determina el banco.
+    // Los tres PNG tienen nombres cruzados: bpa_miniatura contiene el logo de BANMET, banmet_miniatura el de BANDEC
+    // y bandec_miniatura el de BPA; se elige cada recurso por el contenido real, no por el nombre del archivo.
     val recurso = when (banco) {
-        BancoCubano.BPA -> R.drawable.banmet_miniatura
-        BancoCubano.BANDEC -> R.drawable.bpa_miniatura
-        BancoCubano.BANMET -> R.drawable.bandec_miniatura
-        else -> null
+        BancoCubano.BPA -> R.drawable.bandec_miniatura
+        BancoCubano.BANDEC -> R.drawable.banmet_miniatura
+        BancoCubano.BANMET -> R.drawable.bpa_miniatura
     }
-    if (recurso != null) {
-        Image(
-            painter = painterResource(id = recurso),
-            contentDescription = banco.nombre,
-            contentScale = ContentScale.Fit,
-            modifier = modifier.size(ShalevSize.miniatura),
-        )
-    } else {
-        Icon(
-            ShalevIcons.PagoElectronico, contentDescription = banco.nombre,
-            modifier = modifier.size(ShalevSize.icon), tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    Image(
+        painter = painterResource(id = recurso),
+        contentDescription = banco.nombre,
+        contentScale = ContentScale.Fit,
+        modifier = modifier.size(ShalevSize.miniatura),
+    )
 }
 
 @Composable
@@ -267,8 +259,8 @@ private fun EdicionSheet(e: EdicionPago, guardando: Boolean, acciones: AccionesL
             telefono -> "Editar teléfono"
             else -> "Editar tarjeta o cuenta"
         },
+        // 1.0.3: sin botón Cancelar en el pie (se cierra tocando fuera o con Atrás).
         footer = {
-            ShalevSecondaryButton("Cancelar", icon = ShalevIcons.Cancelar, onClick = acciones.onCerrarEdicion)
             ShalevPrimaryButton("Guardar", icon = ShalevIcons.Guardar, onClick = acciones.onGuardarEdicion, loading = guardando, enabled = e.error == null)
         },
     ) {

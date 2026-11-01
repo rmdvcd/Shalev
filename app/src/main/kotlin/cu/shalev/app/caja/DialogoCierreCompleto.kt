@@ -129,7 +129,7 @@ fun DialogoCierreCompleto(
                     supportingText = "De 3 a 160 caracteres. Los ajustes quedarán registrados.", modifier = Modifier,
                 )
             }
-            ShalevTextButton("Atrás", onClick = { omitido = false; paso-- }, icon = ShalevIcons.Listo, enabled = !guardando)
+            ShalevTextButton("Atrás", onClick = { omitido = false; paso-- }, icon = ShalevIcons.Atras, enabled = !guardando)
         }
     }
 }

@@ -559,19 +559,26 @@ private fun HojaExportar(state: InventarioUiState, acciones: AccionesInventario)
             value = state.comentarioPromocion, onValueChange = acciones.onComentarioPromocion,
             label = "Encabezado de promoción (opcional)",
         )
+        // 1.0.3: cada formato ofrece «Compartir» (y «Guardar», si procede) como fila independiente con icono + texto,
+        // sin botones a la derecha (toda la fila es el blanco táctil).
         FormatoSalida.EXPORTAR.filter { it.interno || promocionable }.forEach { f ->
+            val iconoFormato = cu.shalev.app.common.iconoFormato(f)
             ShalevListItem(
                 title = f.etiqueta, subtitle = f.destinatario, indicatorColor = null,
-                leading = cu.shalev.app.common.iconoFormato(f)?.let { ic -> { Icon(ic, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) } },
+                leading = { Icon(iconoFormato, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
                 modifier = Modifier.testTag(InventarioTags.formato(f)),
-                trailing = {
-                    Row {
-                        ShalevIconAction(ShalevIcons.Compartir, "Compartir ${f.etiqueta}", onClick = { acciones.onExportar(f) }, etiqueta = "Compartir")
-                        if (f.guardable) ShalevIconAction(
-                            ShalevIcons.Exportar, "Guardar ${f.etiqueta} en el dispositivo", onClick = { acciones.onGuardar(f) }, etiqueta = "Guardar",
-                        )
-                    }
-                },
+            )
+            ShalevListItem(
+                title = "Compartir ${f.etiqueta}", indicatorColor = null,
+                leading = { Icon(ShalevIcons.Compartir, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                onClick = { acciones.onExportar(f) },
+                modifier = Modifier.testTag("${InventarioTags.formato(f)}_compartir"),
+            )
+            if (f.guardable) ShalevListItem(
+                title = "Guardar ${f.etiqueta} en el dispositivo", indicatorColor = null,
+                leading = { Icon(ShalevIcons.Exportar, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                onClick = { acciones.onGuardar(f) },
+                modifier = Modifier.testTag("${InventarioTags.formato(f)}_guardar"),
             )
         }
     }

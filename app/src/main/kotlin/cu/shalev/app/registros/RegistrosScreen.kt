@@ -284,24 +284,25 @@ private fun HojaExportar(state: RegistrosUiState, tipo: TipoRegistro, acciones: 
             else TextosRegistros.alcanceExportar(tipo, n, detalleFiltro(state)),
         )
         if (tipo == TipoRegistro.TRANSACCIONES) ShalevSecondaryText(TextosRegistros.AVISO_DATOS_CLIENTES)
+        // 1.0.3: cada opción es icono + texto (toda la fila), sin botones a la derecha.
         listOf(FormatoExport.PDF, FormatoExport.XLSX).forEach { f ->
             val etiqueta = if (f == FormatoExport.PDF) "PDF" else "Excel"
             ShalevListItem(
                 title = etiqueta, indicatorColor = null,
                 leading = { Icon(cu.shalev.app.common.iconoFormato(f), contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
                 modifier = Modifier.testTag(RegistrosTags.formato(f)),
-                trailing = {
-                    Row {
-                        ShalevIconAction(
-                            ShalevIcons.Compartir, "Enviar $etiqueta a otra app", etiqueta = "Enviar",
-                            onClick = { acciones.onEnviar(f) }, modifier = Modifier.testTag(RegistrosTags.enviar(f)),
-                        )
-                        ShalevIconAction(
-                            ShalevIcons.Exportar, "Guardar $etiqueta en el teléfono", etiqueta = "Guardar",
-                            onClick = { acciones.onGuardar(f) }, modifier = Modifier.testTag(RegistrosTags.guardar(f)),
-                        )
-                    }
-                },
+            )
+            ShalevListItem(
+                title = "Enviar $etiqueta a otra app", indicatorColor = null,
+                leading = { Icon(ShalevIcons.Compartir, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                onClick = { acciones.onEnviar(f) },
+                modifier = Modifier.testTag(RegistrosTags.enviar(f)),
+            )
+            ShalevListItem(
+                title = "Guardar $etiqueta en el teléfono", indicatorColor = null,
+                leading = { Icon(ShalevIcons.Exportar, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                onClick = { acciones.onGuardar(f) },
+                modifier = Modifier.testTag(RegistrosTags.guardar(f)),
             )
         }
     }

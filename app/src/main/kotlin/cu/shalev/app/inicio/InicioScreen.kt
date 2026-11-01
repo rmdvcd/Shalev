@@ -299,8 +299,9 @@ fun InicioContent(
         // el Scaffold la medía más ancha que la pantalla y los botones quedaban medio fuera.
         Box(Modifier.fillMaxSize().padding(padding)) {
             Column(Modifier.fillMaxSize()) {
-                // 0.31.0 (P1): el turno, el selector de período y el banner de licencia NO se desplazan: se quedan
-                // fijos arriba, uno debajo de otro, mientras el resto de Inicio hace scroll.
+                // 0.31.0 (P1): el turno, el selector de período, el banner de licencia y, cuando el turno está
+                // abierto, los botones Venta y Caja NO se desplazan: se quedan fijos arriba, uno debajo de otro,
+                // mientras el resto de Inicio hace scroll.
                 BloqueFijo(state, acciones, permisos, zona)
                 val estadoLista = remember { LazyListState() }
                 // 0.31.0 (P1): Inicio se abre siempre por arriba: la lista no guarda su posición (Android la
@@ -319,31 +320,12 @@ fun InicioContent(
                     state = estadoLista,
                     contentPadding = PaddingValues(
                         start = ShalevSpacing.md, end = ShalevSpacing.md,
-                        // 0.31.0 (P1): menos hueco entre «Shalev» y lo primero que se ve.
+                        // 0.31.0 (P1): menos hueco entre el bloque fijo y lo primero que se ve.
                         top = ShalevSpacing.xs,
                         bottom = ShalevSpacing.md,
                     ),
                     verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
                 ) {
-            // Accesos compactos justo debajo del banner fijo de licencia y antes de las alertas del Inicio.
-            if (state.turnoAbierto && permisos.vender) item(key = "acciones_venta_caja") {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    ShalevFab(
-                        ShalevIcons.Venta,
-                        "Nueva venta",
-                        onClick = acciones.onNuevaVenta,
-                        soloIcono = true,
-                        modifier = Modifier.testTag(InicioTags.NUEVA_VENTA),
-                    )
-                    ShalevFab(
-                        ShalevIcons.CajaRegistradora,
-                        cu.shalev.app.caja.TextosCaja.MOVIMIENTO_TITULO,
-                        onClick = acciones.onMovimientoCaja,
-                        soloIcono = true,
-                        modifier = Modifier.testTag(InicioTags.CAJA),
-                    )
-                }
-            }
             // 0.20.0 (H5): el encargado cerró (o pidió cerrar) el turno desde la app principal.
             if (state.cierrePedido || state.avisoCierre) {
                 item(key = "cierre") {
@@ -556,6 +538,25 @@ private fun BloqueFijo(state: InicioUiState, acciones: AccionesInicio, permisos:
                 onClick = { acciones.onNavigate(Route.Licencia) },
                 modifier = Modifier.testTag(InicioTags.BANNER),
             )
+        }
+        // 1.0.3: Venta y Caja permanecen fijos con el resto del bloque superior (no se desplazan con el scroll).
+        if (state.turnoAbierto && permisos.vender) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                ShalevFab(
+                    ShalevIcons.Venta,
+                    "Nueva venta",
+                    onClick = acciones.onNuevaVenta,
+                    soloIcono = true,
+                    modifier = Modifier.testTag(InicioTags.NUEVA_VENTA),
+                )
+                ShalevFab(
+                    ShalevIcons.CajaRegistradora,
+                    cu.shalev.app.caja.TextosCaja.MOVIMIENTO_TITULO,
+                    onClick = acciones.onMovimientoCaja,
+                    soloIcono = true,
+                    modifier = Modifier.testTag(InicioTags.CAJA),
+                )
+            }
         }
     }
 }

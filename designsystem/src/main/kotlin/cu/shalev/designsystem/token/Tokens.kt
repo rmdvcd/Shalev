@@ -52,8 +52,8 @@ object ShalevSize {
     val buttonMin = 40.dp
     val buttonMax = 48.dp
     val textField = 56.dp
-    /** 1.0.2: ancho mínimo de un campo de texto que se ajusta a su contenido. */
-    val textFieldAnchoMin = 112.dp
+    /** 1.0.3: ancho mínimo de un campo de texto que se ajusta a su placeholder (caben cómodamente números, teléfonos y nombres cortos). */
+    val textFieldAnchoMin = 220.dp
     val touchTarget = 48.dp
     val icon = 24.dp
     val iconSmall = 18.dp

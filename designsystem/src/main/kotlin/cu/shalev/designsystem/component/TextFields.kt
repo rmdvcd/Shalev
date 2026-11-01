@@ -78,10 +78,11 @@ fun ShalevTextField(
      */
     filtro: FiltroEntrada = FiltroEntrada.TEXTO,
     /**
-     * 1.0.2: por defecto el campo se ajusta a su contenido (el texto y la etiqueta), con un ancho mínimo cómodo.
-     * Los **buscadores** pasan `anchoCompleto = true`: ocupan todo el ancho disponible.
+     * 1.0.3: por defecto los campos ocupan todo el ancho disponible (consistente con el relleno lateral de la
+     * pantalla y las ventanas/diálogos). Solo controles muy concretos (el selector de cantidad del carrito, los
+     * campos en una fila con botones a los lados) pasan `anchoCompleto = false` para ajustarse a su contenido.
      */
-    anchoCompleto: Boolean = false,
+    anchoCompleto: Boolean = true,
 ) {
     val cs = MaterialTheme.colorScheme
     val showClear = clearable && value.isNotEmpty() && enabled && !readOnly

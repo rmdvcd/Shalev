@@ -436,19 +436,25 @@ private fun HojaExportar(state: ServiciosUiState, acciones: AccionesServicios) {
             value = state.comentarioPromocion, onValueChange = acciones.onComentarioPromocion,
             label = "Encabezado de promoción (opcional)",
         )
+        // 1.0.3: cada opción es icono + texto (toda la fila), sin botones a la derecha.
         FORMATOS_EXPORTAR_SERVICIOS.forEach { f ->
+            val iconoFormato = cu.shalev.app.common.iconoFormato(f)
             ShalevListItem(
                 title = f.etiqueta, indicatorColor = null,
-                leading = cu.shalev.app.common.iconoFormato(f)?.let { ic -> { Icon(ic, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) } },
+                leading = iconoFormato?.let { ic -> { Icon(ic, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) } },
                 modifier = Modifier.testTag(ServiciosTags.formato(f)),
-                trailing = {
-                    Row {
-                        ShalevIconAction(ShalevIcons.Compartir, "Compartir ${f.etiqueta}", onClick = { acciones.onExportar(f) }, etiqueta = "Compartir")
-                        if (f.guardable) ShalevIconAction(
-                            ShalevIcons.Exportar, "Guardar ${f.etiqueta} en el dispositivo", onClick = { acciones.onGuardar(f) }, etiqueta = "Guardar",
-                        )
-                    }
-                },
+            )
+            ShalevListItem(
+                title = "Compartir ${f.etiqueta}", indicatorColor = null,
+                leading = { Icon(ShalevIcons.Compartir, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                onClick = { acciones.onExportar(f) },
+                modifier = Modifier.testTag("${ServiciosTags.formato(f)}_compartir"),
+            )
+            if (f.guardable) ShalevListItem(
+                title = "Guardar ${f.etiqueta} en el dispositivo", indicatorColor = null,
+                leading = { Icon(ShalevIcons.Exportar, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                onClick = { acciones.onGuardar(f) },
+                modifier = Modifier.testTag("${ServiciosTags.formato(f)}_guardar"),
             )
         }
     }
