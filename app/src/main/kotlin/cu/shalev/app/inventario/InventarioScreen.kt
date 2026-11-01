@@ -593,7 +593,7 @@ private fun HojaCompartirFicha(state: InventarioUiState, acciones: AccionesInven
             ShalevListItem(
                 title = f.etiqueta, subtitle = if (f == FormatoSalida.PDF) FormatoSalida.USO_INTERNO else null,
                 indicatorColor = null, onClick = { acciones.onCompartirFicha(f) },
-                leading = { Icon(cu.shalev.app.common.iconoFormato(f) ?: ShalevIcons.Compartir, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                leading = { Icon(cu.shalev.app.common.iconoFormato(f), contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
                 modifier = Modifier.testTag(InventarioTags.formato(f)),
             )
         }
