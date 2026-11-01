@@ -3,6 +3,7 @@
 ## Ajustes de interfaz y miniaturas (2026-11-01)
 
 - Inventario resalta las filas con avisos; los indicadores de desplazamiento aparecen en Inventario, el asistente y las ventanas cuando hay contenido oculto.
+- **Miniaturas de Pago electrónico:** la miniatura se elige ahora por el código de banco de los **dígitos 5–8** (`1299` BPA, `0699` BANDEC, `9598` Banco Metropolitano) y no por los 4 primeros, que solo indican moneda y producto (la regla anterior pintaba, por ejemplo, BPA en una `9205 9598` del Banco Metropolitano). Además, `bpa_miniatura.png` y `banmet_miniatura.png` estaban intercambiados y se corrigieron. `docs/pago_miniaturas_prefijos.png` muestra la selección resultante.
 - Se corrigieron los recursos de los tres bancos y sus pruebas; el prefijo sigue siendo orientativo. El contador y su resumen ordenan billetes de mayor a menor sin alterar el estado guardado.
 - Los datos del asistente se agrupan, y Precios usa un botón de dos estados y un desplegable de pago. Los ajustes siguen usando productos seleccionados; cantidad, excepciones y servicios aún no están implementados.
 - Pendiente compilar, ejecutar pruebas y regrabar capturas de Android: este entorno no dispone de Java ni Android SDK.

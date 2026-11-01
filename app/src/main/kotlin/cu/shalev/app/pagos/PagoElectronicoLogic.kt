@@ -7,28 +7,41 @@ import cu.shalev.domain.validation.Validadores
 enum class TipoCuentaPago { TELEFONO, TARJETA }
 
 /**
- * Bancos asociados de forma orientativa a prefijos publicados. No es una tabla oficial ni valida la titularidad.
- * 9224 queda sin asignar porque las fuentes consultadas lo atribuyen a bancos distintos.
+ * Código de banco de las tarjetas RED: son los dígitos 5–8 del número, no los 4 primeros.
+ * Los 4 primeros (9205, 9225…) indican moneda y producto, y los emiten los tres bancos; por eso no identifican al
+ * banco. Códigos: 0699 BANDEC, 1299 BPA, 9598 Banco Metropolitano (catálogo público de prefijos cubanos 0.5.2 y
+ * titulares; ver docs/LOGOS_BANCOS.md). No valida la titularidad.
  */
-enum class BancoCubano(val nombre: String, val sigla: String, val prefijos: Set<String>) {
-    BPA("Banco Popular de Ahorro", "BPA", setOf("9205")),
-    BANDEC("Banco de Crédito y Comercio", "BANDEC", setOf("9225")),
-    BANMET("Banco Metropolitano", "BANMET", setOf("9226")),
+enum class BancoCubano(val nombre: String, val sigla: String, val codigo: String) {
+    BPA("Banco Popular de Ahorro", "BPA", "1299"),
+    BANDEC("Banco de Crédito y Comercio", "BANDEC", "0699"),
+    BANMET("Banco Metropolitano", "BANMET", "9598"),
 }
 
-/** Identificación visual no autoritativa; los prefijos desconocidos o ambiguos se dejan sin logo. */
-fun bancoPorTarjeta(numero: String): BancoCubano? {
+/**
+ * Dígitos 5–8 de una tarjeta RED (red 92), que es donde va el banco; null si aún no hay 8 dígitos.
+ * Las redes AIS (95) y Clásica (97) no llevan código de banco en esa posición.
+ */
+fun codigoBanco(numero: String): String? {
     val digitos = numero.filter(Char::isDigit)
-    if (digitos.length < 4) return null
-    return BancoCubano.entries.firstOrNull { banco -> banco.prefijos.any(digitos::startsWith) }
+    return if (digitos.length < 8 || !digitos.startsWith("92")) null else digitos.substring(4, 8)
+}
+
+/** Identificación visual no autoritativa; sin código de banco conocido se deja el icono genérico. */
+fun bancoPorTarjeta(numero: String): BancoCubano? {
+    val codigo = codigoBanco(numero) ?: return null
+    return BancoCubano.entries.firstOrNull { banco -> banco.codigo == codigo }
 }
 
 object TextosPago {
     const val TITULO = "Pago electrónico"
     const val EXPLICACION = "Cuando un cliente paga por transferencia, el código QR lleva la tarjeta o cuenta que recibe " +
         "el dinero y el teléfono que recibe el mensaje de confirmación. Elige cuáles usar."
-    const val AVISO_BANCOS = "Los logos se estiman por el prefijo; no verifican el banco ni la titularidad."
-    const val BANCO_ESTIMADO = "Identificación orientativa por prefijo"
+    const val AVISO_BANCOS = "El logo se estima por el código de banco (dígitos 5 a 8); no verifica la titularidad."
+    const val BANCO_ESTIMADO = "Identificación orientativa por el código de banco"
+
+    /** Vista previa de la hoja: deja a la vista el código (dígitos 5–8) que eligió la miniatura. */
+    fun bancoEstimado(codigo: String) = "Código de banco $codigo · orientativo"
     const val TELEFONO = "Teléfono de confirmación"
     const val TARJETA = "Tarjeta o cuenta que recibe el dinero"
     const val NINGUNO = "Ninguno"

@@ -523,7 +523,8 @@ private struct PaymentTarget: Identifiable {
     var title: String
 }
 
-/// Identificación visual orientativa por prefijo, igual que en Android (no verifica el banco).
+/// Identificación visual orientativa por el código de banco (dígitos 5–8), igual que en Android.
+/// Los 4 primeros dígitos indican moneda y producto, no el banco.
 private enum BancoCubano: String, CaseIterable {
     case bpa, bandec, banmet
 
@@ -543,19 +544,21 @@ private enum BancoCubano: String, CaseIterable {
         }
     }
 
-    var prefijos: [String] {
+    /// Código de banco en los dígitos 5–8 de una tarjeta RED.
+    var codigo: String {
         switch self {
-        case .bpa: ["9205"]
-        case .bandec: ["9225"]
-        case .banmet: ["9226"]
+        case .bpa: "1299"
+        case .bandec: "0699"
+        case .banmet: "9598"
         }
     }
 }
 
 private func bancoCubano(_ number: String) -> BancoCubano? {
     let digits = number.filter(\.isNumber)
-    guard digits.count >= 4 else { return nil }
-    return BancoCubano.allCases.first { banco in banco.prefijos.contains { digits.hasPrefix($0) } }
+    guard digits.count >= 8, digits.hasPrefix("92") else { return nil }
+    let codigo = String(digits.dropFirst(4).prefix(4))
+    return BancoCubano.allCases.first { $0.codigo == codigo }
 }
 
 @MainActor
@@ -612,7 +615,7 @@ private struct PaymentSettingsView: View {
                         }
                     }
 
-                    Text("Los logos se estiman por el prefijo; no verifican el banco ni la titularidad.")
+                    Text("Los logos se estiman por el código de banco (dígitos 5 a 8); no verifican la titularidad.")
                         .font(.shalev(11))
                         .foregroundStyle(Color.shalevSecondaryText)
                         .padding(.horizontal, 18)
