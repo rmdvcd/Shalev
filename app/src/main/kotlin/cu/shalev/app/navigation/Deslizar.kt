@@ -81,3 +81,10 @@ fun cambioSeccion(dir: Int): CambioSeccion = when (dir) {
     -1 -> CambioSeccion.ATRAS
     else -> CambioSeccion.FUNDIDO
 }
+
+/** Un gesto solo afecta a la navegación que lo originó, no a cambios posteriores de pestaña. */
+data class GestoSeccion(val origenId: String, val destino: String, val direccion: Int)
+
+fun cambioSeccion(gesto: GestoSeccion?, origenId: String, destino: String?): CambioSeccion =
+    if (gesto != null && gesto.origenId == origenId && gesto.destino == destino) cambioSeccion(gesto.direccion)
+    else CambioSeccion.FUNDIDO

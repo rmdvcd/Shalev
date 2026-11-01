@@ -168,14 +168,17 @@ object ShalevMotion {
 
     /**
      * 0.27.0 (N4): las ventanas emergentes suben desde abajo hasta el centro con un fundido y, al cerrarse, hacen el
-     * recorrido inverso (bajan y se desvanecen). El recorrido es la altura de la propia ventana. 0.28.1: la entrada
+     * recorrido inverso (bajan y se desvanecen). El recorrido es media altura de la propia ventana. 0.28.1: la entrada
      * usa [muelleEntrada] para que el «llegar» se aprecie; la salida sigue inmediata con [muelle].
      * 0.31.0 (P10): la entrada es media altura (`it / 2`), no la altura completa: la ventana «salta» desde el centro
      * de abajo en vez de subir desde el borde, que es lo que se pidió para ventanas y diálogos.
      */
+    fun desplazamientoVentana(alto: Int): Int = alto / 2
+
     val ventanaEntra: EnterTransition =
-        slideInVertically(muelleEntrada()) { it / 2 } + fadeIn(tween(SHORT))
-    val ventanaSale: ExitTransition = slideOutVertically(muelle()) { it } + fadeOut(tween(SHORT, easing = easing))
+        slideInVertically(muelleEntrada(), initialOffsetY = ::desplazamientoVentana) + fadeIn(tween(SHORT))
+    val ventanaSale: ExitTransition =
+        slideOutVertically(muelle(), targetOffsetY = ::desplazamientoVentana) + fadeOut(tween(SHORT, easing = easing))
 
     /** Duración del fundido del velo oscuro que hay detrás de una ventana emergente. */
     const val VELO = SHORT

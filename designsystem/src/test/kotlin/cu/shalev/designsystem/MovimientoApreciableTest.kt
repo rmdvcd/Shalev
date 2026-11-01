@@ -28,5 +28,7 @@ class MovimientoApreciableTest {
         // existe y sigue siendo un desplazamiento vertical (la mitad del recorrido, no el borde de la pantalla).
         assertNotNull(ShalevMotion.ventanaEntra)
         assertNotNull(ShalevMotion.ventanaSale)
+        assertEquals(100, ShalevMotion.desplazamientoVentana(200))
+        assertEquals(0, ShalevMotion.desplazamientoVentana(0))
     }
 }

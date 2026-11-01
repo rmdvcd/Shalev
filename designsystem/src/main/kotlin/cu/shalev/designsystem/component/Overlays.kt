@@ -52,6 +52,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -258,6 +259,7 @@ private fun ShalevVentana(
                 CompositionLocalProvider(LocalShalevVentana provides true) {
                     Surface(
                         modifier = modifier.animateEnterExit(enter = ShalevMotion.ventanaEntra, exit = ShalevMotion.ventanaSale)
+                            .then(if (pendiente) Modifier.clearAndSetSemantics { } else Modifier)
                             .fillMaxWidth(ANCHO_VENTANA).widthIn(max = ShalevSize.contentMaxWidth).heightIn(max = alto * ALTO_VENTANA)
                             .pointerInput(Unit) { detectTapGestures { } },
                         shape = RoundedCornerShape(ShalevRadius.xl),
@@ -289,6 +291,8 @@ private fun ShalevVentana(
                         }
                     }
                 }
+                // Durante la salida no se aceptan nuevos toques ni acciones accesibles sobre la ventana.
+                if (pendiente) Box(Modifier.matchParentSize().pointerInput(Unit) { detectTapGestures { } }.clearAndSetSemantics { })
             }
         }
     }
