@@ -6,6 +6,7 @@ import cu.shalev.app.common.LocalPermisosApp
 import cu.shalev.domain.model.IdArticulo
 import cu.shalev.domain.model.FichaInsumo
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -79,6 +80,7 @@ import cu.shalev.designsystem.component.ShalevSecondaryButton
 import cu.shalev.designsystem.component.ShalevSecondaryText
 import cu.shalev.designsystem.component.ShalevSnackbarHost
 import cu.shalev.designsystem.component.ShalevTextField
+import cu.shalev.designsystem.component.ShalevTextoAjustable
 import cu.shalev.designsystem.component.ShalevTopBar
 import cu.shalev.designsystem.component.shalevAnimateItem
 import cu.shalev.designsystem.icon.ShalevIcons
@@ -357,15 +359,14 @@ private fun Tabla(state: InventarioUiState, acciones: AccionesInventario) {
 }
 
 /**
- * 0.31.0 (P2): fila del Inventario. Debajo del nombre van la cantidad en stock (o para cuántos alcanza, en un
- * Elaborado) con su unidad, y debajo la categoría. En el extremo derecho, el precio de costo y el de venta, que se
- * distinguen solo por un tono más suave del primero. La alerta (stock, caducidad, nombre repetido) sigue al final
- * para que el color nunca sea el único aviso.
+ * Fila del Inventario: máximo tres líneas interiores (nombre, alerta y stock/categoría combinados). En el extremo
+ * derecho, costo y precio de venta. La ficha conserva los detalles completos cuando el texto de la fila se abrevia.
  */
 @Composable
 private fun Fila(i: ItemInventario, marcado: Boolean, acciones: AccionesInventario, modoVenta: Boolean = false, modifier: Modifier = Modifier) {
     val cs = MaterialTheme.colorScheme
     val estado = if (modoVenta && !SeleccionVenta.vendible(i)) SeleccionVenta.motivo(i) else descripcionEstado(i)
+    val subtitulo = subtituloFila(i)
     val costo = costoFila(i)
     val venta = ventaFila(i)
     Row(
@@ -397,28 +398,28 @@ private fun Fila(i: ItemInventario, marcado: Boolean, acciones: AccionesInventar
             )
         }
         Column(Modifier.weight(1f)) {
-            Text(i.producto.nombreCompleto, style = MaterialTheme.typography.bodyLarge) // 0.24.0: «Nombre · Descripción»
-            // 0.28.0: la fecha de caducidad («Vence 03/10/2026») va en seminegrita.
-            subtituloFila(i)?.let { subt ->
-                // El aviso (caducidad, stock, nombre repetido) siempre en 2 líneas: la fecha de
-                // vencimiento no debe cortarse con "…" (02a: «Crítico · Vence 0…» ilegible).
+            Text(
+                i.producto.nombreCompleto, style = MaterialTheme.typography.bodyLarge,
+                maxLines = if (subtitulo != null) 1 else 2, overflow = TextOverflow.Ellipsis,
+            )
+            // Si hay aviso, el nombre y el aviso usan una línea cada uno; sin aviso el nombre puede ocupar dos.
+            subtitulo?.let { texto ->
                 ShalevSecondaryText(
-                    ShalevTextos.resaltar(subt, cu.shalev.app.common.FechasUi.texto(i.producto.fechaCaducidad)),
-                    maxLines = 2,
+                    ShalevTextos.resaltar(texto, cu.shalev.app.common.FechasUi.texto(i.producto.fechaCaducidad)),
+                    maxLines = 1,
                 )
             }
-            ShalevSecondaryText(valorFila(i)) // cantidad con su unidad (u, L, g, Kg, cajas…)
-            ShalevSecondaryText(categoriaFila(i))
+            ShalevSecondaryText("${valorFila(i)} · ${categoriaFila(i)}", maxLines = 1)
         }
         Column(horizontalAlignment = Alignment.End) {
             venta?.let {
-                Text(
+                ShalevTextoAjustable(
                     Money.format(it), style = ShalevTextos.datoEn(MaterialTheme.typography.bodyLarge),
-                    color = cs.onSurface, textAlign = TextAlign.End,
+                    color = cs.onSurface, textAlign = TextAlign.End, maxLines = 1,
                 )
             }
-            // El costo va en el mismo sitio, un tono más suave: es el dato secundario de la fila.
-            ShalevSecondaryText(Money.format(costo), textAlign = TextAlign.End)
+            // El costo va en el mismo sitio, un tono más suave y limitado a una línea.
+            ShalevSecondaryText(Money.format(costo), textAlign = TextAlign.End, maxLines = 1)
         }
     }
 }

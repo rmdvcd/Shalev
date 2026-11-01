@@ -64,18 +64,17 @@ sealed interface Route {
     @Serializable data object Soporte : Route
 }
 
-/** Los 5 destinos de la barra inferior, en el orden de Shalev.txt. */
+/** Destinos de negocio de la barra inferior; Ajustes se abre desde la esquina superior derecha de Inicio. */
 enum class TopLevel(val route: Route, val icon: ImageVector, val label: String) {
     INICIO(Route.Inicio, ShalevIcons.Inicio, "Inicio"),
     INVENTARIO(Route.Inventario(), ShalevIcons.Inventario, "Inventario"),
     SERVICIOS(Route.Servicios(), ShalevIcons.Servicios, "Servicios"),
     REGISTROS(Route.Registros, ShalevIcons.Registros, "Registros"),
-    AJUSTES(Route.Ajustes, ShalevIcons.Ajustes, "Ajustes"),
 }
 
 /**
  * 0.21.0 (C12): secciones de la barra inferior según los módulos del negocio. Inventario solo con Ventas o Inventario;
- * Servicios solo con Servicios. Inicio, Registros y Ajustes siempre (el deslizar sigue este mismo orden).
+ * Servicios solo con Servicios. Inicio y Registros siempre (Ajustes vive en Inicio y no forma parte del deslizado).
  */
 fun topLevelVisibles(p: cu.shalev.domain.model.PermisosApp): List<TopLevel> = TopLevel.entries.filter {
     when (it) {

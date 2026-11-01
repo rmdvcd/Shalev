@@ -121,6 +121,7 @@ object InicioTags {
     const val DIALOGO_VENTA = "inicio_dialogo_venta"
     const val RESPALDO = "inicio_respaldo"
     const val CAJA = "inicio_caja"
+    const val AJUSTES = "inicio_ajustes"
     const val ACTUALIZACION = "inicio_actualizacion"
     fun alerta(t: cu.shalev.domain.model.TipoAlerta) = "inicio_alerta_${t.name}"
     fun periodo(o: OpcionPeriodo) = "inicio_periodo_${o.name}"
@@ -284,6 +285,12 @@ fun InicioContent(
             ShalevTopBar(
                 title = "Shalev", marca = true,
                 onAyuda = { ayudaPestana = true }, ayudaDescripcion = "Ayuda de Inicio",
+                actions = {
+                    cu.shalev.designsystem.component.ShalevIconAction(
+                        ShalevIcons.Ajustes, "Ajustes", onClick = { acciones.onNavigate(Route.Ajustes) },
+                        modifier = Modifier.testTag(InicioTags.AJUSTES),
+                    )
+                },
             )
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
@@ -314,11 +321,29 @@ fun InicioContent(
                         start = ShalevSpacing.md, end = ShalevSpacing.md,
                         // 0.31.0 (P1): menos hueco entre «Shalev» y lo primero que se ve.
                         top = ShalevSpacing.xs,
-                        // Hueco para que los botones flotantes no tapen la última fila.
-                        bottom = ShalevSpacing.md + ShalevSize.fabClearance,
+                        bottom = ShalevSpacing.md,
                     ),
                     verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
                 ) {
+            // Accesos compactos justo debajo del banner fijo de licencia y antes de las alertas del Inicio.
+            if (state.turnoAbierto && permisos.vender) item(key = "acciones_venta_caja") {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    ShalevFab(
+                        ShalevIcons.Venta,
+                        "Nueva venta",
+                        onClick = acciones.onNuevaVenta,
+                        soloIcono = true,
+                        modifier = Modifier.testTag(InicioTags.NUEVA_VENTA),
+                    )
+                    ShalevFab(
+                        ShalevIcons.CajaRegistradora,
+                        cu.shalev.app.caja.TextosCaja.MOVIMIENTO_TITULO,
+                        onClick = acciones.onMovimientoCaja,
+                        soloIcono = true,
+                        modifier = Modifier.testTag(InicioTags.CAJA),
+                    )
+                }
+            }
             // 0.20.0 (H5): el encargado cerró (o pidió cerrar) el turno desde la app principal.
             if (state.cierrePedido || state.avisoCierre) {
                 item(key = "cierre") {
@@ -420,24 +445,6 @@ fun InicioContent(
                 resumenGeneral(state.resumen, acciones.onReintentar, acordeones)
             }
             }
-            }
-            // «Nueva venta» (izquierda) y «Movimiento de caja» (derecha): flotantes en las esquinas
-            // inferiores y solo visibles con el turno abierto (sin turno no se vende).
-            if (state.turnoAbierto && permisos.vender) {
-                Row(
-                    Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                        .padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.md),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    ShalevFab(
-                        ShalevIcons.Venta, "Nueva venta", onClick = acciones.onNuevaVenta, etiqueta = "Vender",
-                        modifier = Modifier.testTag(InicioTags.NUEVA_VENTA),
-                    )
-                    ShalevFab(
-                        ShalevIcons.Efectivo, cu.shalev.app.caja.TextosCaja.MOVIMIENTO_TITULO, onClick = acciones.onMovimientoCaja,
-                        etiqueta = "Caja", modifier = Modifier.testTag(InicioTags.CAJA),
-                    )
-                }
             }
         }
     }
@@ -553,9 +560,7 @@ private fun BloqueFijo(state: InicioUiState, acciones: AccionesInicio, permisos:
     }
 }
 
-/**
- * Solo el turno: «Nueva venta» y «Movimiento de caja» son botones flotantes (solo con turno abierto).
- */
+/** Tarjeta del turno; los accesos a Vender y Caja aparecen debajo del banner de licencia, antes de las alertas. */
 @Composable
 private fun TurnoContenedor(
     state: InicioUiState,

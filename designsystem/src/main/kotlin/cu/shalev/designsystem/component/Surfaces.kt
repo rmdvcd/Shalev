@@ -188,11 +188,10 @@ fun ShalevAccordionCard(
  * Espaciado vertical compacto (8dp) y altura mínima táctil de 48dp.
  *
  * P18 (A02), letra grande:
- * - El título admite 2 líneas.
- * - El valor ocupa como mucho el 45 % del ancho y se corta con «…»: así nunca empuja el nombre fuera.
- * - Con letra grande del sistema ([letraGrande]), el valor pasa **debajo** del título y se ve entero.
- * - [valueMaxLines] / [subtitleMaxLines] (0.16.1): textos largos que deben leerse enteros («Sin insumos suficientes»,
- *   «400.00 CUP c/u · Alcanza para 15») pasan a 2 líneas en vez de cortarse. Por defecto 1: el resto no cambia.
+ * - El título usa hasta [titleMaxLines] líneas (2 por defecto) y el valor ocupa como mucho el 45 % del ancho en letra normal.
+ * - Con letra grande del sistema ([letraGrande]), el valor pasa **debajo** del título.
+ * - La suma de título, subtítulo y valor apilado no supera **3 líneas**; los textos largos se recortan visualmente con «…».
+ * - [valueMaxLines] / [subtitleMaxLines] permiten repartir hasta 3 líneas entre los datos visibles.
  * - 0.26.0 (P73 §5): el valor usa [ShalevTextos.dato] (seminegrita). [tituloEsDato]: el título también es un dato
  *   (la fecha de las filas de Registros y Turnos) y va en seminegrita.
  */
@@ -209,15 +208,26 @@ fun ShalevListItem(
     selected: Boolean = false,
     onClick: (() -> Unit)? = null,
     valueMaxLines: Int = 1,
-    subtitleMaxLines: Int = 3, // 0.27.0 (T2, capturas): con 1 línea cortaba «Vincula las apps de tus empl…»
+    subtitleMaxLines: Int = 1,
     tituloEsDato: Boolean = false,
     /** 0.28.0: subtítulo con importes/fechas en seminegrita (ver [ShalevTextos.resaltar]); si no es null, vale este. */
     subtitleResaltado: AnnotatedString? = null,
     /** 0.28.0: como [subtitleResaltado] pero para el título («Turno abierto desde las 09:30»). */
     titleResaltado: AnnotatedString? = null,
+    titleMaxLines: Int = 2,
 ) {
     val cs = MaterialTheme.colorScheme
     val apilar = letraGrande()
+    val haySubtitulo = subtitleResaltado != null || !subtitle.isNullOrBlank()
+    val lineasValorApilado = if (apilar && value != null) 1 else 0
+    val lineasSubtituloSolicitadas = if (haySubtitulo) subtitleMaxLines.coerceAtLeast(1) else 0
+    // Cada fila limita el bloque de texto a tres líneas, también al apilar el valor con letra grande.
+    val lineasTitulo = (3 - lineasValorApilado - lineasSubtituloSolicitadas)
+        .coerceAtLeast(1).coerceAtMost(titleMaxLines.coerceIn(1, 3))
+    val lineasSubtitulo = if (haySubtitulo) {
+        lineasSubtituloSolicitadas.coerceAtMost((3 - lineasValorApilado - lineasTitulo).coerceAtLeast(1))
+    } else 0
+    val textoSubtitulo = subtitle?.split(" · ", "\n")?.filter { it.isNotBlank() }?.joinToString(" · ")
     val clickable = if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier
     CompositionLocalProvider(LocalShalevCentrado provides false) {
         Row(
@@ -241,24 +251,32 @@ fun ShalevListItem(
             leading?.invoke()
             Column(Modifier.weight(1f)) {
                 if (titleResaltado != null) Text(
-                    titleResaltado, style = MaterialTheme.typography.bodyLarge,
+                    titleResaltado,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = lineasTitulo,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 else Text(
-                    title, style = if (tituloEsDato) ShalevTextos.datoEn(MaterialTheme.typography.bodyLarge) else MaterialTheme.typography.bodyLarge,
-                    // 0.30.1: el título nunca se corta con «…»: con nombres largos o letra al 200 % pasa a otra línea.
+                    title,
+                    style = if (tituloEsDato) ShalevTextos.datoEn(MaterialTheme.typography.bodyLarge) else MaterialTheme.typography.bodyLarge,
+                    maxLines = lineasTitulo,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                if (subtitleResaltado != null) ShalevSecondaryText(subtitleResaltado, maxLines = if (apilar) maxOf(2, subtitleMaxLines) else subtitleMaxLines)
-                else subtitle?.split(" · ", "\n")?.filter { it.isNotBlank() }?.forEach { linea ->
-                    ShalevSecondaryText(linea, maxLines = if (apilar) maxOf(2, subtitleMaxLines) else subtitleMaxLines)
+                if (subtitleResaltado != null) {
+                    ShalevSecondaryText(subtitleResaltado, maxLines = lineasSubtitulo)
+                } else if (!textoSubtitulo.isNullOrBlank()) {
+                    ShalevSecondaryText(textoSubtitulo, maxLines = lineasSubtitulo)
                 }
-                if (apilar) value?.let { Text(it, style = ShalevTextos.dato, color = valueColor) }
+                if (apilar) value?.let {
+                    Text(it, style = ShalevTextos.dato, color = valueColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
             if (!apilar) {
                 value?.let {
                     // P24: los importes no se cortan con «…»: primero se reduce un poco la letra (ShalevTextoAjustable).
                     ShalevTextoAjustable(
                         it, style = ShalevTextos.dato, color = valueColor, textAlign = TextAlign.End,
-                        maxLines = valueMaxLines, modifier = Modifier.anchoMaximo(VALOR_MAX),
+                        maxLines = valueMaxLines.coerceIn(1, 3), modifier = Modifier.anchoMaximo(VALOR_MAX),
                     )
                 }
             }

@@ -95,7 +95,11 @@ object AjustesTags {
 
 /** Ajustes: configuración pendiente, Perfil, Licencia, Pago electrónico, Precios, avisos, consultas, permisos, Respaldo, Ayuda y Soporte. */
 @Composable
-fun AjustesScreen(onNavigate: (Route) -> Unit, viewModel: AjustesViewModel = hiltViewModel()) {
+fun AjustesScreen(
+    onNavigate: (Route) -> Unit,
+    onBack: (() -> Unit)? = null,
+    viewModel: AjustesViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     // 0.26.0 (§6): sin interruptor (la consulta semanal es fija); queda «Buscar ahora».
@@ -116,6 +120,7 @@ fun AjustesScreen(onNavigate: (Route) -> Unit, viewModel: AjustesViewModel = hil
         onAccesoClave = cambiarAcceso,
         state = state,
         onNavigate = onNavigate,
+        onBack = onBack,
         onPermisos = { abrirAjustesDeLaApp(context) },
         actualizacion = actualizacion,
         onBuscarAhora = actVm::buscarAhora,
@@ -138,16 +143,17 @@ fun AjustesContent(
     snackbar: androidx.compose.material3.SnackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() },
     accesoClave: Boolean = false,
     onAccesoClave: (Boolean) -> Unit = {},
+    onBack: (() -> Unit)? = null,
 ) {
     // 0.31.0 (P5): el cuadro de «Actualizar» lo abre el propio proceso (barra circular + resultado).
     // 1.0.1: al terminar con «Actualizado» o «Estas al día» el cuadro se cierra solo (el proceso lo cierra).
     val dialogoActualizaciones = actualizacion.proceso != null
-    // 1.0.2: ayuda de la pestaña (botón «?» de la esquina superior izquierda).
     val ayudaPestana = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Scaffold(
         topBar = {
             ShalevTopBar(
                 title = "Ajustes",
+                onBack = onBack,
                 onAyuda = { ayudaPestana.value = true },
                 ayudaDescripcion = "Ayuda de Ajustes",
             )
@@ -202,7 +208,8 @@ fun AjustesContent(
                     ShalevIcons.Sincronizar, modifier = Modifier.testTag(AjustesTags.ACTUALIZACIONES),
                 ) { onActualizarAhora() }
             }
-            item { Entry("Ayuda", "Manual breve de uso", ShalevIcons.Ayuda, modifier = Modifier.testTag(AjustesTags.AYUDA)) { onNavigate(Route.Ayuda) } }
+            // El acceso al manual se conserva, sin repetir el icono de Ayuda que ya identifica la acción contextual.
+            item { Entry("Ayuda", "Manual breve de uso", null, modifier = Modifier.testTag(AjustesTags.AYUDA)) { onNavigate(Route.Ayuda) } }
             item { Entry("Soporte", "Datos de contacto del desarrollador", ShalevIcons.Soporte, modifier = Modifier.testTag(AjustesTags.SOPORTE)) { onNavigate(Route.Soporte) } }
         }
     }
@@ -252,7 +259,7 @@ fun AjustesContent(
 private fun Entry(
     title: String,
     subtitle: String,
-    icon: ImageVector,
+    icon: ImageVector?,
     modifier: Modifier = Modifier,
     badge: Int? = null,
     onClick: () -> Unit,
@@ -261,7 +268,7 @@ private fun Entry(
         title = title,
         subtitle = subtitle,
         indicatorColor = null,
-        leading = { Icon(icon, contentDescription = null) },
+        leading = icon?.let { vector -> { Icon(vector, contentDescription = null) } },
         trailing = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
                 badge?.let { ShalevBadge(count = it) }

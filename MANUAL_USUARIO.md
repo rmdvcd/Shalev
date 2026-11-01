@@ -93,33 +93,32 @@ Tras la pantalla de bienvenida, el asistente te guía por preguntas sencillas. P
 
 ## 3. Conoce la pantalla, la barra inferior y los botones
 
-Shalev está pensada para manejarse con una sola mano de forma ágil detrás del mostrador. Todas las pantallas principales se organizan alrededor de **5 secciones** situadas en la barra inferior.
+Shalev está pensada para manejarse con una sola mano de forma ágil detrás del mostrador. La barra inferior reúne **4 secciones**; Ajustes se abre desde el icono de engranaje, arriba a la derecha de Inicio.
 
 ![Mapa de navegación y botones de Shalev](docs/manual/diagramas/01_navegacion_general.svg)
 
 ### 3.1 Cómo moverte entre secciones
 
-- **Tocar una sección de la barra inferior:** cada sección muestra su icono y **su nombre escrito debajo** (**Inicio**, **Inventario**, **Servicios**, **Registros** o **Ajustes**), y la que tienes abierta se destaca con fondo relleno.
-- **Deslizar el dedo hacia la izquierda o la derecha:** en cualquiera de las 5 pantallas principales puedes deslizar horizontalmente para pasar a la sección vecina. Para evitar errores mientras trabajas, el gesto de deslizar se desactiva automáticamente cuando estás escribiendo, filtrando, seleccionando filas o dentro de una ventana emergente.
+- **Tocar una sección de la barra inferior:** cada sección muestra su icono y **su nombre escrito debajo** (**Inicio**, **Inventario**, **Servicios** o **Registros**), y la que tienes abierta se destaca con fondo relleno.
+- **Abrir Ajustes:** toca el engranaje de la esquina superior derecha de Inicio. Desde Ajustes, usa la flecha de regreso para volver a la pantalla anterior.
+- **Deslizar el dedo hacia la izquierda o la derecha:** en las 4 pantallas principales puedes deslizar horizontalmente para pasar a la sección vecina. Para evitar errores mientras trabajas, el gesto se desactiva al escribir, filtrar, seleccionar filas o abrir una ventana emergente.
 
-### 3.2 Botones con texto y ayuda en cada pestaña
+### 3.2 Iconos de acción y ayuda contextual
 
-Los botones de Shalev muestran **su nombre escrito**, también en las ventanas emergentes y en los diálogos: «Guardar», «Cancelar», «Filtrar», «Exportar», «Agregar»… No hay que adivinar qué hace un icono ni esperar a que aparezca un cartelito.
+Las acciones se muestran principalmente con **iconos** para dejar más espacio al contenido. Cada icono tiene una descripción accesible que TalkBack puede leer. En diálogos y ventanas emergentes se conserva el texto de **Confirmar**, **Eliminar**, **Omitir** y **Cancelar**; los demás botones usan iconos. Para mantener las listas compactas, cada fila limita su texto a tres líneas y recorta lo que no cabe con puntos suspensivos.
 
-| Botón | Qué hace | Dónde lo encontrarás |
+| Icono o acción | Qué hace | Dónde lo encontrarás |
 |---|---|---|
-| **?** *(arriba a la izquierda)* | Abre la **ayuda de esa pestaña**: los pasos de los temas que más se usan en ella y un acceso al manual completo | Inicio, Inventario, Servicios, Registros y Ajustes |
-| **Agregar** *o el nombre de la acción* *(abajo a la derecha)* | Crear o agregar un elemento nuevo | Inventario, Servicios, Pago electrónico, Precios y Apps vinculadas |
-| **Guardar** *(botón relleno)* | Guardar el formulario o confirmar la operación | Alta de productos/servicios, comprobante de venta, diálogos y filtros |
-| **Cancelar** | Cerrar sin guardar ni aplicar cambios | Formularios, carrito de venta y ventanas de confirmación |
-| **Siguiente** / **Atrás** | Avanzar o volver en un asistente | Recorrido inicial, carrito de venta, Respaldo y Licencia |
-| **Vender** / **Caja** *(flotantes, abajo)* | Iniciar una **Nueva venta** / registrar **Entrada o salida de efectivo** | Pantalla de Inicio (solo con el turno abierto) |
-| **Filtrar** *(arriba a la derecha)* | Abrir la ventana **Filtrar** | Inventario, Servicios y Registros |
-| **Exportar** *(arriba a la derecha)* | Exportar a PDF, Excel, Imagen o Tarjetas | Inventario, Servicios, Registros y detalle de Turno |
+| **Ayuda** *(arriba a la izquierda)* | Abre la ayuda contextual y el acceso al manual completo | Inicio, Inventario, Servicios, Registros y Ajustes |
+| **Engranaje** *(arriba a la derecha)* | Abre Ajustes; la flecha de regreso vuelve a la pantalla anterior | Inicio |
+| **Carrito** / **Caja registradora** | Inician una nueva venta / registran una entrada o salida de efectivo | Inicio, debajo del banner de licencia y antes de las alertas (con el turno abierto) |
+| **Embudo** | Abre los filtros disponibles | Inventario, Servicios y Registros |
+| **Exportar** | Guarda o comparte informes, listas, imágenes o tarjetas | Inventario, Servicios, Registros y detalle de Turno |
+| **Acciones de fila** | Editan, eliminan o realizan la acción correspondiente a ese elemento | Filas de listas y tablas |
+| **SMS** / **WhatsApp** | Envía o comparte el mensaje de contacto | Soporte |
+| **Confirmar**, **Eliminar**, **Omitir** y **Cancelar** | Conservan el nombre escrito para que la decisión quede clara | Diálogos y ventanas emergentes |
 
-Solo siguen siendo iconos la **flecha «Atrás»** de la cabecera y la **X** que borra lo escrito en un campo de texto: son las dos convenciones que todo el mundo ya conoce.
-
-Mientras una pantalla carga sus datos verás **bloques grises** en el sitio donde irá la información (una lista, una tarjeta o el gráfico), en vez de una rueda de espera.
+Mientras una pantalla carga sus datos verás **huesos grises** con la forma aproximada de la lista, tarjeta o gráfico que aparecerá, en vez de una rueda de espera.
 
 ### 3.3 Tema claro, tema oscuro y letra grande
 
@@ -143,9 +142,9 @@ Mientras bajas para revisar tus números, tres elementos permanecen **siempre fi
 2. **Selector de Período:** permite elegir qué etapa deseas analizar en los gráficos (**Turno** actual, **Hoy**, **7 días**, **Este mes**, **Este año**, etc.).
 3. **Aviso de licencia o avisos importantes:** te informa cuántos días restan de tu prueba o de tu licencia cuando se acerca el vencimiento, si llevas más de 30 días sin hacer copia de seguridad o si hay una actualización disponible.
 
-### 4.2 Alertas, accesos rápidos, gráficos y medallas Top 3
+### 4.2 Accesos, alertas, gráficos y medallas Top 3
 
-Al deslizar hacia abajo en la app principal verás:
+Debajo del banner fijo de licencia, con el turno abierto, aparecen los iconos de **Vender** (carrito) y **Caja** (caja registradora); quedan antes de las alertas. Más abajo, al desplazarte, verás:
 
 - **Alertas de inventario:** recuadros con contadores de colores para **Sin existencia**, **Stock crítico**, **Stock bajo**, **Insumo crítico**, **Insumo bajo**, **Próximo a caducar** (productos que vencen en los próximos 7 días) y avisos de nombres repetidos sin descripción. Tocar una alerta te lleva directamente a esos artículos.
 - **Tarjetas de acceso rápido:**
@@ -176,7 +175,7 @@ En Shalev rige una regla sencilla que mantiene tus cuentas claras todos los día
 2. Se abrirá el cuadro **Abrir turno** pidiendo el **Fondo de caja (CUP)**.
    - Shalev te propone automáticamente el efectivo que contaste al cerrar el turno anterior, pero puedes escribir cualquier importe (incluso `0` si empiezas sin cambio).
    - En las apps de empleados también escribe el fondo quien abre el turno (al abrirlo, su teléfono se sincroniza automáticamente con la principal para trabajar con el catálogo al día).
-3. Pulsa **Confirmar**. En **Inicio** aparecerán los dos botones azules flotantes abajo: **Nueva venta** (izquierda) y **Movimiento de caja** (derecha).
+3. Pulsa **Confirmar**. En **Inicio** aparecerán, debajo del banner de licencia y antes de las alertas, los iconos de **Vender** (carrito) y **Caja** (caja registradora).
 
 > **Consejo:** mientras tu turno esté abierto, verás una notificación discreta de Shalev en la barra superior de Android con el tiempo transcurrido. No muestra importes ni nombres de clientes para proteger tu privacidad, y tocarla te devuelve enseguida a la app.
 
@@ -184,7 +183,7 @@ En Shalev rige una regla sencilla que mantiene tus cuentas claras todos los día
 
 Si sacas dinero de la caja para pagar a un proveedor, comprar hielo o bolsas, o si metes cambio adicional durante el día, regístralo para que la caja no descuadre al final:
 
-1. Con el turno abierto, toca el botón **Caja** (abajo a la derecha en **Inicio**).
+1. Con el turno abierto, toca el icono de **Caja** (caja registradora) en **Inicio**, debajo del banner de licencia y antes de las alertas.
 2. En la ventana **Entrada / salida de efectivo**, elige la pestaña **Entrada** o **Salida**.
 3. Escribe el **Importe (CUP)** y un **Motivo** claro (de 3 a 60 caracteres, por ejemplo: *«Compra de cambio menudo»* o *«Pago de mensajería»*).
 4. Confirma con **Confirmar**. Por seguridad contable, los movimientos de caja no se borran: si te equivocaste en uno, anota el movimiento contrario explicando la corrección.
@@ -295,10 +294,10 @@ Con tu **turno abierto**, vender lleva solo unos segundos y evita errores de sum
 
 ### 8.1 Armar el carrito de la venta
 
-1. En **Inicio**, toca el botón flotante del **Carrito (Nueva venta)** abajo a la izquierda.
+1. En **Inicio**, toca el icono del **carrito (Vender)**, debajo del banner de licencia y antes de las alertas.
 2. Si tu negocio vende tanto artículos como servicios, elige si deseas registrar una venta de **Productos** o de **Servicios** (se cobran por separado para mantener tus estadísticas ordenadas).
 3. Toca los artículos o servicios que pide el cliente para añadirlos y revisa el carrito:
-   - Ajusta las unidades con los botones **−** y **+** o escribiendo el número en el recuadro **Cantidad**.
+   - Ajusta las unidades con las flechas de **disminuir** y **aumentar** o escribiendo el número en el recuadro **Cantidad**.
    - Si quieres añadir algo más sin perder lo que ya marcaste, pulsa el botón redondo de **agregar al carrito** debajo de la lista.
    - Arriba verás siempre el **Total estimado** actualizado al instante.
 4. En **Método de pago**, elige **Efectivo** o **Transferencia** y pulsa **Siguiente (→)**.
@@ -576,7 +575,7 @@ Para que disfrutes siempre de las últimas mejoras y que la App Principal y las 
 ### 15.2 Preguntas frecuentes (solución rápida de dudas)
 
 1. **¿Por qué no veo el botón para vender?**
-   Porque el turno está cerrado. Sube al principio de **Inicio**, activa el interruptor **Turno cerrado → Turno abierto**, indica el fondo de caja y aparecerá enseguida el botón flotante del carrito abajo a la izquierda.
+   Porque el turno está cerrado. Sube al principio de **Inicio**, activa el interruptor **Turno cerrado → Turno abierto**, indica el fondo de caja y aparecerá el icono del carrito **Vender**, debajo del banner de licencia y antes de las alertas.
 2. **¿Por qué un producto Elaborado dice «Alcanza para 0» y no me deja venderlo?**
    Porque al menos uno de los ingredientes de su receta se agotó o tiene menos cantidad de la que pide una unidad. Entra en **Inventario**, filtra por **Tipo: Insumos** y repón la existencia del insumo faltante.
 3. **¿Por qué el código QR de Transfermóvil no le pone el precio solo al cliente?**

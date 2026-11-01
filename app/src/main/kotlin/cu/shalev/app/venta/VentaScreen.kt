@@ -134,7 +134,6 @@ class AccionesVenta(
     val onElegirCliente: (cu.shalev.domain.model.ClienteFijo) -> Unit = {},
     val onClienteFijo: (Boolean) -> Unit = {},
     val onConfigurarCapturaSms: () -> Unit = {},
-    val onImportarOcr: (() -> Unit)? = null,
 )
 
 /**
@@ -178,20 +177,11 @@ fun VentaScreen(
     val cajaVm: cu.shalev.app.caja.CajaViewModel = hiltViewModel()
     val caja by cajaVm.state.collectAsStateWithLifecycle()
     var pedirFondo by rememberSaveable { mutableStateOf(false) }
-    var mostrarOcr by rememberSaveable { mutableStateOf(false) }
     if (pedirFondo) cu.shalev.app.caja.DialogoFondo(
         sugerido = caja.sugerido, trabajando = state.abriendo,
         onConfirmar = { f -> pedirFondo = false; pedirPermisoAviso(); viewModel.abrirTurno(f) },
         onDismiss = { pedirFondo = false },
     )
-    if (mostrarOcr) {
-        cu.shalev.app.ocr.HojaImportarOcr(
-            destino = cu.shalev.app.ocr.DestinoOcr.VENTAS,
-            onDismiss = { mostrarOcr = false },
-            candidatosVenta = viewModel.candidatosOcr(),
-            onAplicarVenta = viewModel::importarDesdeOcr,
-        )
-    }
     VentaContent(
         tipo = tipo,
         state = state,
@@ -199,7 +189,6 @@ fun VentaScreen(
         capturaSmsAutomaticaActiva = capturaSmsAutomaticaActiva,
         acciones = AccionesVenta(
             onAtras = viewModel::atras, onAbrirTurno = { cajaVm.cargarSugerido(); pedirFondo = true }, onElegir = viewModel::elegirProductos,
-            onImportarOcr = { mostrarOcr = true },
             onCantidad = viewModel::cambiarCantidad, onQuitar = viewModel::quitar, onMetodo = viewModel::elegirMetodo,
             onContinuar = viewModel::continuar, onConfirmarEfectivo = viewModel::confirmarEfectivo,
             onDescartar = viewModel::descartar, onCancelarSalir = viewModel::cancelarSalir,
@@ -232,21 +221,7 @@ fun VentaContent(
     }
     Scaffold(
         topBar = {
-            ShalevTopBar(
-                title = titulo,
-                onBack = acciones.onAtras,
-                actions = {
-                    if (state.paso == PasoVenta.CARRITO && state.permiso is Permiso.Permitido && acciones.onImportarOcr != null) {
-                        cu.shalev.designsystem.component.ShalevIconAction(
-                            cu.shalev.designsystem.icon.ShalevIcons.Ocr,
-                            "Escanear o importar líneas de venta",
-                            onClick = acciones.onImportarOcr,
-                            etiqueta = "Escanear",
-                            modifier = Modifier.testTag("venta_ocr"),
-                        )
-                    }
-                },
-            )
+            ShalevTopBar(title = titulo, onBack = acciones.onAtras)
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
         bottomBar = { if (state.permiso is Permiso.Permitido) BarraAcciones(state, acciones) },

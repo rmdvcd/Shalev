@@ -22,6 +22,7 @@ object ShalevIcons {
 
     // Dominio
     val Venta: ImageVector get() = MaterialSolido.ShoppingCart
+    val CajaRegistradora: ImageVector get() = MaterialSolido.PointOfSale
     val Efectivo: ImageVector get() = MaterialSolido.Payments
     val Transferencia: ImageVector get() = MaterialSolido.SwapHoriz         // dos flechas opuestas
     val Perfil: ImageVector get() = MaterialSolido.Person
@@ -43,10 +44,9 @@ object ShalevIcons {
     val Editar: ImageVector get() = MaterialSolido.Edit
     val Agregar: ImageVector get() = MaterialSolido.Add
     val Quitar: ImageVector get() = MaterialSolido.Remove
-    /** Botones ◄ y ► de todos los selectores numéricos (spinners) y pasos. */
+    /** Flechas izquierda/derecha de todos los selectores numéricos (spinners) y pasos. */
     val Disminuir: ImageVector get() = MaterialSolido.ArrowLeft
     val Aumentar: ImageVector get() = MaterialSolido.ArrowRight
-    val Ocr: ImageVector get() = MaterialSolido.DocumentScanner
     val Camara: ImageVector get() = MaterialSolido.PhotoCamera
     val Configurar: ImageVector get() = MaterialSolido.Checklist
     val Eliminar: ImageVector get() = MaterialSolido.Delete
@@ -145,6 +145,8 @@ internal object MaterialSolido {
     val History: ImageVector by lazy { icono("History", "M 13 3 a 9 9 0 0 0 -9 9 H 1 l 3.89 3.89 .07 .14 L 9 12 H 6 c 0 -3.87 3.13 -7 7 -7 s 7 3.13 7 7 -3.13 7 -7 7 c -1.93 0 -3.68 -.79 -4.94 -2.06 l -1.42 1.42 A 8.954 8.954 0 0 0 13 21 a 9 9 0 0 0 0 -18 z m -1 5 v 5 l 4.28 2.54 .72 -1.21 -3.5 -2.08 V 8 H 12 z") }
     val Settings: ImageVector by lazy { icono("Settings", "M 19.14 12.94 c .04 -.3 .06 -.61 .06 -.94 0 -.32 -.02 -.64 -.07 -.94 l 2.03 -1.58 a .49 .49 0 0 0 .12 -.61 l -1.92 -3.32 a .488 .488 0 0 0 -.59 -.22 l -2.39 .96 c -.5 -.38 -1.03 -.7 -1.62 -.94 l -.36 -2.54 a .484 .484 0 0 0 -.48 -.41 h -3.84 c -.24 0 -.43 .17 -.47 .41 l -.36 2.54 c -.59 .24 -1.13 .57 -1.62 .94 l -2.39 -.96 c -.22 -.08 -.47 0 -.59 .22 L 2.74 8.87 c -.12 .21 -.08 .47 .12 .61 l 2.03 1.58 c -.05 .3 -.09 .63 -.09 .94 s .02 .64 .07 .94 l -2.03 1.58 a .49 .49 0 0 0 -.12 .61 l 1.92 3.32 c .12 .22 .37 .29 .59 .22 l 2.39 -.96 c .5 .38 1.03 .7 1.62 .94 l .36 2.54 c .05 .24 .24 .41 .48 .41 h 3.84 c .24 0 .44 -.17 .47 -.41 l .36 -2.54 c .59 -.24 1.13 -.56 1.62 -.94 l 2.39 .96 c .22 .08 .47 0 .59 -.22 l 1.92 -3.32 c .12 -.22 .07 -.47 -.12 -.61 l -2.01 -1.58 z M 12 15.6 c -1.98 0 -3.6 -1.62 -3.6 -3.6 s 1.62 -3.6 3.6 -3.6 3.6 1.62 3.6 3.6 -1.62 3.6 -3.6 3.6 z") }
     val ShoppingCart: ImageVector by lazy { icono("ShoppingCart", "M 7 18 c -1.1 0 -1.99 .9 -1.99 2 S 5.9 22 7 22 s 2 -.9 2 -2 -.9 -2 -2 -2 z M 1 2 v 2 h 2 l 3.6 7.59 -1.35 2.45 c -.16 .28 -.25 .61 -.25 .96 0 1.1 .9 2 2 2 h 12 v -2 H 7.42 c -.14 0 -.25 -.11 -.25 -.25 l .03 -.12 .9 -1.63 h 7.45 c .75 0 1.41 -.41 1.75 -1.03 l 3.58 -6.49 A 1.003 1.003 0 0 0 20 4 H 5.21 l -.94 -2 H 1 z m 16 16 c -1.1 0 -1.99 .9 -1.99 2 s .89 2 1.99 2 2 -.9 2 -2 -.9 -2 -2 -2 z") }
+    /** Terminal de punto de venta con pantalla y teclado, para la acción Movimiento de caja. */
+    val PointOfSale: ImageVector by lazy { icono("PointOfSale", "M 21 2 H 3 c -1.1 0 -2 .9 -2 2 v 12 c 0 1.1 .9 2 2 2 h 7 v 2 H 8 v 2 h 8 v -2 h -2 v -2 h 7 c 1.1 0 2 -.9 2 -2 V 4 c 0 -1.1 -.9 -2 -2 -2 z m 0 14 H 3 V 4 h 18 v 12 z M 5 6 h 2 v 2 H 5 z m 0 4 h 2 v 4 H 5 z m 4 -4 h 10 v 2 H 9 z m 0 4 h 10 v 4 H 9 z") }
     val Payments: ImageVector by lazy { icono("Payments", "M 19 14 V 6 c 0 -1.1 -.9 -2 -2 -2 H 3 c -1.1 0 -2 .9 -2 2 v 8 c 0 1.1 .9 2 2 2 h 14 c 1.1 0 2 -.9 2 -2 z m -9 -1 c -1.66 0 -3 -1.34 -3 -3 s 1.34 -3 3 -3 3 1.34 3 3 -1.34 3 -3 3 z m 13 -6 v 11 c 0 1.1 -.9 2 -2 2 H 4 v -2 h 17 V 7 h 2 z") }
     val SwapHoriz: ImageVector by lazy { icono("SwapHoriz", "M 6.99 11 3 15 l 3.99 4 v -3 H 14 v -2 H 6.99 v -3 z M 21 9 l -3.99 -4 v 3 H 10 v 2 h 7.01 v 3 L 21 9 z") }
     val Person: ImageVector by lazy { icono("Person", "M 12 12 c 2.21 0 4 -1.79 4 -4 s -1.79 -4 -4 -4 -4 1.79 -4 4 1.79 4 4 4 z m 0 2 c -2.67 0 -8 1.34 -8 4 v 2 h 16 v -2 c 0 -2.66 -5.33 -4 -8 -4 z") }
@@ -221,10 +223,9 @@ internal object MaterialSolido {
 
     // Silueta monocromática de hoja Excel con su X, sin color de marca.
     val Excel: ImageVector by lazy { icono("Excel", "M14 3h8v18h-8v-2h6v-3h-4v-2h4v-3h-4V9h4V5h-6z", "M2 5l12-2v18L2 19V5zm3 3l2.2 4L5 16h2l1.2-2.5L9.5 16h2l-2.3-4 2.3-4h-2l-1.3 2.5L7 8H5z") }
-    /** Triángulos sólidos ◄ y ► para spinners y selectores de paso. */
+    /** Flechas sólidas izquierda/derecha para spinners y selectores de paso. */
     val ArrowLeft: ImageVector by lazy { icono("ArrowLeft", "M 16 5 L 6 12 L 16 19 Z", espejo = true) }
     val ArrowRight: ImageVector by lazy { icono("ArrowRight", "M 8 5 L 18 12 L 8 19 Z", espejo = true) }
-    val DocumentScanner: ImageVector by lazy { icono("DocumentScanner", "M 7 3 H 4 v 3 H 2 V 1 h 5 v 2 z m 15 3 V 1 h -5 v 2 h 3 v 3 h 2 z M 7 21 H 4 v -3 H 2 v 5 h 5 v -2 z m 13 -3 v 3 h -3 v 2 h 5 v -5 h -2 z M 19 18 c 0 1.1 -.9 2 -2 2 H 7 c -1.1 0 -2 -.9 -2 -2 V 6 c 0 -1.1 .9 -2 2 -2 h 10 c 1.1 0 2 .9 2 2 v 12 z M 15 8 H 9 v 2 h 6 V 8 z m 0 3 H 9 v 2 h 6 v -2 z m 0 3 H 9 v 2 h 6 v -2 z") }
 
     private fun icono(nombre: String, vararg trazados: String, espejo: Boolean = false): ImageVector =
         ImageVector.Builder(

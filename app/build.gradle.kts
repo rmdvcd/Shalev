@@ -153,13 +153,12 @@ dependencies {
     // nada y sumaba un permiso/dependencia. Si se genera el perfil (Macrobenchmark), se repone junto con él.
     implementation(libs.kotlinx.serialization.core)
 
-    // Vinculación: lector QR con CameraX + ML Kit (modelo empaquetado, sin Play Services). Inventario: fotos (Coil, solo archivos locales).
+    // Vinculación: lector QR con CameraX + ML Kit (modelo empaquetado, sin Play Services). Fotos locales: Coil.
     implementation(libs.camerax.core)
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)
     implementation(libs.camerax.view)
     implementation(libs.mlkit.barcode)
-    implementation(libs.mlkit.text)          // OCR offline gratuito e ilimitado (modelo latino empaquetado, sin red)
     implementation(libs.coil.compose)
     implementation(libs.zxing.core)          // QR de cobro (solo generación, sin cámara ni red)
     implementation(libs.hilt.android)

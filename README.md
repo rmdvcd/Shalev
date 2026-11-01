@@ -115,7 +115,7 @@ Versiones principales (`gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 8.7.3, C
 
 - **DI:** Hilt. **Navegación:** Navigation Compose 2.8 con rutas `@Serializable`.
 - **Arranque:** splash del sistema → `RootViewModel` → *Bloqueo* (si la licencia no permite el uso) → *Onboarding* (primera vez) → pantalla principal. Bloqueo y Onboarding están fuera del NavHost: ni Atrás ni un enlace pueden saltárselas.
-- **Barra inferior:** Inicio, Inventario, Servicios, Registros, Ajustes (icono con el nombre debajo desde la 1.0.2, resaltado invertido). Se pasa de una sección a otra deslizando el dedo hacia los lados. Cada pestaña principal tiene un botón **?** arriba a la izquierda con su ayuda.
+- **Navegación:** la barra inferior muestra Inicio, Inventario, Servicios y Registros (icono y nombre, selección invertida). Ajustes se abre desde el engranaje en la esquina superior derecha de Inicio y vuelve a la pantalla anterior. Las cuatro secciones principales y Ajustes tienen Ayuda contextual arriba a la izquierda con el icono compartido.
 
 ### Pruebas
 
@@ -168,14 +168,15 @@ Shalev es **cliente** del contrato v1 de GL, sin cambiarlo. Detalle completo en 
 - **Actualizaciones:** antes de abrir el instalador Shalev guarda un respaldo completo (sin contraseña, en la carpeta privada de la app; no se exporta ni cuenta para el recordatorio mensual). Si no se puede guardar, no se actualiza. Al abrir la versión nueva se restaura y se borra; si la instalación se cancela, se borra sin restaurar. Las ventas hechas entre el respaldo y la instalación no entran en él. El texto de la actualización ya no menciona el repositorio ni su alojamiento.
 - **Registros → Clientes:** «Editar» y «Quitar de clientes fijos» quedan centrados en el pie de la ficha, siempre a la vista. «Editar» abre una ventana para corregir nombre, carné y teléfono, con las mismas comprobaciones de la venta; no se admite un carné que ya sea de otro cliente y sus compras anteriores quedan con los datos corregidos (carné incluido).
 
-## Novedades de octubre de 2026 (OCR, ampliación de secundarias, blindaje de capacidades y billetes CUP)
+## Novedades de octubre de 2026 (importación documental, ampliación de secundarias, blindaje de capacidades y billetes CUP)
 
 | Función | Resumen |
 |---|---|
-| **Escaneo OCR e importación documental** | En **Nueva venta** (Android e iOS): reconocimiento de texto local, gratuito e ilimitado (ML Kit Text Recognition v2 en Android y Apple Vision en iOS) más importación directa de **PDF**, **Excel (`.xlsx` / `.csv`)** y **Word (`.docx`)**, con lienzo visual interactivo (toque sobre bloques o arrastre de rectángulo) y mapeo de columnas a campos del formulario. El 2026-10-30 (1.0.2) se **retiró el escáner de Inventario y Servicios**: allí el alta es manual |
+| **Escaneo OCR e importación documental** | La función se había incorporado a **Nueva venta** (Android e iOS) con reconocimiento local y lectura de PDF/Excel/Word. El 2026-10-31 se retiró por completo del APK Android, incluida Venta; el alta de artículos, servicios y líneas de venta se hace manualmente. La contraparte iOS conserva su flujo propio |
+| **Interfaz de acciones (2026-10-31)** | Acciones con iconos y descripciones accesibles; Confirmar/Eliminar/Omitir/Cancelar conservan texto en diálogos y ventanas. Inicio tiene Ajustes arriba a la derecha y los accesos de Vender/Caja entre el banner de licencia y las alertas; las filas limitan su contenido a 3 líneas. Skeleton nativo inspirado en Boneyard. |
 | **Ampliar apps secundarias (`amplia`)** | En **Ajustes → Licencia** (Android e iOS) y en GL ([parche listo para `rmdvcd/GL`](docs/gl-ampliar-secundarias.patch)): permite añadir secundarias hasta un total de 10 sobre la licencia vigente sin alterar su vencimiento (`venceEn` o `PERPETUA`), pagando solo las nuevas secundarias a tarifa fija (`1 000 / 5 000 / 9 000 / 17 000 CUP`) |
 | **Blindaje de entradas y capacidades** | Cálculo de topes compartidos entre recetas (`Elaborado`, `Servicio` e `Insumo` vendible) en venta nueva y al modificar ventas, tope de salidas de caja según efectivo disponible y filtros de entrada sincronizados en Android e iOS |
-| **Miniaturas de 13 billetes CUP y spinners `◄` / `►`** | El conteo de efectivo muestra las miniaturas oficiales del BCC para `1, 3, 5, 10, 20, 50, 100, 200, 500, 1 000, 2 000, 5 000 y 20 000 CUP` en lugar de etiquetas de texto, y todos los contadores numéricos usan `◄` y `►` |
+| **Miniaturas de 13 billetes CUP y selectores numéricos** | El conteo de efectivo muestra las miniaturas oficiales del BCC para `1, 3, 5, 10, 20, 50, 100, 200, 500, 1 000, 2 000, 5 000 y 20 000 CUP` en lugar de etiquetas de texto. Cantidades, niveles, empleados y secundarias se ajustan con flechas de icono `Disminuir`/`Aumentar` y descripciones accesibles |
 
 ## Novedades de la 0.27.1 (correcciones, [historial](docs/HISTORIAL_DESARROLLO.md))
 
@@ -191,7 +192,7 @@ Shalev es **cliente** del contrato v1 de GL, sin cambiarlo. Detalle completo en 
 | **Textos completos** | Los textos pasan a varias líneas en lugar de cortarse (también con letra al 200 % en 360 dp); capturas con letra grande de Inicio, ficha, Licencia y arqueo |
 | **Top 3 con medallas** | Oro, plata y bronce (`ShalevMedalla`), con contraste AA en claro y oscuro |
 | **Animaciones** | 150–250 ms y muelle sin rebote (`ShalevMotion`); las ventanas emergentes suben desde abajo al centro y bajan al cerrar. `profileinstaller` se añadió en esa versión y se retiró después al no existir un baseline profile generado (auditoría 2026-10-14) |
-| **Deslizar** | Solo entre las 5 pantallas principales, nunca en subpantallas, con un diálogo abierto, en selección o escribiendo |
+| **Deslizar** | Solo entre las 4 pantallas principales (Inicio, Inventario, Servicios y Registros), nunca en subpantallas, con un diálogo abierto, en selección o escribiendo |
 | **Campos** | El texto de ejemplo (placeholder) va centrado |
 | **PDF y Excel** | Con su icono en todas las hojas de exportar |
 | **Textos llanos** | Sin versiones, nombres técnicos ni explicaciones de la licencia o del registro de la prueba |

@@ -10,15 +10,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.Image
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,8 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -45,6 +42,7 @@ import cu.shalev.app.R
 import cu.shalev.app.common.SecureWindow
 import cu.shalev.app.inicio.formatoTelefono
 import cu.shalev.designsystem.component.FiltroEntrada
+import cu.shalev.designsystem.component.IconActionStyle
 import cu.shalev.designsystem.component.ShalevBottomSheet
 import cu.shalev.designsystem.component.ShalevCheckbox
 import cu.shalev.designsystem.component.ShalevDialog
@@ -60,9 +58,7 @@ import cu.shalev.designsystem.component.ShalevTopBar
 import cu.shalev.designsystem.component.shalevAnimateItem
 import cu.shalev.designsystem.component.shalevContentWidth
 import cu.shalev.designsystem.icon.ShalevIcons
-import cu.shalev.designsystem.token.ShalevElevation
 import cu.shalev.designsystem.token.ShalevMotion
-import cu.shalev.designsystem.token.ShalevRadius
 import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
 
@@ -214,10 +210,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.lista(
                         modifier = Modifier.semantics { contentDescription = "Usar ${item.texto}" },
                         onCheckedChange = { acciones.onElegir(tipo, item.id) },
                     )
-                    Icon(
-                        if (tipo == TipoCuentaPago.TELEFONO) ShalevIcons.Telefono else ShalevIcons.PagoElectronico,
-                        contentDescription = null,
-                    )
+                    when {
+                        tipo == TipoCuentaPago.TELEFONO -> Icon(ShalevIcons.Telefono, contentDescription = null)
+                        item.banco != null -> IconoTarjeta(item.banco)
+                        else -> Icon(ShalevIcons.PagoElectronico, contentDescription = null)
+                    }
                 }
             },
             onClick = { acciones.onElegir(tipo, item.id) },
@@ -232,20 +229,22 @@ private fun androidx.compose.foundation.lazy.LazyListScope.lista(
     }
 }
 
-/** Icono monocromático común para todas las tarjetas. */
+/** Miniatura del logo del banco estimado por el prefijo de la cuenta. */
 @Composable
 private fun IconoTarjeta(banco: BancoCubano, modifier: Modifier = Modifier) {
+    // Los tres PNG históricos están guardados con nombres cruzados: el contenido, no el nombre del archivo, determina el banco.
     val recurso = when (banco) {
-        BancoCubano.BPA -> R.drawable.bpa_miniatura
-        BancoCubano.BANDEC -> R.drawable.bandec_miniatura
-        BancoCubano.BANMET -> R.drawable.banmet_miniatura
+        BancoCubano.BPA -> R.drawable.banmet_miniatura
+        BancoCubano.BANDEC -> R.drawable.bpa_miniatura
+        BancoCubano.BANMET -> R.drawable.bandec_miniatura
         else -> null
     }
     if (recurso != null) {
         Image(
             painter = painterResource(id = recurso),
             contentDescription = banco.nombre,
-            modifier = modifier.size(ShalevSize.icon),
+            contentScale = ContentScale.Fit,
+            modifier = modifier.size(ShalevSize.miniatura),
         )
     } else {
         Icon(
@@ -308,29 +307,8 @@ private fun EdicionSheet(e: EdicionPago, guardando: Boolean, acciones: AccionesL
     }
 }
 
-/** Acción del «+» de pago electrónico: etiqueta visible a la izquierda y mini botón M3 a la derecha. */
+/** Acción iconográfica del «+»; la descripción completa queda disponible para TalkBack. */
 @Composable
 private fun FilaPago(label: String, icon: ImageVector, onClick: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-        Surface(
-            shape = RoundedCornerShape(ShalevRadius.sm),
-            color = cs.surfaceContainerHigh,
-            contentColor = cs.onSurface,
-            shadowElevation = ShalevElevation.low,
-            modifier = Modifier.clearAndSetSemantics { }, // TalkBack ya lee la descripción del botón
-        ) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 2,
-                modifier = Modifier.padding(horizontal = ShalevSpacing.xs, vertical = ShalevSpacing.xs),
-            )
-        }
-        SmallFloatingActionButton(
-            onClick = onClick,
-            containerColor = cs.tertiaryContainer, // como el botón tonal; el naranja es solo para avisos
-            contentColor = cs.onTertiaryContainer,
-        ) { Icon(icon, contentDescription = label) }
-    }
+    ShalevIconAction(icon, label, onClick, style = IconActionStyle.Tonal)
 }

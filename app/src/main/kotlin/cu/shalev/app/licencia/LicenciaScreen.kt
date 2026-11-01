@@ -481,7 +481,7 @@ private fun PreciosLicenciaCard() {
     }
 }
 
-/** 0.21.0 (C4): selector ◄ [n] ► de secundarias con el precio total actualizado al momento. */
+/** 0.21.0 (C4): selector de secundarias con flechas de disminuir/aumentar y precio total actualizado al momento. */
 @Composable
 private fun SelectorSecundarias(form: LicenciaForm, acciones: LicenciaAcciones, previasAmpliacion: Int? = null) {
     val minimo = previasAmpliacion?.let { (it + 1).coerceAtMost(cu.shalev.licencia.contract.GlContract.SECUNDARIAS_MAX) } ?: 0

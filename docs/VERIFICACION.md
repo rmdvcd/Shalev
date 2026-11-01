@@ -1,6 +1,16 @@
 # Shalev — Verificación real
 
-> **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización Android: **2026-10-28**. La app principal sigue siendo Android. El antiguo Flutter/iOS y la web de escritorio se retiraron; la nueva contraparte SwiftUI vive en `IShalev/` y tiene una sección de verificación independiente al final de este documento.
+> **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización Android: **2026-10-31**. La app principal sigue siendo Android. El antiguo Flutter/iOS y la web de escritorio se retiraron; la nueva contraparte SwiftUI vive en `IShalev/` y tiene una sección de verificación independiente al final de este documento.
+
+## 2026-10-31 — Acciones con iconos, navegación, filas y OCR Android
+
+Se implementaron iconos de acción accesibles y se retiró de Android el lector documental de Venta y su dependencia ML Kit Text. También cambiaron la navegación de Inicio/Ajustes, la disposición de Vender/Caja, las filas, logos bancarios, Skeleton y contacto de soporte. En iOS se cambiaron las flechas textuales de los spinners y el stepper por SF Symbols; el OCR documental iOS permanece y el lector QR Android sigue presente.
+
+- **Gradle y tests:** `shalevTests`, `shalevCheck`, `assembleDebug` y `verifyRoborazziDebug` **no ejecutados**: este entorno no tiene Java/JDK ni Android SDK (`java: command not found`, `ANDROID_HOME`/`ANDROID_SDK_ROOT` vacíos). No se declara compilación ni tests en verde.
+- **Swift/iOS:** `swift test --package-path IShalev` tampoco se ejecutó: no hay toolchain Swift/Xcode (`swift: command not found`). No se declara compilación iOS en verde.
+- **Revisión estática:** Tree-sitter no encontró errores de sintaxis en los 21 archivos Kotlin modificados ni en el archivo Swift editado; el detector de imports duplicados, `bash -n tools/verificacion/verificar.sh`, la validación XML de manifiesto/diagrama y `git diff --check` pasaron. Esto no sustituye a compilar ni verificar tipos.
+- **Capturas:** pendientes de revisar y regenerar en entorno Android por los cambios visuales, especialmente Inicio, Ajustes, botones y pantallas afectadas por el límite de tres líneas.
+- **Dispositivo:** pendiente verificar visualmente los logos BPA/BANDEC/BANMET, el orden de accesos en Inicio, TalkBack de acciones iconográficas, el regreso desde Ajustes y la ausencia del escáner documental en Venta.
 
 ## 2026-10-30 — Lote de interfaz (PR #67) compilado y con tests en verde en el CI
 

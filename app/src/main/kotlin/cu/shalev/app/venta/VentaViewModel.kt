@@ -46,7 +46,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -264,47 +263,6 @@ class VentaViewModel @Inject constructor(
     fun quitar(id: Long) {
         guardar(Carrito.quitar(carrito.value, id))
         local.update { it.copy(error = null) }
-    }
-
-    /** Artículos o servicios activos con sus topes reales disponibles para el asistente OCR de Ventas. */
-    fun candidatosOcr(): List<cu.shalev.app.ocr.CandidatoVentaOcr> {
-        val cat = productos.value
-        val base = Carrito.recortarACapacidad(carrito.value, cat)
-        val topes = Carrito.topesCompartidos(base, cat)
-        return cat.articulos.values.map { p ->
-            cu.shalev.app.ocr.CandidatoVentaOcr(
-                id = p.id,
-                nombre = p.nombre,
-                esServicio = esServicio,
-                topeDisponible = topes[p.id],
-            )
-        }
-    }
-
-    /** Incorpora líneas y datos de cliente leídos desde OCR / Excel / Word / PDF respetando las existencias compartidas. */
-    fun importarDesdeOcr(resultado: cu.shalev.app.ocr.ResultadoVentaOcr) {
-        val cat = productos.value
-        val nuevo = LinkedHashMap(carrito.value)
-        for (l in resultado.lineas) {
-            if (cat.articulos.containsKey(l.articuloId) && l.cantidad > 0L) {
-                nuevo[l.articuloId] = ((nuevo[l.articuloId] ?: 0L) + l.cantidad).coerceAtMost(Carrito.MAX_CANTIDAD)
-            }
-        }
-        val ajustado = Carrito.recortarACapacidad(nuevo, cat)
-        guardar(ajustado)
-        local.update { s ->
-            var cli = s.cliente
-            resultado.clienteNombre?.takeIf { it.isNotBlank() }?.let { cli = cli.con(CampoCliente.NOMBRE, it) }
-            resultado.clienteTelefono?.takeIf { it.isNotBlank() }?.let { cli = cli.con(CampoCliente.TELEFONO, it) }
-            resultado.clienteCi?.takeIf { it.isNotBlank() }?.let { cli = cli.con(CampoCliente.CI, it) }
-            s.copy(
-                paso = PasoVenta.CARRITO,
-                cotizacion = null,
-                error = null,
-                cliente = cli,
-            )
-        }
-        emitir(EventoVenta.Mensaje("Líneas importadas al carrito (${ajustado.size})."))
     }
 
     fun elegirMetodo(m: MetodoPago) = local.update { it.copy(metodo = m, error = null) }

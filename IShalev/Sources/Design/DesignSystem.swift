@@ -309,7 +309,7 @@ struct ShalevIconButton: View {
     }
 }
 
-/// Botón circular de spinner numérico con símbolos ◄ y ►.
+/// Botón circular de selector numérico con iconos SF Symbols y etiqueta accesible.
 struct ShalevSpinnerButton: View {
     let isIncrement: Bool
     let label: String
@@ -320,8 +320,9 @@ struct ShalevSpinnerButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text(isIncrement ? "►" : "◄")
+            Image(systemName: isIncrement ? "chevron.right" : "chevron.left")
                 .font(.shalevIcono(14, weight: .bold))
+                .accessibilityHidden(true)
                 .foregroundStyle(
                     enabled
                         ? (primaryTint ? Color.shalevPrimary : Color.shalevText)
@@ -375,8 +376,9 @@ struct ShalevStepper: View {
         VStack(spacing: 9) {
             HStack(spacing: 10) {
                 Button { onBack?() } label: {
-                    Text("◄")
+                    Image(systemName: "chevron.left")
                         .font(.shalevIcono(13, weight: .bold))
+                        .accessibilityHidden(true)
                         .foregroundStyle(onBack == nil ? Color.shalevOutline : Color.shalevText)
                         .frame(width: 36, height: 36)
                         .background(onBack == nil ? Color.clear : Color.shalevSurfaceVariant, in: Circle())
@@ -401,8 +403,9 @@ struct ShalevStepper: View {
                 .accessibilityValue("Paso \(current) de \(total): \(title)")
 
                 Button { onNext?() } label: {
-                    Text("►")
+                    Image(systemName: "chevron.right")
                         .font(.shalevIcono(13, weight: .bold))
+                        .accessibilityHidden(true)
                         .foregroundStyle(onNext == nil ? Color.shalevSecondaryText : Color.shalevOnPrimary)
                         .frame(width: 38, height: 38)
                         .background(onNext == nil ? Color.shalevSurfaceVariant : Color.shalevPrimary, in: Circle())

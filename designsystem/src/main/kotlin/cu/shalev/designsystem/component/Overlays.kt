@@ -27,6 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
@@ -88,11 +89,11 @@ fun ShalevSnackbarHost(state: SnackbarHostState, modifier: Modifier = Modifier) 
 }
 
 /**
- * Diálogo con el título centrado arriba (0.27.0: sin logo). Confirmar/Cancelar son iconos (Shalev.txt) con descripción accesible.
- * [destructive] pinta la confirmación en color de error (eliminar).
+ * Diálogo con el título centrado arriba (0.27.0: sin logo). Confirmar/Cancelar conservan texto; las demás acciones
+ * usan iconos accesibles. [destructive] pinta la confirmación en color de error (eliminar).
  *
  * P24: ventana emergente **centrada**; título centrado arriba; los botones Cancelar y Confirmar, centrados y con
- * separación media (16dp). La confirmación va rellena (Von Restorff) y Cancelar sin fondo. El contenido largo se
+ * separación media (16dp). La confirmación va rellena (Von Restorff). El contenido largo se
  * desplaza dentro del diálogo y los botones siguen siempre a la vista.
  */
 @Composable
@@ -255,36 +256,38 @@ private fun ShalevVentana(
                     .pointerInput(Unit) { detectTapGestures { cerrar() } }.safeDrawingPadding().padding(ShalevSpacing.md),
                 contentAlignment = Alignment.Center,
             ) {
-                Surface(
-                    modifier = modifier.animateEnterExit(enter = ShalevMotion.ventanaEntra, exit = ShalevMotion.ventanaSale)
-                        .fillMaxWidth(ANCHO_VENTANA).widthIn(max = ShalevSize.contentMaxWidth).heightIn(max = alto * ALTO_VENTANA)
-                        .pointerInput(Unit) { detectTapGestures { } },
-                    shape = RoundedCornerShape(ShalevRadius.xl),
-                    color = cs.surfaceContainerHigh,
-                    tonalElevation = ShalevElevation.mid,
-                    shadowElevation = ShalevElevation.high,
-                ) {
-                    Column(Modifier.padding(top = ShalevSpacing.lg), horizontalAlignment = Alignment.CenterHorizontally) {
-                        title?.let {
-                            Text(
-                                it, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.lg).padding(bottom = ShalevSpacing.xs).semantics { heading() },
-                            )
+                CompositionLocalProvider(LocalShalevVentana provides true) {
+                    Surface(
+                        modifier = modifier.animateEnterExit(enter = ShalevMotion.ventanaEntra, exit = ShalevMotion.ventanaSale)
+                            .fillMaxWidth(ANCHO_VENTANA).widthIn(max = ShalevSize.contentMaxWidth).heightIn(max = alto * ALTO_VENTANA)
+                            .pointerInput(Unit) { detectTapGestures { } },
+                        shape = RoundedCornerShape(ShalevRadius.xl),
+                        color = cs.surfaceContainerHigh,
+                        tonalElevation = ShalevElevation.mid,
+                        shadowElevation = ShalevElevation.high,
+                    ) {
+                        Column(Modifier.padding(top = ShalevSpacing.lg), horizontalAlignment = Alignment.CenterHorizontally) {
+                            title?.let {
+                                Text(
+                                    it, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.lg).padding(bottom = ShalevSpacing.xs).semantics { heading() },
+                                )
+                            }
+                            Column(
+                                Modifier
+                                    .weight(1f, fill = false)
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(horizontal = ShalevSpacing.lg, vertical = ShalevSpacing.xs),
+                                verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
+                                horizontalAlignment = Alignment.CenterHorizontally, // P28: lo que va solo en su fila, centrado
+                            ) {
+                                CompositionLocalProvider(LocalShalevCentrado provides true) { content() }
+                            }
+                            footer?.let { pie ->
+                                if (divisor) HorizontalDivider(color = cs.outlineVariant)
+                                ShalevButtonRow(Modifier.padding(horizontal = ShalevSpacing.lg, vertical = ShalevSpacing.md)) { pie(this, cerrar) }
+                            } ?: Spacer(Modifier.height(ShalevSpacing.lg))
                         }
-                        Column(
-                            Modifier
-                                .weight(1f, fill = false)
-                                .verticalScroll(rememberScrollState())
-                                .padding(horizontal = ShalevSpacing.lg, vertical = ShalevSpacing.xs),
-                            verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
-                            horizontalAlignment = Alignment.CenterHorizontally, // P28: lo que va solo en su fila, centrado
-                        ) {
-                            CompositionLocalProvider(LocalShalevCentrado provides true) { content() }
-                        }
-                        footer?.let { pie ->
-                            if (divisor) HorizontalDivider(color = cs.outlineVariant)
-                            ShalevButtonRow(Modifier.padding(horizontal = ShalevSpacing.lg, vertical = ShalevSpacing.md)) { pie(this, cerrar) }
-                        } ?: Spacer(Modifier.height(ShalevSpacing.lg))
                     }
                 }
             }
@@ -307,34 +310,41 @@ object ShalevSheetTextos {
     const val SEGUIR = "Seguir editando"
 }
 
-/** FAB de una sola acción (p. ej. "Agregar insumo"): contenedor primary sobre onPrimary. */
+/** FAB de una sola acción (p. ej. «Agregar insumo»): contenedor primary sobre onPrimary. */
 @Composable
 fun ShalevFab(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    /**
-     * 1.0.2: texto visible del botón flotante. Si es null se usa [contentDescription]; [etiqueta] permite un texto
-     * más corto cuando la descripción es larga («Nueva venta» → «Vender»).
-     */
+    /** Etiqueta visible corta cuando [soloIcono] es false; si es null se usa [contentDescription]. */
     etiqueta: String? = null,
+    /** Presenta un FAB compacto de 48dp con el icono, manteniendo [contentDescription] para TalkBack. */
+    soloIcono: Boolean = true,
 ) {
     val cs = MaterialTheme.colorScheme
-    // 1.0.2: el botón flotante también se rotula con texto (ya no es un icono suelto).
+    val forma = if (soloIcono) modifier.size(ShalevSize.touchTarget) else modifier
     Surface(
         onClick = onClick,
-        modifier = modifier.semantics { this.contentDescription = contentDescription },
+        modifier = forma.semantics { this.contentDescription = contentDescription },
         shape = RoundedCornerShape(ShalevRadius.lg),
         color = cs.primary,
         contentColor = cs.onPrimary,
         shadowElevation = ShalevElevation.mid,
     ) {
-        Row(
-            Modifier.heightIn(min = ShalevSize.touchTarget).padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(etiqueta ?: contentDescription, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        if (soloIcono) {
+            Box(Modifier.size(ShalevSize.touchTarget), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
+            }
+        } else {
+            Row(
+                Modifier.heightIn(min = ShalevSize.touchTarget).padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
+                Spacer(Modifier.size(ShalevSpacing.xs))
+                Text(etiqueta ?: contentDescription, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            }
         }
     }
 }

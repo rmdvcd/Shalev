@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.app.venta.QrCodigo
@@ -320,7 +321,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.principal(
                         VinculacionLogic.turnoEmpleado(e, conectada).orEmpty(),
                         VinculacionLogic.estadoEmpleado(e, conectada, ahora),
                     ),
-                    subtitleMaxLines = 2,
+                    titleMaxLines = if (progreso != null) 1 else 2,
+                    subtitleMaxLines = if (progreso != null) 1 else 2,
                     indicatorColor = null,
                     leading = { Icon(ShalevIcons.Movil, contentDescription = null) },
                     trailing = { Icon(ShalevIcons.Abrir, contentDescription = null) },
@@ -335,6 +337,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.principal(
                         ShalevLinearProgress(progress = if (p.conTotal) p.fraccion else null)
                         Text(
                             VinculacionLogic.progreso(p), style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.testTag(VinculacionTags.PROGRESO),
                         )
                     }
