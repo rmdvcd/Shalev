@@ -12,7 +12,7 @@ coreKtx = "1.15.0"
 activity = "1.9.3"
 lifecycle = "2.8.7"
 navigation = "2.8.5"
-splashscreen = "1.0.1"
+splashscreen = "1.2.0"
 datastore = "1.1.1"
 annotation = "1.9.1"
 # 0.27.0 (T11): acceso con huella/cara o PIN del teléfono; FragmentActivity; vuelta del segundo plano.
