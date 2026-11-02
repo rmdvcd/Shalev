@@ -1,3 +1,10 @@
+## Manual integrado y disposición de diálogos (2026-11-02)
+
+- El manual integrado resume el PDF por pantalla, añade tareas de caja, correcciones, precios y restauración, y se identifica como «Manual de usuario» en Ajustes.
+- Se corrige el esquema de navegación: Ajustes se abre desde Inicio, no desde la barra inferior. La copia no siempre está protegida con contraseña.
+- La ayuda contextual usa el desplazamiento de la ventana común y el botón para abrir el manual muestra el icono de ayuda. Las acciones de omitir del cierre de turno vuelven a alinearse a la derecha.
+- Queda pendiente comprobar las pantallas y diálogos en un dispositivo, con letra grande, orientación horizontal y TalkBack.
+
 # Shalev - Historial de desarrollo
 
 ## Ajustes de interfaz y miniaturas (2026-11-01)

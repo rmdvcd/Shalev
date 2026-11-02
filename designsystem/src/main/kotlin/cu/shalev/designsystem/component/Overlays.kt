@@ -148,7 +148,7 @@ fun ShalevDialog(
                     }
                 }
                 esquina?.let { accion ->
-                    Box(Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs), contentAlignment = Alignment.Center) { accion() }
+                    Box(Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs), contentAlignment = Alignment.CenterEnd) { accion() }
                 }
             }
         },

@@ -20,9 +20,8 @@ class AyudaSoporteTest {
 
     @Test fun manualBreveYCompleto() {
         val temas = AyudaContenido.temas
-        // 0.31.0 (P7): el manual pasó a organizarse en secciones, así que caben más temas sin ser menos breve
-        // (13 repartidos en 6 secciones se leen antes que 13 en una lista). El techo sube de 12 a 14.
-        assertTrue(temas.size in 6..14)
+        // El resumen cubre las pantallas y mantiene cada tema breve.
+        assertTrue(temas.size in 6..25)
         assertEquals(temas.size, temas.map { it.titulo }.toSet().size)
         // Cada sección existe y tiene temas; los temas de una sección son de esa sección.
         val secciones = AyudaContenido.seccionesPara(cu.shalev.domain.model.Modulo.TODOS)
@@ -37,8 +36,21 @@ class AyudaSoporteTest {
         }
         // Cubre lo imprescindible para un usuario sin conocimientos previos.
         val todo = temas.joinToString(" ") { it.titulo + " " + it.pasos.joinToString(" ") }
-        listOf("Abrir turno", "Nueva venta", "Inventario", "Respaldo", "Licencia", "Soporte").forEach {
+        listOf("turno", "Vender", "Inventario", "Respaldo", "Licencia", "Soporte").forEach {
             assertTrue("Falta $it", todo.contains(it))
         }
     }
+    @Test fun manualPorVentanaYContextoSegunModulos() {
+        val todos = cu.shalev.domain.model.Modulo.TODOS
+        val secciones = AyudaContenido.seccionesPara(todos)
+        assertEquals(AyudaContenido.temas, secciones.flatMap { it.second })
+        val inicio = cu.shalev.app.ayuda.PestanaAyuda.INICIO.temas(todos).map { it.titulo }
+        assertTrue("Abrir y cerrar el turno" in inicio)
+        val registros = cu.shalev.app.ayuda.PestanaAyuda.REGISTROS.temas(todos).map { it.titulo }
+        assertTrue("Corregir operaciones" in registros)
+        assertTrue(cu.shalev.app.ayuda.PestanaAyuda.INVENTARIO.temas(setOf(cu.shalev.domain.model.Modulo.SERVICIOS)).isEmpty())
+        assertTrue(secciones.any { it.first == cu.shalev.app.ayuda.CategoriaAyuda.RESPALDO })
+        assertTrue(secciones.any { it.first == cu.shalev.app.ayuda.CategoriaAyuda.VENTA })
+    }
+
 }
