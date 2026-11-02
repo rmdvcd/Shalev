@@ -1,188 +1,145 @@
 package cu.shalev.app.ayuda
 
-/**
- * 0.31.0 (P7): una sección del manual. Agrupa temas que se usan juntos, cada una con su icono, para que el manual
- * se lea como un libro y no como una lista sin orden.
- */
+import cu.shalev.domain.model.Modulo
+
+/** Secciones del manual resumido, organizadas por la ventana donde se realiza cada tarea. */
 enum class CategoriaAyuda(val titulo: String, val detalle: String) {
-    EMPEZAR("Empezar", "Qué es cada botón y cómo dejar Shalev listo"),
-    VENDER("Vender y cobrar", "El turno, la venta y el cobro por transferencia"),
-    INVENTARIO("Inventario", "Productos, insumos y elaborados"),
-    DATOS("Tus datos y tu licencia", "Respaldo y licencia"),
-    EMPLEADOS("Empleados", "Las apps de tus empleados"),
-    AYUDA("Ayuda", "A quién escribir cuando algo no sale"),
+    INICIO("Inicio y turno", "Jornada, caja y resumen del negocio"),
+    INVENTARIO("Inventario", "Productos, insumos y recetas"),
+    SERVICIOS("Servicios", "Catálogo de servicios"),
+    VENTA("Nueva venta", "Carrito y cobro"),
+    REGISTROS("Registros", "Historial, correcciones y exportación"),
+    AJUSTES("Ajustes", "Configuración, pago electrónico y precios"),
+    RESPALDO("Respaldo", "Copias y restauración"),
+    LICENCIA("Licencia", "Solicitud y activación"),
+    EMPLEADOS("Apps vinculadas", "Teléfonos de empleados"),
+    SOPORTE("Soporte", "Contacto con el desarrollador"),
 }
 
-/** 0.31.0 (P7): esquema que acompaña a un tema (se dibuja con formas: nunca queda desactualizado). */
-enum class EsquemaAyuda { BARRA, TURNO, VENTA, RESPALDO }
+enum class EsquemaAyuda { TURNO, VENTA, RESPALDO }
 
-/** Un tema del manual: título corto y pasos de una línea, en lenguaje llano (usuario sin conocimientos previos). */
 data class TemaAyuda(
     val titulo: String,
     val pasos: List<String>,
-    val categoria: CategoriaAyuda = CategoriaAyuda.EMPEZAR,
+    val categoria: CategoriaAyuda = CategoriaAyuda.INICIO,
     val esquema: EsquemaAyuda? = null,
 )
 
-/** Manual breve de Shalev. Texto puro (testeado): sin jerga, frases cortas, un paso por línea. */
+/** Resumen del manual de usuario incluido en el repositorio (MANUAL_USUARIO.pdf). */
 object AyudaContenido {
-    /**
-     * 0.21.0 (C12): temas visibles según los módulos del negocio (lo desactivado tampoco aparece en la Ayuda).
-     * Los temas generales (primeros pasos, copia, licencia…) se muestran siempre.
-     */
-    fun temasPara(modulos: Set<cu.shalev.domain.model.Modulo>): List<TemaAyuda> {
-        val inv = cu.shalev.domain.model.Modulo.VENTAS in modulos || cu.shalev.domain.model.Modulo.INVENTARIO in modulos
-        val ventas = cu.shalev.domain.model.Modulo.VENTAS in modulos
-        val serv = cu.shalev.domain.model.Modulo.SERVICIOS in modulos
+    fun temasPara(modulos: Set<Modulo>): List<TemaAyuda> {
+        val inv = Modulo.VENTAS in modulos || Modulo.INVENTARIO in modulos
+        val ventas = Modulo.VENTAS in modulos
+        val serv = Modulo.SERVICIOS in modulos
         return temas.filter { t ->
             when (t.titulo) {
                 "Agregar productos", "Buscar y filtrar el inventario", "Insumos y elaborados" -> inv
-                "Vender", "Cobrar por transferencia", "Ver lo vendido" -> ventas || serv
+                "Vender", "Cobrar por transferencia" -> ventas || serv
                 "Servicios" -> serv
                 else -> true
             }
         }
     }
 
-    /**
-     * 0.31.0 (P7): los temas ya agrupados por sección, en el orden del manual. Las secciones sin temas se omiten.
-     */
-    fun seccionesPara(modulos: Set<cu.shalev.domain.model.Modulo>): List<Pair<CategoriaAyuda, List<TemaAyuda>>> =
-        CategoriaAyuda.entries.mapNotNull { c -> temasPara(modulos).filter { it.categoria == c }.takeIf { it.isNotEmpty() }?.let { c to it } }
+    fun seccionesPara(modulos: Set<Modulo>): List<Pair<CategoriaAyuda, List<TemaAyuda>>> =
+        CategoriaAyuda.entries.mapNotNull { c ->
+            temasPara(modulos).filter { it.categoria == c }.takeIf { it.isNotEmpty() }?.let { c to it }
+        }
 
-    const val INTRO = "Shalev te ayuda a vender, controlar tu inventario y ver cuánto ganas. " +
-        "Elige una sección y toca un tema para ver los pasos."
+    const val INTRO = "Elige la pantalla y abre un tema para ver los pasos."
 
     val temas: List<TemaAyuda> = listOf(
-        TemaAyuda(
-            "Primeros pasos",
-            listOf(
-                "Abajo están las secciones disponibles para tu negocio: Inicio, Inventario, Servicios, Registros y Ajustes.",
-                "Desliza a la izquierda o a la derecha para pasar de una sección a otra.",
-                "En Ajustes → Completar configuración escribe tus datos y elige los avisos.",
-                "Tienes 7 días de prueba gratis. Después hace falta una licencia.",
-                "Opcional: Ajustes → Acceso con clave pide tu huella o el PIN del teléfono al abrir Shalev.",
-            ),
-            CategoriaAyuda.EMPEZAR, EsquemaAyuda.BARRA,
-        ),
-        TemaAyuda(
-            "Abrir y cerrar el turno",
-            listOf(
-                "El turno es la jornada de trabajo: sin turno abierto no se puede vender.",
-                "En Inicio toca Abrir turno. Arriba verás el tiempo que lleva abierto.",
-                "Al terminar el día toca Cerrar turno: Shalev guarda un resumen con todo lo vendido.",
-                "Si sales de Shalev con el turno abierto, verás un aviso arriba en la barra del teléfono.",
-            ),
-            CategoriaAyuda.VENDER, EsquemaAyuda.TURNO,
-        ),
-        TemaAyuda(
-            "Vender",
-            listOf(
-                "Toca Nueva venta, elige Productos o Servicios (van por separado) y la cantidad.",
-                "Elige cómo te pagan: efectivo o transferencia.",
-                "Revisa el total y confirma. La venta queda en Registros.",
-            ),
-            CategoriaAyuda.VENDER, EsquemaAyuda.VENTA,
-        ),
-        TemaAyuda(
-            "Cobrar por transferencia",
-            listOf(
-                "En Inicio → Pago electrónico agrega tu teléfono y tu tarjeta.",
-                "Marca el teléfono y la tarjeta que usarás para cobrar.",
-                "En la venta, muestra el QR y el importe al cliente. El QR no incluye el importe.",
-                "Completa los datos del cliente y registra la transacción con el SMS recibido.",
-            ),
-            CategoriaAyuda.VENDER,
-        ),
-        TemaAyuda(
-            "Ver lo vendido",
-            listOf(
-                "En Registros ves ventas, servicios, transferencias, movimientos y turnos.",
-                "Toca Filtrar para elegir las fechas: hoy, 7 días, este mes…",
-                "En ventas, transferencias y servicios también puedes filtrar por importe.",
-                "En Movimientos solo se filtra por fecha: un movimiento no tiene importe.",
-                "Marca con la casilla lo que quieras exportar y toca Compartir.",
-            ),
-            CategoriaAyuda.VENDER,
-        ),
-        TemaAyuda(
-            "Agregar productos",
-            listOf(
-                "Ve a Inventario y toca +.",
-                "Escribe el nombre, el precio de compra, el precio de venta y la cantidad.",
-                "Si ya hay otro con el mismo nombre, escribe en Descripción qué lo distingue (p. ej. Lata 350 ml).",
-                "Toca el botón ✓ (Guardar) arriba a la derecha.",
-            ),
-            CategoriaAyuda.INVENTARIO,
-        ),
-        TemaAyuda(
-            "Buscar y filtrar el inventario",
-            listOf(
-                "El buscador encuentra por nombre, descripción o categoría.",
-                "Toca Filtrar para elegir una alerta, un tipo o una categoría. También vale una alerta de Inicio.",
-                "Las filas resaltadas indican avisos de existencia o caducidad; abre el artículo para ver el detalle.",
-                "Un sombreado suave en los bordes indica que hay más contenido al desplazar.",
-                "Quitar filtros devuelve la lista completa.",
-            ),
-            CategoriaAyuda.INVENTARIO,
-        ),
-        TemaAyuda(
-            "Insumos y elaborados",
-            listOf(
-                "Los insumos (harina, azúcar…) están en Inventario, en la categoría Insumos.",
-                "Para crear uno, toca + en Inventario y selecciona la opción de insumo.",
-                "Si le pones precio de venta a un insumo, también lo puedes vender.",
-                "Crea el producto elaborado con su receta. Al venderlo, sus insumos se descuentan solos.",
-                "Verás para cuántos alcanzan los insumos; si no alcanzan, no se puede vender.",
-            ),
-            CategoriaAyuda.INVENTARIO,
-        ),
-        TemaAyuda(
-            "Servicios",
-            listOf(
-                "Sirve para lo que ofreces que no es un producto (cortes de pelo, arreglos, entregas…).",
-                "Ve a Servicios y toca +. Escribe el nombre, el tipo y el importe.",
-                "Si el servicio gasta insumos, agrégalos: se descuentan al venderlo.",
-                "Para venderlo: Nueva venta → Servicios. En Inicio verás los más y menos vendidos.",
-            ),
-            CategoriaAyuda.INVENTARIO,
-        ),
-        TemaAyuda(
-            "Guardar una copia",
-            listOf(
-                "Ajustes → Respaldo → Exportar y toca Siguiente.",
-                "Opcional: activa Proteger con contraseña, escríbela dos veces y anótala.",
-                "Toca Guardar en el teléfono o Enviar a otra app (Drive, Telegram…).",
-                "Para recuperarla: Respaldo → Elegir archivo (y la contraseña, si la tiene).",
-            ),
-            CategoriaAyuda.DATOS, EsquemaAyuda.RESPALDO,
-        ),
-        TemaAyuda(
-            "Licencia",
-            listOf(
-                "Ajustes → Licencia muestra el estado de tu licencia y los pasos para solicitarla.",
-                "Paso 1: revisa tus datos. Paso 2: elige el tipo, WhatsApp o SMS, y toca Solicitar. Revisa y envía el mensaje.",
-                "Paso 3: copia el código recibido, toca Pegar y luego Activar.",
-                "Si la activación llega en varios SMS, copia y pega todos.",
-                "Para renovar con lo mismo, toca Renovar igual. Si renuevas antes de que venza no pierdes días.",
-            ),
-            CategoriaAyuda.DATOS,
-        ),
-        TemaAyuda(
-            "Apps vinculadas",
-            listOf(
-                "En tu teléfono: Ajustes → Apps vinculadas → +. Tu licencia dice cuántas secundarias puedes tener.",
-                "En el del empleado: «Usar esta app como secundaria», su teléfono, escanea tu código (wifi, zona wifi o datos).",
-                "Su teléfono va en su QR de cobro: el SMS de la transferencia le llega a él.",
-                "El empleado no cierra su turno: lo solicita y tú lo apruebas o rechazas. Sin red sigue vendiendo.",
-                "Toca su app para sus permisos, su tarjeta de cobro o «Pedir cierre» de su turno abierto.",
-            ),
-            CategoriaAyuda.EMPLEADOS,
-        ),
-        TemaAyuda(
-            "¿Necesitas ayuda?",
-            listOf("Ajustes → Soporte: escribe al desarrollador por WhatsApp o SMS."),
-            CategoriaAyuda.AYUDA,
-        ),
+        TemaAyuda("Primeros pasos", listOf(
+            "Usa la barra inferior para cambiar de sección o desliza entre las pantallas principales.",
+            "Abre Ajustes con el engranaje de Inicio. Las secciones dependen de los módulos elegidos.",
+            "En Ajustes → Completar configuración puedes terminar los pasos pendientes.",
+        ), CategoriaAyuda.INICIO),
+        TemaAyuda("Abrir y cerrar el turno", listOf(
+            "En Inicio activa el interruptor del turno, escribe el fondo de caja y confirma.",
+            "Sin turno abierto no se puede vender. Usa Caja para registrar entradas y salidas de efectivo.",
+            "Al terminar, desactiva el interruptor y revisa el efectivo y el inventario antes de confirmar.",
+            "Puedes omitir el conteo por billetes o el de inventario. La secundaria solicita el cierre al dueño.",
+        ), CategoriaAyuda.INICIO, EsquemaAyuda.TURNO),
+        TemaAyuda("Consultar el negocio", listOf(
+            "En Inicio elige un período para consultar los gráficos y rankings.",
+            "Toca una alerta de inventario para ver los artículos correspondientes.",
+            "Desde Inicio también puedes abrir Pago electrónico y Precios.",
+        ), CategoriaAyuda.INICIO),
+        TemaAyuda("Agregar productos", listOf(
+            "En Inventario toca + y completa nombre, precios y cantidad.",
+            "Si hay nombres repetidos, usa la descripción para distinguir los artículos.",
+            "Toca ✓ para guardar.",
+        ), CategoriaAyuda.INVENTARIO),
+        TemaAyuda("Buscar y filtrar el inventario", listOf(
+            "Busca por nombre, descripción o categoría; usa Filtrar para limitar la lista.",
+            "Abre un artículo para consultar sus datos y avisos. Quita los filtros para volver a la lista completa.",
+            "Selecciona filas para exportarlas; sin selección se exporta lo visible.",
+        ), CategoriaAyuda.INVENTARIO),
+        TemaAyuda("Insumos y elaborados", listOf(
+            "En Inventario, usa + para crear un insumo o un producto elaborado con receta.",
+            "Al vender un elaborado se descuentan sus insumos; si no alcanzan, no se puede vender.",
+            "Un insumo con precio de venta también se puede vender.",
+        ), CategoriaAyuda.INVENTARIO),
+        TemaAyuda("Servicios", listOf(
+            "En Servicios toca + y escribe el nombre, el tipo y el importe.",
+            "Agrega los insumos que consume: se descuentan al vender el servicio.",
+            "Busca, filtra o selecciona servicios para consultar y exportar el catálogo.",
+        ), CategoriaAyuda.SERVICIOS),
+        TemaAyuda("Vender", listOf(
+            "Con el turno abierto, toca Vender en Inicio y elige productos o servicios.",
+            "Selecciona artículos, ajusta cantidades y elige efectivo o transferencia.",
+            "Revisa el comprobante y confirma. La venta queda en Registros.",
+        ), CategoriaAyuda.VENTA, EsquemaAyuda.VENTA),
+        TemaAyuda("Cobrar por transferencia", listOf(
+            "En Pago electrónico selecciona un teléfono y una tarjeta o cuenta para cobrar.",
+            "Muestra el QR y el importe al cliente: el QR no incluye el importe.",
+            "Completa los datos del cliente y registra el número de transacción del SMS.",
+        ), CategoriaAyuda.VENTA),
+        TemaAyuda("Ver lo vendido", listOf(
+            "En Registros consulta ventas, servicios, transferencias, movimientos, clientes y turnos.",
+            "Abre una fila para ver sus detalles. Usa Filtrar para acotar los resultados disponibles.",
+            "Selecciona filas para exportarlas; sin selección se exporta lo visible.",
+        ), CategoriaAyuda.REGISTROS),
+        TemaAyuda("Corregir operaciones", listOf(
+            "En la app principal, abre una venta del turno abierto para modificarla o anularla con un motivo.",
+            "Los turnos cerrados no se modifican. Anular una venta no devuelve dinero por Transfermóvil.",
+            "En Movimientos puedes editar un ajuste del turno abierto desde su ficha.",
+        ), CategoriaAyuda.REGISTROS),
+        TemaAyuda("Configurar el negocio", listOf(
+            "Abre Ajustes desde el engranaje de Inicio para completar la configuración y consultar tu perfil.",
+            "Desde allí también puedes administrar avisos, permisos y el acceso con clave del teléfono.",
+        ), CategoriaAyuda.AJUSTES),
+        TemaAyuda("Pago electrónico", listOf(
+            "Agrega un teléfono y una tarjeta o cuenta; marca uno de cada tipo para cobrar.",
+            "El teléfono elegido recibe la confirmación; verifica la tarjeta antes de guardarla.",
+        ), CategoriaAyuda.AJUSTES),
+        TemaAyuda("Precios", listOf(
+            "Crea ajustes para subir o bajar precios según el pago, el importe o los productos elegidos.",
+            "Revisa la vista previa, guarda y usa el interruptor para activar o desactivar cada regla.",
+        ), CategoriaAyuda.AJUSTES),
+        TemaAyuda("Guardar una copia", listOf(
+            "En Ajustes → Respaldo prepara la exportación y protege la copia con contraseña si lo deseas.",
+            "Anota la contraseña: sin ella no podrás recuperar una copia protegida.",
+            "Toca Siguiente y guarda el archivo o envíalo a otra aplicación segura.",
+        ), CategoriaAyuda.RESPALDO, EsquemaAyuda.RESPALDO),
+        TemaAyuda("Restaurar una copia", listOf(
+            "En Ajustes → Respaldo elige el archivo .shalev y escribe su contraseña si tiene una.",
+            "Importar reemplaza los datos actuales. Revisa la copia antes de confirmar.",
+            "Las fotos y la licencia activa no se trasladan en el archivo.",
+        ), CategoriaAyuda.RESPALDO),
+        TemaAyuda("Licencia", listOf(
+            "En Ajustes → Licencia revisa el estado y tus datos, y solicita la licencia por WhatsApp o SMS.",
+            "Copia el código recibido, toca Pegar y luego Activar. Si llegó en varios SMS, copia todos.",
+            "Para renovar con las mismas condiciones, toca Renovar igual.",
+        ), CategoriaAyuda.LICENCIA),
+        TemaAyuda("Apps vinculadas", listOf(
+            "En la app principal abre Ajustes → Apps vinculadas y toca + para generar el código.",
+            "En la secundaria elige Usar esta app como secundaria, indica su teléfono y escanea el código.",
+            "Usa wifi, zona wifi o datos móviles; si la operadora impide la conexión, prueba una red wifi.",
+            "Desde la principal revisa permisos y solicitudes de cierre de los empleados.",
+        ), CategoriaAyuda.EMPLEADOS),
+        TemaAyuda("¿Necesitas ayuda?", listOf(
+            "En Ajustes → Soporte puedes escribir al desarrollador por WhatsApp o SMS.",
+        ), CategoriaAyuda.SOPORTE),
     )
 }

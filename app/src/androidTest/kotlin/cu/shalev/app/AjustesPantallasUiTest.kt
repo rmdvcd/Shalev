@@ -206,9 +206,22 @@ class AjustesPantallasUiTest {
 
     @Test fun ayudaDespliegaUnTema() {
         rule.setContent { ShalevTheme(darkTheme = false) { AyudaScreen(onBack = {}) } }
-        val tema = AyudaContenido.temas[2]
+        val tema = AyudaContenido.temasPara(cu.shalev.domain.model.Modulo.TODOS)[2]
         rule.onNodeWithTag(AyudaTags.tema(2)).performScrollTo().performClick()
         rule.onNodeWithText("1. ${tema.pasos[0]}").assertIsDisplayed()
+    }
+
+    @Test fun ayudaContextualSinTemasMuestraOrientacion() {
+        rule.setContent {
+            ShalevTheme(darkTheme = false) {
+                cu.shalev.app.ayuda.DialogoAyudaPestana(
+                    pestana = cu.shalev.app.ayuda.PestanaAyuda.INVENTARIO,
+                    modulos = setOf(cu.shalev.domain.model.Modulo.SERVICIOS),
+                    onDismiss = {},
+                )
+            }
+        }
+        rule.onNodeWithText("Consulta el manual de usuario en Ajustes.").assertIsDisplayed()
     }
 
     @Test fun soporteMuestraFichaYContacto() {

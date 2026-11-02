@@ -207,7 +207,7 @@ fun AjustesContent(
                 ) { onActualizarAhora() }
             }
             // 1.0.3: la fila «Ayuda» usa el mismo icono de Ayuda que el botón contextual del resto de pestañas.
-            item { Entry("Ayuda", "Manual breve de uso", ShalevIcons.Ayuda, modifier = Modifier.testTag(AjustesTags.AYUDA)) { onNavigate(Route.Ayuda) } }
+            item { Entry("Manual de usuario", "Guía por pantalla", ShalevIcons.Ayuda, modifier = Modifier.testTag(AjustesTags.AYUDA)) { onNavigate(Route.Ayuda) } }
             item { Entry("Soporte", "Datos de contacto del desarrollador", ShalevIcons.Soporte, modifier = Modifier.testTag(AjustesTags.SOPORTE)) { onNavigate(Route.Soporte) } }
         }
     }

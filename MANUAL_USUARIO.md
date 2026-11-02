@@ -109,7 +109,7 @@ Las acciones se muestran principalmente con **iconos** para dejar más espacio a
 
 | Icono o acción | Qué hace | Dónde lo encontrarás |
 |---|---|---|
-| **Ayuda** *(arriba a la izquierda)* | Abre la ayuda contextual y el acceso al manual completo | Inicio, Inventario, Servicios, Registros y Ajustes |
+| **Ayuda** *(arriba a la izquierda)* | Abre la guía de la sección y el acceso al manual resumido | Inicio, Inventario, Servicios y Registros |
 | **Engranaje** *(arriba a la derecha)* | Abre Ajustes; la flecha de regreso vuelve a la pantalla anterior | Inicio |
 | **Carrito** / **Caja registradora** | Inician una nueva venta / registran una entrada o salida de efectivo | Inicio, debajo del banner de licencia y antes de las alertas (con el turno abierto) |
 | **Embudo** | Abre los filtros disponibles | Inventario, Servicios y Registros |
@@ -586,7 +586,7 @@ Para que disfrutes siempre de las últimas mejoras y que la App Principal y las 
 
 ### 15.3 Ayuda integrada y contacto con el desarrollador
 
-Dentro de la propia aplicación cuentas siempre con **Ajustes → Ayuda** (un manual resumido por temas con pequeños esquemas visuales que funciona sin conexión) y con **Ajustes → Soporte** para comunicarte directamente con el autor de Shalev:
+Dentro de la propia aplicación cuentas siempre con **Ajustes → Manual de usuario** (un resumen por pantalla con pequeños esquemas visuales que funciona sin conexión) y con **Ajustes → Soporte** para comunicarte directamente con el autor de Shalev:
 
 - **Desarrollador:** Ing. Ronnie Montero Duarte
 - **Especialidad:** Desarrollo de sistemas y aplicaciones multiplataforma

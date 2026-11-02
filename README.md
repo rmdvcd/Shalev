@@ -51,7 +51,7 @@ La versión publicada es la **1.0 (`versionCode 53`)**: la primera versión púb
 | **QR de vinculación** | CameraX + ML Kit (modelo empaquetado). Solo lee el QR para vincular la principal con la secundaria |
 | **Servicios** | (0.18.0, sustituye a Elaboración.) Nombre, Tipo, Importe y, opcionales, foto y descripción. Pueden gastar insumos. Se venden aparte de los productos, tienen su pestaña en Registros y sus indicadores en Inicio. Los **insumos** son ahora la categoría «Insumos» del Inventario (precio de venta opcional, en unidades enteras). Los Elaborados muestran «Alcanza para N» |
 | **Registros** | Ventas, Transferencias, Movimientos, **Clientes** (clientes fijos, 0.27.0; corregir sus datos desde la ficha, 0.31.0) y Turnos, con buscador y filtros de fecha e importe. Exportar a PDF/Excel (0.26.0: ya no se comparte como texto). Desde la 0.31.0 se corrige lo registrado de un turno **abierto**: cantidades, método de pago y nº de transacción en ventas y servicios; la venta de una transferencia desde su ficha; y la cantidad de un ajuste desde la ficha del movimiento |
-| **Ajustes** | Completar configuración, Perfil, Licencia, Pago electrónico, Precios (preajustes), Avisos de inventario, Permisos, Respaldo, Actualizar, Ayuda, Soporte |
+| **Ajustes** | Completar configuración, Perfil, Licencia, Pago electrónico, Precios (preajustes), Avisos de inventario, Permisos, Respaldo, Actualizar, Manual de usuario, Soporte |
 
 ### Qué no hace
 
@@ -115,7 +115,7 @@ Versiones principales (`gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 8.7.3, C
 
 - **DI:** Hilt. **Navegación:** Navigation Compose 2.8 con rutas `@Serializable`.
 - **Arranque:** splash del sistema → `RootViewModel` → *Bloqueo* (si la licencia no permite el uso) → *Onboarding* (primera vez) → pantalla principal. Bloqueo y Onboarding están fuera del NavHost: ni Atrás ni un enlace pueden saltárselas.
-- **Navegación:** la barra inferior muestra Inicio, Inventario, Servicios y Registros (icono y nombre, selección invertida). Ajustes se abre desde el engranaje en la esquina superior derecha de Inicio y vuelve a la pantalla anterior. Las cuatro secciones principales y Ajustes tienen Ayuda contextual arriba a la izquierda con el icono compartido.
+- **Navegación:** la barra inferior muestra Inicio, Inventario, Servicios y Registros (icono y nombre, selección invertida). Ajustes se abre desde el engranaje en la esquina superior derecha de Inicio y vuelve a la pantalla anterior. Las cuatro secciones principales tienen ayuda contextual arriba a la izquierda; en Ajustes se abre el Manual de usuario desde su fila.
 
 ### Pruebas
 
@@ -289,7 +289,7 @@ Archivo `shalev.db`, Room **versión 10** (v4: servicios; v5: Principal/Secundar
 
 ## Manual de uso
 
-El manual para el usuario final, sin tecnicismos, está en [MANUAL_USUARIO.md](MANUAL_USUARIO.md). La app incluye una versión breve en **Ajustes → Ayuda**. Resumen del flujo diario:
+El manual para el usuario final, sin tecnicismos, está en [MANUAL_USUARIO.md](MANUAL_USUARIO.md). La app incluye un resumen del PDF organizado por pantalla en **Ajustes → Manual de usuario** y ayuda contextual en las secciones principales. Resumen del flujo diario:
 
 1. **Primera vez:** el asistente (Bienvenida → Tus datos → Avisos de inventario → Periodo de prueba). Todo se puede omitir y completar después en **Ajustes → Completar configuración**.
 2. **Cargar productos:** Inventario → botón **+** → formulario (con el filtro *Insumos* puesto, **+** abre directamente su formulario). Las recetas se escriben en el formulario del Elaborado.
