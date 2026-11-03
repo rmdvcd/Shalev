@@ -14,10 +14,9 @@ import androidx.compose.ui.semantics.semantics
 import cu.shalev.designsystem.component.ShalevDialog
 import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.domain.model.Modulo
-import cu.shalev.app.ayuda.AyudaVentana
 
-/** 
- * 1.0.2: ayuda de cada pestaña principal, la que abre el botón «?» de la esquina superior izquierda. 
+/**
+ * 1.0.2: ayuda de cada pestaña principal, la que abre el botón «?» de la esquina superior izquierda.
  * Ahora usa AyudaVentana resumido por ventana para un contenido más breve y concreto.
  */
 enum class PestanaAyuda(val titulo: String) {
@@ -25,6 +24,7 @@ enum class PestanaAyuda(val titulo: String) {
     INVENTARIO("Inventario"),
     SERVICIOS("Servicios"),
     REGISTROS("Registros"),
+    HERRAMIENTAS("Herramientas"),
     AJUSTES("Ajustes"),
     LICENCIA("Licencia"),
     RESPALDO("Respaldo"),
@@ -33,21 +33,24 @@ enum class PestanaAyuda(val titulo: String) {
 }
 
 /** Obtiene las ayudas de ventana para una pestaña dada y los módulos activos. */
-fun pestanaTemas(pestana: PestanaAyuda, modulos: Set<Modulo>): List<AyudaVentana> = when (pestana) {
-    PestanaAyuda.INICIO -> listOf(AyudaContenido.inicio)
-    PestanaAyuda.INVENTARIO -> listOf(AyudaContenido.inventario)
-    PestanaAyuda.SERVICIOS -> listOf(AyudaContenido.servicios)
-    PestanaAyuda.REGISTROS -> listOf(AyudaContenido.registros)
-    PestanaAyuda.AJUSTES -> listOf(AyudaContenido.ajustes)
-    PestanaAyuda.LICENCIA -> listOf(AyudaContenido.licencia)
-    PestanaAyuda.RESPALDO -> listOf(AyudaContenido.respaldo)
-    PestanaAyuda.EMPLEADOS -> listOf(AyudaContenido.empleados)
-    PestanaAyuda.SOPORTE -> listOf(AyudaContenido.soporte)
-    else -> emptyList()
+fun pestanaTemas(pestana: PestanaAyuda, modulos: Set<Modulo>): List<AyudaVentana> {
+    val categoria = when (pestana) {
+        PestanaAyuda.INICIO -> CategoriaAyuda.INICIO
+        PestanaAyuda.INVENTARIO -> CategoriaAyuda.INVENTARIO
+        PestanaAyuda.SERVICIOS -> CategoriaAyuda.SERVICIOS
+        PestanaAyuda.REGISTROS -> CategoriaAyuda.REGISTROS
+        PestanaAyuda.HERRAMIENTAS -> CategoriaAyuda.HERRAMIENTAS
+        PestanaAyuda.AJUSTES -> CategoriaAyuda.AJUSTES
+        PestanaAyuda.LICENCIA -> CategoriaAyuda.LICENCIA
+        PestanaAyuda.RESPALDO -> CategoriaAyuda.RESPALDO
+        PestanaAyuda.EMPLEADOS -> CategoriaAyuda.EMPLEADOS
+        PestanaAyuda.SOPORTE -> CategoriaAyuda.SOPORTE
+    }
+    return AyudaContenido.temasPara(modulos).filter { it.categoria == categoria }
 }
 
-/** 
- * Ventana con el contenido de ayuda de la pestaña: título y pasos breves por ventana. 
+/**
+ * Ventana con el contenido de ayuda de la pestaña: título y pasos breves por ventana.
  * [onVerManual] navega al manual resumido en Ajustes.
  */
 @Composable
@@ -70,7 +73,7 @@ fun DialogoAyudaPestana(
             Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
         ) {
-            if (ayudas.isEmpty()) Text("No hay ayuda disponible para esta pantalla.")
+            if (ayudas.isEmpty()) Text("Consulta el manual de usuario en Ajustes.")
             ayudas.forEach { ayuda ->
                 Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
                     Text(

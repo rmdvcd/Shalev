@@ -46,13 +46,14 @@ class AyudaSoporteTest {
         val todos = Modulo.TODOS
         val secciones = AyudaContenido.seccionesPara(todos)
         assertEquals(AyudaContenido.temas, secciones.flatMap { it.second })
-        val inicio = cu.shalev.app.ayuda.PestanaAyuda.INICIO.temas(todos).map { it.titulo }
-        assertTrue("Abrir y cerrar el turno" in inicio)
-        val registros = cu.shalev.app.ayuda.PestanaAyuda.REGISTROS.temas(todos).map { it.titulo }
-        assertTrue("Corregir operaciones" in registros)
-        assertTrue(cu.shalev.app.ayuda.PestanaAyuda.INVENTARIO.temas(setOf(Modulo.SERVICIOS)).isEmpty())
+        val inicio = cu.shalev.app.ayuda.pestanaTemas(cu.shalev.app.ayuda.PestanaAyuda.INICIO, todos).map { it.titulo }
+        assertTrue("Manual de usuario: Inicio" in inicio)
+        val registros = cu.shalev.app.ayuda.pestanaTemas(cu.shalev.app.ayuda.PestanaAyuda.REGISTROS, todos).map { it.titulo }
+        assertTrue("Manual de usuario: Registros" in registros)
+        assertTrue(cu.shalev.app.ayuda.pestanaTemas(cu.shalev.app.ayuda.PestanaAyuda.INVENTARIO, setOf(Modulo.SERVICIOS)).isEmpty())
         assertTrue(secciones.any { it.first == CategoriaAyuda.RESPALDO })
         assertTrue(secciones.any { it.first == CategoriaAyuda.VENTA })
+        assertEquals(listOf("Manual de usuario: Herramientas"), cu.shalev.app.ayuda.pestanaTemas(cu.shalev.app.ayuda.PestanaAyuda.HERRAMIENTAS, todos).map { it.titulo })
     }
 
 }

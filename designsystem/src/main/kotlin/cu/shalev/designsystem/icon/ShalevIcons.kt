@@ -19,6 +19,7 @@ object ShalevIcons {
     val Servicios: ImageVector get() = MaterialSolido.ManoRecibe
     val Registros: ImageVector get() = MaterialSolido.History              // reloj con flecha antihoraria
     val Ajustes: ImageVector get() = MaterialSolido.Settings
+    val Herramientas: ImageVector get() = MaterialSolido.Checklist
 
     // Dominio
     val Venta: ImageVector get() = MaterialSolido.ShoppingCart

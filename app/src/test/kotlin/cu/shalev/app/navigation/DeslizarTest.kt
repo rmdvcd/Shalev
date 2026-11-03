@@ -6,11 +6,17 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** El gesto de deslizar solo está activo en los 4 destinos principales y cuando no hay bloqueos. */
+/** El gesto de deslizar solo está activo en los 5 destinos principales y cuando no hay bloqueos. */
 class DeslizarTest {
     @Test fun ajustesNoFormaParteDeLaBarraInferior() {
-        assertEquals(4, TopLevel.entries.size)
+        assertEquals(5, TopLevel.entries.size)
+        assertEquals(TopLevel.HERRAMIENTAS, TopLevel.entries.last())
         assertFalse(TopLevel.entries.any { it.route == Route.Ajustes })
+    }
+
+    @Test fun herramientasSigueARegistrosAunqueFaltenModulos() {
+        val permisos = cu.shalev.domain.model.PermisosApp.PRINCIPAL.copy(modulos = emptySet())
+        assertEquals(listOf(TopLevel.INICIO, TopLevel.REGISTROS, TopLevel.HERRAMIENTAS), topLevelVisibles(permisos))
     }
 
     @Test fun soloEnRutaRaizYSinBloqueos() {

@@ -76,7 +76,7 @@ fun MainScaffold(snapshot: Licencia) {
     val permisosVm: cu.shalev.app.common.PermisosAppViewModel = hiltViewModel()
     val permisos by permisosVm.permisos.collectAsStateWithLifecycle()
     // 0.21.0 (C12): solo las secciones de los módulos del negocio.
-    val secciones = remember(permisos.modulos) { topLevelVisibles(permisos) }
+    val secciones = remember(permisos) { topLevelVisibles(permisos) }
     val selected = secciones.firstOrNull { current.isIn(it.route) }?.takeUnless { enSeleccionVenta }
     val items = remember(secciones) { secciones.map { ShalevNavItem(it.name, it.icon, it.label) } }
     // P29: deslizar a izquierda/derecha cambia de sección.
@@ -255,6 +255,8 @@ fun MainScaffold(snapshot: Licencia) {
             composable<Route.Registros> {
                 RegistrosScreen(onNavigate = nav::navigateTo)
             }
+            composable<Route.Herramientas> { cu.shalev.app.herramientas.HerramientasScreen(onAbrirFicha = { nav.navigateTo(Route.FichaCosto) }, onVerManual = { nav.navigateTo(Route.Ayuda) }) }
+            composable<Route.FichaCosto> { cu.shalev.app.herramientas.FichaCostoScreen(onBack = { nav.popBackStack() }) }
             composable<Route.TurnoDetalle> { TurnoDetalleScreen(onBack = { nav.popBackStack() }) }
             composable<Route.Ajustes> { AjustesScreen(onNavigate = nav::navigateTo, onBack = { nav.popBackStack() }) }
             composable<Route.Venta> { e ->

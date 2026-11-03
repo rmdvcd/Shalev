@@ -20,7 +20,7 @@ import kotlin.math.abs
 /**
  * P29 · Deslizar entre secciones de la barra inferior.
  *
- * - Solo en los 4 destinos principales (no en formularios, Ajustes, venta ni selección para vender).
+ * - Solo en los 5 destinos principales (no en formularios, Ajustes, venta ni selección para vender).
  * - Los gestos que un hijo ya consume (listas horizontales, pestañas desplazables, sliders) no cuentan.
  * - Se ignoran los toques que empiezan en las franjas de gestos del sistema (atrás por gesto en los bordes),
  *   para no chocar con la navegación del lanzador (gestos o 3 botones, cualquiera que sea el fabricante).
@@ -58,8 +58,8 @@ fun Modifier.deslizarEntreSecciones(activo: Boolean, onDeslizar: (dir: Int) -> U
 private val UMBRAL = 72.dp
 
 /**
- * 0.27.0 (T5): el gesto solo actúa si el destino actual es EXACTAMENTE una de las 4 rutas principales (Inicio,
- * Inventario, Servicios, Registros), no está en «elegir qué vender» ni en Ajustes, y ningún componente lo bloquea (ventana emergente,
+ * 0.27.0 (T5): el gesto solo actúa si el destino actual es EXACTAMENTE una de las 5 rutas principales (Inicio,
+ * Inventario, Servicios, Registros, Herramientas), no está en «elegir qué vender» ni en Ajustes, y ningún componente lo bloquea (ventana emergente,
  * menú del «+», campo con foco, modo selección).
  */
 fun deslizarPermitido(enRutaRaiz: Boolean, enSeleccionVenta: Boolean, bloqueado: Boolean): Boolean =

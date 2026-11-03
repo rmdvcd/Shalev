@@ -50,10 +50,10 @@ class Version021AppTest {
         val todos = AyudaContenido.seccionesPara(Modulo.TODOS).flatMap { it.second }.map { it.titulo }
         assertEquals(AyudaContenido.temas.map { it.titulo }, todos)
         val soloServicios = AyudaContenido.seccionesPara(setOf(Modulo.SERVICIOS)).flatMap { it.second }.map { it.titulo }
-        assertTrue("Servicios" in soloServicios && "Vender" in soloServicios)
-        assertTrue("Agregar productos" !in soloServicios && "Insumos y elaborados" !in soloServicios)
+        assertTrue("Manual de usuario: Servicios" in soloServicios && "Manual de usuario: Venta" in soloServicios)
+        assertTrue("Manual de usuario: Inventario" !in soloServicios)
         val soloInventario = AyudaContenido.seccionesPara(setOf(Modulo.INVENTARIO)).flatMap { it.second }.map { it.titulo }
-        assertTrue("Vender" !in soloInventario && "Servicios" !in soloInventario && "Agregar productos" in soloInventario)
+        assertTrue("Manual de usuario: Venta" !in soloInventario && "Manual de usuario: Servicios" !in soloInventario && "Manual de usuario: Inventario" in soloInventario)
     }
 
     @Test fun `C12 tipos de venta segun permisos y modulos`() {

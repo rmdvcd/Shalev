@@ -9,6 +9,7 @@ enum class CategoriaAyuda(val titulo: String, val detalle: String) {
     SERVICIOS("Servicios", "Catálogo de servicios por especialidad"),
     VENTA("Venta", "Carrito, cobro en efectivo o por transferencia"),
     REGISTROS("Registros", "Historial, correcciones y exportación de informes"),
+    HERRAMIENTAS("Herramientas", "Cálculo de costos"),
     AJUSTES("Ajustes", "Configuración, pago electrónico y precios"),
     RESPALDO("Respaldo", "Copias de seguridad y restauración"),
     LICENCIA("Licencia", "Solicitud, activación y renovación"),
@@ -35,7 +36,7 @@ object AyudaContenido {
         titulo = "Manual de usuario: Inicio",
         pasos = listOf(
             "Usa la barra inferior para cambiar de sección o desliza entre pantallas principales",
-            "Activa el interruptor del turno cuando begins a trabajar",
+            "Activa el interruptor del turno cuando empieces a trabajar",
             "Consulta el período de gráficos tocando el selector",
             "Accede a Ajustes con el engranaje para configurar tu negocio"
         ),
@@ -90,6 +91,17 @@ object AyudaContenido {
         categoria = CategoriaAyuda.REGISTROS
     )
 
+    /** Ayuda de la calculadora temporal de costos. */
+    val herramientas = AyudaVentana(
+        titulo = "Manual de usuario: Herramientas",
+        pasos = listOf(
+            "Abre Ficha de costo y agrega partidas con cantidad, costo y moneda",
+            "Consulta los totales en CUP y MLC por separado y el margen opcional",
+            "El cálculo es temporal: se pierde al salir y no se incluye en el respaldo"
+        ),
+        categoria = CategoriaAyuda.HERRAMIENTAS
+    )
+
     /** Ayuda para la pantalla de Ajustes. */
     val ajustes = AyudaVentana(
         titulo = "Manual de usuario: Ajustes",
@@ -119,7 +131,7 @@ object AyudaContenido {
         titulo = "Manual de usuario: Licencia",
         pasos = listOf(
             "En Ajustes → Licencia revisa tus datos personales",
-            "Pide la licencia por WhatsApp o SMS usando el código SPVIR1",
+            "Solicita la licencia por WhatsApp o SMS desde la pantalla Licencia",
             "Copia el código recibido (SPVI2:) y tócalo en Pegar",
             "Confirma la activación para desbloquear todas las funciones"
         ),
@@ -152,7 +164,7 @@ object AyudaContenido {
 
     /** Todas las ventanas de ayuda en orden de la barra inferior. */
     val todas = listOf(
-        inicio, inventario, servicios, venta, registros, ajustes, respaldo, licencia, empleados, soporte
+        inicio, inventario, servicios, venta, registros, herramientas, ajustes, respaldo, licencia, empleados, soporte
     )
 
     /** Obtiene la ayuda de la ventana que corresponde a la CategoríaAyuda. */
@@ -164,20 +176,20 @@ object AyudaContenido {
     /** Lista de todas las AyudaVentana (para compatibilidad con tests). */
     val temas: List<AyudaVentana> = todas
 
-    /** Agrupa ayuda por sección (categoría), filtrado por módulos activos. */
-    fun seccionesPara(modulos: Set<Modulo>): List<Pair<CategoriaAyuda, List<AyudaVentana>>> {
-        // Filtrar ayuda que corresponde a módulos activos
-        val ayudaModulos = todas.filter { ayuda ->
-            // Cada ayuda es compatible con todos los módulos en esta versión simplificada
-            true
+    /** Filtra las ventanas de módulos desactivados; las generales están siempre disponibles. */
+    fun temasPara(modulos: Set<Modulo>): List<AyudaVentana> = todas.filter { ayuda ->
+        when (ayuda.categoria) {
+            CategoriaAyuda.INVENTARIO -> Modulo.VENTAS in modulos || Modulo.INVENTARIO in modulos
+            CategoriaAyuda.SERVICIOS -> Modulo.SERVICIOS in modulos
+            CategoriaAyuda.VENTA -> Modulo.VENTAS in modulos || Modulo.SERVICIOS in modulos
+            else -> true
         }
-        // Agrupar por categoría
-        return ayudaModulos
-            .groupBy { it.categoria }
-            .entries
-            .sortedBy { it.key.ordinal }
-            .map { (categoria, ayudas) -> Pair(categoria, ayudas) }
     }
+
+    fun seccionesPara(modulos: Set<Modulo>): List<Pair<CategoriaAyuda, List<AyudaVentana>>> =
+        CategoriaAyuda.entries.mapNotNull { categoria ->
+            temasPara(modulos).filter { it.categoria == categoria }.takeIf { it.isNotEmpty() }?.let { categoria to it }
+        }
 
     /** Obtiene la ayuda de la ventana por nombre de categoría. */
     fun ayudaPorTitulo(titulo: String): AyudaVentana = when (titulo) {
@@ -186,6 +198,7 @@ object AyudaContenido {
         "Servicios" -> ayudaPara(CategoriaAyuda.SERVICIOS)
         "Venta" -> ayudaPara(CategoriaAyuda.VENTA)
         "Registros" -> ayudaPara(CategoriaAyuda.REGISTROS)
+        "Herramientas" -> ayudaPara(CategoriaAyuda.HERRAMIENTAS)
         "Ajustes" -> ayudaPara(CategoriaAyuda.AJUSTES)
         "Respaldo" -> ayudaPara(CategoriaAyuda.RESPALDO)
         "Licencia" -> ayudaPara(CategoriaAyuda.LICENCIA)

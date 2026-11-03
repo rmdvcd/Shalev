@@ -1,8 +1,6 @@
 package cu.shalev.app.ayuda
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -32,33 +29,11 @@ import cu.shalev.designsystem.component.CardTone
 import cu.shalev.designsystem.component.ShalevCard
 import cu.shalev.designsystem.component.ShalevTopBar
 import cu.shalev.designsystem.icon.ShalevIcons
-import cu.shalev.designsystem.token.ShalevRadius
 import cu.shalev.designsystem.token.ShalevSpacing
-import cu.shalev.app.ayuda.AyudaVentana
-import cu.shalev.domain.model.Modulo
 
 object AyudaTags {
     fun tema(i: Int) = "ayuda.tema_$i"
     fun seccion(i: Int) = "ayuda.seccion_$i"
-}
-
-/** 0.31.0 (P7): icono de cada tema del manual (el que se ve en la sección a la que pertenece). */
-private fun iconoTema(titulo: String): ImageVector = when (titulo) {
-    "Primeros pasos", "Consultar el negocio" -> ShalevIcons.Inicio
-    "Abrir y cerrar el turno" -> ShalevIcons.Venta
-    "Vender" -> ShalevIcons.Venta
-    "Cobrar por transferencia" -> ShalevIcons.PagoElectronico
-    "Ver lo vendido", "Corregir operaciones" -> ShalevIcons.Registros
-    "Agregar productos", "Buscar y filtrar el inventario" -> ShalevIcons.Inventario
-    "Insumos y elaborados" -> ShalevIcons.Inventario
-    "Servicios" -> ShalevIcons.Servicios
-    "Guardar una copia", "Restaurar una copia" -> ShalevIcons.Respaldo
-    "Licencia" -> ShalevIcons.Licencia
-    "Apps vinculadas" -> ShalevIcons.Movil
-    "Configurar el negocio" -> ShalevIcons.Configurar
-    "Pago electrónico" -> ShalevIcons.PagoElectronico
-    "Precios" -> ShalevIcons.Precios
-    else -> ShalevIcons.Soporte
 }
 
 /** 0.31.0 (P7): icono de cada sección. */
@@ -68,6 +43,7 @@ private fun iconoSeccion(c: CategoriaAyuda): ImageVector = when (c) {
     CategoriaAyuda.SERVICIOS -> ShalevIcons.Servicios
     CategoriaAyuda.VENTA -> ShalevIcons.Venta
     CategoriaAyuda.REGISTROS -> ShalevIcons.Registros
+    CategoriaAyuda.HERRAMIENTAS -> ShalevIcons.Herramientas
     CategoriaAyuda.AJUSTES -> ShalevIcons.Configurar
     CategoriaAyuda.RESPALDO -> ShalevIcons.Respaldo
     CategoriaAyuda.LICENCIA -> ShalevIcons.Licencia
@@ -76,13 +52,13 @@ private fun iconoSeccion(c: CategoriaAyuda): ImageVector = when (c) {
 }
 
 /**
- * Ajustes → Manual de usuario: resumen por ventanas y temas. Sin estado de negocio (no necesita ViewModel); 
+ * Ajustes → Manual de usuario: resumen por ventanas y temas. Sin estado de negocio (no necesita ViewModel);
  * solo qué tema está abierto.
  */
 @Composable
 fun AyudaScreen(onBack: () -> Unit) {
-    var abierto by rememberSaveable { mutableStateOf<String?>(null) }
     val modulos = cu.shalev.app.common.LocalPermisosApp.current.modulos
+    val secciones = AyudaContenido.seccionesPara(modulos)
 
     Scaffold(topBar = { ShalevTopBar(title = "Manual de usuario", onBack = onBack) }) { padding ->
         LazyColumn(
@@ -101,8 +77,8 @@ fun AyudaScreen(onBack: () -> Unit) {
                 }
             }
             // Iterar sobre cada categoría de ayuda
-            for (categoria in CategoriaAyuda.values()) {
-                val ayuda = AyudaContenido.ayudaPara(categoria)
+            secciones.forEachIndexed { indice, (categoria, ayudas) ->
+                val ayuda = ayudas.first()
                 // Mostrar la sección de la categoría
                 item {
                     Row(
@@ -132,11 +108,11 @@ fun AyudaScreen(onBack: () -> Unit) {
                     var abiertoCategoria by rememberSaveable { mutableStateOf<String?>(null) }
                     ShalevCard(
                         onClick = { abiertoCategoria = if (abiertoCategoria == categoria.titulo) null else categoria.titulo },
-                        modifier = Modifier.testTag(AyudaTags.seccion(categoria.ordinal))
+                        modifier = Modifier.testTag(AyudaTags.tema(indice))
                             .semantics { stateDescription = if (abiertoCategoria == categoria.titulo) "Abierto" else "Cerrado" },
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-                            Icon(iconoTema(ayuda.titulo), contentDescription = null)
+                            Icon(iconoSeccion(categoria), contentDescription = null)
                             Text(
                                 ayuda.titulo,
                                 style = MaterialTheme.typography.titleMedium,
@@ -148,9 +124,6 @@ fun AyudaScreen(onBack: () -> Unit) {
                             )
                         }
                         if (abiertoCategoria == categoria.titulo) {
-                            AyudaContenido.INTRO.let { intro ->
-                                Text(intro, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = ShalevSpacing.xs))
-                            }
                             ayuda.pasos.forEachIndexed { n, paso ->
                                 Text(
                                     "${n + 1}. $paso",

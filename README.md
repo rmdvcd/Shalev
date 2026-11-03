@@ -51,6 +51,7 @@ La versión publicada es la **1.0 (`versionCode 53`)**: la primera versión púb
 | **QR de vinculación** | CameraX + ML Kit (modelo empaquetado). Solo lee el QR para vincular la principal con la secundaria |
 | **Servicios** | (0.18.0, sustituye a Elaboración.) Nombre, Tipo, Importe y, opcionales, foto y descripción. Pueden gastar insumos. Se venden aparte de los productos, tienen su pestaña en Registros y sus indicadores en Inicio. Los **insumos** son ahora la categoría «Insumos» del Inventario (precio de venta opcional, en unidades enteras). Los Elaborados muestran «Alcanza para N» |
 | **Registros** | Ventas, Transferencias, Movimientos, **Clientes** (clientes fijos, 0.27.0; corregir sus datos desde la ficha, 0.31.0) y Turnos, con buscador y filtros de fecha e importe. Exportar a PDF/Excel (0.26.0: ya no se comparte como texto). Desde la 0.31.0 se corrige lo registrado de un turno **abierto**: cantidades, método de pago y nº de transacción en ventas y servicios; la venta de una transferencia desde su ficha; y la cantidad de un ajuste desde la ficha del movimiento |
+| **Herramientas** | Ficha de costo: calculadora temporal de partidas en CUP y MLC, sin guardado ni exportación |
 | **Ajustes** | Completar configuración, Perfil, Licencia, Pago electrónico, Precios (preajustes), Avisos de inventario, Permisos, Respaldo, Actualizar, Manual de usuario, Soporte |
 
 ### Qué no hace
@@ -115,7 +116,7 @@ Versiones principales (`gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 8.7.3, C
 
 - **DI:** Hilt. **Navegación:** Navigation Compose 2.8 con rutas `@Serializable`.
 - **Arranque:** splash del sistema → `RootViewModel` → *Bloqueo* (si la licencia no permite el uso) → *Onboarding* (primera vez) → pantalla principal. Bloqueo y Onboarding están fuera del NavHost: ni Atrás ni un enlace pueden saltárselas.
-- **Navegación:** la barra inferior muestra Inicio, Inventario, Servicios y Registros (icono y nombre, selección invertida). Ajustes se abre desde el engranaje en la esquina superior derecha de Inicio y vuelve a la pantalla anterior. Las cuatro secciones principales tienen ayuda contextual arriba a la izquierda; en Ajustes se abre el Manual de usuario desde su fila.
+- **Navegación:** la barra inferior muestra Inicio, Inventario, Servicios, Registros y Herramientas (icono y nombre, selección invertida). Ajustes se abre desde el engranaje en la esquina superior derecha de Inicio y vuelve a la pantalla anterior. Las cinco secciones principales tienen ayuda contextual arriba a la izquierda; en Ajustes se abre el Manual de usuario desde su fila.
 
 ### Pruebas
 
@@ -194,7 +195,7 @@ Las filas de Inventario resaltan las alertas de existencias y los bordes del con
 | **Textos completos** | Los textos pasan a varias líneas en lugar de cortarse (también con letra al 200 % en 360 dp); capturas con letra grande de Inicio, ficha, Licencia y arqueo |
 | **Top 3 con medallas** | Oro, plata y bronce (`ShalevMedalla`), con contraste AA en claro y oscuro |
 | **Animaciones** | 150–250 ms y muelle sin rebote (`ShalevMotion`); las ventanas emergentes suben desde abajo al centro y bajan al cerrar. `profileinstaller` se añadió en esa versión y se retiró después al no existir un baseline profile generado (auditoría 2026-10-14) |
-| **Deslizar** | Solo entre las 4 pantallas principales (Inicio, Inventario, Servicios y Registros), nunca en subpantallas, con un diálogo abierto, en selección o escribiendo |
+| **Deslizar** | Solo entre las 5 pantallas principales (Inicio, Inventario, Servicios, Registros y Herramientas), nunca en subpantallas, con un diálogo abierto, en selección o escribiendo |
 | **Campos** | El texto de ejemplo (placeholder) va centrado |
 | **PDF y Excel** | Con su icono en todas las hojas de exportar |
 | **Textos llanos** | Sin versiones, nombres técnicos ni explicaciones de la licencia o del registro de la prueba |
