@@ -34,6 +34,8 @@ import cu.shalev.designsystem.component.ShalevTopBar
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.token.ShalevRadius
 import cu.shalev.designsystem.token.ShalevSpacing
+import cu.shalev.app.ayuda.AyudaVentana
+import cu.shalev.domain.model.Modulo
 
 object AyudaTags {
     fun tema(i: Int) = "ayuda.tema_$i"
@@ -74,15 +76,14 @@ private fun iconoSeccion(c: CategoriaAyuda): ImageVector = when (c) {
 }
 
 /**
- * Ajustes → Manual de usuario: resumen por ventanas y temas. Sin estado de negocio (no necesita ViewModel); solo qué tema está
- * abierto. Los esquemas se dibujan con formas del sistema de diseño, así que no hace falta guardar imágenes.
+ * Ajustes → Manual de usuario: resumen por ventanas y temas. Sin estado de negocio (no necesita ViewModel); 
+ * solo qué tema está abierto.
  */
 @Composable
 fun AyudaScreen(onBack: () -> Unit) {
     var abierto by rememberSaveable { mutableStateOf<String?>(null) }
-    val secciones = AyudaContenido.seccionesPara(cu.shalev.app.common.LocalPermisosApp.current.modulos) // 0.21.0 (C12)
-    // Los temas en el orden del manual, con su sección: la etiqueta de pruebas es el número de tema (como antes).
-    val plan = secciones.flatMapIndexed { i, (_, temas) -> temas.mapIndexed { j, t -> Triple(i, j, t) } }
+    val modulos = cu.shalev.app.common.LocalPermisosApp.current.modulos
+
     Scaffold(topBar = { ShalevTopBar(title = "Manual de usuario", onBack = onBack) }) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
@@ -92,59 +93,71 @@ fun AyudaScreen(onBack: () -> Unit) {
             item {
                 ShalevCard(tone = CardTone.Tonal) {
                     Text(
-                        AyudaContenido.INTRO, style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                        AyudaContenido.INTRO,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
-            plan.forEachIndexed { plano, (i, j, tema) ->
-                if (j == 0) {
-                    val categoria = secciones[i].first
-                    item {
-                        Row(
-                            Modifier.fillMaxWidth().padding(top = ShalevSpacing.md, bottom = ShalevSpacing.xs)
-                                .testTag(AyudaTags.seccion(i)),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-                        ) {
-                            Icon(iconoSeccion(categoria), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    categoria.titulo, style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.semantics { heading() },
-                                )
-                                Text(
-                                    categoria.detalle, style = MaterialTheme.typography.bodySmall,
-                                    textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs),
-                                )
-                            }
+            // Iterar sobre cada categoría de ayuda
+            for (categoria in CategoriaAyuda.values()) {
+                val ayuda = AyudaContenido.ayudaPara(categoria)
+                // Mostrar la sección de la categoría
+                item {
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = ShalevSpacing.md, bottom = ShalevSpacing.xs)
+                            .testTag(AyudaTags.seccion(categoria.ordinal)),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+                    ) {
+                        Icon(iconoSeccion(categoria), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                categoria.titulo,
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.semantics { heading() },
+                            )
+                            Text(
+                                categoria.detalle,
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Start,
+                                modifier = Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs),
+                            )
                         }
                     }
                 }
+                // Mostrar los temas/ventanas de ayuda para esta categoría
                 item {
-                    val clave = "${secciones[i].first.name}/$j"
-                    val expandido = abierto == clave
+                    var abiertoCategoria by rememberSaveable { mutableStateOf<String?>(null) }
                     ShalevCard(
-                        onClick = { abierto = if (expandido) null else clave },
-                        modifier = Modifier.testTag(AyudaTags.tema(plano))
-                            .semantics { stateDescription = if (expandido) "Abierto" else "Cerrado" },
+                        onClick = { abiertoCategoria = if (abiertoCategoria == categoria.titulo) null else categoria.titulo },
+                        modifier = Modifier.testTag(AyudaTags.seccion(categoria.ordinal))
+                            .semantics { stateDescription = if (abiertoCategoria == categoria.titulo) "Abierto" else "Cerrado" },
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-                            Icon(iconoTema(tema.titulo), contentDescription = null)
+                            Icon(iconoTema(ayuda.titulo), contentDescription = null)
                             Text(
-                                tema.titulo, style = MaterialTheme.typography.titleMedium,
+                                ayuda.titulo,
+                                style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.weight(1f).semantics { heading() },
                             )
-                            Icon(if (expandido) ShalevIcons.Quitar else ShalevIcons.Agregar, contentDescription = null)
+                            Icon(
+                                if (abiertoCategoria == categoria.titulo) ShalevIcons.Quitar else ShalevIcons.Agregar,
+                                contentDescription = null,
+                            )
                         }
-                        if (expandido) {
-                            tema.pasos.forEachIndexed { n, paso ->
+                        if (abiertoCategoria == categoria.titulo) {
+                            AyudaContenido.INTRO.let { intro ->
+                                Text(intro, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = ShalevSpacing.xs))
+                            }
+                            ayuda.pasos.forEachIndexed { n, paso ->
                                 Text(
-                                    "${n + 1}. $paso", style = MaterialTheme.typography.bodyMedium,
-                                    textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs),
+                                    "${n + 1}. $paso",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(start = ShalevSpacing.xs, bottom = ShalevSpacing.xs),
                                 )
                             }
-                            tema.esquema?.let { Esquema(it, Modifier.padding(top = ShalevSpacing.xs)) }
                         }
                     }
                 }
@@ -152,49 +165,3 @@ fun AyudaScreen(onBack: () -> Unit) {
         }
     }
 }
-
-// ------------------------------------------------------------------ esquemas (0.31.0, P7)
-
-/**
- * Esquema del tema: dibujado con rectángulos y texto, sin imágenes. Se usan formas del sistema de diseño para que
- * se vea igual en claro y oscuro y no haya que mantener capturas.
- */
-@Composable
-private fun Esquema(tipo: EsquemaAyuda, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-        when (tipo) {
-            EsquemaAyuda.TURNO -> Flujo(
-                listOf("Turno cerrado", "Abrir turno", "Vender", "Cerrar turno"),
-            )
-            EsquemaAyuda.VENTA -> Flujo(
-                listOf("Nueva venta", "Productos o Servicios", "Efectivo o transferencia", "Confirmar"),
-            )
-            EsquemaAyuda.RESPALDO -> Flujo(
-                listOf("Este teléfono", "Archivo .shalev", "El teléfono nuevo"),
-            )
-        }
-    }
-}
-
-/** Cajas una debajo de otra con una flecha entre ellas: un camino de pocos pasos. */
-@Composable
-private fun Flujo(pasos: List<String>, modifier: Modifier = Modifier) {
-    val cs = MaterialTheme.colorScheme
-    Column(
-        modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-    ) {
-        pasos.forEachIndexed { i, paso ->
-            Box(
-                Modifier.background(cs.surfaceContainerHighest, RoundedCornerShape(ShalevRadius.sm))
-                    .padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
-            ) {
-                Text(paso, style = MaterialTheme.typography.labelLarge)
-            }
-            if (i < pasos.lastIndex) {
-                Text("↓", style = MaterialTheme.typography.titleMedium, color = cs.primary)
-            }
-        }
-    }
-}
-

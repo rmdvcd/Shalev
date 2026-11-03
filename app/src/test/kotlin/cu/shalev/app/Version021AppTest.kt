@@ -47,12 +47,12 @@ class Version021AppTest {
     }
 
     @Test fun `C12 la ayuda oculta los temas de modulos desactivados`() {
-        val todos = AyudaContenido.temasPara(Modulo.TODOS).map { it.titulo }
+        val todos = AyudaContenido.seccionesPara(Modulo.TODOS).flatMap { it.second }.map { it.titulo }
         assertEquals(AyudaContenido.temas.map { it.titulo }, todos)
-        val soloServicios = AyudaContenido.temasPara(setOf(Modulo.SERVICIOS)).map { it.titulo }
+        val soloServicios = AyudaContenido.seccionesPara(setOf(Modulo.SERVICIOS)).flatMap { it.second }.map { it.titulo }
         assertTrue("Servicios" in soloServicios && "Vender" in soloServicios)
         assertTrue("Agregar productos" !in soloServicios && "Insumos y elaborados" !in soloServicios)
-        val soloInventario = AyudaContenido.temasPara(setOf(Modulo.INVENTARIO)).map { it.titulo }
+        val soloInventario = AyudaContenido.seccionesPara(setOf(Modulo.INVENTARIO)).flatMap { it.second }.map { it.titulo }
         assertTrue("Vender" !in soloInventario && "Servicios" !in soloInventario && "Agregar productos" in soloInventario)
     }
 
