@@ -37,6 +37,9 @@ object ShalevStepperTextos {
  * - Atrás y Siguiente son botones de icono de 48dp. Si no se pasan, no se muestran; si falta solo uno, su hueco
  *   se reserva para que el título no salte. Sin ninguno (Onboarding, Importar), el título usa todo el ancho.
  * - [siguienteHabilitado] = false hasta que el paso tenga datos válidos.
+ * - Las flechas son «repetibles» (sin la protección anti-doble-toque de [GuardiaDobleToque]): navegar paso a paso
+ *   es secuencial, como los selectores +/−. La acción importante de cada paso vive en sus propios botones,
+ *   que sí están protegidos.
  */
 @Composable
 fun ShalevStepper(
@@ -52,7 +55,7 @@ fun ShalevStepper(
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             if (onAtras != null) {
-                ShalevIconAction(ShalevIcons.Disminuir, ShalevStepperTextos.ATRAS, onClick = onAtras)
+                ShalevIconAction(ShalevIcons.Disminuir, ShalevStepperTextos.ATRAS, onClick = onAtras, repetible = true)
             } else if (conBotones) {
                 Spacer(Modifier.size(ShalevSize.touchTarget))
             }
@@ -70,7 +73,7 @@ fun ShalevStepper(
             if (onSiguiente != null) {
                 ShalevIconAction(
                     ShalevIcons.Aumentar, ShalevStepperTextos.SIGUIENTE, onClick = onSiguiente,
-                    enabled = siguienteHabilitado, style = IconActionStyle.Filled,
+                    enabled = siguienteHabilitado, style = IconActionStyle.Filled, repetible = true,
                 )
             } else if (conBotones) {
                 Spacer(Modifier.size(ShalevSize.touchTarget))

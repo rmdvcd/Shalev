@@ -1,5 +1,6 @@
 package cu.shalev.app.vinculacion
 
+import cu.shalev.app.common.mensajeParaUsuario
 import cu.shalev.core.result.AppError
 import cu.shalev.core.time.Dates
 import cu.shalev.domain.model.Empleado
@@ -146,7 +147,8 @@ object VinculacionLogic {
         AppError.LicenciaBloqueada -> "Activa la licencia para vincular apps secundarias."
         AppError.Red.SinConexion -> "Conéctate a una wifi, activa la zona wifi de este teléfono o enciende los datos móviles."
         is AppError.SinPrincipal -> cu.shalev.app.common.TextosSync.sinPrincipal(e.pendientes)
-        is AppError.VinculacionRechazada -> e.motivo
+        // El motivo viene de la otra app por la red: mensajeParaUsuario solo lo enseña si parece una frase.
+        is AppError.VinculacionRechazada -> e.mensajeParaUsuario()
         else -> "No se pudo completar. Inténtalo de nuevo."
     }
 }

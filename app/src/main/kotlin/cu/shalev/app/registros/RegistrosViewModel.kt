@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -102,6 +103,7 @@ class RegistrosViewModel @Inject constructor(
     private val archivos: ArchivosApp,
     private val clock: Clock,
     private val saved: SavedStateHandle,
+    private val estadoPantallas: cu.shalev.domain.repository.EstadoPantallasRepository,
 ) : ViewModel() {
 
     /** Zona para fechas y días del filtro (tests: fija). */
@@ -120,6 +122,39 @@ class RegistrosViewModel @Inject constructor(
             filtros = FiltrosGuardados.leer { saved.get<ArrayList<String>>(it) },
         ),
     )
+
+    /** Última cadena escrita por clave en el ajuste permanente (no se reescribe lo mismo en cada tecla). */
+    private val persistido = mutableMapOf<String, String>()
+
+    init {
+        // Permanencia al cerrar la app: solo si el SavedStateHandle viene vacío (arranque en frío, no muerte del
+        // proceso) se restaura lo guardado la última vez. Si la persona ya tocó algo mientras se leía, no se pisa.
+        val deProceso = saved.get<String>(FiltrosGuardados.CLAVE_PESTANA) != null ||
+            TipoRegistro.entries.any { saved.get<ArrayList<String>>(FiltrosGuardados.clave(it)) != null }
+        if (!deProceso) {
+            val inicial = local.value
+            viewModelScope.launch {
+                val pestana = FiltrosGuardados.pestana(estadoPantallas.observar(FiltrosGuardados.CLAVE_PESTANA_PERSISTENTE).first())
+                val filtros = TipoRegistro.entries.mapNotNull { t ->
+                    val guardado = estadoPantallas.observar(FiltrosGuardados.clavePersistente(t)).first()
+                    guardado?.also { persistido[FiltrosGuardados.clavePersistente(t)] = it }
+                    FiltrosGuardados.decodificarTexto(guardado)?.let { t to it }
+                }.toMap()
+                if (local.value == inicial && (filtros.isNotEmpty() || pestana != inicial.pestana)) {
+                    local.value = inicial.copy(pestana = pestana, filtros = filtros)
+                    // Espejo en el SavedStateHandle: una muerte del proceso en esta sesión restaura lo mismo.
+                    saved[FiltrosGuardados.CLAVE_PESTANA] = pestana.name
+                    filtros.forEach { (t, f) -> saved[FiltrosGuardados.clave(t)] = FiltrosGuardados.codificar(f) }
+                }
+            }
+        }
+    }
+
+    private fun persistir(clave: String, valor: String) {
+        if (persistido[clave] == valor) return
+        persistido[clave] = valor
+        viewModelScope.launch { estadoPantallas.guardar(clave, valor) }
+    }
     private val intento = MutableStateFlow(0)
     private val eventosCh = Channel<EventoRegistros>(Channel.BUFFERED)
     val eventos: Flow<EventoRegistros> = eventosCh.receiveAsFlow()
@@ -164,6 +199,7 @@ class RegistrosViewModel @Inject constructor(
     fun pestana(p: PestanaRegistros) {
         local.update { it.copy(pestana = p, ficha = null, hojaFiltro = false, hojaExportar = false, seleccion = emptySet()) }
         saved[FiltrosGuardados.CLAVE_PESTANA] = p.name
+        persistir(FiltrosGuardados.CLAVE_PESTANA_PERSISTENTE, p.name) // sobrevive al cierre de la app
     }
 
     // ---------------- Selección con casilla (0.31.0, P3) ----------------
@@ -204,7 +240,12 @@ class RegistrosViewModel @Inject constructor(
             s.copy(filtros = s.filtros + (tipo to cambio(s.filtro)))
         }
         val s = local.value
-        s.tipo?.let { saved[FiltrosGuardados.clave(it)] = FiltrosGuardados.codificar(s.filtro) }
+        s.tipo?.let {
+            saved[FiltrosGuardados.clave(it)] = FiltrosGuardados.codificar(s.filtro)
+            // Permanente (sin el texto del buscador): buscar() pasa por aquí en cada tecla, pero persistir()
+            // no reescribe la misma cadena, así que solo hay escritura cuando cambian fecha/importe/vendedor.
+            persistir(FiltrosGuardados.clavePersistente(it), FiltrosGuardados.codificarTexto(s.filtro))
+        }
     }
 
     // ---------------- Ventana del elemento ----------------

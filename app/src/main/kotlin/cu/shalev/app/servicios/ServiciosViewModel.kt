@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -101,6 +102,7 @@ class ServiciosViewModel @Inject constructor(
     private val clock: Clock,
     private val imagenTabla: cu.shalev.app.common.ImagenTablaAndroid,
     private val tarjetas: cu.shalev.app.inventario.TarjetasAndroid,
+    private val estadoPantallas: cu.shalev.domain.repository.EstadoPantallasRepository,
 ) : ViewModel() {
 
     private val modoVenta: Boolean = saved.get<Boolean>(KEY_VENTA) == true
@@ -144,11 +146,28 @@ class ServiciosViewModel @Inject constructor(
 
     private val exportador = ExportadorArchivos<FormatoSalida>(archivos)
 
+    init {
+        // Permanencia del filtro al cerrar la app (fuera del modo venta): se restaura el último tipo marcado,
+        // salvo que la persona ya esté buscando o filtrando cuando llega el valor.
+        if (!modoVenta) viewModelScope.launch {
+            val guardado = FiltroServiciosGuardado.decodificar(
+                estadoPantallas.observar(FiltroServiciosGuardado.CLAVE).first(),
+            )
+            if (guardado != null && filtro.value == FiltroServicios()) filtro.value = guardado
+        }
+    }
+
+    private fun persistirFiltro() {
+        if (modoVenta) return // la selección para vender no toca el filtro recordado de la tienda
+        val valor = FiltroServiciosGuardado.codificar(filtro.value)
+        viewModelScope.launch { estadoPantallas.guardar(FiltroServiciosGuardado.CLAVE, valor) }
+    }
+
     // ---------------- Buscador y filtro ----------------
 
     fun buscar(texto: String) = filtro.update { it.copy(texto = texto.take(80)) }
-    fun aplicarFiltro(f: FiltroServicios) { filtro.update { f.copy(texto = it.texto) }; cerrarHoja() }
-    fun quitarFiltros() = filtro.update { FiltroServicios() }
+    fun aplicarFiltro(f: FiltroServicios) { filtro.update { f.copy(texto = it.texto) }; cerrarHoja(); persistirFiltro() }
+    fun quitarFiltros() { filtro.update { FiltroServicios() }; persistirFiltro() }
     fun reintentar() = intento.update { it + 1 }
 
     // ---------------- Selección ----------------
@@ -285,11 +304,14 @@ class ServiciosViewModel @Inject constructor(
 
     // ---------------- Internos ----------------
 
-    private fun trabajar(block: suspend () -> Unit) = lanzarExportacion(
-        ocupado = { b -> local.update { it.copy(trabajando = b) } },
-        alFallar = { emitir(EventoServicios.Mensaje(TextosServicios.ERROR_EXPORTAR)) },
-        bloque = block,
-    )
+    private fun trabajar(block: suspend () -> Unit) {
+        if (local.value.trabajando) return // ya hay una exportación en curso: no se lanza otra encima
+        lanzarExportacion(
+            ocupado = { b -> local.update { it.copy(trabajando = b) } },
+            alFallar = { emitir(EventoServicios.Mensaje(TextosServicios.ERROR_EXPORTAR)) },
+            bloque = block,
+        )
+    }
 
     private fun nombreArchivo(f: FormatoExport) =
         "Shalev_servicios_${Dates.localDate(clock.now(), ZoneId.systemDefault())}.${f.extension}"

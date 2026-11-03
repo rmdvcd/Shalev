@@ -66,7 +66,7 @@ class LicenciaUiTest {
         }
         rule.onNodeWithTag(LicenciaTags.AVISO_BLOQUEO).assertIsDisplayed()
         rule.onNodeWithText("Licencia Mensual vencida").assertIsDisplayed()
-        rule.onNodeWithTag(LicenciaTags.SOPORTE).performClick()
+        rule.onNodeWithTag(LicenciaTags.SOPORTE).performScrollTo().performClick()
         assertEquals(1, soporte)
     }
 
@@ -82,18 +82,20 @@ class LicenciaUiTest {
         rule.onNodeWithTag(LicenciaTags.FORM_DATOS).performScrollTo().assertIsDisplayed()
     }
 
-    @Test fun perfilCompletoMuestraResumen() {
+    @Test fun perfilCompletoNoRepideLosDatosYMuestraResumenAlVolver() {
         licencia(LicenciaUiState(vencida, LicenciaForm().desdePerfil(perfil), listOf("52345678"), perfilVacio = false))
-        rule.onNodeWithTag(LicenciaTags.RESUMEN_DATOS).performScrollTo().assertIsDisplayed()
-        siguiente()
+        // Los datos ya están en el Perfil: el asistente entra directo en «Pide la licencia», sin re-pedirlos.
+        rule.onNodeWithContentDescription("Paso 2 de 3: Pide la licencia").assertExists()
         rule.onNodeWithText("Solicitar renovación").assertExists()
+        rule.onNodeWithContentDescription(ShalevStepperTextos.ATRAS).performScrollTo().performClick()
+        rule.onNodeWithTag(LicenciaTags.RESUMEN_DATOS).performScrollTo().assertIsDisplayed()
     }
 
     @Test fun buildSinClaveDelEmisorRemiteAlDesarrolladorYDeshabilitaSolicitar() {
         val sinClave = vencida.copy(huellaEmisor = null, puedeSolicitar = false)
         licencia(LicenciaUiState(sinClave, LicenciaForm().desdePerfil(perfil), perfilVacio = false))
         rule.onNodeWithText("Esta versión no puede pedir licencias").assertIsDisplayed()
-        siguiente()
+        // Con el Perfil completo ya se está en «Pide la licencia»: el botón está ahí, deshabilitado.
         rule.onNodeWithTag(LicenciaTags.BOTON_SOLICITAR).performScrollTo().assertIsNotEnabled()
     }
 
@@ -105,7 +107,7 @@ class LicenciaUiTest {
 
     @Test fun solicitarInvocaLaAccion() {
         licencia(LicenciaUiState(vencida, LicenciaForm().desdePerfil(perfil), perfilVacio = false))
-        siguiente()
+        // Arranque directo en «Pide la licencia» (los datos ya vienen del Perfil).
         rule.onNodeWithTag(LicenciaTags.BOTON_SOLICITAR).performScrollTo().assertIsEnabled().performClick()
         assertTrue(solicitudes == 1)
     }
@@ -114,8 +116,11 @@ class LicenciaUiTest {
 
     @Test fun asistenteAnunciaElPasoYAvanzaHastaActivar() {
         licencia(LicenciaUiState(vencida, LicenciaForm().desdePerfil(perfil), perfilVacio = false))
-        rule.onNodeWithContentDescription("Paso 1 de 3: Revisa tus datos").assertExists()
+        // Con los datos ya dados se entra en el paso 2; Atrás permite revisarlos (paso 1).
+        rule.onNodeWithContentDescription("Paso 2 de 3: Pide la licencia").assertExists()
         rule.onNodeWithTag(LicenciaTags.BOTON_ACTIVAR).assertDoesNotExist()
+        rule.onNodeWithContentDescription(ShalevStepperTextos.ATRAS).performScrollTo().performClick()
+        rule.onNodeWithContentDescription("Paso 1 de 3: Revisa tus datos").assertExists()
         siguiente()
         rule.onNodeWithContentDescription("Paso 2 de 3: Pide la licencia").assertExists()
         siguiente()
@@ -139,9 +144,21 @@ class LicenciaUiTest {
         assertTrue(editado?.mostrarErrores == true)
     }
 
+    // ---------- Paneles informativos (acordeones) ----------
+
+    @Test fun preciosEsUnPanelColapsable() {
+        licencia(LicenciaUiState(vencida, LicenciaForm().desdePerfil(Perfil()), perfilVacio = true))
+        // Los precios son información de referencia: el panel empieza cerrado y se abre tocando su título.
+        rule.onNodeWithTag(LicenciaTags.PRECIOS).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag(LicenciaTags.precio(TipoLicencia.MENSUAL)).assertDoesNotExist()
+        rule.onNodeWithText("Precios de la licencia").performScrollTo().performClick()
+        rule.onNodeWithTag(LicenciaTags.precio(TipoLicencia.MENSUAL)).performScrollTo().assertIsDisplayed()
+    }
+
     /** 0.31.0 (P4): el paso «Activa la licencia» se alcanza con «Paso siguiente», sin botón de llave. */
     @Test fun elPasoSiguienteLlevaAActivar() {
         licencia(LicenciaUiState(vencida, LicenciaForm().desdePerfil(perfil), perfilVacio = false))
+        rule.onNodeWithContentDescription(ShalevStepperTextos.ATRAS).performScrollTo().performClick() // a «Revisa tus datos»
         siguiente()
         siguiente()
         rule.onNodeWithTag(LicenciaTags.BOTON_ACTIVAR).performScrollTo().assertIsDisplayed()

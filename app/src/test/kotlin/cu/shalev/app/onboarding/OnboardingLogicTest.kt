@@ -16,14 +16,23 @@ class OnboardingLogicTest {
 
     // ---------- Plan ----------
 
-    @Test fun primeraVezEmpiezaConBienvenidaYMuestraTodo() {
-        val plan = planWizard(ModoWizard.PRIMERA_VEZ, ResumenConfiguracion(todos, listOf(PasoConfiguracion.ALERTAS)))
+    @Test fun primeraVezSinNadaHechoEmpiezaConBienvenidaYMuestraTodo() {
+        // Instalación limpia: nada está hecho, así que pendientes = todos los pasos aplicables.
+        val plan = planWizard(ModoWizard.PRIMERA_VEZ, ResumenConfiguracion(todos, todos))
         // 0.21.0 (C12): tras la bienvenida, el recorrido (tipo de app, objetivo, empleados).
         assertEquals(
             listOf(PasoWizard.BIENVENIDA) + PASOS_TOUR +
                 listOf(PasoWizard.DATOS, PasoWizard.ALERTAS, PasoWizard.PRUEBA),
             plan,
         )
+    }
+
+    @Test fun primeraVezNoRepiteLoYaHecho() {
+        // Quien activó su licencia antes del asistente ya dio sus datos en la pantalla de Licencia (guardados en
+        // el Perfil al solicitar): el asistente NO los vuelve a pedir; solo muestra lo que falta.
+        val plan = planWizard(ModoWizard.PRIMERA_VEZ, ResumenConfiguracion(todos, listOf(PasoConfiguracion.ALERTAS)))
+        assertEquals(listOf(PasoWizard.BIENVENIDA) + PASOS_TOUR + listOf(PasoWizard.ALERTAS), plan)
+        assertTrue("los datos no se piden dos veces", PasoWizard.DATOS !in plan)
     }
 
     @Test fun retomarMuestraSoloLoPendiente() {

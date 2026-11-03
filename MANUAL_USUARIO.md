@@ -79,7 +79,7 @@ Tras la pantalla de bienvenida, el asistente te guía por preguntas sencillas. P
 2. **Acceso con clave (opcional):** activa la protección con tu huella, tu rostro o el PIN del teléfono al abrir Shalev.
 3. **Tu negocio:** marca qué módulos vas a usar (**Ventas**, **Inventario** y/o **Servicios**). Lo que no uses no ocupará espacio en pantalla; si marcas *Ventas*, se activa también *Inventario* porque lo necesita.
 4. **Empleados:** indica cuántos empleados usarán su propia app secundaria (puedes cambiarlo después al pedir tu licencia).
-5. **Tus datos:** escribe tu nombre, apellidos, carné de identidad y teléfono. Se emplean en el cobro por transferencia y al solicitar tu licencia.
+5. **Tus datos:** escribe tu nombre, apellidos, carné de identidad y teléfono. Se emplean en el cobro por transferencia y al solicitar tu licencia. Si activaste tu licencia antes de este asistente, tus datos ya están guardados y este paso no se te vuelve a pedir. Del mismo modo, si ya diste tus datos aquí, la pantalla de Licencia entra directa a «Pide la licencia» (con **Atrás** puedes revisarlos).
 6. **Avisos de inventario:** elige a partir de qué cantidad quieres que Shalev te avise de **Stock bajo** (por defecto `5`) y **Stock crítico** (por defecto `1`), tanto para productos en unidades enteras como para insumos en su medida (`kg`, `L`, `g`, etc.).
 7. **Periodo de prueba:** confirma el inicio de tus 7 días gratuitos y pulsa **Empezar a usar Shalev**.
 
@@ -567,7 +567,7 @@ Para que disfrutes siempre de las últimas mejoras y que la App Principal y las 
 
 En **Herramientas → Ficha de costo**, agrega partidas con categoría, cantidad, unidad, costo unitario y moneda. Puedes editar o eliminar partidas y consultar los totales por categoría, separados en CUP y USD. El margen opcional permite estimar un precio como porcentaje o factor; no es una fórmula normativa.
 
-En **Herramientas → Calculadora de cambio**, o desde el icono de cambio de la ficha, puedes convertir importes en ambos sentidos. Introduce la tasa como **CUP por 1 USD** y el importe; el resultado se redondea a dos decimales. También puedes calcular una tasa orientativa indicando importes equivalentes positivos en CUP y USD, y usarla para convertir. La tasa es manual, no se consulta por internet y no modifica los totales de la ficha.
+En **Herramientas → Calculadora de cambio**, o desde el icono de cambio de la ficha, puedes convertir importes en ambos sentidos. Introduce la tasa como **CUP por 1 USD** y el importe; el resultado se redondea a dos decimales. También puedes calcular una tasa orientativa indicando importes equivalentes positivos en CUP y USD, y usarla para convertir. La tasa es manual, no se consulta por internet y no modifica los totales de la ficha. La calculadora recuerda en este teléfono la operación, la moneda de origen y la última tasa que usaste, para no escribirla cada vez; los importes no se guardan.
 
 **Importante:** esta primera versión es una calculadora temporal. No guarda fichas, no las exporta y no las incluye en el respaldo; los datos se pierden al salir o cerrar la app. No sustituye el generador GFC ni una ficha oficial.
 

@@ -42,8 +42,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.app.common.SecureWindow
 import cu.shalev.designsystem.component.FiltroEntrada
+import cu.shalev.designsystem.component.AutoColapsarPanelesAlEscribir
 import cu.shalev.designsystem.component.CardTone
+import cu.shalev.designsystem.component.ShalevAccordionCard
 import cu.shalev.designsystem.component.ShalevButtonRow
+import cu.shalev.designsystem.component.rememberPanelesInformativos
 import cu.shalev.designsystem.component.ShalevCard
 import cu.shalev.designsystem.component.ShalevDialog
 import cu.shalev.designsystem.component.ShalevLinearProgress
@@ -173,7 +176,17 @@ fun RespaldoContent(
         ) {
             state.progreso?.let { TarjetaProgreso(it) }
 
-            ShalevCard(tone = CardTone.Tonal) {
+            // La explicación es información fija: panel colapsable que se pliega solo al escribir la contraseña.
+            val paneles = rememberPanelesInformativos("explicacion")
+            AutoColapsarPanelesAlEscribir(paneles)
+            ShalevAccordionCard(
+                title = "Copia de todo el negocio",
+                subtitle = TextosRespaldo.EXPLICACION,
+                icon = ShalevIcons.Respaldo,
+                tone = CardTone.Tonal,
+                expanded = paneles.abierto("explicacion"),
+                onToggle = { paneles.alternar("explicacion") },
+            ) {
                 Text(TextosRespaldo.EXPLICACION, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 ShalevSecondaryText(TextosRespaldo.SIN_LICENCIA)
             }

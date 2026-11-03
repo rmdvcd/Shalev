@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -25,8 +26,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cu.shalev.designsystem.component.AutoColapsarPanelesAlEscribir
 import cu.shalev.designsystem.component.CardTone
 import cu.shalev.designsystem.component.FiltroEntrada
+import cu.shalev.designsystem.component.ShalevAccordionCard
+import cu.shalev.designsystem.component.rememberPanelesInformativos
 import cu.shalev.designsystem.component.IconActionStyle
 import cu.shalev.designsystem.component.ShalevBottomSheet
 import cu.shalev.designsystem.component.ShalevCard
@@ -60,6 +64,8 @@ fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit) {
                     title = "Ficha de costo",
                     subtitle = "Calculadora temporal de costos",
                     indicatorColor = null,
+                    leading = { Icon(ShalevIcons.FichaCosto, contentDescription = null) },
+                    trailing = { Icon(ShalevIcons.Abrir, contentDescription = null) },
                 )
             }
             ShalevCard(onClick = { cambioAbierto = true }) {
@@ -67,6 +73,8 @@ fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit) {
                     title = "Calculadora de cambio",
                     subtitle = "Convertir CUP y USD o calcular una tasa",
                     indicatorColor = null,
+                    leading = { Icon(ShalevIcons.CalculadoraCambio, contentDescription = null) },
+                    trailing = { Icon(ShalevIcons.Abrir, contentDescription = null) },
                 )
             }
         }
@@ -105,11 +113,15 @@ fun FichaCostoScreen(onBack: () -> Unit, vm: FichaCostoViewModel = viewModel()) 
     BackHandler(enabled = !editorAbierto && indiceEliminar == null && !confirmarSalida && !cambioAbierto) { salir() }
     val margen = CalculoFichaCosto.numero(vm.margen)
     val totales = CalculoFichaCosto.calcular(vm.partidas, margen, vm.unidadMargen)
+    // El aviso y los totales son paneles de solo información: colapsables, y se pliegan solos al escribir
+    // (nombre, margen) para que el teclado no los empuje sobre el campo ni sobre el botón de agregar.
+    val paneles = rememberPanelesInformativos(PanelesFicha.AVISO, PanelesFicha.TOTALES)
+    AutoColapsarPanelesAlEscribir(paneles)
     Scaffold(
         modifier = Modifier.imePadding(),
         topBar = {
             ShalevTopBar(title = "Ficha de costo", onBack = salir, actions = {
-                ShalevIconAction(ShalevIcons.Transferencia, "Calculadora de cambio", onClick = { cambioAbierto = true })
+                ShalevIconAction(ShalevIcons.CalculadoraCambio, "Calculadora de cambio", onClick = { cambioAbierto = true })
             })
         },
         floatingActionButton = {
@@ -122,7 +134,13 @@ fun FichaCostoScreen(onBack: () -> Unit, vm: FichaCostoViewModel = viewModel()) 
             verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
         ) {
             item {
-                ShalevCard(tone = CardTone.Tonal) {
+                ShalevAccordionCard(
+                    title = "Cálculo temporal",
+                    subtitle = "No se guarda: al salir se pierde.",
+                    tone = CardTone.Tonal,
+                    expanded = paneles.abierto(PanelesFicha.AVISO),
+                    onToggle = { paneles.alternar(PanelesFicha.AVISO) },
+                ) {
                     Text("Cálculo temporal: no se guarda ni se incluye en el respaldo. Al salir se pierde.")
                 }
             }
@@ -145,7 +163,12 @@ fun FichaCostoScreen(onBack: () -> Unit, vm: FichaCostoViewModel = viewModel()) 
                 }
             }
             item {
-                ShalevCard(title = "Totales por categoría") {
+                ShalevAccordionCard(
+                    title = "Totales por categoría",
+                    subtitle = "Costo total: ${totales.costoTotal.getValue(MonedaCosto.CUP)} CUP · ${totales.costoTotal.getValue(MonedaCosto.USD)} USD",
+                    expanded = paneles.abierto(PanelesFicha.TOTALES),
+                    onToggle = { paneles.alternar(PanelesFicha.TOTALES) },
+                ) {
                     CategoriaCosto.entries.forEach { categoria ->
                         val valores = totales.porCategoria.getValue(categoria)
                         Text("${categoria.titulo}: ${valores.getValue(MonedaCosto.CUP)} CUP · ${valores.getValue(MonedaCosto.USD)} USD", modifier = Modifier.fillMaxWidth())
@@ -236,4 +259,10 @@ private fun EditorPartida(partida: PartidaCosto?, onDismiss: () -> Unit, onGuard
             isError = intento && costoDecimal == null, errorText = "Escribe un costo válido.")
         ShalevComboBox("Moneda", MonedaCosto.entries, moneda, { it.name }, { moneda = it })
     }
+}
+
+/** Claves de los paneles informativos de la ficha de costo. */
+private object PanelesFicha {
+    const val AVISO = "aviso"
+    const val TOTALES = "totales"
 }

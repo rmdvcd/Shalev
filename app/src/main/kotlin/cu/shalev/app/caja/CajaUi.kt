@@ -298,7 +298,7 @@ fun DialogoContado(
                                 cantidades = cantidades.toMutableList().also { it[i] = if (sig == 0L) "" else sig.toString() }
                             },
                             enabled = actual > 0L,
-                            style = IconActionStyle.Tonal,
+                            style = IconActionStyle.Tonal, repetible = true,
                             etiqueta = "−1",
                             modifier = Modifier.testTag("billetes_menos_$denominacion"),
                         )
@@ -324,7 +324,7 @@ fun DialogoContado(
                                 val sig = (actual + 1L).coerceAtMost(999_999L)
                                 cantidades = cantidades.toMutableList().also { it[i] = sig.toString() }
                             },
-                            enabled = actual < 999_999L,
+                            enabled = actual < 999_999L, repetible = true,
                             style = IconActionStyle.Tonal,
                             etiqueta = "+1",
                             modifier = Modifier.testTag("billetes_mas_$denominacion"),

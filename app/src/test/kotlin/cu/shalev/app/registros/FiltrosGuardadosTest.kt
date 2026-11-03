@@ -40,4 +40,16 @@ class FiltrosGuardadosTest {
         val guardado = mapOf(FiltrosGuardados.clave(TipoRegistro.MOVIMIENTOS) to FiltrosGuardados.codificar(FiltroRegistros(texto = "x")))
         assertEquals(mapOf(TipoRegistro.MOVIMIENTOS to FiltroRegistros(texto = "x")), FiltrosGuardados.leer { guardado[it] })
     }
+
+    @Test fun permanenciaEnUnaCadenaSinElTextoDelBuscador() {
+        // Al cerrar y volver a abrir la app se recuerdan los filtros marcados, no lo que se estaba buscando.
+        val f = FiltroRegistros(
+            texto = "pan", periodo = cu.shalev.domain.model.PeriodoRegistro.HOY,
+            vendedor = "María",
+        )
+        val vuelta = FiltrosGuardados.decodificarTexto(FiltrosGuardados.codificarTexto(f))
+        assertEquals(f.copy(texto = ""), vuelta)
+        assertNull(FiltrosGuardados.decodificarTexto(null))
+        assertNull(FiltrosGuardados.decodificarTexto("cadena de otra versión"))
+    }
 }

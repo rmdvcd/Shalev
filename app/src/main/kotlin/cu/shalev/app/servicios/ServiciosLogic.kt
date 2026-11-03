@@ -122,3 +122,16 @@ object ServiciosLogic {
         },
     )
 }
+
+/**
+ * Permanencia del filtro de Servicios al cerrar la app (EstadoPantallasRepository): se recuerda solo el tipo
+ * elegido, no el texto del buscador. null = sin filtro (se olvida el ajuste).
+ */
+object FiltroServiciosGuardado {
+    const val CLAVE = "servicios.filtro"
+
+    fun codificar(f: FiltroServicios): String? = f.tipo
+
+    fun decodificar(s: String?): FiltroServicios? =
+        s?.takeIf { it.isNotBlank() }?.let { FiltroServicios(tipo = it.take(60)) }
+}

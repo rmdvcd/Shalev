@@ -23,7 +23,10 @@ fun mensajeSync(e: AppError): String? = when (e) {
         else null
     AppError.SinPermiso -> TextosSync.SIN_PERMISO
     is AppError.SinPrincipal -> TextosSync.sinPrincipal(e.pendientes)
-    is AppError.VinculacionRechazada -> e.motivo
+    // El motivo viaja por la red: solo se enseña si parece una frase (ver esTextoParaUsuario); si otra versión de
+    // la app manda un código interno, la persona lee el texto genérico de mensajeParaUsuario, nunca el código.
+    is AppError.VinculacionRechazada -> e.mensajeParaUsuario()
     AppError.Red.SinConexion -> TextosSync.SIN_RED
+    AppError.Red.Timeout, is AppError.Red.Http -> e.mensajeParaUsuario()
     else -> null
 }

@@ -58,7 +58,7 @@ class ServiciosViewModelTest {
 
     private fun vm(saved: SavedStateHandle = SavedStateHandle()) = ServiciosViewModel(
         saved, ObservarServicios(servicios, insumos, Dispatchers.Unconfined), servicios, ObtenerFichaServicio(servicios, insumos),
-        EliminarServicios(servicios), ExportarTablas(FakeExportador()), FakeArchivos(), RelojFijo(), tablaPng, tarjetas,
+        EliminarServicios(servicios), ExportarTablas(FakeExportador()), FakeArchivos(), RelojFijo(), tablaPng, tarjetas, cu.shalev.app.FakeEstadoPantallas(),
     )
 
     @Test fun serviciosCompartenImagenYPromocionSinRecetas() = runTest {

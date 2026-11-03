@@ -19,7 +19,7 @@ class CalculadoraCambioUiTest {
     @get:Rule val rule = createComposeRule()
 
     @Test fun convierteEnAmbosSentidos() {
-        rule.setContent { ShalevTheme { CalculadoraCambio(onDismiss = {}) } }
+        rule.setContent { ShalevTheme { CalculadoraCambio(onDismiss = {}, vm = CalculadoraCambioViewModel(cu.shalev.app.FakeEstadoPantallas())) } }
         rule.onNodeWithText("Importe en USD").performScrollTo().performTextInput("2")
         rule.onNodeWithText("Tasa: CUP por 1 USD").performScrollTo().performTextInput("400")
         rule.onNodeWithText("Resultado: 800.00 CUP").performScrollTo().assertIsDisplayed()
@@ -29,7 +29,7 @@ class CalculadoraCambioUiTest {
     }
 
     @Test fun calculaYUsaTasa() {
-        rule.setContent { ShalevTheme { CalculadoraCambio(onDismiss = {}) } }
+        rule.setContent { ShalevTheme { CalculadoraCambio(onDismiss = {}, vm = CalculadoraCambioViewModel(cu.shalev.app.FakeEstadoPantallas())) } }
         rule.onNodeWithText("Operación").performClick()
         rule.onNodeWithText("Calcular tasa desde importes").performClick()
         rule.onNodeWithText("Importe equivalente en CUP").performScrollTo().performTextInput("700")
@@ -41,7 +41,7 @@ class CalculadoraCambioUiTest {
         rule.onNodeWithContentDescription("Cerrar calculadora").assertIsDisplayed()
     }
     @Test fun tasaCeroMuestraError() {
-        rule.setContent { ShalevTheme { CalculadoraCambio(onDismiss = {}) } }
+        rule.setContent { ShalevTheme { CalculadoraCambio(onDismiss = {}, vm = CalculadoraCambioViewModel(cu.shalev.app.FakeEstadoPantallas())) } }
         rule.onNodeWithText("Tasa: CUP por 1 USD").performScrollTo().performTextInput("350")
         rule.onNodeWithText("Tasa: CUP por 1 USD").performTextClearance()
         rule.onNodeWithText("Tasa: CUP por 1 USD").performTextInput("0")

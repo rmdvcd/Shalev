@@ -46,8 +46,11 @@ enum class ModoWizard { PRIMERA_VEZ, RETOMAR }
 fun planWizard(modo: ModoWizard, resumen: ResumenConfiguracion, soloPaso: PasoConfiguracion? = null): List<PasoWizard> = when {
     soloPaso != null -> listOf(soloPaso.wizard())
     // 0.21.0 (C12): el recorrido de la primera vez empieza por el tipo de app, el objetivo y los empleados.
+    // Solo los pasos PENDIENTES: quien activó su licencia antes de este asistente (la app arranca bloqueada y la
+    // pantalla de Licencia ya le pidió sus datos, guardados en el Perfil al solicitar) no vuelve a darlos aquí.
+    // En una instalación limpia no hay nada hecho y pendientes = todos: el recorrido es el mismo de siempre.
     modo == ModoWizard.PRIMERA_VEZ ->
-        listOf(PasoWizard.BIENVENIDA) + PASOS_TOUR + resumen.pasos.map { it.wizard() }
+        listOf(PasoWizard.BIENVENIDA) + PASOS_TOUR + resumen.pendientes.map { it.wizard() }
     else -> resumen.pendientes.ifEmpty { resumen.pasos }.map { it.wizard() }
 }
 

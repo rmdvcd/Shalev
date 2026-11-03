@@ -19,7 +19,7 @@ object ShalevIcons {
     val Servicios: ImageVector get() = MaterialSolido.ManoRecibe
     val Registros: ImageVector get() = MaterialSolido.History              // reloj con flecha antihoraria
     val Ajustes: ImageVector get() = MaterialSolido.Settings
-    val Herramientas: ImageVector get() = MaterialSolido.Checklist
+    val Herramientas: ImageVector get() = MaterialSolido.Build             // llave inglesa: la sección de herramientas
 
     // Dominio
     val Venta: ImageVector get() = MaterialSolido.ShoppingCart
@@ -28,6 +28,9 @@ object ShalevIcons {
     val Transferencia: ImageVector get() = MaterialSolido.SwapHoriz         // dos flechas opuestas
     val Perfil: ImageVector get() = MaterialSolido.Person
     val Precios: ImageVector get() = MaterialSolido.AttachMoney            // P24: «$»
+    /** Los dos módulos de Herramientas: la hoja de partidas de la ficha y la conversión entre monedas. */
+    val FichaCosto: ImageVector get() = MaterialSolido.ListAlt             // hoja con partidas y totales
+    val CalculadoraCambio: ImageVector get() = MaterialSolido.SwapHoriz    // CUP ⇄ USD: conversión de moneda
     val PagoElectronico: ImageVector get() = MaterialSolido.CreditCard
     val Turno: ImageVector get() = MaterialSolido.Storefront
     val Telefono: ImageVector get() = MaterialSolido.Phone
@@ -169,6 +172,7 @@ internal object MaterialSolido {
     val Remove: ImageVector by lazy { icono("Remove", "M 19 13 H 5 v -2 h 14 v 2 z") }
     val PhotoCamera: ImageVector by lazy { icono("PhotoCamera", "M 8.8 12 A 3.2 3.2 0 1 0 15.2 12 A 3.2 3.2 0 1 0 8.8 12 Z", "M 9 2 7.17 4 H 4 c -1.1 0 -2 .9 -2 2 v 12 c 0 1.1 .9 2 2 2 h 16 c 1.1 0 2 -.9 2 -2 V 6 c 0 -1.1 -.9 -2 -2 -2 h -3.17 L 15 2 H 9 z m 3 15 c -2.76 0 -5 -2.24 -5 -5 s 2.24 -5 5 -5 5 2.24 5 5 -2.24 5 -5 5 z") }
     val Checklist: ImageVector by lazy { icono("Checklist", "M 22 7 h -9 v 2 h 9 V 7 z m 0 8 h -9 v 2 h 9 v -2 z M 5.54 11 2 7.46 l 1.41 -1.41 2.12 2.12 4.24 -4.24 1.41 1.41 L 5.54 11 z m 0 8 L 2 15.46 l 1.41 -1.41 2.12 2.12 4.24 -4.24 1.41 1.41 L 5.54 19 z") }
+    val Build: ImageVector by lazy { icono("Build", "M 22.7 19 l -9.1 -9.1 c 0.9 -2.3 0.4 -5 -1.5 -6.9 c -2 -2 -5 -2.4 -7.4 -1.3 L 9 6 L 6 9 L 1.6 4.7 C 0.4 7.1 0.9 10.1 2.9 12.1 c 1.9 1.9 4.6 2.4 6.9 1.5 l 9.1 9.1 c 0.4 0.4 1 0.4 1.4 0 l 2.3 -2.3 c 0.5 -0.4 0.5 -1.1 0.1 -1.4 z") }
     val Delete: ImageVector by lazy { icono("Delete", "M 6 19 c 0 1.1 .9 2 2 2 h 8 c 1.1 0 2 -.9 2 -2 V 7 H 6 v 12 z M 19 4 h -3.5 l -1 -1 h -5 l -1 1 H 5 v 2 h 14 V 4 z") }
     val Share: ImageVector by lazy { icono("Share", "M 18 16.08 c -.76 0 -1.44 .3 -1.96 .77 L 8.91 12.7 c .05 -.23 .09 -.46 .09 -.7 s -.04 -.47 -.09 -.7 l 7.05 -4.11 c .54 .5 1.25 .81 2.04 .81 1.66 0 3 -1.34 3 -3 s -1.34 -3 -3 -3 -3 1.34 -3 3 c 0 .24 .04 .47 .09 .7 L 8.04 9.81 C 7.5 9.31 6.79 9 6 9 c -1.66 0 -3 1.34 -3 3 s 1.34 3 3 3 c .79 0 1.5 -.31 2.04 -.81 l 7.12 4.16 c -.05 .21 -.08 .43 -.08 .65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92 -1.31 2.92 -2.92 s -1.31 -2.92 -2.92 -2.92 z") }
     val FileDownload: ImageVector by lazy { icono("FileDownload", "M 19 9 h -4 V 3 H 9 v 6 H 5 l 7 7 7 -7 z M 5 18 v 2 h 14 v -2 H 5 z") }

@@ -317,7 +317,7 @@ object ShalevSheetTextos {
     const val SEGUIR = "Seguir editando"
 }
 
-/** FAB de una sola acción (p. ej. «Agregar insumo»): contenedor primary sobre onPrimary. */
+/** FAB de una sola acción (p. ej. «Agregar insumo»): contenedor primary sobre onPrimary. Protegido contra la doble pulsación. */
 @Composable
 fun ShalevFab(
     icon: ImageVector,
@@ -329,10 +329,11 @@ fun ShalevFab(
     /** Presenta un FAB compacto de 48dp con el icono, manteniendo [contentDescription] para TalkBack. */
     soloIcono: Boolean = true,
 ) {
+    val accion = rememberAccionUnica(onClick)
     val cs = MaterialTheme.colorScheme
     val forma = if (soloIcono) modifier.size(ShalevSize.touchTarget) else modifier
     Surface(
-        onClick = onClick,
+        onClick = accion,
         modifier = forma.semantics { this.contentDescription = contentDescription },
         shape = RoundedCornerShape(ShalevRadius.lg),
         color = cs.primary,

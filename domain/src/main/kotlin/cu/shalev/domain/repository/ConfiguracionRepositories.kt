@@ -106,6 +106,22 @@ interface MantenimientoRepository {
     suspend fun borrarTodo(): AppResult<Unit>
 }
 
+/**
+ * Ajustes de pantalla de ESTE teléfono que deben sobrevivir al cierre de la app (el período elegido en Inicio,
+ * la pestaña y los filtros de Registros, los filtros de Inventario y Servicios, la tasa de la calculadora de
+ * cambio…): antes vivían solo en memoria o en el estado del proceso y se perdían al cerrar y volver a abrir.
+ *
+ * Los valores son cadenas opacas ya codificadas por la capa de pantallas (una clave por ajuste); el dominio no
+ * interpreta su contenido. Como el [cu.shalev.domain.model.EstadoApp], no viajan en el respaldo: son del teléfono.
+ */
+interface EstadoPantallasRepository {
+    /** Valor guardado de [clave] (null = nunca se guardó); emite los cambios posteriores. */
+    fun observar(clave: String): Flow<String?>
+
+    /** Guarda [valor] para [clave] (null = olvidar el ajuste y volver al valor por defecto). */
+    suspend fun guardar(clave: String, valor: String?)
+}
+
 /** Etapas visibles de exportar/importar un respaldo (la derivación de la clave tarda 1–3 s en un teléfono modesto). */
 enum class EtapaRespaldo { PREPARANDO, CIFRANDO, ESCRIBIENDO, LEYENDO, VERIFICANDO, DESCIFRANDO, IMPORTANDO }
 

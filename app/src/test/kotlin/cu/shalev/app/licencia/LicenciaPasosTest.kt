@@ -10,8 +10,12 @@ import org.junit.Test
 class LicenciaPasosTest {
     private val valido = LicenciaForm(nombre = "María", apellidos = "Pérez", ci = "85010112345", telefono = "52345678")
 
-    @Test fun empiezaPorLosDatosSalvoQueYaHayaUnMensaje() {
-        assertEquals(PasoLicencia.DATOS, pasoInicialLicencia(valido))
+    @Test fun empiezaSinRepetirLosDatosYaDados() {
+        // Sin datos (o incompletos): se piden. Con los datos ya completos (del Perfil: asistente inicial o una
+        // solicitud anterior), no se vuelven a pedir: se entra en «Pide la licencia».
+        assertEquals(PasoLicencia.DATOS, pasoInicialLicencia(LicenciaForm()))
+        assertEquals(PasoLicencia.DATOS, pasoInicialLicencia(valido.copy(ci = "")))
+        assertEquals(PasoLicencia.SOLICITAR, pasoInicialLicencia(valido))
         assertEquals(PasoLicencia.ACTIVAR, pasoInicialLicencia(valido.copy(mensajeLicencia = "SPVI-LIC…")))
     }
 

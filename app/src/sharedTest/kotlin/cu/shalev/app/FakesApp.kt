@@ -17,6 +17,7 @@ import cu.shalev.domain.model.Receta
 import cu.shalev.domain.model.ResumenTurno
 import cu.shalev.domain.model.Turno
 import cu.shalev.domain.model.Venta
+import cu.shalev.domain.repository.EstadoPantallasRepository
 import cu.shalev.domain.repository.InsumoRepository
 import cu.shalev.domain.repository.LicenciaRepository
 import cu.shalev.domain.repository.PerfilRepository
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 
 /**
  * Fakes en memoria para los ViewModels de :app (los de :domain no son visibles desde aquí).
@@ -120,6 +122,16 @@ class InsRepo : InsumoRepository {
     override suspend fun actualizar(insumo: Insumo): AppResult<Unit> = AppResult.Ok(Unit)
     override suspend fun eliminar(id: Long): AppResult<Unit> = AppResult.Ok(Unit)
     override suspend fun ajustarStock(id: Long, delta: Cantidad, nota: String?): AppResult<Cantidad> = AppResult.Ok(delta)
+}
+
+/** Ajustes de pantalla en memoria: arranca vacío, como un teléfono recién instalado. */
+class FakeEstadoPantallas : EstadoPantallasRepository {
+    private val datos = MutableStateFlow<Map<String, String>>(emptyMap())
+    override fun observar(clave: String): Flow<String?> = datos.map { it[clave] }
+    override suspend fun guardar(clave: String, valor: String?) {
+        datos.update { if (valor == null) it - clave else it + (clave to valor) }
+    }
+    fun valor(clave: String): String? = datos.value[clave]
 }
 
 class PrefRepo(inicial: Preferencias = Preferencias()) : PreferenciasRepository {

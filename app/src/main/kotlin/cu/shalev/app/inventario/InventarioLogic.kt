@@ -256,3 +256,26 @@ object SeleccionVenta {
     const val NO_VENDIBLE_ELABORADO = "Sin insumos suficientes: no se puede vender."
     const val NO_VENDIBLE_INSUMO = "Este insumo no tiene precio de venta. Edítalo para venderlo."
 }
+
+/**
+ * Permanencia del filtro del Inventario al cerrar la app (EstadoPantallasRepository): una sola cadena y SIN el
+ * texto del buscador —al volver otro día se recuerdan los filtros marcados, no lo que se estaba buscando—.
+ * Un valor dañado o de otra versión se ignora (null = filtro vacío), nunca rompe la pantalla.
+ */
+object FiltroInventarioGuardado {
+    const val CLAVE = "inventario.filtro"
+    private const val SEPARADOR = "\u001F"
+
+    fun codificar(f: FiltroInventario): String =
+        listOf(f.categoria.orEmpty(), f.alerta?.name.orEmpty(), f.tipo.name).joinToString(SEPARADOR)
+
+    fun decodificar(s: String?): FiltroInventario? {
+        val v = s?.split(SEPARADOR) ?: return null
+        if (v.size != 3) return null
+        return FiltroInventario(
+            categoria = v[0].takeIf { it.isNotEmpty() }?.take(60),
+            alerta = if (v[1].isEmpty()) null else TipoAlerta.entries.firstOrNull { it.name == v[1] } ?: return null,
+            tipo = TipoArticulo.entries.firstOrNull { it.name == v[2] } ?: return null,
+        )
+    }
+}
