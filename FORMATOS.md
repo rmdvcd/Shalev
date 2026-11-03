@@ -246,3 +246,8 @@ No se generan archivos `.txt`: el escritor de texto plano (`TextoWriter`) se eli
 ### Entrada numérica en pantalla (09/10/2026)
 
 Los campos de dinero admiten punto o coma decimal y hasta dos decimales, sin separadores de miles; las cantidades decimales admiten hasta tres. Una entrada ambigua se rechaza conservando el texto anterior, sin cambiar los formatos de archivos exportados/importados. Tarjeta/cuenta: hasta 20 cifras en edición (validación final de 12 a 20). La venta debe superar el costo, incluso tras descuentos; no se cambian comprobantes históricos.
+
+
+## Ficha de costo temporal
+
+La calculadora de Herramientas no escribe archivos ni incluye sus datos en los respaldos `.shalev`. No importa ni exporta `.ficha148`, PDF, CSV o Excel.

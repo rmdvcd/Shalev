@@ -9,6 +9,7 @@ enum class CategoriaAyuda(val titulo: String, val detalle: String) {
     SERVICIOS("Servicios", "Catálogo de servicios"),
     VENTA("Nueva venta", "Carrito y cobro"),
     REGISTROS("Registros", "Historial, correcciones y exportación"),
+    HERRAMIENTAS("Herramientas", "Cálculo de costos"),
     AJUSTES("Ajustes", "Configuración, pago electrónico y precios"),
     RESPALDO("Respaldo", "Copias y restauración"),
     LICENCIA("Licencia", "Solicitud y activación"),
@@ -105,6 +106,11 @@ object AyudaContenido {
             "Los turnos cerrados no se modifican. Anular una venta no devuelve dinero por Transfermóvil.",
             "En Movimientos puedes editar un ajuste del turno abierto desde su ficha.",
         ), CategoriaAyuda.REGISTROS),
+        TemaAyuda("Ficha de costo", listOf(
+            "En Herramientas abre Ficha de costo y agrega partidas con cantidad, costo y moneda.",
+            "Los totales CUP y MLC se muestran por separado; el margen es una estimación opcional.",
+            "El cálculo es temporal: al salir o cerrar la app se pierde y no se incluye en el respaldo.",
+        ), CategoriaAyuda.HERRAMIENTAS),
         TemaAyuda("Configurar el negocio", listOf(
             "Abre Ajustes desde el engranaje de Inicio para completar la configuración y consultar tu perfil.",
             "Desde allí también puedes administrar avisos, permisos y el acceso con clave del teléfono.",

@@ -24,6 +24,7 @@ enum class PestanaAyuda(val titulo: String, private val temasPorTitulo: List<Str
     INVENTARIO("Inventario", listOf("Agregar productos", "Buscar y filtrar el inventario", "Insumos y elaborados")),
     SERVICIOS("Servicios", listOf("Servicios", "Vender", "Cobrar por transferencia")),
     REGISTROS("Registros", listOf("Ver lo vendido", "Corregir operaciones")),
+    HERRAMIENTAS("Herramientas", listOf("Ficha de costo")),
     AJUSTES("Ajustes", listOf("Configurar el negocio", "Pago electrónico", "Precios", "Guardar una copia", "Licencia", "Apps vinculadas")),
     ;
 

@@ -25,6 +25,8 @@ sealed interface Route {
     /** Crear (id = 0) o editar un servicio. */
     @Serializable data class ServicioForm(val id: Long = 0) : Route
     @Serializable data object Registros : Route
+    @Serializable data object Herramientas : Route
+    @Serializable data object FichaCosto : Route
     /** Registro de un turno (Registros → Turnos o "Ver" tras cerrar en Inicio). */
     @Serializable data class TurnoDetalle(val id: Long) : Route
     @Serializable data object Ajustes : Route
@@ -70,6 +72,7 @@ enum class TopLevel(val route: Route, val icon: ImageVector, val label: String) 
     INVENTARIO(Route.Inventario(), ShalevIcons.Inventario, "Inventario"),
     SERVICIOS(Route.Servicios(), ShalevIcons.Servicios, "Servicios"),
     REGISTROS(Route.Registros, ShalevIcons.Registros, "Registros"),
+    HERRAMIENTAS(Route.Herramientas, ShalevIcons.Herramientas, "Herramientas"),
 }
 
 /**

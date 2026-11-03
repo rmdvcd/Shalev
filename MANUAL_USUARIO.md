@@ -93,15 +93,15 @@ Tras la pantalla de bienvenida, el asistente te guía por preguntas sencillas. P
 
 ## 3. Conoce la pantalla, la barra inferior y los botones
 
-Shalev está pensada para manejarse con una sola mano de forma ágil detrás del mostrador. La barra inferior reúne **4 secciones**; Ajustes se abre desde el icono de engranaje, arriba a la derecha de Inicio.
+Shalev está pensada para manejarse con una sola mano de forma ágil detrás del mostrador. La barra inferior reúne **5 secciones**; Ajustes se abre desde el icono de engranaje, arriba a la derecha de Inicio.
 
-![Mapa de navegación y botones de Shalev](docs/manual/diagramas/01_navegacion_general.svg)
+La disponibilidad de Inventario y Servicios depende de los módulos seleccionados.
 
 ### 3.1 Cómo moverte entre secciones
 
-- **Tocar una sección de la barra inferior:** cada sección muestra su icono y **su nombre escrito debajo** (**Inicio**, **Inventario**, **Servicios** o **Registros**), y la que tienes abierta se destaca con fondo relleno.
+- **Tocar una sección de la barra inferior:** cada sección muestra su icono y **su nombre escrito debajo** (**Inicio**, **Inventario**, **Servicios**, **Registros** o **Herramientas**), y la que tienes abierta se destaca con fondo relleno.
 - **Abrir Ajustes:** toca el engranaje de la esquina superior derecha de Inicio. Desde Ajustes, usa la flecha de regreso para volver a la pantalla anterior.
-- **Deslizar el dedo hacia la izquierda o la derecha:** en las 4 pantallas principales puedes deslizar horizontalmente para pasar a la sección vecina. Para evitar errores mientras trabajas, el gesto se desactiva al escribir, filtrar, seleccionar filas o abrir una ventana emergente.
+- **Deslizar el dedo hacia la izquierda o la derecha:** en las 5 pantallas principales puedes deslizar horizontalmente para pasar a la sección vecina. Para evitar errores mientras trabajas, el gesto se desactiva al escribir, filtrar, seleccionar filas o abrir una ventana emergente.
 
 ### 3.2 Iconos de acción y ayuda contextual
 
@@ -109,7 +109,7 @@ Las acciones se muestran principalmente con **iconos** para dejar más espacio a
 
 | Icono o acción | Qué hace | Dónde lo encontrarás |
 |---|---|---|
-| **Ayuda** *(arriba a la izquierda)* | Abre la guía de la sección y el acceso al manual resumido | Inicio, Inventario, Servicios y Registros |
+| **Ayuda** *(arriba a la izquierda)* | Abre la guía de la sección y el acceso al manual resumido | Inicio, Inventario, Servicios, Registros y Herramientas |
 | **Engranaje** *(arriba a la derecha)* | Abre Ajustes; la flecha de regreso vuelve a la pantalla anterior | Inicio |
 | **Carrito** / **Caja registradora** | Inician una nueva venta / registran una entrada o salida de efectivo | Inicio, debajo del banner de licencia y antes de las alertas (con el turno abierto) |
 | **Embudo** | Abre los filtros disponibles | Inventario, Servicios y Registros |
@@ -560,6 +560,14 @@ Para que disfrutes siempre de las últimas mejoras y que la App Principal y las 
 - **Búsqueda manual o semanal:** entra en **Ajustes → Actualizar** cuando tengas conexión; aparecerá un cuadro con progreso circular que te indicará *«Estás al día»*, *«Sin conexión»* o descargará e instalará la nueva versión verificada. Al terminar de actualizar o de comprobar que estás al día, el cuadro **se cierra solo**; si fue *«Sin conexión»*, se queda a la vista para que lo leas y lo cierres. Además, Shalev comprueba automáticamente una vez por semana si salió una actualización oficial y la reparte a las apps secundarias de tus empleados.
 - **Respaldo automático antes de instalar:** justo antes de abrir el instalador de una nueva versión, Shalev guarda internamente una copia automática de tus datos y la restaura al abrir la versión actualizada (evita hacer ventas entre la descarga y el final de la instalación).
 - **Plazo de 30 días:** cuando el teléfono detecta una versión nueva, puedes posponerla con *«Más tarde»* durante **30 días** (viendo la fecha límite). Cumplido ese plazo, Shalev pedirá actualizar para continuar, permitiéndote siempre cerrar tu turno abierto y exportar un respaldo antes.
+
+---
+
+## Herramientas: ficha de costo temporal
+
+En **Herramientas → Ficha de costo**, agrega partidas con categoría, cantidad, unidad, costo unitario y moneda. Puedes editar o eliminar partidas y consultar los totales por categoría, separados en CUP y MLC. El margen opcional permite estimar un precio como porcentaje o factor; no es una fórmula normativa.
+
+**Importante:** esta primera versión es una calculadora temporal. No guarda fichas, no las exporta y no las incluye en el respaldo; los datos se pierden al salir o cerrar la app. No sustituye el generador GFC ni una ficha oficial.
 
 ---
 

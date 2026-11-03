@@ -1,3 +1,9 @@
+## Herramientas: cálculo de ficha de costo (2026-11-02)
+
+- Añadida la pestaña Herramientas después de Registros y un cálculo temporal basado en las cuatro categorías de GFC, con CUP y MLC separados, margen opcional y redondeo por partida.
+- No existe aún persistencia, integración con el respaldo ni importación/exportación `.ficha148` o documentos. La pantalla advierte que los datos se pierden al salir; no es paridad con GFC.
+- Pendientes: migración Room con esquema generado y pruebas, respaldo, catálogos, intercambio seguro, exportación PDF/CSV/XLSX y pruebas visuales en dispositivo.
+
 ## Manual integrado y disposición de diálogos (2026-11-02)
 
 - El manual integrado resume el PDF por pantalla, añade tareas de caja, correcciones, precios y restauración, y se identifica como «Manual de usuario» en Ajustes.

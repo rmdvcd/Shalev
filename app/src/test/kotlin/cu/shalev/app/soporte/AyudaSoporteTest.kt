@@ -51,6 +51,7 @@ class AyudaSoporteTest {
         assertTrue(cu.shalev.app.ayuda.PestanaAyuda.INVENTARIO.temas(setOf(cu.shalev.domain.model.Modulo.SERVICIOS)).isEmpty())
         assertTrue(secciones.any { it.first == cu.shalev.app.ayuda.CategoriaAyuda.RESPALDO })
         assertTrue(secciones.any { it.first == cu.shalev.app.ayuda.CategoriaAyuda.VENTA })
+        assertEquals(listOf("Ficha de costo"), cu.shalev.app.ayuda.PestanaAyuda.HERRAMIENTAS.temas(todos).map { it.titulo })
     }
 
 }
