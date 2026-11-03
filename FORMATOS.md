@@ -250,4 +250,4 @@ Los campos de dinero admiten punto o coma decimal y hasta dos decimales, sin sep
 
 ## Ficha de costo temporal
 
-La calculadora de Herramientas no escribe archivos ni incluye sus datos en los respaldos `.shalev`. No importa ni exporta `.ficha148`, PDF, CSV o Excel.
+La ficha de costo y la calculadora de cambio no escriben archivos ni incluyen sus datos o tasas en los respaldos `.shalev`. No importan ni exportan `.ficha148`, PDF, CSV o Excel.

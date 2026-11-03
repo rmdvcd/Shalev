@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -46,9 +48,13 @@ import cu.shalev.domain.fichacosto.UnidadMargen
 @Composable
 fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit) {
     var ayuda by remember { mutableStateOf(false) }
+    var cambioAbierto by rememberSaveable { mutableStateOf(false) }
     val modulos = cu.shalev.app.common.LocalPermisosApp.current.modulos
     Scaffold(topBar = { ShalevTopBar(title = "Herramientas", onAyuda = { ayuda = true }, ayudaDescripcion = "Ayuda de Herramientas") }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(ShalevSpacing.md)) {
+        Column(
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(ShalevSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
+        ) {
             ShalevCard(onClick = onAbrirFicha) {
                 ShalevListItem(
                     title = "Ficha de costo",
@@ -56,8 +62,16 @@ fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit) {
                     indicatorColor = null,
                 )
             }
+            ShalevCard(onClick = { cambioAbierto = true }) {
+                ShalevListItem(
+                    title = "Calculadora de cambio",
+                    subtitle = "Convertir CUP y USD o calcular una tasa",
+                    indicatorColor = null,
+                )
+            }
         }
     }
+    if (cambioAbierto) CalculadoraCambio(onDismiss = { cambioAbierto = false })
     if (ayuda) cu.shalev.app.ayuda.DialogoAyudaPestana(
         pestana = cu.shalev.app.ayuda.PestanaAyuda.HERRAMIENTAS,
         modulos = modulos,
@@ -86,13 +100,18 @@ fun FichaCostoScreen(onBack: () -> Unit, vm: FichaCostoViewModel = viewModel()) 
     var indiceEdicion by rememberSaveable { mutableStateOf<Int?>(null) }
     var indiceEliminar by rememberSaveable { mutableStateOf<Int?>(null) }
     var confirmarSalida by rememberSaveable { mutableStateOf(false) }
+    var cambioAbierto by rememberSaveable { mutableStateOf(false) }
     val salir = { if (vm.tieneDatos) confirmarSalida = true else onBack() }
-    BackHandler(enabled = !editorAbierto && indiceEliminar == null && !confirmarSalida) { salir() }
+    BackHandler(enabled = !editorAbierto && indiceEliminar == null && !confirmarSalida && !cambioAbierto) { salir() }
     val margen = CalculoFichaCosto.numero(vm.margen)
     val totales = CalculoFichaCosto.calcular(vm.partidas, margen, vm.unidadMargen)
     Scaffold(
         modifier = Modifier.imePadding(),
-        topBar = { ShalevTopBar(title = "Ficha de costo", onBack = salir) },
+        topBar = {
+            ShalevTopBar(title = "Ficha de costo", onBack = salir, actions = {
+                ShalevIconAction(ShalevIcons.Transferencia, "Calculadora de cambio", onClick = { cambioAbierto = true })
+            })
+        },
         floatingActionButton = {
             ShalevFab(ShalevIcons.Agregar, "Agregar partida", onClick = { indiceEdicion = null; editorAbierto = true })
         },
@@ -129,9 +148,9 @@ fun FichaCostoScreen(onBack: () -> Unit, vm: FichaCostoViewModel = viewModel()) 
                 ShalevCard(title = "Totales por categoría") {
                     CategoriaCosto.entries.forEach { categoria ->
                         val valores = totales.porCategoria.getValue(categoria)
-                        Text("${categoria.titulo}: ${valores.getValue(MonedaCosto.CUP)} CUP · ${valores.getValue(MonedaCosto.MLC)} MLC", modifier = Modifier.fillMaxWidth())
+                        Text("${categoria.titulo}: ${valores.getValue(MonedaCosto.CUP)} CUP · ${valores.getValue(MonedaCosto.USD)} USD", modifier = Modifier.fillMaxWidth())
                     }
-                    Text("Costo total: ${totales.costoTotal.getValue(MonedaCosto.CUP)} CUP · ${totales.costoTotal.getValue(MonedaCosto.MLC)} MLC", style = MaterialTheme.typography.titleMedium)
+                    Text("Costo total: ${totales.costoTotal.getValue(MonedaCosto.CUP)} CUP · ${totales.costoTotal.getValue(MonedaCosto.USD)} USD", style = MaterialTheme.typography.titleMedium)
                 }
             }
             item {
@@ -146,13 +165,14 @@ fun FichaCostoScreen(onBack: () -> Unit, vm: FichaCostoViewModel = viewModel()) 
             }
             item {
                 val precio = totales.precioEstimado
-                if (precio != null) Text("Precio estimado: ${precio.getValue(MonedaCosto.CUP)} CUP · ${precio.getValue(MonedaCosto.MLC)} MLC")
+                if (precio != null) Text("Precio estimado: ${precio.getValue(MonedaCosto.CUP)} CUP · ${precio.getValue(MonedaCosto.USD)} USD")
                 Text("Estimación configurable, no fórmula normativa. Las monedas no se convierten.", style = MaterialTheme.typography.bodySmall)
             }
             // Espacio para que el botón flotante no tape el último texto.
             item { androidx.compose.foundation.layout.Spacer(Modifier.padding(ShalevSpacing.lg)) }
         }
     }
+    if (cambioAbierto) CalculadoraCambio(onDismiss = { cambioAbierto = false })
     if (editorAbierto) {
         EditorPartida(
             partida = indiceEdicion?.let { vm.partidas.getOrNull(it) },

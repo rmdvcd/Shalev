@@ -1,3 +1,9 @@
+## CUP, USD y calculadora de cambio (2026-11-02)
+
+- La ficha de costo temporal usa CUP y USD en lugar de MLC; las monedas se totalizan por separado, sin conversión automática.
+- Herramientas y la ficha incluyen una calculadora que convierte en ambos sentidos con una tasa manual expresada en CUP por USD, o calcula una tasa a partir de importes equivalentes. No usa internet, no guarda la tasa y no modifica la ficha.
+- GFC usa MLC en su contrato: no se identifica con USD ni se implementa importación `.ficha148` en esta etapa.
+
 ## Herramientas: cálculo de ficha de costo (2026-11-02)
 
 - Añadida la pestaña Herramientas después de Registros y un cálculo temporal basado en las cuatro categorías de GFC, con CUP y MLC separados, margen opcional y redondeo por partida.

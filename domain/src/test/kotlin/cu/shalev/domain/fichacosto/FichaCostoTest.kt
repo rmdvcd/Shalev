@@ -13,10 +13,10 @@ class FichaCostoTest {
         val resultado = CalculoFichaCosto.calcular(listOf(
             partida(CategoriaCosto.MATERIAS, MonedaCosto.CUP, "1.5", "10"),
             partida(CategoriaCosto.MATERIAS, MonedaCosto.CUP, "1", "0.005"),
-            partida(CategoriaCosto.TRABAJO, MonedaCosto.MLC, "2", "3"),
+            partida(CategoriaCosto.TRABAJO, MonedaCosto.USD, "2", "3"),
         ))
         assertEquals(BigDecimal("15.01"), resultado.costoTotal.getValue(MonedaCosto.CUP))
-        assertEquals(BigDecimal("6.00"), resultado.costoTotal.getValue(MonedaCosto.MLC))
+        assertEquals(BigDecimal("6.00"), resultado.costoTotal.getValue(MonedaCosto.USD))
         assertEquals(BigDecimal("0.00"), resultado.porCategoria.getValue(CategoriaCosto.INDIRECTOS).getValue(MonedaCosto.CUP))
         assertNull(resultado.precioEstimado)
     }
@@ -25,6 +25,16 @@ class FichaCostoTest {
         val partidas = listOf(partida(CategoriaCosto.OTROS, MonedaCosto.CUP, "1", "10"))
         assertEquals(BigDecimal("12.50"), CalculoFichaCosto.calcular(partidas, BigDecimal("25")).precioEstimado!!.getValue(MonedaCosto.CUP))
         assertEquals(BigDecimal("15.00"), CalculoFichaCosto.calcular(partidas, BigDecimal("1.5"), UnidadMargen.FACTOR).precioEstimado!!.getValue(MonedaCosto.CUP))
+    }
+
+    @Test fun margenConservaTotalesSeparadosEnCupYUsd() {
+        val partidas = listOf(
+            partida(CategoriaCosto.OTROS, MonedaCosto.CUP, "1", "100"),
+            partida(CategoriaCosto.TRABAJO, MonedaCosto.USD, "1", "5"),
+        )
+        val resultado = CalculoFichaCosto.calcular(partidas, BigDecimal("10"))
+        assertEquals(BigDecimal("110.00"), resultado.precioEstimado!!.getValue(MonedaCosto.CUP))
+        assertEquals(BigDecimal("5.50"), resultado.precioEstimado!!.getValue(MonedaCosto.USD))
     }
 
     @Test fun entradaNumericaValidada() {
