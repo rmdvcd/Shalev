@@ -565,7 +565,9 @@ Para que disfrutes siempre de las últimas mejoras y que la App Principal y las 
 
 ## Herramientas: ficha de costo temporal
 
-En **Herramientas → Ficha de costo**, agrega partidas con categoría, cantidad, unidad, costo unitario y moneda. Puedes editar o eliminar partidas y consultar los totales por categoría, separados en CUP y MLC. El margen opcional permite estimar un precio como porcentaje o factor; no es una fórmula normativa.
+En **Herramientas → Ficha de costo**, agrega partidas con categoría, cantidad, unidad, costo unitario y moneda. Puedes editar o eliminar partidas y consultar los totales por categoría, separados en CUP y USD. El margen opcional permite estimar un precio como porcentaje o factor; no es una fórmula normativa.
+
+En **Herramientas → Calculadora de cambio**, o desde el icono de cambio de la ficha, puedes convertir importes en ambos sentidos. Introduce la tasa como **CUP por 1 USD** y el importe; el resultado se redondea a dos decimales. También puedes calcular una tasa orientativa indicando importes equivalentes positivos en CUP y USD, y usarla para convertir. La tasa es manual, no se consulta por internet y no modifica los totales de la ficha.
 
 **Importante:** esta primera versión es una calculadora temporal. No guarda fichas, no las exporta y no las incluye en el respaldo; los datos se pierden al salir o cerrar la app. No sustituye el generador GFC ni una ficha oficial.
 

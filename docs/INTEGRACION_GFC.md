@@ -8,7 +8,7 @@ GFC gestiona fichas (borrador/finalizada), partidas, catálogos de insumos y tar
 
 ## Estado en Shalev
 
-Se ha incorporado **Herramientas → Ficha de costo como calculadora temporal**, no como la integración completa de GFC. Las cuatro categorías, subtotal redondeado por partida, totales por categoría/moneda y estimación por margen corresponden al modelo de GFC. No se convierte moneda ni se aplica un coeficiente indirecto.
+Se ha incorporado **Herramientas → Ficha de costo como calculadora temporal**, no como la integración completa de GFC. Las cuatro categorías, subtotal redondeado por partida y estimación por margen siguen el modelo de GFC. A diferencia de GFC, Shalev usa CUP y USD (no MLC); sus totales siguen separados y no se aplica un coeficiente indirecto. La calculadora de cambio manual es independiente y no modifica las partidas ni los totales. No se debe interpretar MLC como USD en una futura importación; el contrato `.ficha148` de GFC requiere resolver explícitamente esa incompatibilidad.
 
 Los datos viven solo en memoria mientras la pantalla está abierta y no están en el respaldo. La interfaz lo advierte y pide confirmación antes de salir. Todavía no hay fichas guardadas, catálogos, estados, coeficiente indirecto, exportación, importación ni sincronización. No usar como ficha oficial.
 

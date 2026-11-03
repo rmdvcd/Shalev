@@ -9,7 +9,7 @@ enum class CategoriaAyuda(val titulo: String, val detalle: String) {
     SERVICIOS("Servicios", "Catálogo de servicios por especialidad"),
     VENTA("Venta", "Carrito, cobro en efectivo o por transferencia"),
     REGISTROS("Registros", "Historial, correcciones y exportación de informes"),
-    HERRAMIENTAS("Herramientas", "Cálculo de costos"),
+    HERRAMIENTAS("Herramientas", "Cálculo de costos y cambio"),
     AJUSTES("Ajustes", "Configuración, pago electrónico y precios"),
     RESPALDO("Respaldo", "Copias de seguridad y restauración"),
     LICENCIA("Licencia", "Solicitud, activación y renovación"),
@@ -96,7 +96,8 @@ object AyudaContenido {
         titulo = "Manual de usuario: Herramientas",
         pasos = listOf(
             "Abre Ficha de costo y agrega partidas con cantidad, costo y moneda",
-            "Consulta los totales en CUP y MLC por separado y el margen opcional",
+            "Consulta los totales en CUP y USD por separado y el margen opcional",
+            "En Calculadora de cambio, introduce la tasa o calcula una a partir de dos importes",
             "El cálculo es temporal: se pierde al salir y no se incluye en el respaldo"
         ),
         categoria = CategoriaAyuda.HERRAMIENTAS

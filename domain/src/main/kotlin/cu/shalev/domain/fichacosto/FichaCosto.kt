@@ -3,7 +3,7 @@ package cu.shalev.domain.fichacosto
 import java.math.BigDecimal
 import java.math.RoundingMode
 
-enum class MonedaCosto { CUP, MLC }
+enum class MonedaCosto { CUP, USD }
 
 enum class CategoriaCosto(val titulo: String) {
     MATERIAS("Materias primas y materiales"),
