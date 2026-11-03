@@ -491,11 +491,6 @@ private fun DatosForm(state: LicenciaUiState, acciones: LicenciaAcciones) {
     }
 }
 
-/**
- * 0.30.1: Card «Precios de la licencia». Una fila por tipo: el precio base y, debajo, lo que suma cada app secundaria
- * (empleado). Los importes salen de [TipoLicencia] (los mismos que cobra la solicitud), nunca se repiten a mano.
- */
-@Composable
 /** Claves de los paneles informativos de esta pantalla (ver [PanelesInformativos]). */
 private object PanelesLicencia {
     const val BLOQUEO = "bloqueo"
@@ -504,6 +499,10 @@ private object PanelesLicencia {
     fun aviso(a: AvisoLicencia) = "aviso.${a.name}"
 }
 
+/**
+ * 0.30.1: Card «Precios de la licencia». Una fila por tipo: el precio base y, debajo, lo que suma cada app secundaria
+ * (empleado). Los importes salen de [TipoLicencia] (los mismos que cobra la solicitud), nunca se repiten a mano.
+ */
 @Composable
 private fun PreciosLicenciaCard(paneles: PanelesInformativos) {
     ShalevAccordionCard(

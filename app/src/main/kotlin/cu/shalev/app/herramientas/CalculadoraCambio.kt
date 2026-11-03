@@ -33,7 +33,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-internal enum class ModoCambio(val titulo: String) {
+/** Operación de la calculadora. Público: forma parte del estado que expone [CalculadoraCambioViewModel]. */
+enum class ModoCambio(val titulo: String) {
     CONVERTIR("Convertir importe"),
     TASA("Calcular tasa desde importes"),
 }
