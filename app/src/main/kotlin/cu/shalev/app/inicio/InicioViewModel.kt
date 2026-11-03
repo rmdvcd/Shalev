@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -121,6 +122,7 @@ class InicioViewModel @Inject constructor(
     private val cerrarTurno: CerrarTurno,
     private val clock: Clock,
     private val secundaria: SecundariaRepository,
+    private val estadoPantallas: cu.shalev.domain.repository.EstadoPantallasRepository,
 ) : ViewModel() {
 
     /** Zona para agrupar por hora/día; sustituible en tests. */
@@ -176,6 +178,14 @@ class InicioViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InicioUiState())
 
     init {
+        // Permanencia del período al cerrar la app: si el proceso no traía elección (arranque en frío), se
+        // restaura la última guardada; si la traía (muerte del proceso), manda la de esta sesión.
+        if (saved.get<String>(KEY_PERIODO) == null) {
+            viewModelScope.launch {
+                val guardado = estadoPantallas.observar(KEY_PERIODO).first()
+                if (guardado != null && saved.get<String>(KEY_PERIODO) == null) saved[KEY_PERIODO] = guardado
+            }
+        }
         val inventario = productosRepo.observarTodos().map { it.size to it.sumOf { p -> p.cantidad } }.distinctUntilChanged()
         val turnoId = turno.map { it?.id to it?.abierto }.distinctUntilChanged()
         viewModelScope.launch {
@@ -188,7 +198,10 @@ class InicioViewModel @Inject constructor(
 
     // ---------------- Acciones ----------------
 
-    fun elegirPeriodo(o: OpcionPeriodo) { saved[KEY_PERIODO] = o.name }
+    fun elegirPeriodo(o: OpcionPeriodo) {
+        saved[KEY_PERIODO] = o.name
+        viewModelScope.launch { estadoPantallas.guardar(KEY_PERIODO, o.name) } // sobrevive al cierre de la app
+    }
 
     /** Al volver a Inicio (ON_RESUME) o tras "Reintentar". */
     fun refrescar() { refresco.value++; contarAhora() }
@@ -238,9 +251,10 @@ class InicioViewModel @Inject constructor(
 
     /** 0.25.0: [contado] = efectivo contado (obligatorio; «Cuadra» lo rellena con el esperado). */
     fun confirmarCierreTurno(contado: Cup) {
+        if (cambiandoTurno.value) return // una apertura/cierre ya está en curso: no se duplica
         dialogo.value = null
+        cambiandoTurno.value = true // síncrono: bloquea otra pulsación antes de lanzar el trabajo
         viewModelScope.launch {
-            cambiandoTurno.value = true
             when (val r = cerrarTurno(contado)) {
                 is AppResult.Ok -> {
                     val res = r.value.resumen
@@ -260,20 +274,32 @@ class InicioViewModel @Inject constructor(
 
     /** 0.21.0 (C6): el empleado confirma «Solicitar cierre». */
     fun confirmarSolicitudCierre(contado: Cup) {
+        if (cambiandoTurno.value) return // envío en curso: la solicitud no se manda dos veces
         dialogo.value = null
+        cambiandoTurno.value = true
         viewModelScope.launch {
-            when (val r = secundaria.solicitarCierre(contado)) {
-                is AppResult.Ok -> emitir(EventoInicio.Mensaje(TextosInicio.SOLICITUD_ENVIADA))
-                is AppResult.Err -> emitir(EventoInicio.Mensaje(mensaje(r.error)))
+            try {
+                when (val r = secundaria.solicitarCierre(contado)) {
+                    is AppResult.Ok -> emitir(EventoInicio.Mensaje(TextosInicio.SOLICITUD_ENVIADA))
+                    is AppResult.Err -> emitir(EventoInicio.Mensaje(mensaje(r.error)))
+                }
+            } finally {
+                cambiandoTurno.value = false
             }
         }
     }
 
     /** 0.25.0 (§5.3): conteo pedido por el cierre del encargado; con él, el cierre pendiente se aplica. */
     fun declararContado(contado: Cup) {
+        if (cambiandoTurno.value) return
+        cambiandoTurno.value = true
         viewModelScope.launch {
-            val r = try { secundaria.solicitarCierre(contado) } catch (e: CancellationException) { throw e } catch (e: Exception) { AppResult.Err(AppError.Desconocido()) }
-            if (r is AppResult.Err) emitir(EventoInicio.Mensaje(mensaje(r.error)))
+            try {
+                val r = try { secundaria.solicitarCierre(contado) } catch (e: CancellationException) { throw e } catch (e: Exception) { AppResult.Err(AppError.Desconocido()) }
+                if (r is AppResult.Err) emitir(EventoInicio.Mensaje(mensaje(r.error)))
+            } finally {
+                cambiandoTurno.value = false
+            }
         }
     }
 

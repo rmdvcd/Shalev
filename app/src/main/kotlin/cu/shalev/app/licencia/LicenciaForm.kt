@@ -245,8 +245,17 @@ enum class PasoLicencia(val titulo: String) {
     val siguiente: PasoLicencia? get() = entries.getOrNull(ordinal + 1)
 }
 
-/** Si ya hay un mensaje pegado (p. ej. tras girar la pantalla), se vuelve a Activar; si no, se empieza por los datos. */
-fun pasoInicialLicencia(form: LicenciaForm): PasoLicencia =
-    if (form.mensajeLicencia.isNotBlank()) PasoLicencia.ACTIVAR else PasoLicencia.DATOS
+/**
+ * Paso en el que arranca el asistente de Licencia, sin repetir lo ya hecho:
+ * - con un mensaje de licencia ya pegado (p. ej. tras girar la pantalla), a Activar;
+ * - con los datos del solicitante ya completos en el Perfil (dados en el asistente inicial o en una visita
+ *   anterior a esta pantalla, donde solicitar los guardó), a Pedir: no se vuelven a pedir (Atrás los revisa);
+ * - si faltan datos, a Datos.
+ */
+fun pasoInicialLicencia(form: LicenciaForm): PasoLicencia = when {
+    form.mensajeLicencia.isNotBlank() -> PasoLicencia.ACTIVAR
+    form.valido -> PasoLicencia.SOLICITAR
+    else -> PasoLicencia.DATOS
+}
 
 fun puedeAvanzar(paso: PasoLicencia, form: LicenciaForm): Boolean = paso.siguiente != null && (paso != PasoLicencia.DATOS || form.valido)

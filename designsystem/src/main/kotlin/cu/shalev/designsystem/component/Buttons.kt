@@ -81,6 +81,7 @@ private fun Modifier.formaBoton(mostrarTexto: Boolean): Modifier =
 /**
  * Botón principal con icono visible y etiqueta accesible. [mostrarTexto] permite conservar una etiqueta cuando hace
  * falta (fuera de diálogos/ventanas); dentro de diálogos/ventanas todos los botones son solo icono (1.0.3).
+ * Una doble pulsación seguida solo ejecuta la acción una vez (ver [GuardiaDobleToque]).
  */
 @Composable
 fun ShalevPrimaryButton(
@@ -92,10 +93,11 @@ fun ShalevPrimaryButton(
     loading: Boolean = false,
     mostrarTexto: Boolean = false,
 ) {
+    val accion = rememberAccionUnica(onClick)
     val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
     val dibujarTexto = mostrarTexto || textoVentana != null
     Button(
-        onClick = onClick,
+        onClick = accion,
         modifier = modifier.formaBoton(dibujarTexto).semantics { contentDescription = text },
         enabled = enabled && !loading,
         shape = RoundedCornerShape(ShalevRadius.md),
@@ -105,7 +107,7 @@ fun ShalevPrimaryButton(
     }
 }
 
-/** Acción secundaria con icono visible (o etiqueta si se solicita en un diálogo). */
+/** Acción secundaria con icono visible (o etiqueta si se solicita en un diálogo). Protegida contra la doble pulsación. */
 @Composable
 fun ShalevSecondaryButton(
     text: String,
@@ -116,10 +118,11 @@ fun ShalevSecondaryButton(
     loading: Boolean = false,
     mostrarTexto: Boolean = false,
 ) {
+    val accion = rememberAccionUnica(onClick)
     val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
     val dibujarTexto = mostrarTexto || textoVentana != null
     OutlinedButton(
-        onClick = onClick,
+        onClick = accion,
         modifier = modifier.formaBoton(dibujarTexto).semantics { contentDescription = text },
         enabled = enabled && !loading,
         shape = RoundedCornerShape(ShalevRadius.md),
@@ -130,7 +133,7 @@ fun ShalevSecondaryButton(
     }
 }
 
-/** Acción terciaria con icono visible y etiqueta accesible. */
+/** Acción terciaria con icono visible y etiqueta accesible. Protegida contra la doble pulsación. */
 @Composable
 fun ShalevTextButton(
     text: String,
@@ -140,10 +143,11 @@ fun ShalevTextButton(
     enabled: Boolean = true,
     mostrarTexto: Boolean = false,
 ) {
+    val accion = rememberAccionUnica(onClick)
     val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
     val dibujarTexto = mostrarTexto || textoVentana != null
     TextButton(
-        onClick = onClick,
+        onClick = accion,
         modifier = modifier.formaBoton(dibujarTexto).semantics { contentDescription = text },
         enabled = enabled,
         shape = RoundedCornerShape(ShalevRadius.md),
@@ -203,7 +207,9 @@ fun ShalevIconAction(
     containerColor: Color? = null,
     etiqueta: String? = null,
     mostrarTexto: Boolean = false,
+    repetible: Boolean = false,
 ) {
+    val accion = rememberAccionUnica(onClick, activa = !repetible)
     val cs = MaterialTheme.colorScheme
     val (bg, fg) = when {
         selected -> cs.primary to cs.onPrimary
@@ -235,7 +241,7 @@ fun ShalevIconAction(
 
     if (style == IconActionStyle.Standard && !selected && containerColor == null) {
         TextButton(
-            onClick = onClick,
+            onClick = accion,
             enabled = enabled,
             modifier = base,
             shape = RoundedCornerShape(ShalevRadius.md),
@@ -245,7 +251,7 @@ fun ShalevIconAction(
         )
     } else {
         Button(
-            onClick = onClick,
+            onClick = accion,
             enabled = enabled,
             modifier = base,
             shape = RoundedCornerShape(ShalevRadius.md),

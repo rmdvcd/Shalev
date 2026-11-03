@@ -3,6 +3,11 @@ package cu.shalev.core.result
 /**
  * Errores tipados de toda la app. Los repositorios y casos de uso devuelven [AppResult] y nunca lanzan hacia la UI.
  * Los textos al usuario se resuelven en presentation (sin datos sensibles en los errores).
+ *
+ * Contrato de presentación: NINGÚN dato de un [AppError] (campo, regla, detalle, motivo, código HTTP) se muestra
+ * tal cual en pantalla; son identificadores internos. La capa de pantallas los traduce a lenguaje llano con su
+ * traductor central (`mensajeParaUsuario`), que cubre todos los subtipos sin ramas por defecto: un subtipo nuevo
+ * obliga a escribir su texto comprensible antes de compilar.
  */
 sealed interface AppError {
 
@@ -48,7 +53,12 @@ sealed interface AppError {
      */
     data class SinPrincipal(val pendientes: Int = 0) : AppError
 
-    /** P37: vinculación rechazada. [motivo] ya es texto para el usuario (QR vencido, usado, de otro negocio…). */
+    /**
+     * P37: vinculación rechazada. [motivo] debería ser texto para el usuario (QR vencido, usado, de otro
+     * negocio…), pero VIAJA POR LA RED: puede venir de otra versión de la app o de un compatible futuro, así que
+     * presentation lo sanea y solo lo muestra si parece una frase (si parece un código interno, texto genérico).
+     */
+
     data class VinculacionRechazada(val motivo: String) : AppError
 
     sealed interface Red : AppError {

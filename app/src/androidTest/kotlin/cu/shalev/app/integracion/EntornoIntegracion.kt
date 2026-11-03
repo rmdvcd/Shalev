@@ -128,7 +128,7 @@ class EntornoIntegracion(licencia: LicenseState = LicenseState.Trial(5)) {
         ObtenerGraficosPeriodo(ventas, turnos, clock, Dispatchers.Unconfined),
         ObtenerResumenGeneral(ventas, productos, insumos, servicios, clock, Dispatchers.Unconfined),
         AbrirTurno(turnos, usuario, clock), CerrarTurno(turnos, usuario, clock), clock,
-        secundaria,
+        secundaria, cu.shalev.app.FakeEstadoPantallas(),
     )
 
     fun respaldoVm() = RespaldoViewModel(

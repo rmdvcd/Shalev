@@ -364,4 +364,16 @@ object FiltrosGuardados {
 
     fun leer(obtener: (String) -> List<String>?): Map<TipoRegistro, FiltroRegistros> =
         TipoRegistro.entries.mapNotNull { t -> decodificar(obtener(clave(t)))?.let { t to it } }.toMap()
+
+    // Permanencia al cerrar la app (EstadoPantallasRepository): la misma codificación, en una sola cadena por
+    // clave y SIN el texto del buscador: al volver otro día se recuerdan la pestaña y los filtros marcados,
+    // no lo que se estaba buscando.
+    const val CLAVE_PESTANA_PERSISTENTE = "registros.pestana"
+    fun clavePersistente(tipo: TipoRegistro) = "registros.filtro.${tipo.name}"
+
+    private const val SEPARADOR = "\u001F"
+
+    fun codificarTexto(f: FiltroRegistros): String = codificar(f.copy(texto = "")).joinToString(SEPARADOR)
+
+    fun decodificarTexto(s: String?): FiltroRegistros? = s?.let { decodificar(it.split(SEPARADOR)) }
 }

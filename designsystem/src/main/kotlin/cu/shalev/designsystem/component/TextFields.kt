@@ -1,9 +1,15 @@
 package cu.shalev.designsystem.component
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,6 +20,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +52,12 @@ import cu.shalev.designsystem.token.ShalevSize
  * - a partir de ahí se actualiza en tiempo real: desaparece en cuanto el valor es válido;
  * - pasar por un campo sin escribir nada, o dejarlo vacío, no lo marca hasta pulsar Guardar.
  * Con `validarAlSalir = false` (por defecto) [isError] se muestra tal cual (filtros, buscadores).
+ *
+ * El teclado no tapa el campo: al enfocar un campo dentro de una zona desplazable, y de nuevo cuando el teclado
+ * termina de aparecer (con el borde a borde, el desplazamiento automático ocurría antes de que el teclado ocupara
+ * su sitio y el campo quedaba oculto tras él), el campo se trae a la parte visible de la pantalla.
  */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun ShalevTextField(
     value: String,
@@ -98,6 +110,14 @@ fun ShalevTextField(
     }
     val teclado = if (keyboardOptions == KeyboardOptions.Default) filtro.teclado else keyboardOptions
     BloquearGestos(conFoco) // 0.27.0 (T5): escribiendo no se cambia de sección deslizando
+    // Traer el campo a la vista: al ganar el foco lo hace el propio campo, pero con el borde a borde el teclado aún
+    // no ocupa su hueco en ese instante y el campo puede quedar tras él. Se repite cuando el teclado ya es visible
+    // (y al pasar de un campo a otro con el teclado abierto).
+    val traerALaVista = remember { BringIntoViewRequester() }
+    val tecladoVisible = WindowInsets.isImeVisible
+    LaunchedEffect(conFoco, tecladoVisible) {
+        if (conFoco && tecladoVisible) traerALaVista.bringIntoView()
+    }
 
     OutlinedTextField(
         value = value,
@@ -105,6 +125,7 @@ fun ShalevTextField(
         modifier = modifier
             .heightIn(min = ShalevSize.textField)
             .then(if (anchoCompleto) Modifier.fillMaxWidth() else Modifier.widthIn(min = ShalevSize.textFieldAnchoMin))
+            .bringIntoViewRequester(traerALaVista)
             .onFocusChanged { f ->
             salio = ShalevValidacion.salioTrasEditar(salio, conFoco, f.isFocused, editado)
             conFoco = f.isFocused

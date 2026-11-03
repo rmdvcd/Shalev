@@ -172,8 +172,10 @@ class OnboardingViewModel @Inject constructor(
     }
 
     private fun ocupado(block: suspend () -> Unit) {
+        // La guarda contra la doble pulsación vive en siguiente() (if (s.ocupado) return): aquí NO se corta,
+        // porque finalizar() se invoca desde dentro de otro ocupado{} (paso TIPO_APP como secundaria).
+        _state.update { it.copy(ocupado = true) } // síncrono: los botones se apagan antes de lanzar el trabajo
         viewModelScope.launch {
-            _state.update { it.copy(ocupado = true) }
             try { block() } finally { _state.update { it.copy(ocupado = false) } }
         }
     }

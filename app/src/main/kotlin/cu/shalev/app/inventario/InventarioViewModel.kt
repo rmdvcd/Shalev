@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -131,6 +132,7 @@ class InventarioViewModel @Inject constructor(
     private val archivos: ArchivosApp,
     private val clock: Clock,
     limpiarFotos: LimpiarFotos,
+    private val estadoPantallas: cu.shalev.domain.repository.EstadoPantallasRepository,
 ) : ViewModel() {
 
     private val modoVenta: TipoVenta? = saved.get<String>(KEY_VENTA)?.let { v -> TipoVenta.entries.firstOrNull { it.name == v } }
@@ -188,6 +190,25 @@ class InventarioViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { runCatchingCancelable { limpiarFotos() } }
+        // Permanencia del filtro al cerrar la app (fuera del modo venta): se restaura el último filtro marcado.
+        // La alerta que llega de Inicio manda sobre lo recordado, y si la persona ya buscó o filtró, no se pisa.
+        if (modoVenta == null) {
+            val inicial = filtro.value
+            if (inicial.alerta == null) viewModelScope.launch {
+                val guardado = FiltroInventarioGuardado.decodificar(
+                    estadoPantallas.observar(FiltroInventarioGuardado.CLAVE).first(),
+                )
+                if (guardado != null && filtro.value == inicial) filtro.value = guardado
+            }
+        }
+    }
+
+    private fun persistirFiltro() {
+        if (modoVenta != null) return // la selección para vender no toca el filtro recordado de la tienda
+        val f = filtro.value
+        viewModelScope.launch {
+            estadoPantallas.guardar(FiltroInventarioGuardado.CLAVE, if (f.activos == 0) null else FiltroInventarioGuardado.codificar(f))
+        }
     }
 
     // ---------------- Buscador y filtro ----------------
@@ -200,8 +221,8 @@ class InventarioViewModel @Inject constructor(
     }
 
     fun buscar(texto: String) = filtro.update { it.copy(texto = texto.take(80)) }
-    fun aplicarFiltro(f: FiltroInventario) { filtro.update { f.copy(texto = it.texto) }; cerrarHoja() }
-    fun quitarFiltros() = filtro.update { FiltroInventario() }
+    fun aplicarFiltro(f: FiltroInventario) { filtro.update { f.copy(texto = it.texto) }; cerrarHoja(); persistirFiltro() }
+    fun quitarFiltros() { filtro.update { FiltroInventario() }; persistirFiltro() }
     fun reintentar() = intento.update { it + 1 }
 
     // ---------------- Selección (checkbox) ----------------
@@ -407,11 +428,14 @@ class InventarioViewModel @Inject constructor(
 
     // ---------------- Internos ----------------
 
-    private fun trabajar(block: suspend () -> Unit) = lanzarExportacion(
-        ocupado = { b -> local.update { it.copy(trabajando = b) } },
-        alFallar = { emitir(EventoInventario.Mensaje(TextosInventario.ERROR_EXPORTAR)) },
-        bloque = block,
-    )
+    private fun trabajar(block: suspend () -> Unit) {
+        if (local.value.trabajando) return // ya hay una exportación en curso: no se lanza otra encima
+        lanzarExportacion(
+            ocupado = { b -> local.update { it.copy(trabajando = b) } },
+            alFallar = { emitir(EventoInventario.Mensaje(TextosInventario.ERROR_EXPORTAR)) },
+            bloque = block,
+        )
+    }
 
     private fun nombreInventario(f: FormatoExport) =
         "Shalev_inventario_${Dates.localDate(clock.now(), ZoneId.systemDefault())}.${f.extension}"

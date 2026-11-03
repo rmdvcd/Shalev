@@ -69,7 +69,7 @@ class InicioViewModelTest {
         ObtenerGraficosPeriodo(ventas, turnos, reloj, Dispatchers.Unconfined),
         ObtenerResumenGeneral(ventas, productos, insumos, cu.shalev.app.ServRepo(), reloj, Dispatchers.Unconfined),
         AbrirTurno(turnos, UsuarioActual(perfil), reloj), CerrarTurno(turnos, UsuarioActual(perfil), reloj), reloj,
-        secundaria,
+        secundaria, cu.shalev.app.FakeEstadoPantallas(),
     )
 
     private val secundaria = cu.shalev.app.SecundariaRepoFake()

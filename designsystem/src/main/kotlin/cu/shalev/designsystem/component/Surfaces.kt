@@ -21,6 +21,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,13 +33,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -71,6 +79,7 @@ enum class CardTone { Default, Tonal, Highlight, Error }
  * Card estándar: radio 16dp, padding interno 16dp.
  * Claro: fondo blanco + sombra sutil (1dp). Oscuro: sin sombra; la elevación se ve por el tono más claro.
  * [titleCentered] = true para cards de gráficos (títulos centrados, Shalev.txt).
+ * Si es pulsable, una doble pulsación seguida solo ejecuta la acción una vez (ver [GuardiaDobleToque]).
  */
 @Composable
 fun ShalevCard(
@@ -120,8 +129,9 @@ fun ShalevCard(
         }
     }
     val medida = if (ajustarAlContenido) modifier else modifier.fillMaxWidth()
+    val accionSegura = rememberAccionUnica(onClick = { onClick?.invoke() })
     if (onClick != null) {
-        Surface(onClick = onClick, modifier = medida, shape = shape, color = container, shadowElevation = shadow, content = body)
+        Surface(onClick = accionSegura, modifier = medida, shape = shape, color = container, shadowElevation = shadow, content = body)
     } else {
         Surface(modifier = medida, shape = shape, color = container, shadowElevation = shadow, content = body)
     }
@@ -140,22 +150,25 @@ fun ShalevAccordionCard(
     modifier: Modifier = Modifier,
     tone: CardTone = CardTone.Default,
     subtitle: String? = null,
+    icon: ImageVector? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val alternar = rememberAccionUnica(onToggle)
     val giro by animateFloatAsState(if (expanded) 180f else 0f, ShalevMotion.tween(ShalevMotion.SHORT), label = "acordeon")
     ShalevCard(modifier = modifier, tone = tone) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = ShalevSize.touchTarget)
-                .clickable(role = Role.Button, onClick = onToggle)
+                .clickable(role = Role.Button, onClick = alternar)
                 .semantics(mergeDescendants = true) {
                     heading()
                     stateDescription = if (expanded) "Expandido" else "Contraído"
                 },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Spacer(Modifier.size(ShalevSize.icon))
+            if (icon != null) Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
+            else Spacer(Modifier.size(ShalevSize.icon))
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     title,
@@ -180,6 +193,56 @@ fun ShalevAccordionCard(
                 content = content,
             )
         }
+    }
+}
+
+/**
+ * Estado abierto/cerrado de los paneles informativos (acordeones de solo lectura) de una pantalla, indexado por clave.
+ * Cada panel nace en su valor por defecto ([abiertosPorDefecto]: los que importan de entrada, como el estado de la
+ * licencia; el resto, cerrado) y el usuario lo abre o cierra tocando su cabecera.
+ *
+ * No se persiste entre visitas: al volver a la pantalla los paneles vuelven a su defecto (misma decisión que los
+ * acordeones de Inicio). La lógica es probada en JVM (la animación y el render los pone [ShalevAccordionCard]).
+ */
+@Stable
+class PanelesInformativos(private val abiertosPorDefecto: Set<String> = emptySet()) {
+    private val estados = mutableStateMapOf<String, Boolean>()
+
+    fun abierto(clave: String): Boolean = estados[clave] ?: (clave in abiertosPorDefecto)
+
+    fun alternar(clave: String) {
+        estados[clave] = !abierto(clave)
+    }
+
+    fun abrir(clave: String) {
+        estados[clave] = true
+    }
+
+    fun colapsar(clave: String) {
+        estados[clave] = false
+    }
+
+    /** Cierra todos los paneles conocidos (tocados o abiertos por defecto): libera la pantalla para escribir o actuar. */
+    fun colapsarTodos() {
+        (estados.keys + abiertosPorDefecto).forEach { estados[it] = false }
+    }
+}
+
+@Composable
+fun rememberPanelesInformativos(vararg abiertosPorDefecto: String): PanelesInformativos =
+    remember { PanelesInformativos(abiertosPorDefecto.toSet()) }
+
+/**
+ * Auto-colapso de los paneles informativos: cuando el teclado aparece (la persona va a escribir en un campo y
+ * necesita verlo, junto con los botones de acción), los paneles fijos se cierran solos dejando visible solo su
+ * título y resumen. Una sola llamada por pantalla, junto a la declaración de los paneles.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun AutoColapsarPanelesAlEscribir(paneles: PanelesInformativos) {
+    val tecladoVisible = WindowInsets.isImeVisible
+    LaunchedEffect(tecladoVisible) {
+        if (tecladoVisible) paneles.colapsarTodos()
     }
 }
 
@@ -228,7 +291,9 @@ fun ShalevListItem(
         lineasSubtituloSolicitadas.coerceAtMost((3 - lineasValorApilado - lineasTitulo).coerceAtLeast(1))
     } else 0
     val textoSubtitulo = subtitle?.split(" · ", "\n")?.filter { it.isNotBlank() }?.joinToString(" · ")
-    val clickable = if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier
+    // Una doble pulsación en una fila (p. ej. para abrir una ficha) solo actúa una vez.
+    val accionSegura = rememberAccionUnica(onClick = { onClick?.invoke() })
+    val clickable = if (onClick != null) Modifier.clickable(role = Role.Button, onClick = accionSegura) else Modifier
     CompositionLocalProvider(LocalShalevCentrado provides false) {
         Row(
             modifier = modifier

@@ -268,14 +268,15 @@ fun MainScaffold(snapshot: Licencia) {
                     onElegirProductos = { t, pre ->
                         val csv = SeleccionVenta.csv(pre).ifEmpty { null }
                         // P29: la venta de servicios elige en Servicios; la de productos, en Inventario.
-                        nav.navigate(if (t == TipoVenta.SERVICIO) Route.Servicios(venta = true, seleccion = csv) else Route.Inventario(venta = t.name, seleccion = csv))
+                        // launchSingleTop: una doble pulsación no apila la selección dos veces.
+                        nav.navigate(if (t == TipoVenta.SERVICIO) Route.Servicios(venta = true, seleccion = csv) else Route.Inventario(venta = t.name, seleccion = csv)) { launchSingleTop = true }
                     },
                     onTerminada = { msg ->
                         // Vuelve a Inicio (gráficos al día) con el aviso de venta registrada.
                         if (!nav.popBackStack<Route.Inicio>(inclusive = false)) nav.navigateTopLevel(Route.Inicio)
                         nav.currentBackStackEntry?.savedStateHandle?.set(KEY_INICIO_MENSAJE, msg)
                     },
-                    onConfigurarPago = { nav.navigate(Route.PagoElectronico) },
+                    onConfigurarPago = { nav.navigate(Route.PagoElectronico) { launchSingleTop = true } },
                     seleccion = seleccion?.toList(),
                     onSeleccionConsumida = { e.savedStateHandle[KEY_VENTA_SELECCION] = null },
                 )

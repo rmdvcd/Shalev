@@ -173,4 +173,12 @@ class OnboardingViewModelTest {
         val vm = vm().also { it.iniciar(ModoWizard.RETOMAR) }
         assertEquals(listOf(PasoWizard.PRUEBA), vm.state.value.pasos)
     }
+
+    @Test fun primeraVezTrasActivarLicenciaNoRepideLosDatos() {
+        // La app arrancó bloqueada: la pantalla de Licencia pidió los datos y solicitar los guardó en el Perfil.
+        // Al llegar después el asistente de primera vez, sus datos NO se vuelven a pedir.
+        perfiles.state.value = Perfil(nombre = "Ana", apellidos = "Pérez", ci = "85010112345")
+        val vm = vm().also { it.iniciar(ModoWizard.PRIMERA_VEZ) }
+        assertFalse("los datos ya dados en Licencia no se piden otra vez", PasoWizard.DATOS in vm.state.value.pasos)
+    }
 }

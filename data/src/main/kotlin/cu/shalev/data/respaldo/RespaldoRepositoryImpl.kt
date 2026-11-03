@@ -402,11 +402,15 @@ class RespaldoRepositoryImpl @Inject constructor(
     } catch (e: BackupCipher.ArchivoDanadoException) {
         AppResult.Err(AppError.ArchivoDanado(e.incompleto))
     } catch (e: BackupCipher.FormatoException) {
+        // Sus mensajes son textos controlados de esta casa («respaldo de una versión más nueva de Shalev (5)»);
+        // la capa de pantallas los clasifica para componer el aviso final en lenguaje llano.
         AppResult.Err(AppError.FormatoInvalido(e.message.orEmpty()))
     } catch (e: SerializationException) {
         AppResult.Err(AppError.FormatoInvalido("contenido ilegible"))
     } catch (e: IllegalArgumentException) {
-        AppResult.Err(AppError.FormatoInvalido(e.message.orEmpty()))
+        // NUNCA e.message: enumValueOf/require lo rellenan con nombres y reglas internas («valor desconocido: X»)
+        // que para la persona serían texto incomprensible. Detalle fijo, como en SerializationException.
+        AppResult.Err(AppError.FormatoInvalido("contenido ilegible"))
     } catch (e: java.time.DateTimeException) {
         AppResult.Err(AppError.FormatoInvalido("fecha inválida"))
     } catch (e: java.io.IOException) {

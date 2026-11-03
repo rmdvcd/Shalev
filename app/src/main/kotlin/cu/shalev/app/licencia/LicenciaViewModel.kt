@@ -132,6 +132,7 @@ class LicenciaViewModel @Inject constructor(
 
     /** Los datos introducidos se guardan en el Perfil al solicitar (Licencia → Perfil, en SolicitarLicencia). */
     fun solicitarLicencia() {
+        if (_state.value.ocupado) return // una solicitud ya está en curso: una segunda pulsación no la duplica
         val lic = _state.value.licencia
         val f = _state.value.form
         if (!f.valido) { editar { it.copy(mostrarErrores = true, editando = true) }; return }
@@ -140,8 +141,8 @@ class LicenciaViewModel @Inject constructor(
             viewModelScope.launch { eventos.send(LicenciaEvento.Mensaje(TextosRecuperacion.ID_INVALIDO)) }
             return
         }
+        _state.update { it.copy(ocupado = true) } // síncrono: bloquea el botón antes de lanzar el trabajo
         viewModelScope.launch {
-            _state.update { it.copy(ocupado = true) }
             when (val r = solicitar(f.aInput(lic))) {
                 is AppResult.Ok -> {
                     editar { it.copy(editando = false, mostrarErrores = false) }
@@ -154,10 +155,11 @@ class LicenciaViewModel @Inject constructor(
     }
 
     fun activarLicencia() {
+        if (_state.value.ocupado) return // activación en curso: no se procesa el mensaje dos veces
         val texto = _state.value.form.mensajeLicencia
         if (texto.isBlank()) return
+        _state.update { it.copy(ocupado = true) } // síncrono: bloquea el botón antes de lanzar el trabajo
         viewModelScope.launch {
-            _state.update { it.copy(ocupado = true) }
             val r = activar(texto)
             _state.update { it.copy(ocupado = false, form = it.form.copy(mensajeLicencia = "")) }
             eventos.send(LicenciaEvento.Mensaje(mensajeActivacion(r)))

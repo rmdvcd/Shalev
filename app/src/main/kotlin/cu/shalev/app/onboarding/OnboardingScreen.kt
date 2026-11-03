@@ -59,6 +59,7 @@ import cu.shalev.core.money.Money
 import cu.shalev.designsystem.component.FiltroEntrada
 import cu.shalev.designsystem.component.CardTone
 import cu.shalev.designsystem.component.IconActionStyle
+import cu.shalev.designsystem.component.ShalevAccordionCard
 import cu.shalev.designsystem.component.ShalevBarraAcciones
 import cu.shalev.designsystem.component.ShalevCard
 import cu.shalev.designsystem.component.ShalevIconAction
@@ -382,7 +383,7 @@ private fun CampoNivelUi(
     forzar: Boolean, sumar: (CampoNivel, Int) -> Unit, acciones: OnboardingAcciones, decimal: Boolean,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-        ShalevIconAction(ShalevIcons.Disminuir, "Restar 1 a $etiqueta", onClick = { sumar(campo, -1) }, style = IconActionStyle.Tonal)
+        ShalevIconAction(ShalevIcons.Disminuir, "Restar 1 a $etiqueta", onClick = { sumar(campo, -1) }, style = IconActionStyle.Tonal, repetible = true)
         ShalevTextField(
             filtro = if (decimal) FiltroEntrada.DECIMAL else FiltroEntrada.ENTERO,
             value = form.valor(campo), onValueChange = { acciones.onNivel(campo, it) }, label = etiqueta,
@@ -390,7 +391,7 @@ private fun CampoNivelUi(
             keyboardOptions = KeyboardOptions(keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number),
             modifier = Modifier.weight(1f),
         )
-        ShalevIconAction(ShalevIcons.Aumentar, "Sumar 1 a $etiqueta", onClick = { sumar(campo, 1) }, style = IconActionStyle.Tonal)
+        ShalevIconAction(ShalevIcons.Aumentar, "Sumar 1 a $etiqueta", onClick = { sumar(campo, 1) }, style = IconActionStyle.Tonal, repetible = true)
     }
 }
 
@@ -410,7 +411,12 @@ private fun PasoPrueba(state: OnboardingUiState) {
     Punto(ShalevIcons.Verificado, "Durante la prueba puedes usar todas las funciones.")
     Punto(ShalevIcons.Bloqueo, "Cuando termine, Shalev se bloqueará hasta que actives una licencia. Tus datos NO se borran.")
     Punto(ShalevIcons.Licencia, "Puedes pedir la licencia cuando quieras en Ajustes → Licencia.")
-    ShalevCard(title = "Precios", tone = CardTone.Tonal) {
+    // Los precios son referencia: panel colapsable, cerrado de entrada, para llegar sin desplazar al botón de seguir.
+    var preciosAbiertos by rememberSaveable { mutableStateOf(false) }
+    ShalevAccordionCard(
+        title = "Precios", tone = CardTone.Tonal, icon = ShalevIcons.Precios,
+        expanded = preciosAbiertos, onToggle = { preciosAbiertos = !preciosAbiertos },
+    ) {
         TipoLicencia.entries.forEach { t ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(t.etiqueta, style = MaterialTheme.typography.bodyMedium)
@@ -466,7 +472,7 @@ private fun PasoEmpleados(state: OnboardingUiState, acciones: OnboardingAcciones
     ) {
         ShalevIconAction(
             ShalevIcons.Disminuir, "Un empleado menos", onClick = { acciones.onEmpleados(state.empleados - 1) },
-            enabled = state.empleados > 0, style = IconActionStyle.Tonal,
+            enabled = state.empleados > 0, style = IconActionStyle.Tonal, repetible = true,
         )
         Text(
             state.empleados.toString(), style = MaterialTheme.typography.headlineMedium,
@@ -474,7 +480,7 @@ private fun PasoEmpleados(state: OnboardingUiState, acciones: OnboardingAcciones
         )
         ShalevIconAction(
             ShalevIcons.Aumentar, "Un empleado más", onClick = { acciones.onEmpleados(state.empleados + 1) },
-            enabled = state.empleados < (state.licencia?.secundariasPermitidas ?: 0), style = IconActionStyle.Tonal,
+            enabled = state.empleados < (state.licencia?.secundariasPermitidas ?: 0), style = IconActionStyle.Tonal, repetible = true,
         )
     }
     Explicacion(TextosTour.EMPLEADOS_AYUDA)

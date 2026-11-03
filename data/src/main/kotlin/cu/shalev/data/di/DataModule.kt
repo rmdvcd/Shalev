@@ -69,6 +69,7 @@ abstract class DataModule {
     @Binds abstract fun secundariaRepository(impl: cu.shalev.data.sync.SecundariaRepositoryImpl): cu.shalev.domain.repository.SecundariaRepository
     @Binds abstract fun puertaTurno(impl: cu.shalev.data.sync.PuertaTurnoImpl): cu.shalev.domain.repository.PuertaTurno
     @Binds abstract fun estadoApp(impl: cu.shalev.data.local.EstadoAppRepositoryImpl): cu.shalev.domain.repository.EstadoAppRepository
+    @Binds abstract fun estadoPantallas(impl: cu.shalev.data.local.EstadoPantallasRepositoryImpl): cu.shalev.domain.repository.EstadoPantallasRepository
     @Binds abstract fun actualizaciones(impl: cu.shalev.data.network.ActualizacionesRepositoryImpl): cu.shalev.domain.repository.ActualizacionesRepository
 
     companion object {

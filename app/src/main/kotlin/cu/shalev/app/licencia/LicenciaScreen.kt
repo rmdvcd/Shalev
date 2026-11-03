@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
@@ -42,8 +41,12 @@ import cu.shalev.app.common.Contacto
 import cu.shalev.app.common.SecureWindow
 import cu.shalev.core.money.Money
 import cu.shalev.designsystem.component.FiltroEntrada
+import cu.shalev.designsystem.component.AutoColapsarPanelesAlEscribir
 import cu.shalev.designsystem.component.CardTone
 import cu.shalev.designsystem.component.IconActionStyle
+import cu.shalev.designsystem.component.PanelesInformativos
+import cu.shalev.designsystem.component.ShalevAccordionCard
+import cu.shalev.designsystem.component.rememberPanelesInformativos
 import cu.shalev.designsystem.component.ShalevButtonRow
 import cu.shalev.designsystem.component.ShalevCard
 import cu.shalev.designsystem.component.ShalevChip
@@ -191,17 +194,30 @@ fun LicenciaContent(
     val lic = state.licencia ?: return ShalevLoading(modifier)
     val form = state.form
     val accion = lic.accionSolicitud(form.ampliandoSecundarias)
+    // Paneles de solo información (bloqueo, estado, avisos, precios) como acordeones: empiezan abiertos los que
+    // explican la situación; los precios (referencia) empiezan cerrados. Al aparecer el teclado para escribir en
+    // el asistente se cierran solos, dejando ver los campos y los botones (AutoColapsarPanelesAlEscribir).
+    val paneles = rememberPanelesInformativos(
+        PanelesLicencia.BLOQUEO, PanelesLicencia.ESTADO,
+        *lic.avisos().map { PanelesLicencia.aviso(it) }.toTypedArray(),
+    )
+    AutoColapsarPanelesAlEscribir(paneles)
     Column(
         modifier.fillMaxSize().shalevContentWidth().imePadding().verticalScroll(rememberScrollState()).padding(ShalevSpacing.md),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
         horizontalAlignment = Alignment.CenterHorizontally, // P28: lo que va solo en su fila, centrado
     ) {
         if (bloqueada) {
-            ShalevCard(tone = CardTone.Tonal, modifier = Modifier.testTag(LicenciaTags.AVISO_BLOQUEO)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-                    Icon(ShalevIcons.Bloqueo, contentDescription = null)
-                    Text("Shalev está bloqueado hasta que actives una licencia válida.", style = MaterialTheme.typography.bodyMedium)
-                }
+            ShalevAccordionCard(
+                title = "Shalev está bloqueado",
+                subtitle = "Activa una licencia válida para seguir usando la app.",
+                icon = ShalevIcons.Bloqueo,
+                tone = CardTone.Tonal,
+                expanded = paneles.abierto(PanelesLicencia.BLOQUEO),
+                onToggle = { paneles.alternar(PanelesLicencia.BLOQUEO) },
+                modifier = Modifier.testTag(LicenciaTags.AVISO_BLOQUEO),
+            ) {
+                Text("Shalev está bloqueado hasta que actives una licencia válida.", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 ShalevSecondaryText("Tus datos siguen guardados.")
                 acciones.onSoporte?.let { soporte ->
                     ShalevButtonRow { ShalevTextButton("Contactar soporte", icon = ShalevIcons.Soporte, onClick = soporte, modifier = Modifier.testTag(LicenciaTags.SOPORTE)) }
@@ -209,8 +225,19 @@ fun LicenciaContent(
             }
         }
 
-        EstadoLicenciaCard(lic, ahora)
+        EstadoLicenciaCard(lic, ahora, expandida = paneles.abierto(PanelesLicencia.ESTADO), onAlternar = { paneles.alternar(PanelesLicencia.ESTADO) })
         var paso by rememberSaveable { mutableStateOf(pasoInicialLicencia(form)) }
+        // Arranque sin repetir lo ya dado: el Perfil puede llegar un instante después que la licencia; en cuanto
+        // los datos ya están completos (asistente inicial o una solicitud anterior) se entra en «Pide la
+        // licencia». Solo antes de que la persona navegue por su cuenta y nunca mientras edita sus datos.
+        var pasoTocado by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(form.valido, form.editando, form.mensajeLicencia) {
+            if (!pasoTocado && !form.editando) {
+                val sugerido = pasoInicialLicencia(form)
+                if (sugerido != paso) paso = sugerido
+            }
+        }
+        LaunchedEffect(paso) { paneles.colapsar(PanelesLicencia.PRECIOS) }
         // 0.22.0 (L-e): renovar con lo mismo en un toque (tipo y secundarias de la instalada).
         val instalada = lic.instalada
         if ((lic.renovable() || lic.ampliable()) && instalada != null && paso != PasoLicencia.SOLICITAR) {
@@ -218,14 +245,14 @@ fun LicenciaContent(
                 if (lic.renovable()) {
                     ShalevSecondaryButton(
                         text = TextosRenovacion.BOTON, icon = ShalevIcons.Reintentar,
-                        onClick = { paso = if (acciones.onRenovarIgual()) PasoLicencia.SOLICITAR else PasoLicencia.DATOS },
+                        onClick = { pasoTocado = true; paso = if (acciones.onRenovarIgual()) PasoLicencia.SOLICITAR else PasoLicencia.DATOS },
                         modifier = Modifier.testTag(LicenciaTags.RENOVAR_IGUAL),
                     )
                 }
                 if (lic.ampliable()) {
                     ShalevSecondaryButton(
                         text = TextosRenovacion.BOTON_AMPLIAR, icon = ShalevIcons.Aumentar,
-                        onClick = { paso = if (acciones.onAmpliarSecundarias()) PasoLicencia.SOLICITAR else PasoLicencia.DATOS },
+                        onClick = { pasoTocado = true; paso = if (acciones.onAmpliarSecundarias()) PasoLicencia.SOLICITAR else PasoLicencia.DATOS },
                         modifier = Modifier.testTag(LicenciaTags.AMPLIAR_SECUNDARIAS),
                     )
                 }
@@ -239,25 +266,30 @@ fun LicenciaContent(
         }
 
         lic.avisos().forEach { aviso ->
-            ShalevCard(tone = CardTone.Tonal) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-                    Icon(ShalevIcons.Alerta, contentDescription = null)
-                    Text(aviso.titulo, style = MaterialTheme.typography.titleSmall)
-                }
+            val clave = PanelesLicencia.aviso(aviso)
+            ShalevAccordionCard(
+                title = aviso.titulo,
+                subtitle = aviso.detalle,
+                icon = ShalevIcons.Alerta,
+                tone = CardTone.Tonal,
+                expanded = paneles.abierto(clave),
+                onToggle = { paneles.alternar(clave) },
+            ) {
                 Text(aviso.detalle, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
         }
 
         // 0.30.1: precios de cada tipo de licencia, con lo que suma cada app secundaria.
-        PreciosLicenciaCard()
+        PreciosLicenciaCard(paneles)
 
         ShalevStepper(
             actual = paso.ordinal + 1, total = PasoLicencia.entries.size, titulo = paso.titulo,
-            onAtras = paso.anterior?.let { a -> { paso = a } },
+            onAtras = paso.anterior?.let { a -> { pasoTocado = true; paso = a } },
             onSiguiente = paso.siguiente?.let { s ->
                 {
                     if (puedeAvanzar(paso, form)) {
                         if (paso == PasoLicencia.DATOS && form.editando) acciones.onCerrarEdicion()
+                        pasoTocado = true
                         paso = s
                     } else {
                         acciones.onEditar { it.copy(mostrarErrores = true, editando = true) }
@@ -464,8 +496,24 @@ private fun DatosForm(state: LicenciaUiState, acciones: LicenciaAcciones) {
  * (empleado). Los importes salen de [TipoLicencia] (los mismos que cobra la solicitud), nunca se repiten a mano.
  */
 @Composable
-private fun PreciosLicenciaCard() {
-    ShalevCard(title = TextosLicencia.PRECIOS_TITULO, modifier = Modifier.testTag(LicenciaTags.PRECIOS)) {
+/** Claves de los paneles informativos de esta pantalla (ver [PanelesInformativos]). */
+private object PanelesLicencia {
+    const val BLOQUEO = "bloqueo"
+    const val ESTADO = "estado"
+    const val PRECIOS = "precios"
+    fun aviso(a: AvisoLicencia) = "aviso.${a.name}"
+}
+
+@Composable
+private fun PreciosLicenciaCard(paneles: PanelesInformativos) {
+    ShalevAccordionCard(
+        title = TextosLicencia.PRECIOS_TITULO,
+        subtitle = TextosLicencia.PRECIOS_DETALLE,
+        icon = ShalevIcons.Precios,
+        expanded = paneles.abierto(PanelesLicencia.PRECIOS),
+        onToggle = { paneles.alternar(PanelesLicencia.PRECIOS) },
+        modifier = Modifier.testTag(LicenciaTags.PRECIOS),
+    ) {
         ShalevSecondaryText(TextosLicencia.PRECIOS_DETALLE)
         Column(Modifier.fillMaxWidth()) {
             TipoLicencia.entries.forEach { t ->
@@ -494,7 +542,7 @@ private fun SelectorSecundarias(form: LicenciaForm, acciones: LicenciaAcciones, 
     ) {
         ShalevIconAction(
             ShalevIcons.Disminuir, "Una secundaria menos", onClick = { acciones.onEditar { it.conSecundarias(mostradas - 1, minimo) } },
-            enabled = mostradas > minimo, style = IconActionStyle.Tonal, modifier = Modifier.testTag(LicenciaTags.SECUNDARIAS_MENOS),
+            enabled = mostradas > minimo, style = IconActionStyle.Tonal, modifier = Modifier.testTag(LicenciaTags.SECUNDARIAS_MENOS), repetible = true,
         )
         Text(
             mostradas.toString(), style = MaterialTheme.typography.titleLarge,
@@ -502,7 +550,7 @@ private fun SelectorSecundarias(form: LicenciaForm, acciones: LicenciaAcciones, 
         )
         ShalevIconAction(
             ShalevIcons.Aumentar, "Una secundaria más", onClick = { acciones.onEditar { it.conSecundarias(mostradas + 1, minimo) } },
-            enabled = mostradas < cu.shalev.licencia.contract.GlContract.SECUNDARIAS_MAX, style = IconActionStyle.Tonal,
+            enabled = mostradas < cu.shalev.licencia.contract.GlContract.SECUNDARIAS_MAX, style = IconActionStyle.Tonal, repetible = true,
             modifier = Modifier.testTag(LicenciaTags.SECUNDARIAS_MAS),
         )
     }

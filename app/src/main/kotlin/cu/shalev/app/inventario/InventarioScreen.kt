@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -230,7 +231,7 @@ fun InventarioContent(
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).imePadding()) { // con el teclado abierto la lista queda por encima
             if (state.trabajando) ShalevLinearProgress(Modifier.fillMaxWidth())
             ElementosFijados(state, acciones)
             Buscador(state, acciones)
