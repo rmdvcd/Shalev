@@ -23,15 +23,24 @@ keytool -genkeypair -v \
   keytool -list -v -keystore spvi-release.jks -alias shalev | grep SHA256
   ```
 
-> **Clave vigente desde la 0.32.0** (la primera versión pública, creada el 2026-10-21; la 0.30.0/51 nunca se publicó):
+> **Clave vigente (la que firmó la Release v1.0 publicada y la misma con la que se firma GL.apk):**
 >
 > | | |
 > |---|---|
-> | Fichero | `C:\Users\666\.android\shalev-release.jks` (fuera del repositorio) |
-> | Alias | `shalev` |
-> | Clave | RSA 4096, PKCS12, válida hasta el **2054-03-08** |
-> | Huella SHA-256 | `4F:3B:5F:24:15:E7:03:16:27:8A:7C:0D:93:A3:45:2A:88:79:02:68:8E:C7:E0:B8:00:9D:1F:D8:69:AD:E8:37` |
-> | Credenciales | `C:\Users\666\.android\shalev-release.properties` y `keystore.properties` en la raíz (ignorado por git) |
+> | Fichero | `~/.android/gl-release.jks` (fuera del repositorio) |
+> | Alias | `gl` |
+> | Certificado | `CN=GL, O=GL, C=US` |
+> | Huella SHA-256 | `13:9D:3D:A9:3B:D3:AB:B8:81:A2:C5:55:03:DA:E0:B0:59:AB:4C:36:A6:8A:D1:63:94:A8:B5:26:FF:D4:17:38` |
+> | Credenciales | `keystore.properties` en la raíz (ignorado por git) o variables `Shalev_*` |
+>
+> Verificado contra la Release `v1.0` publicada (`Shalev-1.0.apk`): `apksigner` confirma ese mismo
+> certificado (`docs/HISTORIAL_DESARROLLO.md`, 2026-10-22). Es la **misma clave con la que se firma
+> GL.apk** (el generador de licencias firma en local con `gl.jks`, alias `gl`), así que es la prioridad
+> al elegir clave.
+>
+> ⚠️ **No uses `shalev-release.jks` (huella `4F:3B:…:E8:37`)**: nunca se publicó ninguna Release con esa
+> clave y no está en el equipo de compilación; firmar con ella cambiaría el `ANDROID_ID`, anularía todas
+> las licencias emitidas y obligaría a desinstalar la app para actualizar.
 >
 > **Copia el `.jks` y su contraseña a dos sitios fuera del ordenador** (memoria USB cifrada y un gestor de contraseñas). Sin ellos no se puede volver a publicar una actualización: cambiar la firma anula las licencias ya emitidas y obliga a desinstalar la app (y con ella, sus datos).
 

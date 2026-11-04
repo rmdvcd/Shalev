@@ -6,8 +6,12 @@ Copia el bloque de abajo tal cual en OpenCode (CLI o Desktop) **en tu PC**, dond
 Firma el APK de release de Shalev SIN cambiar ninguna clave, siguiendo RELEASE.md:
 
 1. Condiciones obligatorias (no negociables):
-   - Firma SOLO con el keystore existente documentado en RELEASE.md: alias «shalev», huella SHA-256
-     4F:3B:5F:24:15:E7:03:16:27:8A:7C:0D:93:A3:45:2A:88:79:02:68:8E:C7:E0:B8:00:9D:1F:D8:69:AD:E8:37 (válida hasta 2054-03-08).
+   - Firma SOLO con el keystore existente documentado en RELEASE.md: `~/.android/gl-release.jks`, alias «gl»
+     (certificado CN=GL, O=GL, C=US), huella SHA-256
+     13:9D:3D:A9:3B:D3:AB:B8:81:A2:C5:55:03:DA:E0:B0:59:AB:4C:36:A6:8A:D1:63:94:A8:B5:26:FF:D4:17:38.
+     Es la MISMA clave con la que se firma GL.apk y la que firmó la Release v1.0 publicada de Shalev
+     (prioridad: las claves de GL.apk en las releases de GL). NUNCA uses shalev-release.jks (4F:3B:…:E8:37):
+     nunca se publicó con ella y cambiaría el ANDROID_ID, anulando las licencias.
    - NUNCA ejecutes keytool -genkeypair ni crees/rotures un keystore: el deviceId de la licencia GL es
      «SPVI:» + ANDROID_ID y depende de la clave de firma; cambiarla anula todas las licencias emitidas y
      obliga a desinstalar la app. Tampoco cambies applicationId ni versionCode salvo que vayas a publicar
