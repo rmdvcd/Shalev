@@ -245,7 +245,9 @@ struct ToolsView: View {
 
     private func ensureIngredients(for sheet: CostSheet, rate: Decimal) throws -> [IngredientUse] {
         var uses: [IngredientUse] = []
-        for part in sheet.parts {
+        let materialParts = sheet.parts.filter { $0.category == .materials }
+        guard !materialParts.isEmpty else { throw BusinessError.invalidRecipe }
+        for part in materialParts {
             let trimmedName = part.name.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedName.isEmpty else { continue }
             // Buscar insumo existente por nombre (insensible a mayúsculas)
