@@ -149,11 +149,12 @@ fun PerfilDto.toDomain() = Perfil(
 )
 
 fun PreajustePrecios.toDto() = PreajusteDto(
-    id, nombre, puntosBasicos, productoIds.sorted(), metodoPago?.name, importeMinimo?.centavos, activo,
+    id = id, nombre = nombre, puntosBasicos = puntosBasicos, productoIds = productoIds.sorted(), servicioIds = servicioIds.sorted(),
+    metodoPago = metodoPago?.name, importeMinimoCent = null, activo = activo,
 )
 fun PreajusteDto.toDomain() = PreajustePrecios(
-    id, nombre, puntosBasicos, productoIds.toSet(), metodoPago?.let { enumStrict<MetodoPago>(it) },
-    importeMinimoCent?.let(::Cup), activo,
+    id = id, nombre = nombre, puntosBasicos = puntosBasicos, productoIds = productoIds.toSet(), servicioIds = servicioIds.toSet(),
+    metodoPago = metodoPago?.let { enumStrict<MetodoPago>(it) }, importeMinimo = null, activo = activo,
 )
 
 fun Preferencias.toDto() = PreferenciasDto(

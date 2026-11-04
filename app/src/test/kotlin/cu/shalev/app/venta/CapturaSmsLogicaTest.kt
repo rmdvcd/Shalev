@@ -13,7 +13,7 @@ class CapturaSmsLogicaTest {
     @Test fun soloExtraeDatosDeUnMensajeBancarioReconocible() {
         val texto = """
             Banco Popular de Ahorro
-            Monto: 540.00 CUP
+            Monto: 540 CUP
             Nro. Transaccion: BR601ADLM8997
         """.trimIndent()
 
@@ -24,7 +24,7 @@ class CapturaSmsLogicaTest {
     }
 
     @Test fun ignoraNotificacionesSinCabeceraBancariaOTransaccion() {
-        val sinBanco = "Monto: 540.00 CUP\nNro. Transaccion: BR601ADLM8997"
+        val sinBanco = "Monto: 540 CUP\nNro. Transaccion: BR601ADLM8997"
         val sinNumero = "Banco Popular de Ahorro: operación aprobada"
 
         assertNull(CapturaSmsLogica.extraer(listOf(sinBanco), parser))

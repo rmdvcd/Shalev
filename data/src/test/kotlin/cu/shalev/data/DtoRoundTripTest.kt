@@ -77,7 +77,7 @@ class DtoRoundTripTest {
         assertEquals(mov, back.movimientos.single().toDomain())
         assertEquals(receta, back.recetas.single().toDomain())
         assertEquals(perfil, back.perfil!!.toDomain())
-        assertEquals(pre, back.preajustes.single().toDomain())
+        assertEquals(pre.copy(importeMinimo = null), back.preajustes.single().toDomain())
         assertEquals(prefs, back.preferencias!!.toDomain())
     }
 

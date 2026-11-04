@@ -38,8 +38,8 @@ class ValidatorsTest {
     }
 
     @Test fun money() {
-        assertEquals("1,450.00 CUP", Money.cup(1450))
-        assertEquals("90,000.00 CUP", Money.cup(90_000))
+        assertEquals("1,450 CUP", Money.cup(1450))
+        assertEquals("90,000 CUP", Money.cup(90_000))
     }
 
     @Test fun developerNumbersAreConsistent() {

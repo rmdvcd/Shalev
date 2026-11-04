@@ -109,7 +109,7 @@ class ServidorSync @Inject constructor(
     }
 
     private val observador = object : InvalidationTracker.Observer(arrayOf(
-        "producto", "insumo", "servicio", "receta_linea", "servicio_insumo", "preajuste", "preajuste_producto",
+        "producto", "insumo", "servicio", "receta_linea", "servicio_insumo", "preajuste", "preajuste_producto", "preajuste_servicio",
         "perfil", "tarjeta", "telefono",
     )) {
         override fun onInvalidated(tables: Set<String>) { avisar() }

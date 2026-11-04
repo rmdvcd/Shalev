@@ -14,9 +14,9 @@ class TablasExportTest {
     @Test fun `ventas a tabla con total`() {
         val v = Venta(7, 1, T0, MetodoPago.EFECTIVO, listOf(DetalleVenta(productoId = 1, nombre = "Refresco", categoria = "Bebidas", cantidad = 2, precioBase = Cup.ofPesos(725), precioUnitario = Cup.ofPesos(725), costoUnitario = Cup.ofPesos(500))))
         val t = TablasExport.ventas(listOf(v), ZoneId.of("America/Havana"))
-        assertEquals(listOf("01/09/2026 08:00", "", "Efectivo", "Refresco ×2", "2", "1,450.00 CUP", "1,000.00 CUP", "450.00 CUP", "Válida"), t.filas.single())
+        assertEquals(listOf("01/09/2026 08:00", "", "Efectivo", "Refresco ×2", "2", "1,450 CUP", "1,000 CUP", "450 CUP", "Válida"), t.filas.single())
         assertEquals("Ventas", t.titulo)
-        assertTrue(t.pie.last().endsWith("Total: 1,450.00 CUP"))
+        assertTrue(t.pie.last().endsWith("Total: 1,450 CUP"))
     }
 
     @Test fun `inventario omite eliminados`() {
@@ -33,7 +33,7 @@ class TablasExportTest {
         val tablas = TablasExport.turno(d, z)
         assertEquals(listOf("Turno del 01/09/2026 08:00", "Arqueo de caja", "Ventas"), tablas.map { it.titulo })
         val resumen = tablas[0].filas.associate { it[0] to it[1] }
-        assertEquals("1,450.00 CUP", resumen["Total vendido"])
+        assertEquals("1,450 CUP", resumen["Total vendido"])
         assertEquals("01/09/2026 09:00 · Ana Pérez", resumen["Cierre"])
         val arqueo = tablas[1].filas.associate { it[0] to it[1] }
         assertTrue(arqueo.toString(), arqueo.values.any { it.contains("1,950.00") }) // esperado = 500 + 1,450

@@ -22,7 +22,7 @@ class CalculadoraCambioUiTest {
         rule.setContent { ShalevTheme { CalculadoraCambio(onDismiss = {}, vm = CalculadoraCambioViewModel(cu.shalev.app.FakeEstadoPantallas())) } }
         rule.onNodeWithText("Importe en USD").performScrollTo().performTextInput("2")
         rule.onNodeWithText("Tasa: CUP por 1 USD").performScrollTo().performTextInput("400")
-        rule.onNodeWithText("Resultado: 800.00 CUP").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Resultado: 800 CUP").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Moneda de origen").performScrollTo().performClick()
         rule.onNodeWithText("CUP").performClick()
         rule.onNodeWithText("Resultado: 0.01 USD").performScrollTo().assertIsDisplayed()
@@ -37,7 +37,7 @@ class CalculadoraCambioUiTest {
         rule.onNodeWithText("1 USD = 350 CUP").performScrollTo().assertIsDisplayed()
         rule.onNodeWithContentDescription("Usar tasa en conversión").performScrollTo().performClick()
         rule.onNodeWithText("Importe en USD").performScrollTo().performTextInput("2")
-        rule.onNodeWithText("Resultado: 700.00 CUP").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Resultado: 700 CUP").performScrollTo().assertIsDisplayed()
         rule.onNodeWithContentDescription("Cerrar calculadora").assertIsDisplayed()
     }
     @Test fun tasaCeroMuestraError() {

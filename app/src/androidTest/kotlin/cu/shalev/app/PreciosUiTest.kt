@@ -21,7 +21,7 @@ import org.junit.runner.RunWith
 class PreciosUiTest {
     @get:Rule val rule = createComposeRule()
 
-    @Test fun productosMarcadosQuedanFijadosSobreElBuscadorSinDuplicarse() {
+    @Test fun permiteAñadirTodosYLaSeleccionNoSeDuplica() {
         val productos = listOf(prod(1, "Refresco"), prod(2, "Pan"))
         val state = PreciosUiState(
             cargado = true,
@@ -35,11 +35,11 @@ class PreciosUiTest {
         )
         rule.setContent { ShalevTheme(darkTheme = false) { PreciosContent(state, onBack = {}, acciones = acciones) } }
 
-        rule.onNodeWithTag(PreciosTags.FIJADOS).assertIsDisplayed()
+        rule.onNodeWithTag(PreciosTags.ELEGIR_MOSTRADOS).assertIsDisplayed()
         rule.onNodeWithTag(PreciosTags.BUSCAR).assertIsDisplayed()
         rule.onAllNodesWithTag(PreciosTags.producto(1)).assertCountEquals(1)
-        val fijados = rule.onAllNodesWithTag(PreciosTags.FIJADOS).fetchSemanticsNodes().single().boundsInRoot.top
+        val añadirTodos = rule.onAllNodesWithTag(PreciosTags.ELEGIR_MOSTRADOS).fetchSemanticsNodes().single().boundsInRoot.top
         val buscador = rule.onAllNodesWithTag(PreciosTags.BUSCAR).fetchSemanticsNodes().single().boundsInRoot.top
-        assertTrue("la selección debe quedar encima del buscador", fijados < buscador)
+        assertTrue("Añadir todos debe quedar encima del buscador", añadirTodos < buscador)
     }
 }

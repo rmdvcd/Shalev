@@ -109,7 +109,7 @@ class InicioCapturas {
         completo.copy(banner = "Licencia mensual: 1 día restante", bannerTono = BannerTone.Critico),
     )
     @Test fun snackbarTurno() = rule.capturar("01g_inicio_snackbar_turno") {
-        InicioContent(completo.copy(turno = null), acciones, snackbar = snackbarCon("Turno cerrado: 23 ventas, 18,450.00 CUP."), zona = Captura.ZONA, acordeonesAbiertos = true)
+        InicioContent(completo.copy(turno = null), acciones, snackbar = snackbarCon("Turno cerrado: 23 ventas, 18,450 CUP."), zona = Captura.ZONA, acordeonesAbiertos = true)
     }
     @Test fun dialogoNuevaVenta() = inicio("01e_inicio_dialogo_nueva_venta", completo.copy(dialogo = DialogoInicio.NuevaVenta))
     @Test fun dialogoCerrarTurno() = inicio("01f_inicio_dialogo_cerrar_turno", completo.copy(dialogo = DialogoInicio.CerrarTurno))

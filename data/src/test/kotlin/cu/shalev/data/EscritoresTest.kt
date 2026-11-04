@@ -12,8 +12,8 @@ class EscritoresTest {
     private val tabla = TablaExport(
         titulo = "Ventas: septiembre/2026",
         columnas = listOf("Producto", "Importe"),
-        filas = listOf(listOf("Refresco ñandú", "1,450.00 CUP"), listOf("Pan", "20.00 CUP")),
-        pie = listOf("Total: 1,470.00 CUP"),
+        filas = listOf(listOf("Refresco ñandú", "1,450 CUP"), listOf("Pan", "20 CUP")),
+        pie = listOf("Total: 1,470 CUP"),
     )
 
     @Test fun `xlsx es un zip OOXML con una hoja por tabla e importes numéricos`() {
@@ -60,7 +60,7 @@ class EscritoresTest {
                 partes++
             }
             val estilos = z.getInputStream(z.getEntry("xl/styles.xml")).readBytes().toString(Charsets.UTF_8)
-            assertTrue(estilos, estilos.contains("formatCode=\"#,##0.00 \\C\\U\\P\""))
+            assertTrue(estilos, estilos.contains("formatCode=\"#,##0 \\C\\U\\P\""))
         }
         assertTrue(partes >= 5)
     }
@@ -70,13 +70,13 @@ class EscritoresTest {
         val t = cu.shalev.domain.service.TablaExport(
             "Ventas", listOf("Fecha", "Importe", "Artículos", "Nº"),
             listOf(
-                listOf("02/10/2026 09:20", "1,450.00 CUP", "Refresco de lata ×2", "7"),
-                listOf("02/10/2026 09:31", "270.00 CUP", "x".repeat(200), "12"),
+                listOf("02/10/2026 09:20", "1,450 CUP", "Refresco de lata ×2", "7"),
+                listOf("02/10/2026 09:31", "270 CUP", "x".repeat(200), "12"),
             ),
         )
         val a = XlsxWriter.anchosColumnas(t)
         assertTrue(a[0] >= XlsxWriter.medir("02/10/2026 09:20", true))
-        assertTrue(a[1] >= XlsxWriter.medir("1,450.00 CUP", true))
+        assertTrue(a[1] >= XlsxWriter.medir("1,450 CUP", true))
         assertEquals(XlsxWriter.MAX_ANCHO, a[2], 0.001)
         assertTrue(a[3] >= XlsxWriter.medir("Nº", true) && a[3] < 6.0)
         assertTrue(XlsxWriter.medir("MMMM") > XlsxWriter.medir("iiii") * 2)

@@ -28,6 +28,7 @@ import cu.shalev.data.io.leerAcotado
 import cu.shalev.data.local.ShalevJson
 import cu.shalev.data.mapper.perfilDe
 import cu.shalev.data.mapper.productosEntities
+import cu.shalev.data.mapper.serviciosEntities
 import cu.shalev.data.mapper.toDomain
 import cu.shalev.data.mapper.toEntities
 import cu.shalev.data.mapper.toEntity
@@ -304,10 +305,12 @@ class RespaldoRepositoryImpl @Inject constructor(
         restaurarEmpleados(c.empleados, c.perfil)
         // Un preajuste puede referirse a productos eliminados (borrado lógico): solo se enlazan los vigentes.
         val existentes = c.productos.filterNot { it.eliminado }.map { it.id }.toSet()
+        val serviciosExistentes = c.servicios.filterNot { it.eliminado }.map { it.id }.toSet()
         val precios = db.preciosDao()
         c.preajustes.forEach { pa ->
             precios.guardar(pa.toEntity())
             precios.insertarProductos(pa.copy(productoIds = pa.productoIds intersect existentes).productosEntities())
+            precios.insertarServicios(pa.copy(servicioIds = pa.servicioIds intersect serviciosExistentes).serviciosEntities())
         }
     }
 

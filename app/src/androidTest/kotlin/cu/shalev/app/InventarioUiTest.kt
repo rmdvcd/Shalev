@@ -66,7 +66,7 @@ class InventarioUiTest {
         var abierto: Long? = null
         inventario(lista(), AccionesInventario(onAlternar = { marcado = it }, onAbrirFicha = { abierto = it }))
         rule.onNodeWithText("Refresco").assertIsDisplayed()
-        rule.onAllNodesWithText("1,450.00 CUP", useUnmergedTree = true).onFirst().assertExists()
+        rule.onAllNodesWithText("1,450 CUP", useUnmergedTree = true).onFirst().assertExists()
         rule.onNodeWithTag(InventarioTags.check(2)).assertIsOff().performClick()
         assertEquals(2L, marcado)
         assertEquals(null, abierto) // el checkbox no abre la ficha

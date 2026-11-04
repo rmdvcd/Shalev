@@ -9,6 +9,7 @@ import cu.shalev.data.db.entity.PerfilEntity
 import cu.shalev.data.db.entity.PreajusteCompleto
 import cu.shalev.data.db.entity.PreajusteEntity
 import cu.shalev.data.db.entity.PreajusteProductoEntity
+import cu.shalev.data.db.entity.PreajusteServicioEntity
 import cu.shalev.data.db.entity.TarjetaEntity
 import cu.shalev.data.db.entity.TelefonoEntity
 import kotlinx.coroutines.flow.Flow
@@ -49,6 +50,8 @@ interface PreciosDao {
     @Query("DELETE FROM preajuste WHERE id = :id") suspend fun borrar(id: Long): Int
     @Query("DELETE FROM preajuste_producto WHERE preajusteId = :id") suspend fun borrarProductos(id: Long)
     @Insert suspend fun insertarProductos(ps: List<PreajusteProductoEntity>)
+    @Query("DELETE FROM preajuste_servicio WHERE preajusteId = :id") suspend fun borrarServicios(id: Long)
+    @Insert suspend fun insertarServicios(ss: List<PreajusteServicioEntity>)
 }
 
 /** Vaciado ordenado (hijos antes que padres) para restaurar respaldos dentro de una transacción. */
@@ -62,6 +65,7 @@ interface MantenimientoDao {
     @Query("DELETE FROM turno") suspend fun borrarTurnos()
     @Query("DELETE FROM receta_linea") suspend fun borrarRecetas()
     @Query("DELETE FROM preajuste_producto") suspend fun borrarPreajusteProductos()
+    @Query("DELETE FROM preajuste_servicio") suspend fun borrarPreajusteServicios()
     @Query("DELETE FROM preajuste") suspend fun borrarPreajustes()
     @Query("DELETE FROM producto") suspend fun borrarProductos()
     @Query("DELETE FROM insumo") suspend fun borrarInsumos()
@@ -74,10 +78,10 @@ interface MantenimientoDao {
 
     suspend fun borrarOperacion() {
         borrarTransacciones(); borrarDetalles(); borrarVentas(); borrarMovimientos(); borrarCaja(); borrarTurnos()
-        borrarRecetas(); borrarServicioInsumos(); borrarServicios(); borrarPreajusteProductos(); borrarProductos(); borrarInsumos()
+        borrarRecetas(); borrarServicioInsumos(); borrarPreajusteServicios(); borrarServicios(); borrarPreajusteProductos(); borrarProductos(); borrarInsumos()
     }
 
     suspend fun borrarConfiguracion() {
-        borrarPreajusteProductos(); borrarPreajustes(); borrarTarjetas(); borrarTelefonos(); borrarPerfil(); borrarClientesFijos()
+        borrarPreajusteServicios(); borrarPreajusteProductos(); borrarPreajustes(); borrarTarjetas(); borrarTelefonos(); borrarPerfil(); borrarClientesFijos()
     }
 }

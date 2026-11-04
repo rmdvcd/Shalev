@@ -142,7 +142,7 @@ class UseCasesTest {
 
     @Test fun `numero de transaccion desde el SMS`() {
         val x = ExtraerNumeroTransaccion()
-        assertEquals("TMW12345678", x("La transferencia fue completada. Transaccion: TMW12345678. Monto: 1450.00 CUP"))
+        assertEquals("TMW12345678", x("La transferencia fue completada. Transaccion: TMW12345678. Monto: 1450 CUP"))
         assertEquals("KW98765432", x("Nro. Transacción kw98765432 realizada"))
         assertNull(x("Hola, ¿cómo estás?"))
     }

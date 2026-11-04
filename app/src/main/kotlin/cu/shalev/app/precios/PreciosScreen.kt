@@ -54,6 +54,7 @@ import cu.shalev.designsystem.component.ShalevIconAction
 import cu.shalev.designsystem.component.ShalevListItem
 import cu.shalev.designsystem.component.ShalevLoading
 import cu.shalev.designsystem.component.ShalevPrimaryButton
+import cu.shalev.designsystem.component.ShalevSecondaryButton
 import cu.shalev.designsystem.component.ShalevSecondaryText
 import cu.shalev.designsystem.component.ShalevSnackbarHost
 import cu.shalev.designsystem.component.ShalevTextButton
@@ -67,6 +68,7 @@ import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.domain.model.MetodoPago
 import cu.shalev.domain.model.PreajustePrecios
 import cu.shalev.domain.model.Producto
+import cu.shalev.domain.model.Servicio
 
 object PreciosTags {
     const val NUEVO = "precios_nuevo"
@@ -91,7 +93,7 @@ fun PreciosScreen(onBack: () -> Unit, viewModel: PreciosViewModel = hiltViewMode
         onBack = onBack,
         acciones = AccionesPrecios(
             onNuevo = viewModel::nuevo, onEditar = viewModel::editar, onActivar = viewModel::activar,
-            onCambiar = viewModel::cambiar, onProducto = viewModel::alternarProducto, onElegirVisibles = viewModel::elegirVisibles,
+            onCambiar = viewModel::cambiar, onProducto = viewModel::alternarProducto, onServicio = viewModel::alternarServicio, onElegirTodos = viewModel::elegirTodos,
             onGuardar = viewModel::guardar, onCerrar = viewModel::cerrar, onBorrar = viewModel::pedirBorrado,
             onConfirmarBorrado = viewModel::confirmarBorrado, onCancelarBorrado = viewModel::cancelarBorrado,
         ),
@@ -105,8 +107,11 @@ class AccionesPrecios(
     val onActivar: (PreajustePrecios, Boolean) -> Unit,
     val onCambiar: ((PreajusteForm) -> PreajusteForm) -> Unit,
     val onProducto: (Long) -> Unit,
-    val onElegirVisibles: (Boolean) -> Unit,
+    val onElegirVisibles: (Boolean) -> Unit = {},
     val onGuardar: () -> Unit,
+    val onServicio: (Long) -> Unit = {},
+    val onElegirTodos: () -> Unit = {},
+
     val onCerrar: () -> Unit,
     val onBorrar: () -> Unit,
     val onConfirmarBorrado: () -> Unit,
@@ -130,7 +135,7 @@ fun PreciosContent(
         // para que la última fila (importes a la derecha) no quede tapada.
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
-            if (state.cargado && state.productos.isNotEmpty()) {
+            if (state.cargado && (state.productos.isNotEmpty() || state.servicios.isNotEmpty())) {
                 ShalevFab(ShalevIcons.Agregar, "Nuevo ajuste de precios", onClick = acciones.onNuevo, etiqueta = "Nuevo", modifier = Modifier.testTag(PreciosTags.NUEVO))
             }
         },
@@ -152,7 +157,7 @@ fun PreciosContent(
                     item {
                         ShalevEmptyState(
                             title = TextosPrecios.VACIO_TITULO,
-                            detail = if (state.productos.isEmpty()) TextosPrecios.SIN_PRODUCTOS else TextosPrecios.VACIO_DETALLE,
+                            detail = if (state.productos.isEmpty() && state.servicios.isEmpty()) "Primero agrega productos o servicios." else TextosPrecios.VACIO_DETALLE,
                             modifier = Modifier.padding(ShalevSpacing.md),
                             ilustracion = ShalevIlustracion.Precios,
                         )
@@ -238,57 +243,45 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
             etiqueta = { it?.let(::etiqueta) ?: "Cualquier pago" },
             onSeleccion = { metodo -> acciones.onCambiar { it.copy(metodo = metodo) } },
         )
-        ShalevTextField(
-            filtro = FiltroEntrada.DINERO,
-            value = f.importeMinimo,
-            onValueChange = { v -> acciones.onCambiar { it.copy(importeMinimo = v) } },
-            label = "Solo si la venta llega a (CUP)",
-            placeholder = "5000",
-            isError = CampoPrecio.IMPORTE in errCampos,
-            errorText = errCampos[CampoPrecio.IMPORTE], validarAlSalir = true, forzarError = f.mostrarErrores,
-            supportingText = "Opcional",
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.testTag(PreciosTags.IMPORTE),
-        )
-
-        Titulo("3. ¿A qué productos?")
-        val fijados = state.seleccionados
-        if (fijados.isNotEmpty()) {
-            ShalevSecondaryText(
-                if (fijados.size == 1) "1 producto seleccionado" else "${fijados.size} productos seleccionados",
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().semantics { heading() },
-            )
-            LazyColumn(
-                Modifier.fillMaxWidth().heightIn(max = ShalevSize.listaCortaMax).testTag(PreciosTags.FIJADOS),
-                verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-            ) {
-                items(fijados, key = { "fijado_${it.id}" }) { p -> ProductoPreajuste(p, true, acciones) }
+        Titulo("3. ¿A qué artículos?")
+        val permisos = cu.shalev.app.common.LocalPermisosApp.current
+        val tipos = buildList {
+            if (permisos.verInventario) add(TipoSeleccionPrecio.PRODUCTOS)
+            if (permisos.verServicios) add(TipoSeleccionPrecio.SERVICIOS)
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.sm, Alignment.CenterHorizontally)) {
+            tipos.forEach { tipo ->
+                ShalevChip(tipo.titulo, selected = f.tipoSeleccion == tipo, onClick = { acciones.onCambiar { it.copy(tipoSeleccion = tipo, busqueda = "") } })
             }
         }
+        val totalElegidos = f.productoIds.size + f.servicioIds.size
+        ShalevSecondaryText(if (totalElegidos == 1) "1 artículo elegido" else "$totalElegidos artículos elegidos", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        ShalevSecondaryButton(
+            text = "Añadir todos los ${f.tipoSeleccion.titulo.lowercase()}",
+            icon = ShalevIcons.AgregarALista,
+            onClick = acciones.onElegirTodos,
+            modifier = Modifier.fillMaxWidth().testTag(PreciosTags.ELEGIR_MOSTRADOS),
+            mostrarTexto = true,
+            enabled = if (f.tipoSeleccion == TipoSeleccionPrecio.PRODUCTOS) state.productos.isNotEmpty() else state.servicios.isNotEmpty(),
+        )
         ShalevTextField(
             filtro = FiltroEntrada.BUSQUEDA,
             value = f.busqueda,
             onValueChange = { v -> acciones.onCambiar { it.copy(busqueda = v) } },
-            label = "Buscar producto",
+            label = if (f.tipoSeleccion == TipoSeleccionPrecio.PRODUCTOS) "Buscar producto" else "Buscar servicio",
             leadingIcon = ShalevIcons.Buscar,
             modifier = Modifier.testTag(PreciosTags.BUSCAR),
         )
-        val visibles = state.visibles
-        val todos = visibles.isNotEmpty() && visibles.all { it.id in f.productoIds }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally)) {
-            ShalevSecondaryText(if (f.productoIds.size == 1) "1 elegido" else "${f.productoIds.size} elegidos")
-            ShalevIconAction(
-                ShalevIcons.Confirmar, if (todos) "Quitar los mostrados" else "Elegir los mostrados",
-                onClick = { acciones.onElegirVisibles(!todos) }, selected = todos, enabled = visibles.isNotEmpty(),
-                modifier = Modifier.testTag(PreciosTags.ELEGIR_MOSTRADOS),
-            )
+        Column {
+            if (f.tipoSeleccion == TipoSeleccionPrecio.PRODUCTOS) {
+                state.productosVisibles.forEach { p -> ProductoPreajuste(p, p.id in f.productoIds, acciones) }
+                if (state.productosVisibles.size == TextosPrecios.MAX_LISTA) ShalevSecondaryText("Busca para ver más.")
+            } else {
+                state.serviciosVisibles.forEach { servicio -> ServicioPreajuste(servicio, servicio.id in f.servicioIds, acciones) }
+                if (state.serviciosVisibles.size == TextosPrecios.MAX_LISTA) ShalevSecondaryText("Busca para ver más.")
+            }
         }
         err[CampoPrecio.PRODUCTOS]?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-        Column {
-            visibles.filterNot { it.id in f.productoIds }.forEach { p -> ProductoPreajuste(p, false, acciones) }
-            if (visibles.size == TextosPrecios.MAX_LISTA) ShalevSecondaryText("Busca para ver más.")
-        }
 
         Titulo("4. Nombre (opcional)")
         ShalevTextField(
@@ -318,6 +311,17 @@ private fun ProductoPreajuste(producto: Producto, elegido: Boolean, acciones: Ac
         leading = { ShalevCheckbox(checked = elegido, onCheckedChange = null) },
         modifier = Modifier.testTag(PreciosTags.producto(producto.id))
             .toggleable(value = elegido, role = Role.Checkbox, onValueChange = { acciones.onProducto(producto.id) }),
+    )
+}
+
+@Composable
+private fun ServicioPreajuste(servicio: Servicio, elegido: Boolean, acciones: AccionesPrecios) {
+    ShalevListItem(
+        title = servicio.nombreCompleto,
+        value = Money.format(servicio.importe),
+        indicatorColor = null,
+        leading = { ShalevCheckbox(checked = elegido, onCheckedChange = null) },
+        modifier = Modifier.toggleable(value = elegido, role = Role.Checkbox, onValueChange = { acciones.onServicio(servicio.id) }),
     )
 }
 

@@ -6,6 +6,7 @@ import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.abortar
 import cu.shalev.data.db.tx
 import cu.shalev.data.mapper.productosEntities
+import cu.shalev.data.mapper.serviciosEntities
 import cu.shalev.data.mapper.toDomain
 import cu.shalev.data.mapper.toEntity
 import cu.shalev.domain.model.PreajustePrecios
@@ -20,6 +21,7 @@ class PreciosRepositoryImpl @Inject constructor(private val db: ShalevDatabase) 
 
     private val dao = db.preciosDao()
     private val productos = db.productoDao()
+    private val servicios = db.servicioDao()
 
     override fun observarPreajustes(): Flow<List<PreajustePrecios>> = dao.observarPreajustes().map { l -> l.map { it.toDomain() } }
     override suspend fun preajustesActivos() = dao.activos().map { it.toDomain() }
@@ -31,6 +33,10 @@ class PreciosRepositoryImpl @Inject constructor(private val db: ShalevDatabase) 
         val validos = p.productoIds.toList().chunked(900).flatMap { productos.obtenerVarios(it) }
             .filterNot { it.eliminado }.map { it.id }.toSet()
         dao.insertarProductos(p.copy(productoIds = validos).productosEntities(id))
+        dao.borrarServicios(id)
+        val serviciosValidos = p.servicioIds.toList().chunked(900).flatMap { servicios.obtenerVarios(it) }
+            .filterNot { it.eliminado }.map { it.id }.toSet()
+        dao.insertarServicios(p.copy(servicioIds = serviciosValidos).serviciosEntities(id))
         id
     }
 

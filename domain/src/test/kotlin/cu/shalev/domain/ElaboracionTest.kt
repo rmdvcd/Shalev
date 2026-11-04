@@ -109,7 +109,7 @@ class ElaboracionTest {
         val i = ins(1, "Harina", 3, precio = 20, bajo = 5).copy(unidad = UnidadMedida.KILOGRAMO, cantidad = Cantidad(2500))
         val t = TablasExport.camposInsumo(FichaInsumo(i, NivelStock.BAJO, listOf(UsoEnReceta(9, "Pan", Cantidad(250))))).toMap()
         assertEquals("Harina", t["Nombre"])
-        assertEquals("20.00 CUP / kg", t["Precio (costo)"])
+        assertEquals("20 CUP / kg", t["Precio (costo)"])
         assertEquals("2.5 kg", t["Cantidad"])
         assertEquals("5 kg", t["Nivel bajo"])
         assertEquals("Pan (0.25 kg por unidad)", t["Usado en"])
@@ -139,7 +139,7 @@ class ElaboracionTest {
         assertTrue(uc(listOf(ins(1, "Harina", 2)), FormatoExport.PDF, ByteArrayOutputStream()) is AppResult.Ok)
         val t = tablas.single()
         assertEquals(listOf("Nombre", "Precio (costo)", "Cantidad", "Nivel bajo", "Nivel crítico"), t.columnas)
-        assertEquals(listOf("Harina", "10.00 CUP / u", "2 u", "", ""), t.filas.single())
+        assertEquals(listOf("Harina", "10 CUP / u", "2 u", "", ""), t.filas.single())
     }
 
     // ---------------- Elaborados: «Alcanza para N» ----------------

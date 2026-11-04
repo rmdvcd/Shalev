@@ -109,7 +109,10 @@ class ProductoFormViewModel @Inject constructor(
                 it.copy(
                     form = it.form.copy(
                         categoria = saved.get<String>("categoria")?.trim()?.take(40).orEmpty(),
-                        nombre = saved.get<String>("nombre")?.let { n -> ProductoFormLogic.limpiarNombre(n, Validadores.MAX_NOMBRE) }.orEmpty(), fotoUri = saved.get<String>("foto"),
+                        nombre = saved.get<String>("nombre")?.let { n -> ProductoFormLogic.limpiarNombre(n, Validadores.MAX_NOMBRE) }.orEmpty(),
+                        fotoUri = saved.get<String>("foto"),
+                        precioCosto = saved.get<String>("costo").orEmpty(),
+                        precioVenta = saved.get<String>("precio").orEmpty(),
                     ),
                 )
             }

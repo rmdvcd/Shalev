@@ -20,6 +20,7 @@ import cu.shalev.data.dto.toDomain
 import cu.shalev.data.dto.toDto
 import cu.shalev.data.mapper.perfilDe
 import cu.shalev.data.mapper.productosEntities
+import cu.shalev.data.mapper.serviciosEntities
 import cu.shalev.data.mapper.toDomain
 import cu.shalev.data.mapper.toEntities
 import cu.shalev.data.mapper.toEntity
@@ -312,7 +313,7 @@ class AlmacenSync @Inject constructor(
 
     private suspend fun reemplazarCatalogo(inst: Instantanea) {
         val m = db.mantenimientoDao()
-        m.borrarRecetas(); m.borrarServicioInsumos(); m.borrarPreajusteProductos(); m.borrarPreajustes()
+        m.borrarRecetas(); m.borrarServicioInsumos(); m.borrarPreajusteServicios(); m.borrarPreajusteProductos(); m.borrarPreajustes()
         m.borrarServicios(); m.borrarProductos(); m.borrarInsumos(); m.borrarTarjetas(); m.borrarTelefonos(); m.borrarPerfil()
 
         // 0.32.0: la foto es un archivo de ESTE teléfono. La instantánea trae la ruta del principal (aquí no
@@ -334,10 +335,12 @@ class AlmacenSync @Inject constructor(
             pagoTarjetaId = perfil.pagoTarjetaId, pagoTelefonoId = perfil.pagoTelefonoId))
 
         val existentes = inst.productos.filterNot { it.eliminado }.map { it.id }.toSet()
+        val serviciosExistentes = inst.servicios.filterNot { it.eliminado }.map { it.id }.toSet()
         val precios = db.preciosDao()
         inst.preajustes.map { it.toDomain() }.forEach { pa ->
             precios.guardar(pa.toEntity())
             precios.insertarProductos(pa.copy(productoIds = pa.productoIds intersect existentes).productosEntities())
+            precios.insertarServicios(pa.copy(servicioIds = pa.servicioIds intersect serviciosExistentes).serviciosEntities())
         }
 
         // Ventas hechas aquí que la principal aún no tiene: se vuelven a descontar.

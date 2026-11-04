@@ -3,11 +3,10 @@ package cu.shalev.domain.model
 import cu.shalev.core.money.Cup
 
 /**
- * Preajuste de precios ("Precios" en Inicio): ±[puntosBasicos] (1000 = +10 %) sobre los [productoIds]
- * cuando se cumplen sus condiciones:
- *  - [metodoPago]: solo con ese método (null = cualquiera).
- *  - [importeMinimo]: "envergadura de la venta" = total de la venta antes de ajustes ≥ este importe (null = sin mínimo).
- * Varios preajustes aplicables a un mismo producto SE SUMAN (suposición documentada).
+ * Preajuste de precios: ±[puntosBasicos] (1000 = +10 %) sobre [productoIds] y [servicioIds].
+ * [metodoPago] limita el ajuste a ese método (null = cualquiera). [importeMinimo] se conserva únicamente para leer
+ * respaldos antiguos; desde v14 no se edita ni interviene en el cálculo.
+ * Varios preajustes aplicables al mismo artículo se suman.
  */
 data class PreajustePrecios(
     val id: Long = 0,
@@ -17,4 +16,6 @@ data class PreajustePrecios(
     val metodoPago: MetodoPago? = null,
     val importeMinimo: Cup? = null,
     val activo: Boolean = true,
+    /** Servicios incluidos; vacío mantiene compatibilidad con ajustes creados antes de admitir servicios. */
+    val servicioIds: Set<Long> = emptySet(),
 )

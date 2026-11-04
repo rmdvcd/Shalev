@@ -10,18 +10,18 @@ import org.junit.Test
 
 class MoneyTest {
     @Test fun `formato oficial de Shalev`() {
-        assertEquals("1,450.00 CUP", Money.format(Cup.ofPesos(1450)))
-        assertEquals("0.05 CUP", Money.format(Cup(5)))
-        assertEquals("1,234,567.89 CUP", Money.format(Cup(123_456_789)))
-        assertEquals("-12.50 CUP", Money.format(Cup(-1250)))
-        assertEquals("90,000.00 CUP", Money.cup(90_000))
+        assertEquals("1,450 CUP", Money.format(Cup.ofPesos(1450)))
+        assertEquals("0 CUP", Money.format(Cup(5)))
+        assertEquals("1,234,568 CUP", Money.format(Cup(123_456_789)))
+        assertEquals("13 CUP", Money.format(Cup(-1250)))
+        assertEquals("90,000 CUP", Money.cup(90_000))
     }
 
     @Test fun `parse acepta lo que teclea el usuario`() {
         assertEquals(Cup(145_000), Money.parse("1450"))
         assertEquals(Cup(145_050), Money.parse("1450.5"))
         assertEquals(Cup(145_000), Money.parse("1,450.00"))
-        assertEquals(Cup(145_000), Money.parse(" 1,450.00 CUP "))
+        assertEquals(Cup(145_000), Money.parse(" 1,450 CUP "))
         assertNull(Money.parse("1.455"))
         assertNull(Money.parse("14,50"))
         assertNull(Money.parse("abc"))

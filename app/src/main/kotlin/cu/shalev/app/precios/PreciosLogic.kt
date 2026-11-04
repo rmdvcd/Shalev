@@ -10,18 +10,20 @@ import cu.shalev.domain.model.Producto
 import java.math.BigDecimal
 
 enum class CampoPrecio { PORCENTAJE, IMPORTE, PRODUCTOS, NOMBRE }
+enum class TipoSeleccionPrecio(val titulo: String) { PRODUCTOS("Productos"), SERVICIOS("Servicios") }
 
 object TextosPrecios {
     const val TITULO = "Precios"
-    const val EXPLICACION = "Sube o baja precios al cobrar, según el pago o el importe. El precio guardado no cambia."
+    const val EXPLICACION = "Sube o baja precios al cobrar según el método de pago. El precio guardado no cambia."
     const val VACIO_TITULO = "Aún no hay ajustes de precio"
     const val VACIO_DETALLE = "Ej.: +5 % con transferencia."
     const val SIN_PRODUCTOS = "Primero agrega productos en Inventario."
     const val ERROR_PORCENTAJE = "Escribe un porcentaje, por ejemplo 10"
     const val ERROR_SUBIR = "Puedes subir hasta un 100 %"
     const val ERROR_BAJAR = "Puedes bajar hasta un 90 %"
-    const val ERROR_IMPORTE = "Escribe un importe mayor que 0, por ejemplo 5000"
-    const val ERROR_PRODUCTOS = "Elige al menos un producto"
+    @Deprecated("El importe mínimo ya no forma parte de Precios")
+    const val ERROR_IMPORTE = "El importe mínimo ya no se utiliza"
+    const val ERROR_PRODUCTOS = "Elige al menos un producto o servicio"
     const val ERROR_NOMBRE = "El nombre es demasiado largo"
     const val ERROR_GENERICO = "No se pudo guardar. Inténtalo de nuevo."
     const val MAX_LISTA = 50
@@ -34,8 +36,10 @@ data class PreajusteForm(
     val sube: Boolean = true,
     val porcentaje: String = "",
     val metodo: MetodoPago? = null,
-    val importeMinimo: String = "",
+    @Deprecated("El importe mínimo ya no forma parte de Precios") val importeMinimo: String = "",
     val productoIds: Set<Long> = emptySet(),
+    val servicioIds: Set<Long> = emptySet(),
+    val tipoSeleccion: TipoSeleccionPrecio = TipoSeleccionPrecio.PRODUCTOS,
     val busqueda: String = "",
     val activo: Boolean = true,
     val mostrarErrores: Boolean = false,
@@ -53,30 +57,26 @@ fun validar(f: PreajusteForm): Map<CampoPrecio, String> = buildMap {
         pb > 10_000 -> put(CampoPrecio.PORCENTAJE, TextosPrecios.ERROR_SUBIR)
         pb < -9_000 -> put(CampoPrecio.PORCENTAJE, TextosPrecios.ERROR_BAJAR)
     }
-    if (f.importeMinimo.isNotBlank() && (Money.parse(f.importeMinimo)?.let { it > Cup.ZERO } != true)) {
-        put(CampoPrecio.IMPORTE, TextosPrecios.ERROR_IMPORTE)
-    }
-    if (f.productoIds.isEmpty()) put(CampoPrecio.PRODUCTOS, TextosPrecios.ERROR_PRODUCTOS)
+    if (f.productoIds.isEmpty() && f.servicioIds.isEmpty()) put(CampoPrecio.PRODUCTOS, TextosPrecios.ERROR_PRODUCTOS)
     if (f.nombre.trim().length > MAX_NOMBRE) put(CampoPrecio.NOMBRE, TextosPrecios.ERROR_NOMBRE)
 }
 
 private const val MAX_NOMBRE = 80
 
-/** Nombre automático si el usuario no escribe uno: "+10 % con Transferencia desde 5,000.00 CUP". */
+/** Nombre automático si el usuario no escribe uno: "+10 % con Transferencia". */
 fun nombreSugerido(f: PreajusteForm): String {
     val pct = f.puntosBasicos?.let { Percent.format(it) } ?: if (f.sube) "Subir precio" else "Bajar precio"
     val metodo = f.metodo?.let { " con ${etiqueta(it)}" }.orEmpty()
-    val desde = Money.parse(f.importeMinimo)?.takeIf { it > Cup.ZERO }?.let { " desde ${Money.format(it)}" }.orEmpty()
-    return "$pct$metodo$desde"
+    return "$pct$metodo"
 }
 
 fun aPreajuste(f: PreajusteForm): PreajustePrecios = PreajustePrecios(
     id = f.id,
     nombre = f.nombre.trim().ifEmpty { nombreSugerido(f) },
     puntosBasicos = f.puntosBasicos ?: 0,
-    productoIds = f.productoIds,
+    productoIds = f.productoIds, servicioIds = f.servicioIds,
     metodoPago = f.metodo,
-    importeMinimo = f.importeMinimo.takeIf { it.isNotBlank() }?.let(Money::parse),
+    importeMinimo = null,
     activo = f.activo,
 )
 
@@ -86,8 +86,8 @@ fun desde(p: PreajustePrecios): PreajusteForm = PreajusteForm(
     sube = p.puntosBasicos > 0,
     porcentaje = BigDecimal.valueOf(kotlin.math.abs(p.puntosBasicos).toLong(), 2).stripTrailingZeros().toPlainString(),
     metodo = p.metodoPago,
-    importeMinimo = p.importeMinimo?.toBigDecimal()?.stripTrailingZeros()?.toPlainString().orEmpty(),
-    productoIds = p.productoIds,
+    productoIds = p.productoIds, servicioIds = p.servicioIds,
+    tipoSeleccion = if (p.productoIds.isEmpty() && p.servicioIds.isNotEmpty()) TipoSeleccionPrecio.SERVICIOS else TipoSeleccionPrecio.PRODUCTOS,
     activo = p.activo,
 )
 
@@ -96,11 +96,10 @@ fun etiqueta(m: MetodoPago): String = when (m) {
     MetodoPago.TRANSFERENCIA -> "Transferencia"
 }
 
-/** Subtítulo de la lista: "Solo Transferencia · ventas desde 5,000.00 CUP · 3 productos". */
+/** Resumen accesible: método de pago y número de artículos. */
 fun resumenPreajuste(p: PreajustePrecios, existentes: Int = p.productoIds.size): String = listOfNotNull(
     p.metodoPago?.let { "Solo ${etiqueta(it)}" } ?: "Cualquier pago",
-    p.importeMinimo?.let { "ventas desde ${Money.format(it)}" },
-    if (existentes == 1) "1 producto" else "$existentes productos",
+    if (existentes == 1) "1 artículo" else "$existentes artículos",
 ).joinToString(" · ")
 
 /** Ejemplo con el primer producto elegido: "Refresco: 100.00 CUP → 110.00 CUP". */

@@ -70,7 +70,7 @@ class VentaViewModelTest {
 
     private val sms = """
         Banco Popular de Ahorro:  La Transferencia fue completada.
-         Monto: 540.00 CUP
+         Monto: 540 CUP
          Nro. Transaccion: BR601ADLM8997
     """.trimIndent()
     private val pagoSms = ExtraerNumeroTransaccion().detalle(sms)!!
@@ -166,7 +166,7 @@ class VentaViewModelTest {
         assertEquals(2, s.cotizacion!!.detalles.size)
         vm.confirmarEfectivo()
         assertEquals(MetodoPago.EFECTIVO, ventas.ventas.single().metodoPago)
-        assertEquals(EventoVenta.Terminada("Venta registrada: 400.00 CUP en efectivo."), eventos.last())
+        assertEquals(EventoVenta.Terminada("Venta registrada: 400 CUP en efectivo."), eventos.last())
         assertTrue(vm.state.value.lineas.isEmpty())
     }
 

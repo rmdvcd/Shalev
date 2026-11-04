@@ -43,9 +43,9 @@ class Version025AppTest {
 
     @Test fun resumenDelArqueo() {
         val a = Arqueo(pesos(100), pesos(500), pesos(0), pesos(50), null)
-        assertEquals("Esperado 550.00 CUP · Sin contar", TextosCaja.resumen(a))
-        assertEquals("Esperado 550.00 CUP · Contado 550.00 CUP · Cuadra", TextosCaja.resumen(a.copy(contado = pesos(550))))
-        assertEquals("Esperado 550.00 CUP · Contado 500.00 CUP · Faltante 50.00 CUP", TextosCaja.resumen(a.copy(contado = pesos(500))))
+        assertEquals("Esperado 550 CUP · Sin contar", TextosCaja.resumen(a))
+        assertEquals("Esperado 550 CUP · Contado 550 CUP · Cuadra", TextosCaja.resumen(a.copy(contado = pesos(550))))
+        assertEquals("Esperado 550 CUP · Contado 500 CUP · Faltante 50 CUP", TextosCaja.resumen(a.copy(contado = pesos(500))))
         assertEquals("Sobrante", TextosCaja.estado(EstadoArqueo.SOBRANTE))
         assertEquals("Sin contar", TextosCaja.estado(null))
     }

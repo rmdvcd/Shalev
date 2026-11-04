@@ -38,12 +38,12 @@ value class Cup(val centavos: Long) : Comparable<Cup> {
 fun Iterable<Cup>.sum(): Cup = fold(Cup.ZERO, Cup::plus)
 inline fun <T> Iterable<T>.sumOfCup(selector: (T) -> Cup): Cup = fold(Cup.ZERO) { acc, t -> acc + selector(t) }
 
-/** Formato monetario de Shalev: "1,450.00 CUP". */
+/** Formato monetario visible de Shalev: enteros positivos, sin decimales ("1,450 CUP"). */
 object Money {
-    private val FORMAT = ThreadLocal.withInitial { DecimalFormat("#,##0.00", DecimalFormatSymbols(Locale.US)) }
+    private val FORMAT = ThreadLocal.withInitial { DecimalFormat("#,##0", DecimalFormatSymbols(Locale.US)).apply { roundingMode = RoundingMode.HALF_UP } }
     private val INPUT = Regex("^-?[0-9]{1,3}(,[0-9]{3})*(\\.[0-9]{1,2})?$|^-?[0-9]+(\\.[0-9]{1,2})?$")
 
-    fun format(amount: Cup): String = "${FORMAT.get()!!.format(amount.toBigDecimal())} CUP"
+    fun format(amount: Cup): String = "${FORMAT.get()!!.format(amount.toBigDecimal().abs())} CUP"
     fun cup(pesos: Long): String = format(Cup.ofPesos(pesos))
 
     /**

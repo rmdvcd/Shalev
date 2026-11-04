@@ -219,7 +219,8 @@ object ProductoFormLogic {
     fun entero(s: String): Long? = s.trim().takeIf { it.matches(Regex("^[0-9]{1,9}$")) }?.toLong()
 
     /** 1450.5 CUP → "1450.50" (lo que se ve al editar; se acepta también con comas de miles). */
-    fun decimal(c: Cup): String = c.toBigDecimal().toPlainString()
+    /** Valor monetario visible/editable: entero positivo, coherente con Money.format. */
+    fun decimal(c: Cup): String = Money.format(c).removeSuffix(" CUP").replace(",", "")
 
     const val FORMATO_IMPORTE = "Escribe un importe válido, por ejemplo 25.50 (máximo 2 decimales)."
     const val FORMATO_ENTERO = "Escribe un número entero, 0 o más."

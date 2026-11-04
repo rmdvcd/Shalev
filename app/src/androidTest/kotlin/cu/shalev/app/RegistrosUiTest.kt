@@ -76,7 +76,7 @@ class RegistrosUiTest {
         pantalla(ventas(), AccionesRegistros(onAbrirVenta = { abierta = it }))
         rule.onNodeWithText("30/09/2026 12:00").assertIsDisplayed() // identificada por fecha, no por número
         rule.onNodeWithTag(RegistrosTags.RESUMEN).assertIsDisplayed()
-        rule.onNodeWithText("1 venta · 1,450.00 CUP").assertIsDisplayed()
+        rule.onNodeWithText("1 venta · 1,450 CUP").assertIsDisplayed()
         rule.onNodeWithTag(RegistrosTags.venta(12)).performClick()
         assertEquals(12L, abierta)
     }

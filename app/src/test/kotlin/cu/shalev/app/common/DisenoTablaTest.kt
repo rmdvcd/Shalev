@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DisenoTablaTest {
-    private fun filas(n: Int) = (1..n).map { listOf("Cat", "Producto $it", "1,450.00 CUP") }
+    private fun filas(n: Int) = (1..n).map { listOf("Cat", "Producto $it", "1,450 CUP") }
 
     @Test fun paginasDe25FilasSinPerderNinguna() {
         assertEquals(1, DisenoTabla.paginas(filas(25)).size)
@@ -29,7 +29,7 @@ class DisenoTablaTest {
 
     @Test fun anchosSumanExactoYEstanAcotados() {
         val cols = listOf("Categoría", "Producto", "Precio")
-        val f = listOf(listOf("A", "x".repeat(200), "1.00 CUP"))
+        val f = listOf(listOf("A", "x".repeat(200), "1 CUP"))
         val a = DisenoTabla.anchos(cols, f)
         assertEquals(DisenoTabla.ANCHO - 2 * DisenoTabla.MARGEN, a.sum())
         // Un nombre enorme no se come la imagen: tope de 28 caracteres frente a mínimo de 9 («Categoría»).

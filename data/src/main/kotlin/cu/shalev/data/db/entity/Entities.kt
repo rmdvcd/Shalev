@@ -281,6 +281,20 @@ data class PreajusteProductoEntity(
     val productoId: Long,
 )
 
+@Entity(
+    tableName = "preajuste_servicio",
+    primaryKeys = ["preajusteId", "servicioId"],
+    foreignKeys = [
+        ForeignKey(entity = PreajusteEntity::class, parentColumns = ["id"], childColumns = ["preajusteId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = ServicioEntity::class, parentColumns = ["id"], childColumns = ["servicioId"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index("servicioId")],
+)
+data class PreajusteServicioEntity(
+    val preajusteId: Long,
+    val servicioId: Long,
+)
+
 /** v4 (P29): servicios que ofrece el negocio (borrado lógico). */
 @Entity(tableName = "servicio", indices = [Index("tipo"), Index("eliminado", "creadoEn")])
 data class ServicioEntity(

@@ -48,7 +48,7 @@ class ExportacionTest {
         }
     }
 
-    private val tabla = TablaExport("Ventas", listOf("Nº", "Total"), listOf(listOf("1", "100.00 CUP")))
+    private val tabla = TablaExport("Ventas", listOf("Nº", "Total"), listOf(listOf("1", "100 CUP")))
 
     @Test fun `exportar tablas en PDF y Excel escribe en el destino`() = runBlocking {
         val ex = Exportador()
@@ -75,7 +75,7 @@ class ExportacionTest {
         )
         val t = TablasExport.listaPrecios(ps)
         assertEquals(listOf("Categoría", "Producto", "Precio"), t.columnas)
-        assertEquals(listOf(listOf("bebidas", "Agua", "80.00 CUP"), listOf("Bebidas", "Refresco", "150.00 CUP"), listOf("Granos", "Arroz", "300.00 CUP")), t.filas)
+        assertEquals(listOf(listOf("bebidas", "Agua", "80 CUP"), listOf("Bebidas", "Refresco", "150 CUP"), listOf("Granos", "Arroz", "300 CUP")), t.filas)
         val todo = t.filas.flatten().joinToString()
         assertFalse(todo.contains("90.00") || todo.contains("250.00") || todo.contains("7"))
     }
