@@ -259,12 +259,6 @@ fun MainScaffold(snapshot: Licencia) {
             composable<Route.FichaCosto> {
                 cu.shalev.app.herramientas.FichaCostoScreen(
                     onBack = { nav.popBackStack() },
-                    onExportarInventario = { nombre, costo, precio ->
-                        nav.navigateTo(Route.ProductoForm(nombre = nombre, categoria = "Otros", costo = costo, precio = precio))
-                    },
-                    onExportarServicio = { nombre, importe ->
-                        nav.navigateTo(Route.ServicioForm(nombre = nombre, importe = importe))
-                    },
                 )
             }
             composable<Route.TurnoDetalle> { TurnoDetalleScreen(onBack = { nav.popBackStack() }) }

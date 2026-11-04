@@ -563,13 +563,17 @@ Para que disfrutes siempre de las últimas mejoras y que la App Principal y las 
 
 ---
 
-## Herramientas: ficha de costo temporal
+## Herramientas: ficha de costo y calculadora de cambio
 
-En **Herramientas → Ficha de costo**, agrega partidas con categoría, cantidad, unidad, costo unitario y moneda. Puedes editar o eliminar partidas y consultar los totales por categoría, separados en CUP y USD. El margen opcional permite estimar un precio como porcentaje o factor; no es una fórmula normativa.
+En **Herramientas → Ficha de costo**, agrega partidas con categoría, cantidad, unidad, costo unitario y moneda. Puedes editar o eliminar partidas y consultar los totales por categoría, separados en CUP y USD. El margen opcional permite estimar un precio como porcentaje o factor; no es una fórmula normativa. Las fichas se guardan en este teléfono: puedes buscarlas por nombre, abrirlas para seguir editándolas y eliminarlas cuando ya no las necesites.
+
+**Exportar la ficha — también crea los insumos:** cada partida de la ficha se convierte en un **insumo** de la receta.
+- **Al Inventario:** Shalev crea un producto con **categoría Elaborado** listo para vender. Si el insumo ya existe (mismo nombre) lo reutiliza; si no existe, lo crea con su costo en CUP —si la partida está en USD, lo convierte con la **tasa CUP por 1 USD** que escribiste—. La receta queda con todas las partidas y sus cantidades, y el costo del Elaborado se calcula sumando esos insumos. El precio de venta se propone a partir del costo total más tu margen; si no supera el costo, Shalev lo ajusta automáticamente (al menos 1 CUP por encima) para que no vendas a pérdida.
+- **A Servicios:** se crea un servicio de tipo **General** con las mismas partidas como **insumos que gasta cada vez** que lo prestas; al cobrarlo esos insumos se descuentan y la ganancia refleja su costo real.
+
+Si alguna partida está en USD, el botón de exportar queda deshabilitado hasta que escribas una **tasa CUP por 1 USD** válida. Las fichas de costo no forman parte del respaldo `.shalev` ni de la sincronización entre App Principal y Secundaria y no sustituyen el generador GFC ni una ficha oficial.
 
 En **Herramientas → Calculadora de cambio**, o desde el icono de cambio de la ficha, puedes convertir importes en ambos sentidos. Introduce la tasa como **CUP por 1 USD** y el importe; el resultado se redondea a dos decimales. También puedes calcular una tasa orientativa indicando importes equivalentes positivos en CUP y USD, y usarla para convertir. La tasa es manual, no se consulta por internet y no modifica los totales de la ficha. La calculadora recuerda en este teléfono la operación, la moneda de origen y la última tasa que usaste, para no escribirla cada vez; los importes no se guardan.
-
-**Importante:** esta primera versión es una calculadora temporal. No guarda fichas, no las exporta y no las incluye en el respaldo; los datos se pierden al salir o cerrar la app. No sustituye el generador GFC ni una ficha oficial.
 
 ---
 

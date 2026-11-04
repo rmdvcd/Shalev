@@ -44,13 +44,33 @@ import cu.shalev.designsystem.component.ShalevTextField
 import cu.shalev.designsystem.component.ShalevTopBar
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.token.ShalevSpacing
+import cu.shalev.core.money.Cup
+import cu.shalev.core.quantity.Cantidad
+import cu.shalev.core.result.AppResult
+import cu.shalev.core.time.Clock
 import cu.shalev.domain.fichacosto.CalculoFichaCosto
 import cu.shalev.domain.fichacosto.CategoriaCosto
 import cu.shalev.domain.fichacosto.MonedaCosto
 import cu.shalev.domain.fichacosto.PartidaCosto
 import cu.shalev.domain.fichacosto.UnidadMargen
+import cu.shalev.domain.model.Categorias
+import cu.shalev.domain.model.Insumo
+import cu.shalev.domain.model.Producto
+import cu.shalev.domain.model.Receta
+import cu.shalev.domain.model.RecetaLinea
+import cu.shalev.domain.model.Servicio
+import cu.shalev.domain.model.UnidadMedida
+import cu.shalev.domain.repository.InsumoRepository
+import cu.shalev.domain.repository.ProductoRepository
+import cu.shalev.domain.repository.ServicioRepository
+import cu.shalev.domain.usecase.GuardarInsumo
+import cu.shalev.domain.usecase.GuardarProducto
+import cu.shalev.domain.usecase.GuardarServicio
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.math.BigDecimal
 import java.math.RoundingMode
+import javax.inject.Inject
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -113,8 +133,18 @@ internal object FichasCostoCodec {
     }.getOrDefault(emptyList())
 }
 
-class FichaCostoViewModel(application: Application) : AndroidViewModel(application) {
-    private val prefs = application.getSharedPreferences("fichas_costo", Context.MODE_PRIVATE)
+@HiltViewModel
+class FichaCostoViewModel @Inject constructor(
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context,
+    private val insumos: InsumoRepository,
+    private val productos: ProductoRepository,
+    private val servicios: ServicioRepository,
+    private val guardarInsumo: GuardarInsumo,
+    private val guardarProducto: GuardarProducto,
+    private val guardarServicio: GuardarServicio,
+    private val clock: Clock,
+) : androidx.lifecycle.ViewModel() {
+    private val prefs = context.getSharedPreferences("fichas_costo", Context.MODE_PRIVATE)
     var nombre by mutableStateOf("")
     var margen by mutableStateOf("")
     var unidadMargen by mutableStateOf(UnidadMargen.PORCENTAJE)
@@ -137,6 +167,122 @@ class FichaCostoViewModel(application: Application) : AndroidViewModel(applicati
     fun nueva() { idEdicion = null; nombre = ""; margen = ""; unidadMargen = UnidadMargen.PORCENTAJE; tasaCupPorUsd = ""; partidas = emptyList() }
     fun eliminarFicha(id: Long) { fichas = fichas.filterNot { it.id == id }; if (idEdicion == id) nueva(); persistir() }
     private fun persistir() { prefs.edit().putString("lista", FichasCostoCodec.encode(fichas)).apply() }
+
+    /** Convierte la unidad de una partida a la unidad de insumo más cercana. */
+    private fun parseUnidad(texto: String): UnidadMedida {
+        val t = texto.trim().lowercase()
+        return when {
+            t == "kg" || t.contains("kilogram") || t == "kilo" || t == "kilos" -> UnidadMedida.KILOGRAMO
+            t == "g" || t == "gr" || t.contains("gramo") -> UnidadMedida.GRAMO
+            t == "ml" || t.contains("mililitro") -> UnidadMedida.MILILITRO
+            t == "l" || t == "lt" || t.contains("litro") -> UnidadMedida.LITRO
+            else -> UnidadMedida.UNIDAD
+        }
+    }
+
+    private fun precioCupDe(partida: PartidaCosto, tasa: BigDecimal?): BigDecimal? {
+        return if (partida.moneda == MonedaCosto.CUP) partida.costoUnitario
+        else tasa?.let { partida.costoUnitario.multiply(it) }
+    }
+
+    private suspend fun asegurarInsumos(ficha: FichaCostoGuardada, tasa: BigDecimal?): Result<List<RecetaLinea>> {
+        val existentes = insumos.todos().associateBy { it.nombre.lowercase() }
+        val lineas = mutableListOf<RecetaLinea>()
+        val creados = mutableMapOf<String, Insumo>()
+        for (p in ficha.partidas) {
+            val clave = p.descripcion.trim().lowercase()
+            var insumo = existentes[clave] ?: creados[clave]
+            if (insumo == null) {
+                val precioBd = precioCupDe(p, tasa) ?: return Result.failure(IllegalStateException("Falta la tasa CUP por USD"))
+                val precio = Cup.of(precioBd)
+                val unidad = parseUnidad(p.unidad)
+                val nuevo = Insumo(
+                    id = 0,
+                    nombre = p.descripcion.trim().take(80),
+                    unidad = unidad,
+                    precio = precio,
+                    cantidad = Cantidad.ZERO,
+                    creadoEn = clock.now(),
+                    precioVenta = null,
+                )
+                when (val r = guardarInsumo(nuevo)) {
+                    is AppResult.Ok -> {
+                        val id = r.value
+                        insumo = insumos.obtener(id) ?: return Result.failure(IllegalStateException("No se pudo leer el insumo creado"))
+                        creados[clave] = insumo
+                    }
+                    is AppResult.Err -> return Result.failure(IllegalStateException("No se pudo crear el insumo «${p.descripcion}»: ${r.error}"))
+                }
+            }
+            val cantidadMilli = p.cantidad.multiply(BigDecimal(1000)).setScale(0, RoundingMode.HALF_UP).longValueExact()
+            if (cantidadMilli <= 0) return Result.failure(IllegalStateException("Cantidad inválida en «${p.descripcion}»"))
+            lineas.add(RecetaLinea(insumo.id, Cantidad(cantidadMilli)))
+        }
+        return Result.success(lineas)
+    }
+
+    /** Exporta la ficha como producto Elaborado con su receta de insumos. */
+    suspend fun exportarAInventario(ficha: FichaCostoGuardada): Result<String> {
+        val necesitaTasa = ficha.partidas.any { it.moneda == MonedaCosto.USD }
+        val tasa = CalculoFichaCosto.numero(ficha.tasaCupPorUsd)
+        if (necesitaTasa && tasa == null) return Result.failure(IllegalStateException("Escribe la tasa CUP por 1 USD antes de exportar."))
+        val total = totalCup(ficha) ?: return Result.failure(IllegalStateException("Escribe la tasa CUP por 1 USD antes de exportar."))
+        val costoBd = CalculoFichaCosto.calcular(ficha.partidas).let { t -> t.costoTotal.getValue(MonedaCosto.CUP) + t.costoTotal.getValue(MonedaCosto.USD).multiply(tasa ?: BigDecimal.ZERO) }
+        val costoCup = Cup.of(costoBd)
+        val precioCup = Cup.of(total)
+        val precioVenta = if (precioCup.centavos <= costoCup.centavos) Cup(costoCup.centavos + 100) else precioCup
+
+        val lineasResult = asegurarInsumos(ficha, tasa)
+        if (lineasResult.isFailure) return Result.failure(lineasResult.exceptionOrNull()!!)
+        val lineas = lineasResult.getOrThrow()
+
+        val producto = Producto(
+            id = 0,
+            categoria = Categorias.ELABORADO,
+            nombre = ficha.nombre.trim().take(80),
+            descripcion = null,
+            fotoUri = null,
+            fechaCaducidad = null,
+            precioCosto = costoCup,
+            precioVenta = precioVenta,
+            cantidad = 0,
+            nivelBajo = null,
+            nivelCritico = null,
+            creadoEn = clock.now(),
+        )
+        val receta = Receta(producto.id, lineas)
+        return when (val r = guardarProducto(producto, receta)) {
+            is AppResult.Ok -> Result.success("Ficha exportada al Inventario como Elaborado con ${lineas.size} insumos.")
+            is AppResult.Err -> Result.failure(IllegalStateException(r.error.toString()))
+        }
+    }
+
+    /** Exporta la ficha como servicio con sus insumos asociados. */
+    suspend fun exportarAServicio(ficha: FichaCostoGuardada): Result<String> {
+        val necesitaTasa = ficha.partidas.any { it.moneda == MonedaCosto.USD }
+        val tasa = CalculoFichaCosto.numero(ficha.tasaCupPorUsd)
+        if (necesitaTasa && tasa == null) return Result.failure(IllegalStateException("Escribe la tasa CUP por 1 USD antes de exportar."))
+        val total = totalCup(ficha) ?: return Result.failure(IllegalStateException("Escribe la tasa CUP por 1 USD antes de exportar."))
+        val importe = Cup.of(total)
+
+        val lineasResult = asegurarInsumos(ficha, tasa)
+        if (lineasResult.isFailure) return Result.failure(lineasResult.exceptionOrNull()!!)
+        val lineas = lineasResult.getOrThrow()
+
+        val servicio = Servicio(
+            id = 0,
+            nombre = ficha.nombre.trim().take(80),
+            tipo = "General",
+            importe = importe,
+            descripcion = null,
+            fotoUri = null,
+            creadoEn = clock.now(),
+        )
+        return when (val r = guardarServicio(servicio, lineas)) {
+            is AppResult.Ok -> Result.success("Ficha exportada a Servicios con ${lineas.size} insumos.")
+            is AppResult.Err -> Result.failure(IllegalStateException(r.error.toString()))
+        }
+    }
 }
 
 private fun enteroDinero(valor: BigDecimal): String = valor.abs().setScale(0, RoundingMode.HALF_UP).toPlainString()
@@ -153,7 +299,7 @@ fun FichaCostoScreen(
     onBack: () -> Unit,
     onExportarInventario: (nombre: String, costoCup: String, precioCup: String) -> Unit = { _, _, _ -> },
     onExportarServicio: (nombre: String, importeCup: String) -> Unit = { _, _ -> },
-    vm: FichaCostoViewModel = viewModel(),
+    vm: FichaCostoViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     var editorAbierto by rememberSaveable { mutableStateOf(false) }
     var indiceEdicion by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -166,6 +312,7 @@ fun FichaCostoScreen(
     var totalesExpandidos by rememberSaveable { mutableStateOf(false) }
     val margen = CalculoFichaCosto.numero(vm.margen)
     val totales = CalculoFichaCosto.calcular(vm.partidas, margen, vm.unidadMargen)
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val salir = { if (vm.tieneDatos && vm.idEdicion == null) confirmarSalida = true else onBack() }
     BackHandler(enabled = !editorAbierto && indiceEliminar == null && !confirmarSalida && !cambioAbierto) { salir() }
 
@@ -188,10 +335,17 @@ fun FichaCostoScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         ShalevIconAction(ShalevIcons.Editar, "Abrir ${ficha.nombre}", onClick = { vm.abrir(ficha) })
                         ShalevIconAction(ShalevIcons.Inventario, "Exportar al Inventario", onClick = {
-                            val costo = CalculoFichaCosto.calcular(ficha.partidas).let { t -> t.costoTotal.getValue(MonedaCosto.CUP) + t.costoTotal.getValue(MonedaCosto.USD).multiply(CalculoFichaCosto.numero(ficha.tasaCupPorUsd) ?: BigDecimal.ZERO) }
-                            onExportarInventario(ficha.nombre, enteroDinero(costo), enteroDinero(total!!))
+                            scope.launch {
+                                val r = vm.exportarAInventario(ficha)
+                                aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
+                            }
                         }, enabled = total != null)
-                        ShalevIconAction(ShalevIcons.Servicios, "Exportar a Servicios", onClick = { onExportarServicio(ficha.nombre, enteroDinero(total!!)) }, enabled = total != null)
+                        ShalevIconAction(ShalevIcons.Servicios, "Exportar a Servicios", onClick = {
+                            scope.launch {
+                                val r = vm.exportarAServicio(ficha)
+                                aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
+                            }
+                        }, enabled = total != null)
                         ShalevIconAction(ShalevIcons.Eliminar, "Eliminar ${ficha.nombre}", onClick = { vm.eliminarFicha(ficha.id) })
                     }
                 }

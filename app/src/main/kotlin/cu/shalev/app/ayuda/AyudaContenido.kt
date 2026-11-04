@@ -91,14 +91,14 @@ object AyudaContenido {
         categoria = CategoriaAyuda.REGISTROS
     )
 
-    /** Ayuda de la calculadora temporal de costos. */
+    /** Ayuda de la ficha de costo con exportación a Inventario/Servicios. */
     val herramientas = AyudaVentana(
         titulo = "Manual de usuario: Herramientas",
         pasos = listOf(
-            "Abre Ficha de costo y agrega partidas con cantidad, costo y moneda",
-            "Consulta los totales en CUP y USD por separado y el margen opcional",
-            "En Calculadora de cambio, introduce la tasa o calcula una a partir de dos importes",
-            "El cálculo es temporal: se pierde al salir y no se incluye en el respaldo"
+            "Abre Ficha de costo y agrega partidas con categoría, cantidad, unidad, costo y moneda",
+            "Guarda y exporta a Inventario (Elaborado) o Servicios con tus partidas como insumos",
+            "Si alguna partida está en USD, escribe la tasa CUP por 1 USD antes de exportar",
+            "En Calculadora de cambio, introduce la tasa o calcula una a partir de dos importes"
         ),
         categoria = CategoriaAyuda.HERRAMIENTAS
     )

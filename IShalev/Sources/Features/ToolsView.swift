@@ -228,16 +228,56 @@ struct ToolsView: View {
         let cost = cents(sheet.total(.cup) + sheet.total(.usd) * rate)
         let price = max(cents(total), cost + 100)
         do {
-            try store.saveProduct(Product(name: sheet.name, category: "Otros", stockMilli: 0, unit: "u", priceCents: price, costCents: cost))
-            message = "Ficha exportada al Inventario en CUP."
+            let uses = try ensureIngredients(for: sheet, rate: rate)
+            try store.saveProduct(Product(name: sheet.name, category: "Elaborado", kind: .prepared, stockMilli: 0, unit: "u", priceCents: price, costCents: cost, uses: uses))
+            message = "Ficha exportada al Inventario como Elaborado con \(uses.count) insumos."
         } catch { message = error.localizedDescription }
     }
     private func exportService(_ sheet: CostSheet) {
         guard let total = sheet.exportCUP else { message = "Escribe la tasa CUP por 1 USD antes de exportar."; return }
+        let rate = Decimal(string: sheet.usdRate.replacingOccurrences(of: ",", with: ".")) ?? 0
         do {
-            try store.saveService(ServiceItem(name: sheet.name, type: "General", priceCents: max(100, cents(total))))
-            message = "Ficha exportada a Servicios en CUP."
+            let uses = try ensureIngredients(for: sheet, rate: rate)
+            try store.saveService(ServiceItem(name: sheet.name, type: "General", priceCents: max(100, cents(total)), uses: uses))
+            message = "Ficha exportada a Servicios con \(uses.count) insumos."
         } catch { message = error.localizedDescription }
+    }
+
+    private func ensureIngredients(for sheet: CostSheet, rate: Decimal) throws -> [IngredientUse] {
+        var uses: [IngredientUse] = []
+        for part in sheet.parts {
+            let trimmedName = part.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedName.isEmpty else { continue }
+            // Buscar insumo existente por nombre (insensible a mayúsculas)
+            if let existing = store.data.products.first(where: { $0.kind == .ingredient && $0.isActive && $0.name.lowercased() == trimmedName.lowercased() }) {
+                let milli = milliUnits(from: part.quantity)
+                uses.append(IngredientUse(ingredientID: existing.id, milliUnits: milli))
+                continue
+            }
+            // Crear nuevo insumo con el costo unitario convertido a CUP
+            let unitCostDecimal = Decimal(string: part.unitCost.replacingOccurrences(of: ",", with: ".")) ?? 0
+            let costInCup: Decimal = part.currency == .cup ? unitCostDecimal : unitCostDecimal * rate
+            let costCents = cents(costInCup)
+            let newIngredient = Product(name: trimmedName, category: "Insumos", kind: .ingredient, stockMilli: 0, unit: part.unit.isEmpty ? "u" : part.unit, lowStockMilli: 0, criticalStockMilli: 0, priceCents: 0, costCents: costCents, uses: [])
+            try store.saveProduct(newIngredient)
+            guard let created = store.data.products.first(where: { $0.kind == .ingredient && $0.isActive && $0.name.lowercased() == trimmedName.lowercased() }) else {
+                throw BusinessError.invalidRecipe
+            }
+            let milli = milliUnits(from: part.quantity)
+            uses.append(IngredientUse(ingredientID: created.id, milliUnits: milli))
+        }
+        guard !uses.isEmpty else { throw BusinessError.invalidRecipe }
+        return uses
+    }
+
+    private func milliUnits(from quantityString: String) -> Int64 {
+        let normalized = quantityString.replacingOccurrences(of: ",", with: ".")
+        guard let decimal = Decimal(string: normalized), decimal > 0 else { return 1_000 }
+        var scaled = decimal * Decimal(1_000)
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &scaled, 0, .plain)
+        let value = NSDecimalNumber(decimal: rounded).int64Value
+        return max(1, value)
     }
     private func cents(_ value: Decimal) -> Int64 {
         var scaled = absDecimal(value) * 100
