@@ -96,9 +96,9 @@ object AyudaContenido {
         titulo = "Manual de usuario: Herramientas",
         pasos = listOf(
             "Abre Ficha de costo y agrega partidas con categoría, cantidad, unidad, costo y moneda",
-            "Guarda la ficha y expórtala: a Inventario crea un Elaborado y a Servicios un servicio, ambos con tus partidas como insumos",
+            "Guarda y exporta a Inventario (Elaborado) o Servicios con tus partidas como insumos",
             "Si alguna partida está en USD, escribe la tasa CUP por 1 USD antes de exportar",
-            "En Calculadora de cambio, introduce la tasa o calcula una a partir de dos importes equivalentes"
+            "En Calculadora de cambio, introduce la tasa o calcula una a partir de dos importes"
         ),
         categoria = CategoriaAyuda.HERRAMIENTAS
     )

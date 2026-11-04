@@ -280,7 +280,6 @@ private struct ProfileSettingsView: View {
     @ObservedObject var store: ShalevStore
     @Environment(\.dismiss) private var dismiss
     @AppStorage("shalev.module.sales") private var salesEnabled = true
-    @AppStorage("shalev.module.sales") private var salesEnabled = true
     @AppStorage("shalev.module.inventory") private var inventoryEnabled = true
     @AppStorage("shalev.module.services") private var servicesEnabled = true
 
@@ -755,30 +754,6 @@ private struct PaymentSettingsView: View {
     }
 
     private func addPill(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
-        HStack(spacing: 8) {
-            Text(title)
-                .font(.shalev(12, weight: .semibold))
-                .foregroundStyle(Color.shalevText)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            Button(action: action) {
-                Image(systemName: symbol)
-                    .font(.shalev(15, weight: .semibold))
-                    .foregroundStyle(Color.shalevPrimary)
-                    .frame(width: 40, height: 40)
-                    .background(Color.shalevPrimaryContainer, in: Circle())
-                    .shalevToque()
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(title)
-        }
-    }
-
-    private func maskedCard(_ number: String) -> String {
-        let digits = number.filter(\.isNumber)
-        return digits.count >= 4 ? "•••• \(digits.suffix(4))" : "••••"
-    }    private func addPill(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
         HStack(spacing: 8) {
             Text(title)
                 .font(.shalev(12, weight: .semibold))
