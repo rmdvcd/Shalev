@@ -82,6 +82,9 @@ sealed interface ProcesoActualizar {
     /** Comprobando si hay versión nueva o descargándola: barra de progreso circular. */
     data class EnCurso(val progreso: Float?) : ProcesoActualizar
 
+    /** 1.0.4: el APK ya está descargado; el usuario decide cuándo instalarlo (cuadro «Aplicar actualización»). */
+    data object Descargada : ProcesoActualizar
+
     /** La versión nueva está descargada y el instalador abierto. */
     data object Actualizado : ProcesoActualizar
 
@@ -97,6 +100,7 @@ sealed interface ProcesoActualizar {
 /** 0.31.0 (P5): texto del resultado para el usuario. */
 fun ProcesoActualizar.texto(): String = when (this) {
     is ProcesoActualizar.EnCurso -> if (progreso == null) TextosActualizacion.COMPROBANDO else TextosActualizacion.DESCARGANDO
+    ProcesoActualizar.Descargada -> TextosActualizacion.DESCARGADA_TEXTO
     ProcesoActualizar.Actualizado -> TextosActualizacion.RESULTADO_ACTUALIZADO
     ProcesoActualizar.AlDia -> TextosActualizacion.RESULTADO_AL_DIA
     ProcesoActualizar.SinConexion -> TextosActualizacion.RESULTADO_SIN_CONEXION
@@ -130,6 +134,10 @@ object TextosActualizacion {
     const val INSTALACION_CANCELADA = "La instalación no se completó. Puedes volver a tocar Actualizar."
     const val BUSCAR = "Actualizar"
     /** 0.31.0 (P5): resultados del cuadro de «Actualizar». */
+    /** 1.0.4: el APK ya está descargado y el usuario confirma si lo instala ahora. */
+    const val DESCARGADA_TITULO = "Actualización descargada"
+    const val DESCARGADA_TEXTO = "La actualización está lista. Toca Confirmar para instalarla."
+    const val DESCARGADA_DETALLE = "Shalev se cerrará, se instalará la versión nueva y se volverá a abrir sola."
     const val RESULTADO_ACTUALIZADO = "Actualizado"
     const val RESULTADO_AL_DIA = "Estas al día"
     const val RESULTADO_SIN_CONEXION = "Sin conexión"
@@ -278,12 +286,34 @@ class GestorActualizacion @Inject constructor(
                 r == null || r.error -> resultadoProceso(ProcesoActualizar.SinConexion)
                 r.aviso == null -> resultadoProceso(ProcesoActualizar.AlDia)
                 else -> {
-                    val ok = descargarEInstalar(estado.value.copy(disponible = r.aviso), conMensajes = false, conProceso = true)
-                    // La descarga pone ella sola el resultado; si ni llegó a empezar (ya había otra en curso),
-                    // el cuadro se quedaría girando: aquí se cierra.
-                    if (ok) resultadoProceso(ProcesoActualizar.Actualizado)
-                    else resultadoProceso(ProcesoActualizar.SinConexion)
+                    // 1.0.4: descarga, y el cuadro pasa a «Actualización descargada» esperando la confirmación.
+                    val listo = descargarEInstalar(
+                        estado.value.copy(disponible = r.aviso), conMensajes = false, conProceso = true,
+                        esperarConfirmacion = true,
+                    )
+                    // Si no llegó a empezar (ya había otra descarga en curso), el cuadro se quedaría girando.
+                    if (!listo) resultadoProceso(ProcesoActualizar.SinConexion)
                 }
+            }
+        }
+    }
+
+    /** 1.0.4: «Confirmar» del cuadro «Actualización descargada»: instala el APK y Shalev se reabre al terminar. */
+    fun aplicarActualizacion() {
+        val apk = apkListo?.takeIf { it.exists() }
+        if (apk == null) {
+            cerrarProceso()
+            mensajes.trySend(TextosActualizacion.ERROR_DESCARGA)
+            return
+        }
+        cierreAuto?.cancel()
+        procesoJob?.cancel()
+        procesoJob = scope.launch {
+            local.update { it.copy(proceso = ProcesoActualizar.EnCurso(1f)) }
+            ReinicioPendiente.armar(context)
+            instalar(apk) {
+                ReinicioPendiente.desarmar(context)
+                local.update { it.copy(proceso = ProcesoActualizar.Descargada) }
             }
         }
     }
@@ -326,6 +356,8 @@ class GestorActualizacion @Inject constructor(
         e: EstadoActualizacion,
         conMensajes: Boolean = true,
         conProceso: Boolean = true,
+        /** 1.0.4: al terminar la descarga, no instala: deja el cuadro en «descargada» esperando confirmación. */
+        esperarConfirmacion: Boolean = false,
     ): Boolean {
         if (descarga?.isActive == true) return false
         local.update { it.copy(progreso = 0f, proceso = if (conProceso) ProcesoActualizar.EnCurso(0f) else null) }
@@ -358,8 +390,12 @@ class GestorActualizacion @Inject constructor(
                 } else {
                     apkListo = r.value
                     local.update { it.copy(listo = true) }
-                    resultado(ProcesoActualizar.Actualizado)
-                    instalar(r.value)
+                    if (esperarConfirmacion) {
+                        resultado(ProcesoActualizar.Descargada)
+                    } else {
+                        resultado(ProcesoActualizar.Actualizado)
+                        instalar(r.value)
+                    }
                     true
                 }
             }
@@ -379,14 +415,15 @@ class GestorActualizacion @Inject constructor(
      * Antes de abrir el instalador se guarda un respaldo completo de los datos (se restaura al abrir la versión nueva).
      * Sin respaldo no se instala: es lo que protege los datos si algo sale mal.
      */
-    private suspend fun instalar(apk: File) {
+    private suspend fun instalar(apk: File, alFallar: () -> Unit = {}) {
         mensajes.trySend(TextosActualizacion.GUARDANDO_RESPALDO)
         val listo = seguro { respaldoPrevio.crear(RespaldoPrevio.clave(info)) } == true
-        if (!listo) { mensajes.trySend(TextosActualizacion.ERROR_RESPALDO_PREVIO); return }
+        if (!listo) { mensajes.trySend(TextosActualizacion.ERROR_RESPALDO_PREVIO); alFallar(); return }
         instalador.instalar(apk) { ok ->
             if (!ok) {
                 respaldoPrevio.descartar() // no se instaló: el respaldo sobra
                 mensajes.trySend(TextosActualizacion.INSTALACION_CANCELADA)
+                alFallar()
             }
         }
     }
@@ -428,4 +465,6 @@ class ActualizacionViewModel @Inject constructor(private val gestor: GestorActua
     /** 0.31.0 (P5): «Actualizar» de Ajustes (cuadro con barra circular y resultado). */
     fun actualizarAhora() = gestor.actualizarAhora()
     fun cerrarProceso() = gestor.cerrarProceso()
+    /** 1.0.4: «Confirmar» del cuadro «Actualización descargada». */
+    fun aplicarActualizacion() = gestor.aplicarActualizacion()
 }

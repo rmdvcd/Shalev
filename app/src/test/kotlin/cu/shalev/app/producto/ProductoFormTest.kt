@@ -100,7 +100,7 @@ class ProductoFormLogicTest {
     @Test fun ediciónConservaLosDatos() {
         val p = prod(4, "Pan").copy(nivelBajo = 8, fechaCaducidad = LocalDate.of(2026, 10, 5))
         val f = ProductoFormLogic.desde(p, null, emptyMap())
-        assertEquals("60.00", f.precioCosto)
+        assertEquals("60", f.precioCosto)
         assertEquals("8", f.nivelBajo)
         assertEquals("", f.nivelCritico)
         val (vuelta, _) = ProductoFormLogic.aProducto(f, T0.plusSeconds(99))!!

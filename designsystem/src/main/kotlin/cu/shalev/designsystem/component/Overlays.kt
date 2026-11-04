@@ -54,7 +54,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -86,6 +88,41 @@ fun ShalevSnackbarHost(state: SnackbarHostState, modifier: Modifier = Modifier) 
             contentColor = MaterialTheme.colorScheme.inverseOnSurface,
             actionColor = MaterialTheme.colorScheme.inversePrimary,
         )
+    }
+}
+
+/** 1.0.4: cuánto se ve un aviso de operación realizada antes de irse solo. */
+const val AVISO_EXITO_MS = 2_000L
+
+/**
+ * 1.0.4: aviso flotante de operación realizada (agregar, guardar, eliminar…): cuadro con ✓ y el mensaje.
+ * No bloquea la pantalla y se va solo a los [AVISO_EXITO_MS].
+ */
+@Composable
+fun ShalevAvisoExito(texto: String, onFin: () -> Unit, modifier: Modifier = Modifier) {
+    val haptics = rememberShalevHaptics()
+    LaunchedEffect(texto) { haptics.exito(); kotlinx.coroutines.delay(AVISO_EXITO_MS); onFin() }
+    Surface(
+        modifier = modifier
+            .padding(horizontal = ShalevSpacing.md)
+            .widthIn(max = 480.dp)
+            .semantics { liveRegion = LiveRegionMode.Polite },
+        shape = RoundedCornerShape(ShalevRadius.md),
+        color = MaterialTheme.colorScheme.inverseSurface,
+        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+        shadowElevation = ShalevElevation.mid,
+    ) {
+        Row(
+            Modifier.padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+        ) {
+            Icon(
+                ShalevIcons.Confirmar, contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(ShalevSize.icon),
+            )
+            Text(texto, style = MaterialTheme.typography.bodyLarge)
+        }
     }
 }
 

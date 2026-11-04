@@ -24,7 +24,7 @@ class Version025AppTest {
 
     @Test fun fondoInicialYParseoDeImportes() {
         assertEquals("", CajaForm.textoInicial(null))
-        assertEquals("1500.00", CajaForm.textoInicial(pesos(1500)))
+        assertEquals("1500", CajaForm.textoInicial(pesos(1500)))
         assertEquals(pesos(1500), CajaForm.importe(CajaForm.textoInicial(pesos(1500))))
         assertEquals(Cup.ZERO, CajaForm.importe("0"))
         assertNull(CajaForm.importe(""))

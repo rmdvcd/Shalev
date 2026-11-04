@@ -10,6 +10,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -207,10 +208,10 @@ fun MainScaffold(snapshot: Licencia) {
                 ProductoFormScreen(
                     onBack = { nav.popBackStack() },
                     onGuardado = { msg ->
-                        // Vuelve a Inventario con el aviso para el snackbar.
+                        // Vuelve a Inventario y muestra el aviso flotante de «Producto agregado».
+                        cu.shalev.app.common.AvisoExito.mostrar(msg)
                         val volvio = nav.popBackStack<Route.Inventario>(inclusive = false)
                         if (!volvio) nav.navigate(Route.Inventario()) { popUpTo<Route.ProductoForm> { inclusive = true } }
-                        nav.currentBackStackEntry?.savedStateHandle?.set(KEY_PRODUCTO_GUARDADO, msg)
                     },
                     // P31: la categoría «Insumos» sustituye este formulario por el de insumo (Atrás no vuelve aquí).
                     onCrearInsumo = { nombre ->
@@ -236,7 +237,7 @@ fun MainScaffold(snapshot: Licencia) {
                 ServicioFormScreen(
                     onBack = { nav.popBackStack() },
                     onGuardado = { msg ->
-                        nav.previousBackStackEntry?.savedStateHandle?.set(KEY_SERVICIO_MENSAJE, msg)
+                        cu.shalev.app.common.AvisoExito.mostrar(msg)
                         nav.popBackStack()
                     },
                 )
@@ -246,9 +247,9 @@ fun MainScaffold(snapshot: Licencia) {
                     onBack = { nav.popBackStack() },
                     onGuardado = { msg ->
                         // P29: los insumos viven en Inventario; al guardar se vuelve allí con el aviso.
+                        cu.shalev.app.common.AvisoExito.mostrar(msg)
                         val volvio = nav.popBackStack<Route.Inventario>(inclusive = false)
                         if (!volvio) nav.navigate(Route.Inventario()) { popUpTo<Route.InsumoForm> { inclusive = true } }
-                        nav.currentBackStackEntry?.savedStateHandle?.set(KEY_PRODUCTO_GUARDADO, msg)
                     },
                 )
             }
@@ -276,9 +277,9 @@ fun MainScaffold(snapshot: Licencia) {
                         nav.navigate(if (t == TipoVenta.SERVICIO) Route.Servicios(venta = true, seleccion = csv) else Route.Inventario(venta = t.name, seleccion = csv)) { launchSingleTop = true }
                     },
                     onTerminada = { msg ->
-                        // Vuelve a Inicio (gráficos al día) con el aviso de venta registrada.
+                        // Vuelve a Inicio (gráficos al día) y muestra el aviso flotante de venta registrada.
+                        cu.shalev.app.common.AvisoExito.mostrar(msg)
                         if (!nav.popBackStack<Route.Inicio>(inclusive = false)) nav.navigateTopLevel(Route.Inicio)
-                        nav.currentBackStackEntry?.savedStateHandle?.set(KEY_INICIO_MENSAJE, msg)
                     },
                     onConfigurarPago = { nav.navigate(Route.PagoElectronico) { launchSingleTop = true } },
                     seleccion = seleccion?.toList(),
@@ -339,6 +340,13 @@ fun MainScaffold(snapshot: Licencia) {
             onExportarRespaldo = { nav.navigate(Route.Respaldo) { launchSingleTop = true } },
         )
     }
+    // 1.0.4: cuadro flotante de «operación realizada» (guardar, agregar, eliminar…), común a todas las pantallas.
+    cu.shalev.app.common.AvisoExitoHost(
+        Modifier
+            .align(androidx.compose.ui.Alignment.TopCenter)
+            .statusBarsPadding()
+            .padding(top = cu.shalev.designsystem.token.ShalevSpacing.xs),
+    )
     }
     }
 }

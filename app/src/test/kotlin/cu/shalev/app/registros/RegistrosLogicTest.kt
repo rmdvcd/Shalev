@@ -86,8 +86,8 @@ class RegistrosLogicTest {
 
     @Test fun formularioDesdeElFiltroActual() {
         val f = FiltroRegistrosLogic.desde(FiltroRegistros(importeMin = Cup(145050), importeMax = Cup.ofPesos(2000)))
-        assertEquals("1450.50", f.importeMin)
-        assertEquals("2000.00", f.importeMax)
+        assertEquals("1451", f.importeMin)
+        assertEquals("2000", f.importeMax)
         assertEquals("", FiltroRegistrosLogic.desde(FiltroRegistros()).importeMin)
     }
 

@@ -69,7 +69,7 @@ class InsumoFormTest {
     @Test fun desdeUnInsumoSeEditaSinSeparadorDeMiles() {
         val f = InsumoFormLogic.desde(ins(7, "Azúcar", cantidad = 1250, precio = 1450))
         assertEquals("1250", f.cantidad)
-        assertEquals("1450.00", f.precio)
+        assertEquals("1450", f.precio)
         assertEquals(7, f.id)
         assertTrue(InsumoFormLogic.validar(f).isEmpty())
     }

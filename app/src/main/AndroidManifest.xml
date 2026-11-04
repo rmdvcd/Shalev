@@ -84,6 +84,15 @@
                  Shalev ya no se ofrece para abrir ni recibir respaldos de otras apps. -->
         </activity>
 
+        <!-- 1.0.4: tras instalar una actualización confirmada desde Ajustes, Shalev se reabre solo. -->
+        <receiver
+            android:name=".actualizacion.ReinicioTrasActualizar"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- 0.19.2: ver los permisos FOREGROUND_SERVICE* arriba. No exportado: solo lo arranca la propia app. -->
         <service
             android:name=".notificacion.ServicioSync"

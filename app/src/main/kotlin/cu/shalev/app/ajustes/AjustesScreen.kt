@@ -28,7 +28,6 @@ import cu.shalev.app.common.abrirAjustesDeLaApp
 import cu.shalev.app.actualizacion.texto
 import cu.shalev.app.navigation.Route
 import cu.shalev.designsystem.component.ShalevBadge
-import cu.shalev.designsystem.component.ShalevCircularProgress
 import cu.shalev.designsystem.component.ShalevDialog
 import cu.shalev.designsystem.component.ShalevListItem
 import cu.shalev.designsystem.component.ShalevTopBar
@@ -126,6 +125,7 @@ fun AjustesScreen(
         onBuscarAhora = actVm::buscarAhora,
         onActualizarAhora = actVm::actualizarAhora,
         onCerrarActualizar = actVm::cerrarProceso,
+        onAplicarActualizar = actVm::aplicarActualizacion,
         snackbar = snackbar,
     )
 }
@@ -137,9 +137,11 @@ fun AjustesContent(
     onPermisos: () -> Unit,
     actualizacion: cu.shalev.app.actualizacion.EstadoActualizacion = cu.shalev.app.actualizacion.EstadoActualizacion(),
     onBuscarAhora: () -> Unit = {},
-    /** 0.31.0 (P5): «Actualizar» (cuadro con barra circular) y cerrar ese cuadro. */
+    /** 0.31.0 (P5): «Actualizar» (cuadro con barra de progreso) y cerrar ese cuadro. */
     onActualizarAhora: () -> Unit = {},
     onCerrarActualizar: () -> Unit = {},
+    /** 1.0.4: «Confirmar» del cuadro «Actualización descargada». */
+    onAplicarActualizar: () -> Unit = {},
     snackbar: androidx.compose.material3.SnackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() },
     accesoClave: Boolean = false,
     onAccesoClave: (Boolean) -> Unit = {},
@@ -214,35 +216,59 @@ fun AjustesContent(
     if (dialogoActualizaciones) {
         val T = cu.shalev.app.actualizacion.TextosActualizacion
         val proceso = actualizacion.proceso
-        ShalevDialog(
-            title = T.BUSCAR,
-            onDismiss = onCerrarActualizar,
-            onConfirm = null,
-            dismissDescription = "Cerrar",
-            content = {
+        if (proceso is cu.shalev.app.actualizacion.ProcesoActualizar.Descargada) {
+            // 1.0.4: descarga terminada → el usuario confirma si se instala ahora (y Shalev se reabre solo).
+            ShalevDialog(
+                title = T.DESCARGADA_TITULO,
+                text = T.DESCARGADA_TEXTO,
+                onDismiss = onCerrarActualizar,
+                dismissDescription = "Omitir",
+                onConfirm = onAplicarActualizar,
+                confirmDescription = "Confirmar",
+            ) {
                 Column(
                     Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    if (!actualizacion.repoConfigurado) {
-                        cu.shalev.designsystem.component.ShalevSecondaryText(T.SIN_REPO, maxLines = 3, textAlign = TextAlign.Center)
-                    } else {
-                        ShalevCircularProgress(
-                            progress = (proceso as? cu.shalev.app.actualizacion.ProcesoActualizar.EnCurso)?.progreso,
-                            contentDescription = T.BUSCAR,
-                        )
-                        Text(
-                            proceso?.texto().orEmpty(), style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
-                        )
-                        cu.shalev.designsystem.component.ShalevSecondaryText(
-                            T.BUSCAR_DETALLE_CORTO, maxLines = 4, textAlign = TextAlign.Center,
-                        )
-                    }
+                    Text(T.DESCARGADA_TEXTO, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                    cu.shalev.designsystem.component.ShalevSecondaryText(
+                        T.DESCARGADA_DETALLE + (actualizacion.version?.let { " Versión $it." } ?: ""),
+                        maxLines = 4, textAlign = TextAlign.Center,
+                    )
                 }
-            },
-        )
+            }
+        } else {
+            ShalevDialog(
+                title = T.BUSCAR,
+                onDismiss = onCerrarActualizar,
+                onConfirm = null,
+                dismissDescription = "Cerrar",
+                content = {
+                    Column(
+                        Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        if (!actualizacion.repoConfigurado) {
+                            cu.shalev.designsystem.component.ShalevSecondaryText(T.SIN_REPO, maxLines = 3, textAlign = TextAlign.Center)
+                        } else {
+                            // 1.0.4: barra horizontal con el progreso real de la descarga (indeterminada solo al comprobar).
+                            val avance = (proceso as? cu.shalev.app.actualizacion.ProcesoActualizar.EnCurso)?.progreso
+                            cu.shalev.designsystem.component.ShalevLinearProgress(progress = avance)
+                            Text(
+                                if (avance != null) "${T.DESCARGANDO} ${(avance * 100).toInt()} %" else proceso?.texto().orEmpty(),
+                                style = MaterialTheme.typography.titleMedium,
+                                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                            )
+                            cu.shalev.designsystem.component.ShalevSecondaryText(
+                                T.BUSCAR_DETALLE_CORTO, maxLines = 4, textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+                },
+            )
+        }
     }
 
 }

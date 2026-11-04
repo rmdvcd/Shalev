@@ -36,7 +36,7 @@ class TablasExportTest {
         assertEquals("1,450 CUP", resumen["Total vendido"])
         assertEquals("01/09/2026 09:00 · Ana Pérez", resumen["Cierre"])
         val arqueo = tablas[1].filas.associate { it[0] to it[1] }
-        assertTrue(arqueo.toString(), arqueo.values.any { it.contains("1,950.00") }) // esperado = 500 + 1,450
+        assertTrue(arqueo.toString(), arqueo.values.any { it.contains("1,950 CUP") }) // esperado = 500 + 1,450
         assertEquals("Shalev_Turno_2026-09-01_0800.xlsx", TablasExport.nombreArchivoTurno(t, "xlsx", z))
         // Abierto: provisional; sin arqueo (turno antiguo) la tabla lo explica.
         val viejo = TablasExport.turno(cu.shalev.domain.model.DetalleTurno(cu.shalev.domain.model.Turno(2, T0), emptyList(), emptyList(), emptyList()), z)

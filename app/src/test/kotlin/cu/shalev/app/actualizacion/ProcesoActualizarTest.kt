@@ -126,6 +126,26 @@ class ProcesoActualizarTest {
         withTimeout(10_000) { g.estado.first { it.proceso == null } }
     }
 
+    /** 1.0.4: tras descargar no se instala solo; el cuadro espera la confirmación del usuario. */
+    @Test fun descargadaPideConfirmacion() {
+        assertEquals(TextosActualizacion.DESCARGADA_TEXTO, ProcesoActualizar.Descargada.texto())
+        assertEquals(false, ProcesoActualizar.Descargada.enCurso)
+        assertEquals(true, ProcesoActualizar.EnCurso(0.5f).enCurso)
+    }
+
+    /** 1.0.4: Shalev solo se reabre solo si el reinicio se armó para ESTA instalación. */
+    @Test fun elReinicioSeConsumeUnaVez() {
+        val c = RuntimeEnvironment.getApplication()
+        ReinicioPendiente.desarmar(c)
+        assertEquals(false, ReinicioPendiente.consumir(c))
+        ReinicioPendiente.armar(c)
+        assertEquals(true, ReinicioPendiente.consumir(c))
+        assertEquals(false, ReinicioPendiente.consumir(c))
+        ReinicioPendiente.armar(c)
+        ReinicioPendiente.desarmar(c)
+        assertEquals(false, ReinicioPendiente.consumir(c))
+    }
+
     /** La comprobación se queda esperando hasta que el test la suelta (red lenta). */
     private class GithubPuerta : ActualizacionesRepository {
         override val repoConfigurado = true
