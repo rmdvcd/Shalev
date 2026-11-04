@@ -120,6 +120,8 @@ En Android Studio, el mismo resultado: **Build → Generate Signed App Bundle / 
 BT=$ANDROID_HOME/build-tools/35.0.0
 $BT/apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
   # → "Verified using v2 scheme: true" y la huella SHA-256 anotada en el paso 1
+# Automático: compara la huella con la clave vigente (falla si el APK salió con otra clave):
+bash tools/verificacion/verificar_firma_apk.sh app/build/outputs/apk/release/app-release.apk
 $ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer manifest permissions app/build/outputs/apk/release/app-release.apk
   # → android.permission.CAMERA, android.permission.INTERNET, android.permission.POST_NOTIFICATIONS,
   #   android.permission.FOREGROUND_SERVICE, android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE,

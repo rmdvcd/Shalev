@@ -38,8 +38,8 @@ import kotlin.random.Random
 
 /**
  * **Solo builds de depuración.** Carga datos de demostración en la base de la app instalada:
- * 18 meses de ventas por efectivo y transferencia, 50 artículos de inventario (productos, elaborados e insumos),
- * 20 servicios, clientes fijos, preajustes de precio y 8 apps secundarias «vinculadas» de prueba.
+ * **2 años (730 días)** de ventas por efectivo y transferencia, 50 artículos de inventario (productos, elaborados
+ * e insumos), 20 servicios, clientes fijos, preajustes de precio y 8 apps secundarias «vinculadas» de prueba.
  *
  * No entra en el APK de release: vive en `data/src/debug` (D-05, auditoría de la 0.32.0). Borra los datos
  * operativos y de configuración antes de sembrar, así que se puede ejecutar varias veces.
@@ -51,6 +51,9 @@ class Sembrador(
 ) {
     private val azar = Random(20261022)
     private val zona: ZoneId = ZoneId.systemDefault()
+
+    /** Histórico de demostración: 2 años de uso (730 días hacia atrás desde hoy). */
+    private val diasHistorico = 730
 
     // ---------------------------------------------------------------------------------------------
     // Catálogo de demostración (índices = los usan las recetas y los planes de venta)
@@ -211,13 +214,13 @@ class Sembrador(
 
     suspend fun sembrar(): String {
         val inicio = clock.now()
-        val desde = inicio.atZone(zona).toLocalDate().minusDays(548)
+        val desde = inicio.atZone(zona).toLocalDate().minusDays(diasHistorico.toLong())
         val plan = planificar(desde, inicio)
         val resumen = ejecutar(plan, desde, inicio)
         return resumen
     }
 
-    /** Recorre los últimos 18 meses y arma turnos, ventas y movimientos de caja. */
+    /** Recorre los últimos 2 años (730 días) y arma turnos, ventas y movimientos de caja. */
     private fun planificar(desde: LocalDate, ahora: Instant): List<TurnoPlan> {
         val planes = mutableListOf<TurnoPlan>()
         var dia = desde
