@@ -195,7 +195,17 @@ Si R8 rompe algo en release que en debug funciona, es casi siempre por reflexió
 
 ## 8. Publicar una actualización en GitHub (0.25.0)
 
-Shalev busca la **última Release pública** del repositorio configurado (`GITHUB_REPO`; por defecto [`rmdvcd/Shalev`](https://github.com/rmdvcd/Shalev/releases)), mediante la API `repos/{owner}/{repo}/releases/latest`. Para que la ofrezca e instale:
+Shalev busca la **última Release pública** del repositorio configurado (`GITHUB_REPO`; por defecto [`rmdvcd/Shalev`](https://github.com/rmdvcd/Shalev/releases)), mediante la API `repos/{owner}/{repo}/releases/latest`.
+
+**Forma automática (recomendada), desde el PC del desarrollador:**
+
+```bash
+bash tools/verificacion/publicar_release.sh notas.md   # notas.md = novedades de la versión
+```
+
+El script lee `versionName` de `app/build.gradle.kts`, compila `:app:assembleRelease`, **verifica la firma** con `verificar_firma_apk.sh` (clave vigente `gl-release.jks`, alias `gl`; si falla, no publica), prepara `Shalev-<version>.apk` (solo el universal) + `Shalev-<version>.apk.sha256` y crea la Release pública `v<version>`. Se niega a publicar si la etiqueta ya existe.
+
+**Forma manual.** Para que la ofrezca e instale:
 
 1. Crea la etiqueta `vX.Y.Z` (por ejemplo `v0.25.1`) y una Release **no** marcada como borrador ni pre-release.
 2. Sube el APK firmado con el nombre `Shalev-X.Y.Z.apk`. GitHub calcula su huella (`digest: sha256:…`), que Shalev usa para comprobar la descarga. Si tu cuenta no muestra `digest`, sube también `Shalev-X.Y.Z.apk.sha256`, con la huella en hex (`sha256sum Shalev-X.Y.Z.apk | cut -d' ' -f1 > Shalev-X.Y.Z.apk.sha256`). **Sin huella, Shalev avisa pero no instala.**
