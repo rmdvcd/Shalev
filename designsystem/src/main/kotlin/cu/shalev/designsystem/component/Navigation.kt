@@ -50,7 +50,8 @@ fun ShalevNavigationBar(
             NavigationBarItem(
                 selected = item.key == selectedKey,
                 onClick = { onSelect(item) },
-                icon = { Icon(item.icon, contentDescription = null) },
+                // Mismo tamaño de caja para todos los destinos: las proporciones del ítem no dependen del trazado.
+                icon = { Icon(item.icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
                 label = {
                     Text(
                         item.label,
