@@ -2,20 +2,20 @@ package cu.shalev.app.caja
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.core.money.Cup
 import cu.shalev.designsystem.component.ShalevDialog
-import cu.shalev.designsystem.component.ShalevTab
-import cu.shalev.designsystem.component.ShalevTabs
 import cu.shalev.designsystem.component.ShalevTextButton
 import cu.shalev.designsystem.component.ShalevTextField
 import cu.shalev.designsystem.icon.ShalevIcons
@@ -59,10 +59,7 @@ fun DialogoCierreCompleto(
         return ConteoForm.cantidad(t, l.entidad)
     }
     val completo = ls != null && ls.indices.all { cantidad(it) != null }
-    // 0.32.0: el conteo se separa por categoría y solo incluye lo que cambió en el turno.
-    val porCategoria = ls?.withIndex()?.groupBy { it.value.categoria }?.entries?.toList() ?: emptyList()
-    var categoria by rememberSaveable(ls) { mutableIntStateOf(0) }
-    val catSel = categoria.coerceIn(0, (porCategoria.size - 1).coerceAtLeast(0))
+    // 0.32.0: el conteo solo incluye lo que cambió en el turno; productos e insumos van juntos en una misma lista.
     // 0.31.0: «Omitir» cierra sin ajustar existencias: se guarda el conteo con lo esperado (sin diferencias) y el
     // motivo lo deja dicho en la revisión, la ficha del turno y los exportados.
     val inventario = when {
@@ -71,24 +68,15 @@ fun DialogoCierreCompleto(
         else -> emptyList()
     }
     val conteo = ConteoCierre(billetes, Cup(otro), inventario, if (omitido) MOTIVO_OMITIDO else motivo.trim())
-    val omitirInventario: (@Composable () -> Unit)? = if (paso != 1) null else {
-        {
-            ShalevTextButton(
-                "Omitir el conteo de inventario", onClick = { omitido = true; paso = 2 }, icon = ShalevIcons.AhoraNo,
-                modifier = Modifier.testTag(CajaTags.OMITIR_INVENTARIO),
-            )
-        }
-    }
     ShalevDialog(
         title = if (paso == 1) "Conteo de inventario" else "Revisar cierre",
-        text = if (paso == 1) "Cuenta solo lo que cambió durante el turno, por categoría. Los elaborados se concilian mediante sus insumos."
+        text = if (paso == 1) "Cuenta solo lo que cambió durante el turno. Los elaborados se concilian mediante sus insumos."
             else "Revisa las diferencias. Solo la principal ajustará las existencias al cerrar o aprobar la solicitud.",
         onDismiss = { if (!guardando) onDismiss() },
         onConfirm = { if (paso == 1) paso = 2 else viewModel.guardar(conteo) { onConfirmar(conteo.efectivo) } },
         confirmDescription = if (paso == 1) "Revisar diferencias" else confirmar,
         confirmEnabled = (if (paso == 1) completo else conteo.valido()) && !guardando && !trabajando,
         confirmLoading = guardando || trabajando, dismissDescription = dismissDescription,
-        esquina = omitirInventario,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             error?.let {
@@ -97,12 +85,11 @@ fun DialogoCierreCompleto(
             }
             if (ls == null) Text("Cargando inventario…", style = MaterialTheme.typography.bodyMedium)
             else if (paso == 1) {
-                if (porCategoria.isEmpty()) {
+                if (ls.isEmpty()) {
                     Text("Durante este turno no cambió ningún artículo: no hay nada que contar.", style = MaterialTheme.typography.bodyMedium)
                 } else {
-                    // 0.32.0: una pestaña por categoría.
-                    ShalevTabs(porCategoria.map { ShalevTab(it.key) }, catSel, { categoria = it })
-                    porCategoria.getOrNull(catSel)?.value?.forEach { (i, l) ->
+                    // Productos e insumos en una misma lista, sin pestañas por categoría.
+                    ls.forEachIndexed { i, l ->
                         ShalevTextField(
                             value = cantidades.getOrNull(i).orEmpty(),
                             onValueChange = { nuevo -> if (nuevo.length <= 16 && nuevo.all { it.isDigit() || it == '.' || it == ',' }) {
@@ -129,7 +116,19 @@ fun DialogoCierreCompleto(
                     supportingText = "De 3 a 160 caracteres. Los ajustes quedarán registrados.", modifier = Modifier,
                 )
             }
-            ShalevTextButton("Atrás", onClick = { omitido = false; paso-- }, icon = ShalevIcons.Atras, enabled = !guardando)
+            // Botones juntos y alineados en una misma fila (antes «Atrás» suelto al final del contenido y
+            // «Omitir» aparte en la esquina inferior derecha del pie: quedaban desalineados).
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ShalevTextButton("Atrás", onClick = { omitido = false; paso-- }, icon = ShalevIcons.Atras, enabled = !guardando)
+                if (paso == 1) ShalevTextButton(
+                    "Omitir el conteo de inventario", onClick = { omitido = true; paso = 2 }, icon = ShalevIcons.AhoraNo,
+                    modifier = Modifier.testTag(CajaTags.OMITIR_INVENTARIO),
+                )
+            }
         }
     }
 }

@@ -13,7 +13,8 @@ import cu.shalev.domain.model.TipoEntidad
 
 /**
  * 0.32.0: el conteo de inventario es **parcial**: solo se cuentan los artículos que cambiaron durante el turno (los
- * que el empleado movió), agrupados por categoría. Lo que no se movió se da por bueno.
+ * que el empleado movió), productos e insumos en una misma lista (cada línea conserva su categoría para los
+ * exportados). Lo que no se movió se da por bueno.
  *
  * Se ejecuta siempre dentro de la transacción del cierre o de la aprobación.
  */

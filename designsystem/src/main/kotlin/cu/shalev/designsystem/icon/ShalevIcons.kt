@@ -172,7 +172,12 @@ internal object MaterialSolido {
     val Remove: ImageVector by lazy { icono("Remove", "M 19 13 H 5 v -2 h 14 v 2 z") }
     val PhotoCamera: ImageVector by lazy { icono("PhotoCamera", "M 8.8 12 A 3.2 3.2 0 1 0 15.2 12 A 3.2 3.2 0 1 0 8.8 12 Z", "M 9 2 7.17 4 H 4 c -1.1 0 -2 .9 -2 2 v 12 c 0 1.1 .9 2 2 2 h 16 c 1.1 0 2 -.9 2 -2 V 6 c 0 -1.1 -.9 -2 -2 -2 h -3.17 L 15 2 H 9 z m 3 15 c -2.76 0 -5 -2.24 -5 -5 s 2.24 -5 5 -5 5 2.24 5 5 -2.24 5 -5 5 z") }
     val Checklist: ImageVector by lazy { icono("Checklist", "M 22 7 h -9 v 2 h 9 V 7 z m 0 8 h -9 v 2 h 9 v -2 z M 5.54 11 2 7.46 l 1.41 -1.41 2.12 2.12 4.24 -4.24 1.41 1.41 L 5.54 11 z m 0 8 L 2 15.46 l 1.41 -1.41 2.12 2.12 4.24 -4.24 1.41 1.41 L 5.54 19 z") }
-    val Build: ImageVector by lazy { icono("Build", "M 22.7 19 l -9.1 -9.1 c 0.9 -2.3 0.4 -5 -1.5 -6.9 c -2 -2 -5 -2.4 -7.4 -1.3 L 9 6 L 6 9 L 1.6 4.7 C 0.4 7.1 0.9 10.1 2.9 12.1 c 1.9 1.9 4.6 2.4 6.9 1.5 l 9.1 9.1 c 0.4 0.4 1 0.4 1.4 0 l 2.3 -2.3 c 0.5 -0.4 0.5 -1.1 0.1 -1.4 z") }
+    /**
+     * Llave inglesa (Material «build») **normalizada a 20×20 centrada en (12,12)**: el trazado original ocupa
+     * 22×21.9 de la cuadrícula de 24 y en la barra inferior se veía más grande que los demás iconos
+     * (Inicio/Inventario/Servicios/Registros ocupan 20×20 centrados).
+     */
+    val Build: ImageVector by lazy { icono("Build", "M 21.74 18.31 L 13.48 10.05 C 14.29 7.96 13.84 5.51 12.12 3.79 C 10.3 1.97 7.58 1.61 5.4 2.61 L 9.3 6.51 L 6.58 9.23 L 2.58 5.33 C 1.5 7.51 1.95 10.23 3.76 12.05 C 5.49 13.77 7.94 14.22 10.03 13.41 L 18.29 21.67 C 18.65 22.03 19.2 22.03 19.56 21.67 L 21.65 19.58 C 22.1 19.22 22.1 18.58 21.74 18.31 z") }
     val Delete: ImageVector by lazy { icono("Delete", "M 6 19 c 0 1.1 .9 2 2 2 h 8 c 1.1 0 2 -.9 2 -2 V 7 H 6 v 12 z M 19 4 h -3.5 l -1 -1 h -5 l -1 1 H 5 v 2 h 14 V 4 z") }
     val Share: ImageVector by lazy { icono("Share", "M 18 16.08 c -.76 0 -1.44 .3 -1.96 .77 L 8.91 12.7 c .05 -.23 .09 -.46 .09 -.7 s -.04 -.47 -.09 -.7 l 7.05 -4.11 c .54 .5 1.25 .81 2.04 .81 1.66 0 3 -1.34 3 -3 s -1.34 -3 -3 -3 -3 1.34 -3 3 c 0 .24 .04 .47 .09 .7 L 8.04 9.81 C 7.5 9.31 6.79 9 6 9 c -1.66 0 -3 1.34 -3 3 s 1.34 3 3 3 c .79 0 1.5 -.31 2.04 -.81 l 7.12 4.16 c -.05 .21 -.08 .43 -.08 .65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92 -1.31 2.92 -2.92 s -1.31 -2.92 -2.92 -2.92 z") }
     val FileDownload: ImageVector by lazy { icono("FileDownload", "M 19 9 h -4 V 3 H 9 v 6 H 5 l 7 7 7 -7 z M 5 18 v 2 h 14 v -2 H 5 z") }
