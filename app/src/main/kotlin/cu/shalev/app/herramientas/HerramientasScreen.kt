@@ -189,7 +189,9 @@ class FichaCostoViewModel @Inject constructor(
         val existentes = insumos.todos().associateBy { it.nombre.lowercase() }
         val lineas = mutableListOf<RecetaLinea>()
         val creados = mutableMapOf<String, Insumo>()
-        for (p in ficha.partidas) {
+        val partidasMaterias = ficha.partidas.filter { it.categoria == CategoriaCosto.MATERIAS }
+        if (partidasMaterias.isEmpty()) return Result.failure(IllegalStateException("Agrega al menos una partida con categoría \"Materias primas y materiales\" para exportar."))
+        for (p in partidasMaterias) {
             val clave = p.descripcion.trim().lowercase()
             var insumo = existentes[clave] ?: creados[clave]
             if (insumo == null) {
