@@ -80,6 +80,13 @@ Elaborados (sin foto por diseño): Café con leche, Capuchino, Refresco natural 
 
 ## Cómo añadir las fotos al teléfono
 
+Primero verifica el mapeo y empaqueta el lote (prod01-36 + serv01-20; los elaborados no llevan foto):
+
+```bash
+python3 tools/seed_demo/verificar_fotos_seed.py   # falla si el mapeo cambió o falta una imagen
+# → deja el lote listo en tools/seed_demo/fotos_seed/
+```
+
 Las fotos van al directorio privado de la app (requiere `run-as`):
 
 ```bash

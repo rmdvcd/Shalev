@@ -34,3 +34,6 @@ build_*.log
 app_usb_check/
 .superpowers/
 
+# Lote temporal de fotos del seed (se regenera con verificar_fotos_seed.py desde seed_fotos/)
+tools/seed_demo/fotos_seed/
+
