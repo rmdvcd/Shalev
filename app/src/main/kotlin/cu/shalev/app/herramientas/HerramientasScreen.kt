@@ -72,7 +72,7 @@ fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit) {
             }
         }
     }
-    if (cambioAbierto) CalculadoraCambio { cambioAbierto = false }
+    if (cambioAbierto) CalculadoraCambio({ cambioAbierto = false })
     if (ayuda) cu.shalev.app.ayuda.DialogoAyudaPestana(cu.shalev.app.ayuda.PestanaAyuda.HERRAMIENTAS, modulos, { ayuda = false }) { ayuda = false; onVerManual() }
 }
 
@@ -242,7 +242,7 @@ fun FichaCostoScreen(
             aviso?.let { item { Text(it, color = MaterialTheme.colorScheme.primary) } }
         }
     }
-    if (cambioAbierto) CalculadoraCambio { cambioAbierto = false }
+    if (cambioAbierto) CalculadoraCambio({ cambioAbierto = false })
     if (editorAbierto) EditorPartida(indiceEdicion?.let(vm.partidas::getOrNull), { editorAbierto = false }) { vm.guardarPartida(indiceEdicion, it); editorAbierto = false }
     indiceEliminar?.let { i -> ShalevDialog(title = "¿Eliminar partida?", text = "Se quitará de esta ficha.", onDismiss = { indiceEliminar = null }, onConfirm = { vm.eliminarPartida(i); indiceEliminar = null }, confirmDescription = "Eliminar", destructive = true) }
     if (confirmarSalida) ShalevDialog(title = "¿Salir sin guardar?", text = "La ficha nueva y sus partidas se perderán.", onDismiss = { confirmarSalida = false }, onConfirm = onBack, confirmDescription = "Salir sin guardar", confirmIcon = ShalevIcons.Salir, destructive = true)

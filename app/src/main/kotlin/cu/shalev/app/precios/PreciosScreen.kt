@@ -249,7 +249,7 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
             if (permisos.verInventario) add(TipoSeleccionPrecio.PRODUCTOS)
             if (permisos.verServicios) add(TipoSeleccionPrecio.SERVICIOS)
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.sm, Alignment.CenterHorizontally)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs, Alignment.CenterHorizontally)) {
             tipos.forEach { tipo ->
                 ShalevChip(tipo.titulo, selected = f.tipoSeleccion == tipo, onClick = { acciones.onCambiar { it.copy(tipoSeleccion = tipo, busqueda = "") } })
             }

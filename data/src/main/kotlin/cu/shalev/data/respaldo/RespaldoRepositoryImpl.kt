@@ -305,7 +305,7 @@ class RespaldoRepositoryImpl @Inject constructor(
         restaurarEmpleados(c.empleados, c.perfil)
         // Un preajuste puede referirse a productos eliminados (borrado lógico): solo se enlazan los vigentes.
         val existentes = c.productos.filterNot { it.eliminado }.map { it.id }.toSet()
-        val serviciosExistentes = c.servicios.filterNot { it.eliminado }.map { it.id }.toSet()
+        val serviciosExistentes = c.servicios.filterNot { it.first.eliminado }.map { it.first.id }.toSet()
         val precios = db.preciosDao()
         c.preajustes.forEach { pa ->
             precios.guardar(pa.toEntity())
