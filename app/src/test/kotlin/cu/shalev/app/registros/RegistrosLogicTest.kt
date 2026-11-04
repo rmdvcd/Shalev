@@ -26,13 +26,13 @@ class RegistrosLogicTest {
     @Test fun filasDeLasTresTablas() {
         val v = venta(12, 725, minutos = 5, unidades = 2, metodo = MetodoPago.TRANSFERENCIA)
         assertEquals("30/09/2026 12:05", tituloFila(v, habana)) // por fecha, nunca «Venta Nº 12»
-        assertEquals("1,450.00 CUP", valorFila(v))
+        assertEquals("1,450 CUP", valorFila(v))
 
         val t = transferencia(3, 50)
         assertEquals("30/09/2026 12:03", tituloFila(t, habana))
         assertEquals("Ana Díaz", subtituloFila(t))
         assertNull(subtituloFila(transferencia(3, 50, cliente = " ")))
-        assertEquals("50.00 CUP", valorFila(t))
+        assertEquals("50 CUP", valorFila(t))
 
         val m = ItemMovimiento(movimiento(7, "Harina", -1250, TipoEntidad.INSUMO, TipoMovimiento.CONSUMO), "kg")
         assertEquals("30/09/2026 12:07", tituloFila(m, habana))
@@ -43,16 +43,16 @@ class RegistrosLogicTest {
     }
 
     @Test fun resumenesEnSingularYPlural() {
-        assertEquals("1 venta · 100.00 CUP", TextosRegistros.resumen(VistaRegistro.Ventas(listOf(venta(1, 100)))))
-        assertEquals("0 transferencias · 0.00 CUP", TextosRegistros.resumen(VistaRegistro.Transferencias(emptyList())))
+        assertEquals("1 venta · 100 CUP", TextosRegistros.resumen(VistaRegistro.Ventas(listOf(venta(1, 100)))))
+        assertEquals("0 transferencias · 0 CUP", TextosRegistros.resumen(VistaRegistro.Transferencias(emptyList())))
         assertEquals("1 movimiento", TextosRegistros.resumen(VistaRegistro.Movimientos(listOf(ItemMovimiento(movimiento(1, "Pan", 1))))))
     }
 
     @Test fun chipDelFiltro() {
         assertNull(resumenFiltro(FiltroRegistros(texto = "pan"), TipoRegistro.VENTAS))
-        assertEquals("Hoy · desde 100.00 CUP", resumenFiltro(FiltroRegistros(periodo = PeriodoRegistro.HOY, importeMin = Cup.ofPesos(100)), TipoRegistro.VENTAS))
+        assertEquals("Hoy · desde 100 CUP", resumenFiltro(FiltroRegistros(periodo = PeriodoRegistro.HOY, importeMin = Cup.ofPesos(100)), TipoRegistro.VENTAS))
         val rango = FiltroRegistros(periodo = PeriodoRegistro.PERSONALIZADO, desde = LocalDate.of(2026, 9, 1), hasta = LocalDate.of(2026, 9, 15), importeMax = Cup.ofPesos(5))
-        assertEquals("01/09/2026 – 15/09/2026 · hasta 5.00 CUP", resumenFiltro(rango, TipoRegistro.TRANSACCIONES))
+        assertEquals("01/09/2026 – 15/09/2026 · hasta 5 CUP", resumenFiltro(rango, TipoRegistro.TRANSACCIONES))
         assertEquals("01/09/2026 – 15/09/2026", resumenFiltro(rango, TipoRegistro.MOVIMIENTOS)) // sin importe
         assertEquals("Desde 01/09/2026", resumenFiltro(rango.copy(hasta = null), TipoRegistro.MOVIMIENTOS))
         assertEquals("15/09/2026", resumenFiltro(rango.copy(desde = LocalDate.of(2026, 9, 15)), TipoRegistro.MOVIMIENTOS))

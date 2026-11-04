@@ -23,6 +23,6 @@ class FichaCostoUiTest {
         rule.onNodeWithContentDescription("Confirmar partida").performClick()
         rule.onNodeWithText("Harina").assertIsDisplayed()
         rule.onNodeWithContentDescription("Atrás").performClick()
-        rule.onNodeWithText("¿Salir del cálculo?").assertIsDisplayed()
+        rule.onNodeWithText("¿Salir sin guardar?").assertIsDisplayed()
     }
 }

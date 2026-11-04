@@ -129,14 +129,14 @@ class InicioLogicTest {
             Periodo.Rango(ahora, ahora.plusSeconds(7200)),
             Serie(Granularidad.HORA, listOf(PuntoSerie(ahora, Cup.ofPesos(100), Cup.ofPesos(60)), PuntoSerie(ahora.plusSeconds(3600), Cup.ofPesos(300), Cup.ofPesos(140)))),
         )
-        assertEquals("Gráfico de barras de ventas. Total 400.00 CUP. Mayor venta en 13:00: 300.00 CUP.", descripcionVentas(g, zona))
-        assertEquals("Gráfico de área. Ventas 400.00 CUP, costo 200.00 CUP, ganancia neta 200.00 CUP, margen 50 %.", descripcionGanancia(g))
+        assertEquals("Gráfico de barras de ventas. Total 400 CUP. Mayor venta en 13:00: 300 CUP.", descripcionVentas(g, zona))
+        assertEquals("Gráfico de área. Ventas 400 CUP, costo 200 CUP, ganancia neta 200 CUP, margen 50 %.", descripcionGanancia(g))
     }
 
     @Test fun valoresDelTop3() {
         val t = TopItem(1, "Pan", 1, Cup.ofPesos(50), Cup.ofPesos(20))
         assertEquals("1 unidad", valorTop(TipoTop.MAS_VENDIDO, t))
-        assertEquals("20.00 CUP", valorTop(TipoTop.RENTABILIDAD, t))
+        assertEquals("20 CUP", valorTop(TipoTop.RENTABILIDAD, t))
         assertEquals("1 unidad vendida", subtituloTop(TipoTop.RENTABILIDAD, t))
         assertEquals("12 unidades", valorTop(TipoTop.LENTO, t.copy(unidades = 12)))
     }
@@ -146,8 +146,8 @@ class InicioLogicTest {
             Periodo.Rango(ahora, ahora.plusSeconds(7200)),
             Serie(Granularidad.HORA, listOf(PuntoSerie(ahora, Cup.ofPesos(100), Cup.ofPesos(60)), PuntoSerie(ahora.plusSeconds(3600), Cup.ofPesos(300), Cup.ofPesos(140)))),
         )
-        assertEquals("400.00 CUP", resumenVentas(g))
-        assertEquals("200.00 CUP", resumenGanancia(g))
+        assertEquals("400 CUP", resumenVentas(g))
+        assertEquals("200 CUP", resumenGanancia(g))
         val r = ResumenGeneral(
             categorias = listOf(Porcion("Abarrotes", 1000, 0.6), Porcion("Otros", 500, 0.4)),
             metodosPago = listOf(Porcion("Efectivo", 300, 0.75), Porcion("Transferencia", 100, 0.25)),
@@ -159,7 +159,7 @@ class InicioLogicTest {
         assertEquals("Pan · 12 unidades", resumenTop(TipoTop.MAS_VENDIDO, r.top3.masVendidos))
         assertNull(resumenTop(TipoTop.LENTO, r.top3.lentoMovimiento))
         val p = listOf(TopPersona("Ana", Cup.ofPesos(500), 3))
-        assertEquals("Ana · 500.00 CUP", resumenTopPersonas(p))
+        assertEquals("Ana · 500 CUP", resumenTopPersonas(p))
         assertNull(resumenTopPersonas(emptyList()))
     }
 

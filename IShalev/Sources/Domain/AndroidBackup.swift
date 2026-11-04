@@ -388,14 +388,17 @@ extension AndroidBackupCodec {
 
     static func exportAdjustment(_ adjustment: PriceAdjustment, app: AppData) throws -> [String: Any] {
         let ids = adjustment.productIDs ?? Set(app.products.filter { $0.kind != .ingredient }.map(\.id))
-        guard ids.allSatisfy({ id in app.products.contains(where: { $0.id == id && $0.kind != .ingredient }) }) else {
-            throw BusinessError.androidBackupUnsupported("un preajuste apunta a un insumo o a un artículo que ya no existe")
+        let productIDs = ids.filter { id in app.products.contains(where: { $0.id == id && $0.kind != .ingredient }) }
+        let serviceIDs = ids.filter { id in app.services.contains(where: { $0.id == id }) }
+        guard productIDs.count + serviceIDs.count == ids.count else {
+            throw BusinessError.androidBackupUnsupported("un preajuste apunta a un artículo que ya no existe")
         }
         var dto: [String: Any] = ["id": AndroidID.int64("adjustment", adjustment.id), "nombre": adjustment.name,
-            "puntosBasicos": adjustment.basisPoints, "productoIds": ids.map { AndroidID.int64("product", $0) },
+            "puntosBasicos": adjustment.basisPoints,
+            "productoIds": productIDs.map { AndroidID.int64("product", $0) },
+            "servicioIds": serviceIDs.map { AndroidID.int64("service", $0) },
             "activo": adjustment.active]
         if let method = adjustment.paymentMethod { dto["metodoPago"] = method == .cash ? "EFECTIVO" : "TRANSFERENCIA" }
-        if let minimum = adjustment.minimumAmountCents { dto["importeMinimoCent"] = minimum }
         return dto
     }
 
@@ -654,11 +657,12 @@ extension AndroidBackupCodec {
 
     static func importAdjustment(_ row: [String: Any]) -> PriceAdjustment {
         let method = string(row["metodoPago"])
-        let ids = (row["productoIds"] as? [Any] ?? []).map { AndroidID.uuid("product", int64($0)) }
+        let products = (row["productoIds"] as? [Any] ?? []).map { AndroidID.uuid("product", int64($0)) }
+        let services = (row["servicioIds"] as? [Any] ?? []).map { AndroidID.uuid("service", int64($0)) }
         return PriceAdjustment(id: AndroidID.uuid("adjustment", int64(row["id"])), name: string(row["nombre"]),
-            basisPoints: int(row["puntosBasicos"]), productIDs: Set(ids),
+            basisPoints: int(row["puntosBasicos"]), productIDs: Set(products + services),
             paymentMethod: method == "EFECTIVO" ? .cash : method == "TRANSFERENCIA" ? .transfer : nil,
-            minimumAmountCents: optionalInt64(row["importeMinimoCent"]), active: bool(row["activo"], default: true))
+            minimumAmountCents: nil, active: bool(row["activo"], default: true))
     }
 
     static func importShift(_ row: [String: Any]) throws -> Shift {

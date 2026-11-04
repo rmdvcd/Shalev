@@ -68,7 +68,7 @@ class FlujoVentaTest {
         rule.onNodeWithTag(VentaTags.metodo(MetodoPago.EFECTIVO)).performClick()
         rule.onNodeWithTag(VentaTags.CONTINUAR).performClick()
         rule.waitUntil(5_000) { rule.onAllNodesWithTag(VentaTags.CONFIRMAR).fetchSemanticsNodes().isNotEmpty() }
-        rule.onAllNodesWithText("200.00 CUP", substring = true).onFirst().assertExists()
+        rule.onAllNodesWithText("200 CUP", substring = true).onFirst().assertExists()
         rule.onNodeWithTag(VentaTags.CONFIRMAR).performClick()
 
         esperarVentas(1)
@@ -77,7 +77,7 @@ class FlujoVentaTest {
         assertEquals(cup(200), v.total)
         assertEquals(8L, runBlocking { env.productos.obtener(id)!!.cantidad })
         rule.waitUntil(5_000) { terminada != null }
-        assertTrue(terminada!!.contains("200.00 CUP"))
+        assertTrue(terminada!!.contains("200 CUP"))
     }
 
     @Test fun ventaPorTransferenciaConQrYDatosDelCliente() {

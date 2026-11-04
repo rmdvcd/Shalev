@@ -14,7 +14,7 @@ object XlsxWriter {
      * 0.25.1 (E1): sin comillas. La librería no escapa el atributo `formatCode`: con `"CUP"` el styles.xml quedaba mal
      * formado y Excel/LibreOffice decían que el archivo estaba dañado. `\C\U\P` son literales y se ve igual: «1,440.00 CUP».
      */
-    const val FORMATO_CUP = "#,##0.00 \\C\\U\\P"
+    const val FORMATO_CUP = "#,##0 \\C\\U\\P"
     private val HORA = Regex("""(\d):(\d)""")
     private val ESPACIOS = Regex("""\s{2,}""")
     private val INVALIDOS = Regex("[\\[\\]:*?/\\\\]")

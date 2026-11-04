@@ -16,8 +16,8 @@ class DisenoPdfTest {
         titulo = "Ventas",
         columnas = listOf("Fecha", "Vendedor", "Pago", "Productos", "Unidades", "Importe", "Costo", "Ganancia", "Estado"),
         filas = listOf(
-            listOf("02/10/2026 08:30", "Ana Pérez", "Efectivo", "Refresco de cola ×2, Pan con jamón ×1, Galletas de chocolate ×3", "6", "1,440.00 CUP", "900.00 CUP", "540.00 CUP", "Válida"),
-            listOf("02/10/2026 09:10", "Luis Gómez Ruiz", "Transferencia", "Pizza ×1", "1", "12,500.00 CUP", "8,000.00 CUP", "4,500.00 CUP", "Anulada"),
+            listOf("02/10/2026 08:30", "Ana Pérez", "Efectivo", "Refresco de cola ×2, Pan con jamón ×1, Galletas de chocolate ×3", "6", "1,440 CUP", "900 CUP", "540 CUP", "Válida"),
+            listOf("02/10/2026 09:10", "Luis Gómez Ruiz", "Transferencia", "Pizza ×1", "1", "12,500 CUP", "8,000 CUP", "4,500 CUP", "Anulada"),
         ),
     )
 
@@ -31,10 +31,10 @@ class DisenoPdfTest {
         val a = DisenoPdf.anchos(ventas, util, medir)
         assertEquals(util, a.sum(), 0.5f)
         val fecha = medir("02/10/2026 09:10", false) + DisenoPdf.RELLENO
-        val importe = medir("12,500.00 CUP", false) + DisenoPdf.RELLENO
+        val importe = medir("12,500 CUP", false) + DisenoPdf.RELLENO
         assertTrue(a[0] >= fecha - 0.01f)
         assertTrue(a[5] >= importe - 0.01f)
-        assertTrue(a[6] >= medir("8,000.00 CUP", false) + DisenoPdf.RELLENO - 0.01f)
+        assertTrue(a[6] >= medir("8,000 CUP", false) + DisenoPdf.RELLENO - 0.01f)
         assertTrue(a.all { it >= DisenoPdf.MIN_LIBRE - 0.01f || it >= medir("Pago", true) })
         assertTrue(DisenoPdf.compacta(ventas, 0) && DisenoPdf.compacta(ventas, 5) && !DisenoPdf.compacta(ventas, 3))
     }

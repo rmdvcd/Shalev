@@ -177,10 +177,10 @@ class RegistrosTest {
         val v = venta(12, 3000, metodo = MetodoPago.TRANSFERENCIA)
         val cliente = TablasExport.camposVenta(v, habana, interno = false).toMap()
         assertNull(cliente["Costo"]); assertNull(cliente["Ganancia"])
-        assertEquals("3,000.00 CUP", cliente["Total"])
+        assertEquals("3,000 CUP", cliente["Total"])
         val interno = TablasExport.camposVenta(v, habana).toMap()
-        assertEquals("1,500.00 CUP", interno["Costo"]) // 2 × 750
-        assertEquals("1,500.00 CUP", interno["Ganancia"])
+        assertEquals("1,500 CUP", interno["Costo"]) // 2 × 750
+        assertEquals("1,500 CUP", interno["Ganancia"])
         assertNull(interno["Turno"]) // identificada por fecha: sin ids internos
         assertNull(interno["Fecha"]) // la fecha va en el título
     }
@@ -188,7 +188,7 @@ class RegistrosTest {
     @Test fun lineasVentaPonenElUnitarioDebajo() {
         val v = venta(12, 3000)
         assertEquals(
-            listOf(Triple("2 × Café molido", "1,500.00 CUP c/u", "3,000.00 CUP")),
+            listOf(Triple("2 × Café molido", "1,500 CUP c/u", "3,000 CUP")),
             TablasExport.lineasVenta(v),
         )
     }

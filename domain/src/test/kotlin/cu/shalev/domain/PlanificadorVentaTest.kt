@@ -36,7 +36,7 @@ class PlanificadorVentaTest {
         assertEquals(AppError.NoEncontrado, (PlanificadorVenta.cotizar(listOf(LineaSolicitada(9, 1)), ps, MetodoPago.EFECTIVO, emptyList()) as AppResult.Err).error)
     }
 
-    @Test fun `preajustes por metodo e importe minimo se suman`() {
+    @Test fun `preajustes por metodo se suman y el minimo anterior se ignora`() {
         val pre = listOf(
             PreajustePrecios(1, "Transferencia +10", 1000, setOf(1), metodoPago = MetodoPago.TRANSFERENCIA),
             PreajustePrecios(2, "Mayorista -5", -500, setOf(1, 2), importeMinimo = Cup.ofPesos(300)),
@@ -50,7 +50,7 @@ class PlanificadorVentaTest {
         assertEquals(Cup(4750), tr.detalles.first { it.productoId == 2L }.precioUnitario)
 
         val ef = ok(PlanificadorVenta.cotizar(listOf(LineaSolicitada(1, 1)), ps, MetodoPago.EFECTIVO, pre)) // base 100 < 300
-        assertTrue(ef.ajustes.isEmpty())
+        assertEquals(mapOf(1L to -500), ef.ajustes)
     }
 
     @Test fun `descuentos al costo o por debajo cotizan con advertencia`() {

@@ -180,6 +180,7 @@ data class PerfilDto(
 @Serializable
 data class PreajusteDto(
     val id: Long, val nombre: String, val puntosBasicos: Int, val productoIds: List<Long>,
+    val servicioIds: List<Long> = emptyList(),
     val metodoPago: String? = null, val importeMinimoCent: Long? = null, val activo: Boolean = true,
 )
 

@@ -12,6 +12,7 @@ data class VentaCompleta(
 data class PreajusteCompleto(
     @Embedded val preajuste: PreajusteEntity,
     @Relation(parentColumn = "id", entityColumn = "preajusteId") val productos: List<PreajusteProductoEntity>,
+    @Relation(parentColumn = "id", entityColumn = "preajusteId") val servicios: List<PreajusteServicioEntity>,
 )
 
 /** Agregados de un turno calculados en SQL al cerrarlo. */

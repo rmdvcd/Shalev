@@ -110,7 +110,7 @@ object Validadores {
     fun preajuste(p: PreajustePrecios): List<Validacion> = buildList {
         texto("nombre", p.nombre, MAX_NOMBRE)?.let(::add)
         if (p.puntosBasicos == 0 || p.puntosBasicos !in RANGO_AJUSTE) add(Validacion("puntosBasicos", Regla.RANGO))
-        if (p.productoIds.isEmpty()) add(Validacion("productoIds", Regla.REQUERIDO))
+        if (p.productoIds.isEmpty() && p.servicioIds.isEmpty()) add(Validacion("productoIds", Regla.REQUERIDO))
         if (p.importeMinimo != null && p.importeMinimo <= Cup.ZERO) add(Validacion("importeMinimo", Regla.RANGO))
     }
 

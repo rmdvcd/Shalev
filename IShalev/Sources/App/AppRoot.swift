@@ -54,6 +54,7 @@ enum MainSection: String, CaseIterable, Identifiable, Equatable {
         case .inventory: "archivebox.fill"
         case .services: "storefront.fill"
         case .records: "clock.arrow.circlepath"
+        case .tools: "wrench.and.screwdriver.fill"
         case .settings: "gearshape.fill"
         }
     }
@@ -246,6 +247,8 @@ struct ShalevRootView: View {
                 RecordsView(store: store, canExport: canExport, canCorrectSales: canCorrectSales,
                             canManageCash: canManageCash, canViewInventory: canViewInventory,
                             canViewSales: effectiveSales, canViewServices: effectiveServices)
+            case .tools:
+                ToolsView(store: store)
             case .settings:
                 SettingsView(store: store, licenseManager: licenseManager, sync: sync, selectedOperatorID: $selectedOperatorID,
                              isAdministrator: isAdministrator, canChangePrices: canChangePrices, canExport: canExport,
@@ -292,6 +295,7 @@ struct ShalevRootView: View {
             case .inventory: (effectiveSales || effectiveInventory) && (canViewInventory || canEditInventory)
             case .services: effectiveServices && (canSellServices || canEditInventory)
             case .records: canViewRecords && (effectiveSales || effectiveServices || effectiveInventory)
+            case .tools: true
             case .settings: canOpenSettings
             case .home: true
             }

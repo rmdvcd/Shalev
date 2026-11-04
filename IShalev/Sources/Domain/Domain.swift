@@ -21,15 +21,18 @@ struct Cup: Codable, Hashable, Comparable, Sendable {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.groupingSeparator = ","
         formatter.decimalSeparator = "."
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        let amount = Decimal(cents) / Decimal(100)
-        return "\(formatter.string(from: NSDecimalNumber(decimal: amount)) ?? "0.00") CUP"
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 0
+        formatter.roundingMode = .halfUp
+        let amount = abs(Decimal(cents)) / Decimal(100)
+        return "\(formatter.string(from: NSDecimalNumber(decimal: amount)) ?? "0") CUP"
     }
 
     var inputValue: String {
-        let amount = Decimal(cents) / Decimal(100)
-        return NSDecimalNumber(decimal: amount).stringValue
+        var amount = abs(Decimal(cents)) / Decimal(100)
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &amount, 0, .plain)
+        return NSDecimalNumber(decimal: rounded).stringValue
     }
 
     static func parse(_ text: String) -> Cup? {
@@ -677,7 +680,7 @@ enum BusinessError: LocalizedError, Equatable {
         case .duplicateCustomer: "Ese carné ya pertenece a otro cliente fijo."
         case .invalidTransactionNumber: "El número de transacción es obligatorio y debe tener de 6 a 30 letras o dígitos."
         case .invalidPrice: "Revisa el precio: debe ser mayor que cero y superar el costo del artículo."
-        case .invalidPriceAdjustment: "El ajuste necesita un nombre, un porcentaje entre −90 % y +100 %, al menos un artículo y un mínimo mayor que cero."
+        case .invalidPriceAdjustment: "El ajuste necesita un nombre, un porcentaje entre −90 % y +100 % y al menos un artículo."
         case .closingCountChanged: "El inventario cambió mientras contabas. Vuelve a cargar el conteo antes de cerrar."
         case .invalidClosingCount: "Revisa el efectivo, las cantidades contadas y el motivo de las diferencias (de 3 a 160 caracteres)."
         case .saleCorrectionRequiresPrincipal: "Las ventas solo se pueden anular o modificar en la app principal."
@@ -1150,6 +1153,7 @@ final class ShalevStore: ObservableObject {
         var next = data
         var normalized = adjustment
         normalized.name = name
+        normalized.minimumAmountCents = nil
         try upsert(normalized, in: &next.settings.priceAdjustments)
         try commit(next)
     }
@@ -1364,7 +1368,6 @@ final class ShalevStore: ObservableObject {
         let baseTotal = baseTotals.revenue
         let applicable = data.settings.priceAdjustments.filter { adjustment in
             adjustment.active && (adjustment.paymentMethod == nil || adjustment.paymentMethod == payment)
-                && (adjustment.minimumAmountCents.map { baseTotal >= $0 } ?? true)
         }
         let adjusted = baseLines.map { line in
             let percent = max(-10_000, applicable.filter { $0.applies(to: line.sourceID) }.reduce(0) { $0 + $1.basisPoints })

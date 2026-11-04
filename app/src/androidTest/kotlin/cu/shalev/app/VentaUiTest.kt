@@ -74,7 +74,7 @@ class VentaUiTest {
         assertEquals(listOf(1L to 4L), cambios)
         rule.onNodeWithTag(VentaTags.metodo(MetodoPago.TRANSFERENCIA)).performClick()
         assertEquals(MetodoPago.TRANSFERENCIA, metodo)
-        rule.onNodeWithText("500.00 CUP").assertExists()
+        rule.onNodeWithText("500 CUP").assertExists()
     }
 
     @Test fun comprobanteConConfirmarYCancelar() {

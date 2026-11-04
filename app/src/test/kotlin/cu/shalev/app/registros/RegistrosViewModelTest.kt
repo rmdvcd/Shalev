@@ -94,7 +94,7 @@ class RegistrosViewModelTest {
         assertFalse(vm.state.value.puedeCompartir)
         cargar()
         assertEquals(listOf(3L, 2L, 1L), ids(vm)) // más reciente primero
-        assertEquals("3 ventas · 650.00 CUP", TextosRegistros.resumen(vm.state.value.datos!!))
+        assertEquals("3 ventas · 650 CUP", TextosRegistros.resumen(vm.state.value.datos!!))
     }
 
     @Test fun cadaTablaTieneSuBuscadorYSuFiltro() = runTest {
@@ -188,7 +188,7 @@ class RegistrosViewModelTest {
         vm.enviar(FormatoExport.PDF)
         val tabla = exportador.llamadas.last().first.single()
         assertEquals("Ventas (Hoy · búsqueda «pan»)", tabla.titulo)
-        assertEquals("Total: 500.00 CUP", tabla.pie.last())
+        assertEquals("Total: 500 CUP", tabla.pie.last())
     }
 
     // ---------------- Exportar PDF / Excel (Prompt 14) ----------------

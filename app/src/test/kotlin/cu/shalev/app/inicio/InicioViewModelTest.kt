@@ -200,7 +200,7 @@ class InicioViewModelTest {
         vm.confirmarCierreTurno(Cup.ZERO)
         assertNull(vm.state.value.dialogo)
         assertEquals(false, vm.state.value.turnoAbierto)
-        assertEquals(EventoInicio.TurnoCerrado(1, "Turno cerrado: 2 ventas, 300.00 CUP."), eventos.last())
+        assertEquals(EventoInicio.TurnoCerrado(1, "Turno cerrado: 2 ventas, 300 CUP."), eventos.last())
         // El gráfico pasa a mostrar el último turno cerrado.
         val g = vm.state.value.graficos
         val datos = when (g) { is EstadoCarga.Vacio -> g.datos; is EstadoCarga.Exito -> g.datos; else -> null }

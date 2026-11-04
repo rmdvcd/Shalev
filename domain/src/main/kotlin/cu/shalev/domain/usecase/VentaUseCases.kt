@@ -107,7 +107,9 @@ class CotizarVenta @Inject constructor(
                 cantidad = tope, creadoEn = s.creadoEn,
             )
         }
-        return PlanificadorVenta.cotizar(lineas.map { it.copy(clase = ClaseArticulo.PRODUCTO) }, mapa, metodo, emptyList(), alcanza, costos)
+        // El planificador trabaja con artículos genéricos; para servicios usa sus ids seleccionados como ids de producto.
+        val ajustesServicios = precios.preajustesActivos().map { it.copy(productoIds = it.servicioIds) }
+        return PlanificadorVenta.cotizar(lineas.map { it.copy(clase = ClaseArticulo.PRODUCTO) }, mapa, metodo, ajustesServicios, alcanza, costos)
             .map { c -> Plan(c.copy(detalles = c.detalles.map { it.copy(clase = ClaseArticulo.SERVICIO) }, elaborados = emptyMap()), recetas, insumosLeidos, servicios = true) }
     }
 

@@ -137,9 +137,9 @@ fun CalculadoraCambio(onDismiss: () -> Unit, vm: CalculadoraCambioViewModel = hi
             if (importe != null && tasa != null) {
                 val destino = if (origen == MonedaCosto.USD) MonedaCosto.CUP else MonedaCosto.USD
                 val resultado = CalculoCambio.convertir(importe, tasa, origen)
-                Text("Resultado: ${resultado.toPlainString()} ${destino.name}", style = MaterialTheme.typography.titleMedium)
+                Text("Resultado: ${resultado.abs().setScale(0, java.math.RoundingMode.HALF_UP).toPlainString()} ${destino.name}", style = MaterialTheme.typography.titleMedium)
             }
-            Text("El resultado se redondea a dos decimales.", style = MaterialTheme.typography.bodySmall)
+            Text("El resultado se muestra como entero positivo.", style = MaterialTheme.typography.bodySmall)
         } else {
             ShalevTextField(
                 cupTexto, { cupTexto = it }, label = "Importe equivalente en CUP", filtro = FiltroEntrada.DECIMAL,

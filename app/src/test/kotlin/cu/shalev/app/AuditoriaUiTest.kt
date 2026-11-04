@@ -65,16 +65,16 @@ class AuditoriaUiTest {
             ShalevTheme {
                 ShalevAccordionCard(
                     title = "Ventas",
-                    subtitle = "1,000.00 CUP",
+                    subtitle = "1,000 CUP",
                     expanded = abierto.value,
                     onToggle = { abierto.value = !abierto.value },
                 ) { androidx.compose.material3.Text("Detalle") }
             }
         }
 
-        rule.onNodeWithText("1,000.00 CUP").assertExists()
+        rule.onNodeWithText("1,000 CUP").assertExists()
         rule.onNodeWithText("Ventas").performClick()
-        rule.onNodeWithText("1,000.00 CUP").assertDoesNotExist()
+        rule.onNodeWithText("1,000 CUP").assertDoesNotExist()
     }
 
     @Test

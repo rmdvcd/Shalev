@@ -3,6 +3,7 @@ package cu.shalev.app.precios
 import cu.shalev.app.PerfilRepo
 import cu.shalev.app.PreciosRepo
 import cu.shalev.app.ProdRepo
+import cu.shalev.app.ServRepo
 import cu.shalev.app.pagos.PagoElectronicoViewModel
 import cu.shalev.app.pagos.TextosPago
 import cu.shalev.app.pagos.TipoCuentaPago
@@ -43,7 +44,7 @@ class PreciosYPagoViewModelTest {
     private val precios = PreciosRepo()
     private val productos = ProdRepo().apply { items.value = listOf(prod(1, "Refresco"), prod(2, "Pan"), prod(3, "Café")) }
     private fun preciosVm() = PreciosViewModel(
-        precios, productos, GuardarPreajuste(precios), ActivarPreajuste(precios),
+        precios, productos, ServRepo(), GuardarPreajuste(precios), ActivarPreajuste(precios),
     )
 
     @Test fun crearPreajusteParaVariosProductos() = runTest {

@@ -280,6 +280,7 @@ private struct ProfileSettingsView: View {
     @ObservedObject var store: ShalevStore
     @Environment(\.dismiss) private var dismiss
     @AppStorage("shalev.module.sales") private var salesEnabled = true
+    @AppStorage("shalev.module.sales") private var salesEnabled = true
     @AppStorage("shalev.module.inventory") private var inventoryEnabled = true
     @AppStorage("shalev.module.services") private var servicesEnabled = true
 
@@ -1031,13 +1032,13 @@ private struct PriceAdjustmentsView: View {
     @State private var errorMessage: String?
 
     private var adjustments: [PriceAdjustment] { store.data.settings.priceAdjustments }
-    private var hasProducts: Bool { !store.activeProducts.isEmpty }
+    private var hasArticles: Bool { !store.activeProducts.isEmpty || !store.activeServices.isEmpty }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             ScrollView {
                 VStack(spacing: 12) {
-                    Text("Sube o baja precios al cobrar, según el pago o el importe. El precio guardado no cambia.")
+                    Text("Sube o baja precios al cobrar según el método de pago. El precio guardado no cambia.")
                         .font(.shalev(13))
                         .foregroundStyle(Color.shalevText)
                         .multilineTextAlignment(.center)
@@ -1048,8 +1049,8 @@ private struct PriceAdjustmentsView: View {
                     if adjustments.isEmpty {
                         ShalevEmptyState(symbol: "percent",
                                          title: "Aún no hay ajustes de precio",
-                                         detail: hasProducts ? "Ej.: +5 % con transferencia."
-                                                             : "Primero agrega productos en Inventario.")
+                                         detail: hasArticles ? "Ej.: +5 % con transferencia."
+                                                             : "Primero agrega productos o servicios.")
                             .padding(.top, 20)
                     } else {
                         VStack(spacing: 0) {
@@ -1069,7 +1070,7 @@ private struct PriceAdjustmentsView: View {
                 .frame(maxWidth: .infinity)
             }
 
-            if hasProducts {
+            if hasArticles {
                 ShalevFloatingButton(title: "Nuevo ajuste de precios", symbol: "plus") { showCreate = true }
                     .padding(.trailing, 18)
                     .padding(.bottom, 22)
@@ -1137,10 +1138,9 @@ private struct PriceAdjustmentsView: View {
 
     private func adjustmentSummary(_ adjustment: PriceAdjustment) -> String {
         let payment = adjustment.paymentMethod?.rawValue ?? "Todos los pagos"
-        let minimum = adjustment.minimumAmountCents.map { " · desde \(Cup(cents: $0).formatted)" } ?? ""
         let articles = adjustment.productIDs.map { " · \($0.count) artículo\($0.count == 1 ? "" : "s")" }
             ?? " · todos los artículos (anterior)"
-        return "\(payment)\(minimum)\(articles)"
+        return "\(payment)\(articles)"
     }
 
     private func percentText(_ basisPoints: Int) -> String {
@@ -1148,6 +1148,12 @@ private struct PriceAdjustmentsView: View {
         let text = NSDecimalNumber(decimal: value).stringValue
         return "\(basisPoints > 0 ? "+" : "")\(text) %"
     }
+}
+
+private enum PriceAdjustmentArticleType: String, CaseIterable, Identifiable {
+    case products = "Productos"
+    case services = "Servicios"
+    var id: String { rawValue }
 }
 
 @MainActor
@@ -1159,8 +1165,10 @@ private struct PriceAdjustmentEditor: View {
     @State private var name: String
     @State private var percent: String
     @State private var method: PaymentMethod?
-    @State private var minimum: String
     @State private var productIDs: Set<UUID>
+    @State private var articleType: PriceAdjustmentArticleType
+    @AppStorage("shalev.module.inventory") private var inventoryEnabled = true
+    @AppStorage("shalev.module.services") private var servicesEnabled = true
     @State private var errorMessage: String?
     @State private var confirmDelete = false
     @State private var working = false
@@ -1172,8 +1180,10 @@ private struct PriceAdjustmentEditor: View {
         _name = State(initialValue: adjustment?.name ?? "")
         _percent = State(initialValue: adjustment.map { NSDecimalNumber(decimal: Decimal($0.basisPoints) / Decimal(100)).stringValue } ?? "10")
         _method = State(initialValue: adjustment?.paymentMethod)
-        _minimum = State(initialValue: adjustment?.minimumAmountCents.map { Cup(cents: $0).inputValue } ?? "")
-        _productIDs = State(initialValue: adjustment?.productIDs ?? Set(store.activeProducts.map(\.id)))
+        let selected = adjustment?.productIDs ?? []
+        _productIDs = State(initialValue: selected)
+        let onlyServices = !selected.isEmpty && selected.isDisjoint(with: Set(store.activeProducts.map(\.id)))
+        _articleType = State(initialValue: onlyServices ? .services : .products)
     }
 
     var body: some View {
@@ -1195,27 +1205,36 @@ private struct PriceAdjustmentEditor: View {
                                 }
                                 .pickerStyle(.segmented)
                             }
-                            labeledField("Importe mínimo (opcional, CUP)", text: $minimum, placeholder: "Sin mínimo", keyboard: .decimalPad)
                             Divider()
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 10) {
                                 Text("Artículos incluidos").font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
-                                Text("El ajuste solo se aplica a los artículos seleccionados. Si hay varios ajustes para un mismo artículo, se suman.")
-                                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
-                                ForEach(store.activeProducts) { product in
-                                    Toggle(isOn: Binding(get: { productIDs.contains(product.id) }, set: { selected in
-                                        if selected { productIDs.insert(product.id) } else { productIDs.remove(product.id) }
-                                    })) {
-                                        HStack {
-                                            Text(product.name).font(.shalev(13)).foregroundStyle(Color.shalevText)
-                                            Spacer()
-                                            Text(Cup(cents: product.priceCents).formatted)
-                                                .font(.shalev(11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
-                                        }
-                                    }
-                                    .tint(Color.shalevPrimary)
+                                let availableTypes = PriceAdjustmentArticleType.allCases.filter { type in
+                                    type == .products
+                                        ? ((salesEnabled || inventoryEnabled) && (sync.moduleEnabled("VENTAS") || sync.moduleEnabled("INVENTARIO")))
+                                        : (servicesEnabled && sync.moduleEnabled("SERVICIOS"))
                                 }
-                                if store.activeProducts.isEmpty {
-                                    Text("Crea primero un artículo en Inventario.").font(.shalev(12)).foregroundStyle(Color.shalevError)
+                                Picker("Tipo de artículo", selection: $articleType) {
+                                    ForEach(availableTypes) { Text($0.rawValue).tag($0) }
+                                }
+                                .pickerStyle(.segmented)
+                                Button {
+                                    let all = articleType == .products ? store.activeProducts.map(\.id) : store.activeServices.map(\.id)
+                                    productIDs.formUnion(all)
+                                } label: {
+                                    Label("Añadir todos los \(articleType.rawValue.lowercased())", systemImage: "text.badge.plus")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
+                                if articleType == .products {
+                                    ForEach(store.activeProducts) { product in
+                                        articleToggle(id: product.id, name: product.name, amount: product.priceCents)
+                                    }
+                                    if store.activeProducts.isEmpty { emptyArticleMessage("productos en Inventario") }
+                                } else {
+                                    ForEach(store.activeServices) { service in
+                                        articleToggle(id: service.id, name: service.name, amount: service.priceCents)
+                                    }
+                                    if store.activeServices.isEmpty { emptyArticleMessage("servicios") }
                                 }
                             }
                             Text("Usa porcentaje negativo para un descuento y positivo para un recargo.")
@@ -1235,6 +1254,12 @@ private struct PriceAdjustmentEditor: View {
                 .padding(18)
             }
             .background(Color.shalevBackground)
+            .onAppear {
+                let productsActive = (salesEnabled || inventoryEnabled) && (sync.moduleEnabled("VENTAS") || sync.moduleEnabled("INVENTARIO"))
+                let servicesActive = servicesEnabled && sync.moduleEnabled("SERVICIOS")
+                if articleType == .products && !productsActive && servicesActive { articleType = .services }
+                if articleType == .services && !servicesActive && productsActive { articleType = .products }
+            }
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Cerrar") { dismiss() }.foregroundStyle(Color.shalevPrimary) } }
             .alert("Revisa los datos", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("Entendido", role: .cancel) { errorMessage = nil }
@@ -1246,6 +1271,22 @@ private struct PriceAdjustmentEditor: View {
         }
     }
 
+    private func articleToggle(id: UUID, name: String, amount: Int64) -> some View {
+        Toggle(isOn: Binding(get: { productIDs.contains(id) }, set: { selected in
+            if selected { productIDs.insert(id) } else { productIDs.remove(id) }
+        })) {
+            HStack {
+                Text(name).font(.shalev(13)).foregroundStyle(Color.shalevText)
+                Spacer()
+                Text(Cup(cents: amount).formatted).font(.shalev(11, weight: .semibold)).foregroundStyle(Color.shalevSecondaryText)
+            }
+        }.tint(Color.shalevPrimary)
+    }
+
+    private func emptyArticleMessage(_ kind: String) -> some View {
+        Text("Crea primero \(kind).").font(.shalev(12)).foregroundStyle(Color.shalevError)
+    }
+
     private func save() {
         guard let percentValue = Decimal(string: percent.replacingOccurrences(of: ",", with: "."), locale: Locale(identifier: "en_US_POSIX")),
               percentValue >= Decimal(-90), percentValue <= Decimal(100), percentValue != 0 else {
@@ -1254,12 +1295,10 @@ private struct PriceAdjustmentEditor: View {
         var basis = percentValue * Decimal(100)
         var rounded = Decimal()
         NSDecimalRound(&rounded, &basis, 0, .plain)
-        let minimumCents = minimum.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : Cup.parse(minimum)?.cents
-        if !minimum.isEmpty && minimumCents == nil { errorMessage = "Escribe un importe mínimo válido."; return }
         guard !productIDs.isEmpty else { errorMessage = "Selecciona al menos un artículo."; return }
         let result = PriceAdjustment(id: adjustment?.id ?? UUID(), name: name,
                                      basisPoints: NSDecimalNumber(decimal: rounded).intValue,
-                                     productIDs: productIDs, paymentMethod: method, minimumAmountCents: minimumCents,
+                                     productIDs: productIDs, paymentMethod: method, minimumAmountCents: nil,
                                      active: adjustment?.active ?? true)
         if sync.isSecondary {
             working = true

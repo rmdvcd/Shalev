@@ -30,6 +30,7 @@ import cu.shalev.data.db.entity.MovimientoCajaEntity
 import cu.shalev.data.db.entity.PerfilEntity
 import cu.shalev.data.db.entity.PreajusteEntity
 import cu.shalev.data.db.entity.PreajusteProductoEntity
+import cu.shalev.data.db.entity.PreajusteServicioEntity
 import cu.shalev.data.db.entity.ProductoEntity
 import cu.shalev.data.db.entity.RecetaLineaEntity
 import cu.shalev.data.db.entity.TarjetaEntity
@@ -44,7 +45,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         ProductoEntity::class, InsumoEntity::class, RecetaLineaEntity::class, TurnoEntity::class,
         VentaEntity::class, DetalleVentaEntity::class, TransaccionEntity::class, MovimientoEntity::class,
         PerfilEntity::class, TarjetaEntity::class, TelefonoEntity::class, PreajusteEntity::class,
-        PreajusteProductoEntity::class, ServicioEntity::class, ServicioInsumoEntity::class, EmpleadoEntity::class,
+        PreajusteProductoEntity::class, PreajusteServicioEntity::class, ServicioEntity::class, ServicioInsumoEntity::class, EmpleadoEntity::class,
         MovimientoCajaEntity::class, ClienteFijoEntity::class,
     ],
     version = ShalevDatabase.VERSION,
@@ -70,7 +71,16 @@ abstract class ShalevDatabase : RoomDatabase() {
          * v3 (P17): esquema consolidado, sin `tasa_cambio` ni `caducidad_codigo`. Es la base de las migraciones
          * futuras: cada versión nueva añade una `Migration(3, 4)`… explícita (regla: nunca borrar datos de usuarios).
          */
-        const val VERSION = 13
+        const val VERSION = 14
+        val MIGRACION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) { SQL_13_14.forEach(db::execSQL) }
+        }
+        internal val SQL_13_14 = listOf(
+            "CREATE TABLE IF NOT EXISTS `preajuste_servicio` (`preajusteId` INTEGER NOT NULL, `servicioId` INTEGER NOT NULL, PRIMARY KEY(`preajusteId`, `servicioId`), FOREIGN KEY(`preajusteId`) REFERENCES `preajuste`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`servicioId`) REFERENCES `servicio`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+            "CREATE INDEX IF NOT EXISTS `index_preajuste_servicio_servicioId` ON `preajuste_servicio` (`servicioId`)",
+            // El mínimo deja de formar parte de la función de Precios.
+            "UPDATE `preajuste` SET `importeMinimoCent` = NULL",
+        )
         val MIGRACION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 SQL_12_13.forEach(db::execSQL)
@@ -284,7 +294,7 @@ abstract class ShalevDatabase : RoomDatabase() {
             System.loadLibrary("sqlcipher")
             return Room.databaseBuilder(context, ShalevDatabase::class.java, NOMBRE)
                 .openHelperFactory(SupportOpenHelperFactory(passphrase))
-                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13)
+                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14)
                 .fallbackToDestructiveMigrationFrom(*DESARROLLO)
                 .build()
         }

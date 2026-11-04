@@ -172,7 +172,7 @@ class VentaFlujoTest {
          Fecha: 30/9/2026
          Beneficiario: 9212XXXXXXXX4041
          Ordenante: 9248XXXXXXXX6454
-         Monto: 540.00 CUP
+         Monto: 540 CUP
          Nro. Transaccion: BR601ADLM8997
          Saldo restante: CR 4086.20 CUP
     """.trimIndent()
@@ -182,8 +182,8 @@ class VentaFlujoTest {
          Fecha: 30/9/2026
          Entidad: Mercado de Rance
          Id Compra: 8900367034
-         Importe: 1700.00 CUP
-         Importe pagado: 1632.00 CUP
+         Importe: 1700 CUP
+         Importe pagado: 1632 CUP
          No. Transaccion: BR601AG4M9997
          Saldo disponible: DB 2454.20 CUP
     """.trimIndent()
@@ -193,7 +193,7 @@ class VentaFlujoTest {
          Fecha: 30/9/2026
          Beneficiario: 9238XXXXXXXX4369
          Ordenante: 9248XXXXXXXX6454
-         Monto: 710.00 CUP
+         Monto: 710 CUP
          Nro. Transaccion: BR601AG6DJ997
          Saldo restante: CR 1744.20 CUP
     """.trimIndent()

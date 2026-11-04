@@ -74,7 +74,7 @@ object PlanificadorVenta {
 
         val totalBase = items.sumOfCup { (p, cant) -> p.precioVenta * cant }
         val aplicables = preajustes.filter { pa ->
-            pa.activo && (pa.metodoPago == null || pa.metodoPago == metodoPago) && (pa.importeMinimo == null || totalBase >= pa.importeMinimo)
+            pa.activo && (pa.metodoPago == null || pa.metodoPago == metodoPago)
         }
         val ajustes = mutableMapOf<Long, Int>()
         val detalles = items.map { (p, cant) ->

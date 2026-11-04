@@ -88,6 +88,12 @@ class ServicioFormViewModel @Inject constructor(
                 .collect { ss -> _state.update { it.copy(otros = ss.map { s -> s.identidad }) } }
         }
         if (id > 0) cargar(id)
+        else _state.update { state ->
+            state.copy(form = state.form.copy(
+                nombre = saved.get<String>("nombre").orEmpty().take(80),
+                importe = saved.get<String>("importe").orEmpty().take(16),
+            ))
+        }
     }
 
     private fun cargar(id: Long) {

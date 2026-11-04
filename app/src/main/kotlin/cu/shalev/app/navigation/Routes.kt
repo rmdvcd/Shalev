@@ -22,8 +22,12 @@ sealed interface Route {
      * (checkbox + Continuar); [seleccion] = ids ya elegidos (CSV).
      */
     @Serializable data class Servicios(val venta: Boolean = false, val seleccion: String? = null) : Route
-    /** Crear (id = 0) o editar un servicio. */
-    @Serializable data class ServicioForm(val id: Long = 0) : Route
+    /** Crear (id = 0) o editar un servicio; Herramientas puede prellenar nombre e importe en CUP. */
+    @Serializable data class ServicioForm(
+        val id: Long = 0,
+        val nombre: String? = null,
+        val importe: String? = null,
+    ) : Route
     @Serializable data object Registros : Route
     @Serializable data object Herramientas : Route
     @Serializable data object FichaCosto : Route
@@ -51,6 +55,9 @@ sealed interface Route {
         val foto: String? = null,
         /** Categoría inicial de un producto nuevo (p. ej. "Elaborado"). */
         val categoria: String? = null,
+        /** Importes enteros en CUP prellenados al exportar una ficha de costo. */
+        val costo: String? = null,
+        val precio: String? = null,
     ) : Route
     /**
      * Crear (id = 0) o editar un insumo (P29: viven en Inventario, categoría «Insumos»).

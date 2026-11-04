@@ -40,7 +40,7 @@ class TurnoLogicTest {
         assertEquals("Desde las 08:30 · Ana Pérez", subtituloTurno(abierto, zona))
         assertEquals("Abierto", valorTurno(abierto))
         val cerrado = abierto.copy(cerradoEn = a.plusSeconds(3600), resumen = ResumenTurno.VACIO.copy(total = Cup.ofPesos(1450)))
-        assertEquals("1,450.00 CUP", valorTurno(cerrado))
+        assertEquals("1,450 CUP", valorTurno(cerrado))
         assertEquals("08:30 – 09:30", subtituloTurno(cerrado.copy(abiertoPor = ""), zona))
         assertEquals("08:30 – 01/10 08:30", horasTurno(cerrado.copy(cerradoEn = a.plusSeconds(86_400)), zona))
     }
