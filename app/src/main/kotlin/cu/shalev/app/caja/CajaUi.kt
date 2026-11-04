@@ -391,7 +391,7 @@ fun DialogoMovimientoCaja(
             ShalevTextField(
                 value = importe, onValueChange = { importe = it.take(16) }, label = "${TextosCaja.IMPORTE} *",
                 isError = (importe.isNotBlank() && valor == null) || superaCaja,
-                errorText = if (superaCaja && efectivoDisponible != null) {
+                errorText = if (superaCaja) {
                     "Supera el efectivo disponible en caja (${Money.format(efectivoDisponible)})."
                 } else TextosCaja.IMPORTE_INVALIDO,
                 supportingText = if (t == TipoMovimientoCaja.SALIDA && efectivoDisponible != null) {
