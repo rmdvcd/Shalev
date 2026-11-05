@@ -116,3 +116,11 @@ adb shell am start -n cu.shalev.app.debug/cu.shalev.app.seed.SeedActivity
 - Prioriza **Wikimedia Commons** (licencias claras, reutilizables).
 - Las imágenes se recortan/re-codifican por el camino de fotos del usuario (JPEG ≤1024 px, sin EXIF), así que sirve cualquier foto razonable.
 - Si falta alguna, el seed continúa sin error: ese producto/servicio simplemente queda sin foto.
+
+## Cambios recientes (Rediseño "Local")
+
+- Se ha renombrado la función de "Almacén/Local" a **"Local"**.
+- El combobox único se ubica ahora en **Inicio** (en lugar de campos separados en Inventario/Servicios).
+- Cada local corresponde a un **único Inventario y Servicios** (compartido).
+- El nuevo local se introduce mediante el botón **(+)** (última opción del combobox) y se confirma por teclado.
+- Los documentos seed, el código `Sembrador.kt` y los repositorios han sido actualizados para reflejar este modelo único.

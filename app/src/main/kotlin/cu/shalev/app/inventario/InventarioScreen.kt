@@ -165,8 +165,7 @@ fun InventarioScreen(
     }
     InventarioContent(
         state = state,
-        ubicacion = { cu.shalev.app.ubicacion.AlmacenLocalCampo(
-            cu.shalev.domain.repository.VentanaUbicacion.INVENTARIO,
+        ubicacion = { cu.shalev.app.ubicacion.LocalCampo(
             editable = state.modoVenta == null && LocalPermisosApp.current.editarInventario,
         ) },
         snackbar = snackbar,

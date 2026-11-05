@@ -143,8 +143,7 @@ fun ServiciosScreen(
     }
     ServiciosContent(
         state = state,
-        ubicacion = { cu.shalev.app.ubicacion.AlmacenLocalCampo(
-            cu.shalev.domain.repository.VentanaUbicacion.SERVICIOS,
+        ubicacion = { cu.shalev.app.ubicacion.LocalCampo(
             editable = !state.modoVenta && LocalPermisosApp.current.editarInventario,
         ) },
         snackbar = snackbar,

@@ -1,14 +1,5 @@
 package cu.shalev.app.inicio
 
-import cu.shalev.designsystem.theme.ShalevTextos
-import cu.shalev.designsystem.component.BannerTone
-import cu.shalev.app.notificacion.rememberPedirPermisoAviso
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +47,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -66,6 +64,7 @@ import cu.shalev.core.money.Cup
 import cu.shalev.core.money.Money
 import cu.shalev.core.money.Percent
 import cu.shalev.core.time.Dates
+import cu.shalev.designsystem.component.BannerTone
 import cu.shalev.designsystem.component.CardTone
 import cu.shalev.designsystem.component.ChartSeries
 import cu.shalev.designsystem.component.ShalevAccordionCard
@@ -73,6 +72,7 @@ import cu.shalev.designsystem.component.ShalevAreaChart
 import cu.shalev.designsystem.component.ShalevBarChart
 import cu.shalev.designsystem.component.ShalevCard
 import cu.shalev.designsystem.component.ShalevComboBox
+import cu.shalev.designsystem.component.ShalevComboBoxEditable
 import cu.shalev.designsystem.component.ShalevDialog
 import cu.shalev.designsystem.component.ShalevDonutChart
 import cu.shalev.designsystem.component.ShalevFab
@@ -102,6 +102,9 @@ import cu.shalev.domain.model.TopPersona
 import cu.shalev.domain.model.TopItem
 import java.time.ZoneId
 import kotlinx.coroutines.launch
+
+import cu.shalev.app.ubicacion.LocalViewModel
+import cu.shalev.app.ubicacion.LocalInicioSelector
 
 object InicioTags {
     const val LISTA = "inicio_lista"
@@ -184,6 +187,7 @@ fun InicioScreen(
     mensajeInicial: String? = null,
     onMensajeMostrado: () -> Unit = {},
     viewModel: InicioViewModel = hiltViewModel(),
+    localViewModel: LocalViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -305,6 +309,10 @@ fun InicioContent(
                 // 0.31.0 (P1): el turno, el selector de período, el banner de licencia y, cuando el turno está
                 // abierto, los botones Venta y Caja NO se desplazan: se quedan fijos arriba, uno debajo de otro,
                 // mientras el resto de Inicio hace scroll.
+                
+                // --- NUEVO: Combobox único de Local en Inicio ---
+                LocalInicioSelector(localViewModel)
+                
                 BloqueFijo(state, acciones, permisos, zona)
                 val estadoLista = remember { LazyListState() }
                 // 0.31.0 (P1): Inicio se abre siempre por arriba: la lista no guarda su posición (Android la
