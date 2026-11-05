@@ -267,3 +267,18 @@ Añadir a esta tabla cada nueva corrida con fecha, SHA, resultado por job y cual
   con Room/KSP (p. ej. `./gradlew :data:kspDebugKotlin`), `shalevCheck`, instrumentados,
   pruebas de UI y ejecución de `SeedActivity` en una instalación debug. El seed se actualizó
   en código; no se ha ejecutado sobre una instalación Android en este entorno.
+
+### 2026-11-05 — Intermediario remoto (piloto)
+
+- `WRANGLER_SEND_METRICS=false npm test --prefix relay`: **7/7** pruebas correctas,
+  incluida integración WebSocket real con workerd/Miniflare local. Se probaron rutas,
+  dos órdenes de emparejamiento, roles duplicados, límites, cierre, retransmisión y admisión.
+- `WRANGLER_SEND_METRICS=false npx wrangler deploy --dry-run` en relay/: correcto;
+  valida empaquetado y bindings ROOMS/ADMISSION, **no** despliega en Cloudflare.
+- `npm audit --prefix relay`: 0 vulnerabilidades detectadas.
+- `git diff --check`: correcto.
+- `./gradlew shalevTests`: bloqueado antes de compilar por ausencia de Java/JAVA_HOME.
+  Tests JVM nuevos de RelaySync/SocketRelay añadidos pero NO ejecutados aquí.
+- Pendiente: compilar Android con/sin endpoint, ejecutar tests, desplegar en cuenta del
+  responsable y probar en móviles de redes/operadores distintos (incluida Cuba). Ver
+  relay/README.md para cuotas, privacidad y límites. Conexión remota deshabilitada por defecto.

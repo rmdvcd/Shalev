@@ -79,6 +79,7 @@ class ServidorSync @Inject constructor(
     private val fotos: cu.shalev.data.foto.FotosLocal,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val relay = RelayPrincipal(db, config)
     private val _estado = MutableStateFlow(EstadoPrincipal())
 
     /** 0.32.0: avance de la sincronización de cada app conectada (id de empleado → avance). */
@@ -126,6 +127,12 @@ class ServidorSync @Inject constructor(
             red.anunciar(config.negocioId(), ss.localPort)
             _estado.update { it.copy(escuchando = true, puerto = ss.localPort, direcciones = red.direcciones()) }
             launch { refrescarDirecciones() }
+            launch {
+                relay.ejecutar(this) { remoto ->
+                    if (!cupoConexiones.tryAcquire()) remoto.close()
+                    else try { atender(remoto) } finally { cupoConexiones.release() }
+                }
+            }
             launch { repartirAvisos() }
             launch { licencia.snapshot.map { it?.estado }.distinctUntilChanged().collect { avisar() } }
             try {
@@ -147,6 +154,7 @@ class ServidorSync @Inject constructor(
             } catch (e: IOException) {
                 // socket cerrado al detener
             } finally {
+                relay.detener()
                 db.invalidationTracker.removeObserver(observador)
                 red.dejarDeAnunciar()
                 runCatching { ss.close() }
@@ -159,6 +167,7 @@ class ServidorSync @Inject constructor(
 
     @Synchronized
     fun detener() {
+        relay.detener()
         runCatching { socket?.close() }
         socket = null
         trabajo?.cancel()

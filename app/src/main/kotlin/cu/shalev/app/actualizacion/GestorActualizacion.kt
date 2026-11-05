@@ -119,9 +119,9 @@ object TextosActualizacion {
     fun bloqueoDetalle(version: String?, limite: java.time.Instant, zona: java.time.ZoneId = java.time.ZoneId.systemDefault()) =
         "La versión ${version ?: "nueva"} es obligatoria desde el ${java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy").format(limite.atZone(zona))}. " +
             "Hasta actualizar, Shalev no se puede usar."
-    const val BLOQUEO_SECUNDARIA = "Pon los dos teléfonos en la misma red (wifi o datos móviles) y toca «Actualizar desde la principal»."
+    const val BLOQUEO_SECUNDARIA = "Conecta los teléfonos por wifi o punto de acceso, o por Internet si tienen conexión remota habilitada, y toca «Actualizar desde la principal»."
     const val ACTUALIZAR_DESDE_PRINCIPAL = "Actualizar desde la principal"
-    const val SIN_CONEXION_PRINCIPAL = "Aún no se ve la app principal. Compartid la misma red (wifi o datos móviles) y sincroniza."
+    const val SIN_CONEXION_PRINCIPAL = "Aún no se ve la app principal. Usa la misma wifi o punto de acceso, o Internet si ambas apps tienen conexión remota habilitada, y sincroniza."
     const val EXPORTAR_RESPALDO = "Exportar respaldo"
     const val CERRAR_TURNO = "Cerrar turno"
     const val CANCELAR = "Cancelar descarga"

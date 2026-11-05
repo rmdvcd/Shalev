@@ -4,7 +4,7 @@ Cómo protege Shalev los datos del negocio y la licencia en el teléfono. Descri
 
 ## 1. Principios
 
-1. **Todo en el dispositivo.** No hay servidor, cuentas, nube propia, Firebase, analítica, telemetría ni anuncios.
+1. **Datos persistentes en el dispositivo.** Sin Firebase, analítica, telemetría ni anuncios. La conexión remota opcional añade un intermediario Cloudflare para retransmitir el protocolo; no almacena la base de datos del negocio.
 2. **Cifrado en reposo de todo dato persistente** (base de datos, preferencias, licencia), con claves atadas al Android Keystore.
 3. **Permisos mínimos:** solo `CAMERA`, `INTERNET` y `POST_NOTIFICATIONS` (desde la 0.18.0, autorizado por el usuario), más `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_CONNECTED_DEVICE` y `CHANGE_NETWORK_STATE` (desde la 0.19.2, autorizados por el usuario, solo para el servicio de la app principal con secundarias), y desde la 0.25.0 `REQUEST_INSTALL_PACKAGES` (instalar la actualización descargada) y `REQUEST_DELETE_PACKAGES` (pedir la desinstalación en el teléfono cuya licencia se recuperó en otro), los dos autorizados por el usuario, y desde la 0.26.0 `READ_MEDIA_IMAGES` (Android 13+), `READ_EXTERNAL_STORAGE` (hasta Android 12) y `WRITE_EXTERNAL_STORAGE` (hasta Android 9), autorizados por el usuario solo para el registro de la prueba (encontrar tras reinstalar la imagen cifrada de Imágenes/Shalev), y desde la 0.27.0 `USE_BIOMETRIC` y `USE_FINGERPRINT` (normales, sin diálogo; los añade `androidx.biometric`), autorizados por el usuario solo para el acceso con clave opcional. Cada uno está limitado a una función. La captura SMS opcional no solicita `READ_SMS`: requiere habilitar manualmente el Acceso especial a notificaciones de Android, que concede acceso amplio al listener mientras esté autorizado; el código solo procesa notificaciones nuevas reconocibles cuando una venta por transferencia espera el pago.
 4. **Mensajes genéricos:** los errores de licencia y de cifrado no dicen qué comprobación falló.
@@ -149,3 +149,16 @@ Cómo protege Shalev los datos del negocio y la licencia en el teléfono. Descri
 ## 7. Comunicar un problema de seguridad
 
 Escribe al desarrollador por WhatsApp o SMS al **+53 51815604** (Ajustes → Soporte). No publiques el detalle hasta que haya una versión corregida.
+
+## Conexión remota opcional (piloto, 2026-11-05)
+
+Ampliación autorizada por el dueño: intermediario Cloudflare, activado únicamente mediante
+URL HTTPS fijada en compilación. Ambos extremos conservan los secretos del protocolo anterior;
+el servidor recibe una capacidad de sala derivada, no el token de QR ni la clave de empleado.
+Los datos de negocio siguen cifrados extremo a extremo; los saludos previos, IP, horario y
+volumen sí son visibles al proveedor. No se promete anonimato ni almacenamiento offline remoto.
+
+Admisión por IP, límites de tamaño/volumen/conexiones y ausencia de logs propios reducen abuso,
+pero no garantizan disponibilidad ante ataques distribuidos o agotamiento de cuotas gratuitas.
+No aceptar servidores arbitrarios desde QR. Sin URL, solo se usa conexión directa.
+Ver [relay/README.md](relay/README.md) para límites, amenazas y validaciones pendientes antes de producción.

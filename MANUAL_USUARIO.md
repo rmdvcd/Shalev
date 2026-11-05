@@ -625,3 +625,17 @@ existentes aunque cambies mayúsculas/minúsculas. No separa existencias por alm
 filtra productos o servicios. Las ubicaciones se conservan al volver a abrir la app y
 se incluyen en los respaldos. Restaurar un respaldo antiguo deja estas ubicaciones vacías.
 La edición requiere permiso de Inventario y no está disponible al elegir artículos para vender.
+
+## Sincronización desde lugares distintos (piloto Android)
+
+En una versión con conexión remota habilitada por el distribuidor, principal y secundarias
+pueden usar Internet —datos móviles o wifi— desde redes distintas. No hay que introducir
+servidores, abrir puertos o configurar una VPN. El QR sigue siendo el mecanismo de vinculación;
+si se comparte a distancia, hazlo solo con el empleado autorizado y antes de que caduque.
+
+La app intenta primero la conexión directa por wifi o punto de acceso y después la remota.
+La principal debe estar abierta/disponible y con Internet. Si no hay conexión o el servicio
+remoto no está disponible, se mantiene el comportamiento offline anterior; no supone poder
+abrir un turno sin sincronizar ni elimina las restricciones existentes. Reintenta cuando
+la principal vuelva a estar disponible. Sin una versión habilitada para conexión remota,
+encender datos móviles en ambos teléfonos no garantiza que puedan comunicarse.

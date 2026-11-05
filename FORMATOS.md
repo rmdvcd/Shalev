@@ -264,3 +264,12 @@ El JSON de respaldo incorpora el campo opcional `almacenesLocales`, una lista de
 con lista vacía. La restauración valida nombres, duplicados y una selección como máximo
 por ventana antes de sustituir los datos. El vaciado de configuración elimina las ubicaciones.
 Estos valores son generales y locales; no se añaden a las líneas de venta ni al protocolo LAN.
+
+### Transporte remoto de sincronización (piloto)
+
+La versión de protocolo sigue siendo 1. El mismo flujo de tramas y mensajes se transporta
+sobre WebSocket binario (WSS); los límites de mensajes WebSocket no son los de las tramas.
+Endpoint fijado en compilación, no añadido al QR ni al respaldo. Salas derivadas mediante
+HMAC-SHA256 con etiqueta `shalev-relay-v1`, finalidad, negocio y empleado. El QR mantiene
+su formato; una lista de IPv4 vacía solo se admite en compilaciones con relay habilitado.
+No cambia el esquema Room ni se guardan nuevos secretos. Detalle en relay/README.md.

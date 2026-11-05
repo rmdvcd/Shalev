@@ -2431,3 +2431,22 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
   `./gradlew shalevTests` bloqueado por ausencia de Java/JAVA_HOME. Sin ejecución de la app,
   instrumentados ni seed instalado. **Pendiente generar `15.json` mediante Room/KSP al compilar**
   (no se fabrica el esquema a mano), compilar y ejecutar la batería Android antes de publicar.
+
+## 2026-11-05 — Conexión remota por Internet (piloto Android + relay)
+
+- El dueño autoriza sincronización desde lugares distintos, sin VPN/configuración externa
+  en los teléfonos, con intermediario Cloudflare gratuito para empezar.
+- Worker y Durable Objects con WebSocket Hibernation API; dos roles por sala, límites de
+  tamaño, volumen y admisión por IP, sin persistir el negocio ni registrar mensajes.
+- Adaptador Android de flujo de bytes a WebSocket con colas acotadas, timeout, contrapresión
+  y cierre ordenado; reutiliza cifrado/autenticación del protocolo existente.
+- Principal establece canales salientes por empleado, con reconexión progresiva. Secundaria
+  prueba LAN antes del relay, tanto al vincular como al abrir sesiones.
+- Endpoint HTTPS fijado mediante `-PshalevRelayUrl=…`, vacío/deshabilitado por defecto;
+  sin nuevos secretos, permisos Android ni cambios de esquema Room. Ambas apps requieren
+  una compilación con el mismo endpoint. No es almacenamiento offline en la nube.
+- Tests Node: 7 en verde, incluida integración con workerd/Miniflare. Empaquetado
+  `wrangler deploy --dry-run` correcto, `npm audit` sin vulnerabilidades detectadas.
+- Añadidos tests JVM del transporte y derivación, pendientes de ejecutar: Gradle no
+  arranca en este entorno por falta de Java. No se ha compilado Android ni desplegado
+  en Cloudflare ni probado con móviles reales. Instrucciones/límites en relay/README.md.

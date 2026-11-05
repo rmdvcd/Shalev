@@ -12,7 +12,7 @@ object TextosSync {
     const val SIN_RED = "Conéctate a una wifi, activa la zona wifi de este teléfono o enciende los datos móviles."
 
     fun sinPrincipal(pendientes: Int): String = buildString {
-        append("No se encuentra la app principal. Conecta los dos teléfonos a la misma red: wifi, zona wifi o datos móviles.")
+        append("No se encuentra la app principal. Usa la misma wifi o un punto de acceso. Para conectar desde lugares distintos, ambas apps necesitan Internet y una versión con conexión remota habilitada.")
         if (pendientes > 0) append(if (pendientes == 1) " Hay 1 envío pendiente." else " Hay $pendientes envíos pendientes.")
     }
 }

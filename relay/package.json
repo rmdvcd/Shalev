@@ -1,0 +1,19 @@
+{
+  "name": "shalev-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "dev": "wrangler dev --ip 0.0.0.0",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "miniflare": "^4.20260730.0",
+    "wrangler": "^4.0.0"
+  },
+  "overrides": {
+    "undici": "^7.30.0",
+    "sharp": "^0.35.5"
+  }
+}
