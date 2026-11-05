@@ -346,6 +346,11 @@ class Sembrador(
         db.withTransaction {
             db.mantenimientoDao().borrarOperacion()
             db.mantenimientoDao().borrarConfiguracion()
+            // Semilla repetible: historial compartido y una ubicación distinta por ventana.
+            db.almacenLocalDao().borrar()
+            db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity("Almacén central", inventario = true))
+            db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity("Tienda principal", servicios = true))
+            db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity("Local de demostración"))
             // Las apps vinculadas no las borra el vaciado de respaldo (no viajan en él): se limpian aquí.
             db.openHelper.writableDatabase.execSQL("DELETE FROM empleado")
 
@@ -597,6 +602,7 @@ class Sembrador(
         return buildString {
             appendLine("Datos de demostración cargados")
             appendLine("Ventas: ${plan.sumOf { it.ventas.size }} en ${plan.size} turnos")
+            appendLine("Almacén/Local: Inventario = Almacén central · Servicios = Tienda principal (3 opciones)")
             appendLine("Productos: ${productos.size} · servicios: ${servicios.size} · insumos: ${insumos.size}")
             appendLine("Apps secundarias: ${nombresEmpleados.size}")
             appendLine("Desde: ${desde} · hasta: ${ahora.atZone(zona).toLocalDate()}")

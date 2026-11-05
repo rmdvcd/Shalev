@@ -2417,3 +2417,17 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
 **Desviación aceptada en las dos apps:** la barra inferior mantiene solo iconos (5 destinos) aunque la HIG pida etiquetas de texto. Decisión del dueño por requisito de producto y paridad; se compensa con nombre y posición por lector de pantalla, iconos inequívocos y selección por relleno e inversión, no solo por color. Queda escrita en `UI_UX_IX.md`.
 
 **Verificación.** `ci.yml` (Android, 5 jobs) e `ios-build.yml` (`macos-15-intel`: `swift test` + simulador universal en Appetize + `IShalev.ipa` sin firma) compilan y pasan en verde en GitHub Actions. Queda únicamente regrabar `07g_ayuda.png` (claro/oscuro) en una máquina con JDK + Android SDK y recorrer la app con VoiceOver/TalkBack reales.
+
+## 2026-11-05 — Almacén/Local general por ventana (Android)
+
+- Aclaración del alcance con el usuario: una ubicación para toda la ventana, no por artículo.
+- Combobox editable sobre el buscador de Inventario y Servicios; historial compartido,
+  selección independiente y confirmación explícita para no guardar cada pulsación.
+- Persistencia Room v15, migración aditiva 14→15 y repositorio transaccional; se conserva
+  el catálogo existente. Datos incluidos en respaldo v4 como campo opcional y en vaciado.
+- Seed debug repetible: Almacén central, Tienda principal y Local de demostración.
+- Añadidos tests de normalización, contrato de migración, compatibilidad de respaldo y Room.
+- Verificación aquí: SQLite de la migración/selecciones y `git diff --check` correctos.
+  `./gradlew shalevTests` bloqueado por ausencia de Java/JAVA_HOME. Sin ejecución de la app,
+  instrumentados ni seed instalado. **Pendiente generar `15.json` mediante Room/KSP al compilar**
+  (no se fabrica el esquema a mano), compilar y ejecutar la batería Android antes de publicar.

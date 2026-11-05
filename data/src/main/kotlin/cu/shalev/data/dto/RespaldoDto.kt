@@ -39,6 +39,7 @@ data class RespaldoDto(
     val licencia: LicenciaRespaldoDto? = null,
     /** 0.27.0 (N2): clientes fijos (campo opcional: el formato sigue en v4). */
     val clientesFijos: List<ClienteFijoDto> = emptyList(),
+    val almacenesLocales: List<AlmacenLocalDto> = emptyList(),
 ) {
     companion object {
         const val FORMATO = "spvi-respaldo"
@@ -195,3 +196,6 @@ data class PreferenciasDto(
     val modulos: List<String>? = null,
     val empleadosPrevistos: Int = 0,
 )
+
+@Serializable
+data class AlmacenLocalDto(val nombre: String, val inventario: Boolean = false, val servicios: Boolean = false)

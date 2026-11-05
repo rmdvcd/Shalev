@@ -46,7 +46,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         VentaEntity::class, DetalleVentaEntity::class, TransaccionEntity::class, MovimientoEntity::class,
         PerfilEntity::class, TarjetaEntity::class, TelefonoEntity::class, PreajusteEntity::class,
         PreajusteProductoEntity::class, PreajusteServicioEntity::class, ServicioEntity::class, ServicioInsumoEntity::class, EmpleadoEntity::class,
-        MovimientoCajaEntity::class, ClienteFijoEntity::class,
+        MovimientoCajaEntity::class, ClienteFijoEntity::class, cu.shalev.data.db.entity.AlmacenLocalEntity::class,
     ],
     version = ShalevDatabase.VERSION,
     exportSchema = true,
@@ -66,12 +66,21 @@ abstract class ShalevDatabase : RoomDatabase() {
     abstract fun cajaDao(): CajaDao
     abstract fun clienteFijoDao(): ClienteFijoDao
 
+    abstract fun almacenLocalDao(): cu.shalev.data.db.dao.AlmacenLocalDao
+
     companion object {
         /**
          * v3 (P17): esquema consolidado, sin `tasa_cambio` ni `caducidad_codigo`. Es la base de las migraciones
          * futuras: cada versión nueva añade una `Migration(3, 4)`… explícita (regla: nunca borrar datos de usuarios).
          */
-        const val VERSION = 14
+        const val VERSION = 15
+        /** Ubicaciones generales de Inventario/Servicios. No modifica los registros existentes. */
+        val MIGRACION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) { SQL_14_15.forEach(db::execSQL) }
+        }
+        internal val SQL_14_15 = listOf(
+            "CREATE TABLE IF NOT EXISTS `almacen_local` (`nombre` TEXT NOT NULL, `inventario` INTEGER NOT NULL DEFAULT 0, `servicios` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`nombre`))",
+        )
         val MIGRACION_13_14 = object : Migration(13, 14) {
             override fun migrate(db: SupportSQLiteDatabase) { SQL_13_14.forEach(db::execSQL) }
         }
@@ -294,7 +303,7 @@ abstract class ShalevDatabase : RoomDatabase() {
             System.loadLibrary("sqlcipher")
             return Room.databaseBuilder(context, ShalevDatabase::class.java, NOMBRE)
                 .openHelperFactory(SupportOpenHelperFactory(passphrase))
-                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14)
+                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14, MIGRACION_14_15)
                 .fallbackToDestructiveMigrationFrom(*DESARROLLO)
                 .build()
         }

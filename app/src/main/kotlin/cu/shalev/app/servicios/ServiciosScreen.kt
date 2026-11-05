@@ -143,6 +143,10 @@ fun ServiciosScreen(
     }
     ServiciosContent(
         state = state,
+        ubicacion = { cu.shalev.app.ubicacion.AlmacenLocalCampo(
+            cu.shalev.domain.repository.VentanaUbicacion.SERVICIOS,
+            editable = !state.modoVenta && LocalPermisosApp.current.editarInventario,
+        ) },
         snackbar = snackbar,
         acciones = AccionesServicios(
             onAyuda = { onNavigate(Route.Ayuda) },
@@ -163,6 +167,7 @@ fun ServiciosContent(
     state: ServiciosUiState,
     acciones: AccionesServicios,
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    ubicacion: @Composable () -> Unit = {},
 ) {
     val venta = state.modoVenta
     // 1.0.2: ayuda de la pestaña (botón «?» de la esquina superior izquierda).
@@ -207,6 +212,7 @@ fun ServiciosContent(
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) { // con el teclado abierto la lista queda por encima
             if (state.trabajando) ShalevLinearProgress(Modifier.fillMaxWidth())
             ElementosFijados(state, acciones)
+            ubicacion()
             Buscador(state, acciones)
             if (!venta && state.seleccion.isNotEmpty()) BarraSeleccion(
                 texto = TextosServicios.seleccionados(state.seleccion.size), todosMarcados = state.todosVisiblesSeleccionados,

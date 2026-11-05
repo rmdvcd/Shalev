@@ -251,3 +251,16 @@ Los campos de dinero admiten punto o coma decimal y hasta dos decimales, sin sep
 ## Ficha de costo temporal
 
 La ficha de costo y la calculadora de cambio no escriben archivos ni incluyen sus datos o tasas en los respaldos `.shalev`. No importan ni exportan `.ficha148`, PDF, CSV o Excel.
+
+### Ubicaciones generales (Room v15)
+
+La tabla `almacen_local` guarda `nombre` (clave primaria), `inventario` y `servicios`
+(marcas booleanas, por defecto falsas). El repositorio actualiza la selección de cada
+ventana en una transacción, conservando el historial y la selección de la otra ventana.
+La migración 14→15 solo crea esta tabla; las instalaciones existentes empiezan sin ubicación.
+
+El JSON de respaldo incorpora el campo opcional `almacenesLocales`, una lista de objetos
+`{nombre, inventario, servicios}`. No cambia la versión v4: un respaldo anterior se interpreta
+con lista vacía. La restauración valida nombres, duplicados y una selección como máximo
+por ventana antes de sustituir los datos. El vaciado de configuración elimina las ubicaciones.
+Estos valores son generales y locales; no se añaden a las líneas de venta ni al protocolo LAN.

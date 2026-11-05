@@ -99,6 +99,7 @@ class RespaldoRepositoryImpl @Inject constructor(
         val caja: List<MovimientoCajaDto> = emptyList(),
         /** 0.27.0 (N2): clientes fijos. */
         val clientesFijos: List<cu.shalev.data.dto.ClienteFijoDto> = emptyList(),
+        val almacenesLocales: List<cu.shalev.data.dto.AlmacenLocalDto> = emptyList(),
     )
 
     /** uuid + app secundaria de origen + enviado. Se conservan para que restaurar no duplique al sincronizar. */
@@ -135,6 +136,7 @@ class RespaldoRepositoryImpl @Inject constructor(
                     empleados = c.empleados,
                     caja = c.caja,
                     clientesFijos = c.clientesFijos,
+                    almacenesLocales = c.almacenesLocales,
                     licencia = bloqueLicencia(c.perfil?.ci.orEmpty()),
                 )
                 val plano = ShalevJson.encodeToString(RespaldoDto.serializer(), dto).toByteArray(Charsets.UTF_8)
@@ -202,6 +204,12 @@ class RespaldoRepositoryImpl @Inject constructor(
                     empleados = dto.empleados,
                     caja = dto.caja,
                     clientesFijos = dto.clientesFijos.distinctBy { it.ci },
+                    almacenesLocales = dto.almacenesLocales.map {
+                        it.copy(nombre = cu.shalev.domain.repository.NombresAlmacenLocal.validar(it.nombre))
+                    }.also { xs ->
+                        require(xs.count { it.inventario } <= 1 && xs.count { it.servicios } <= 1)
+                        require(xs.map { it.nombre.lowercase(java.util.Locale.ROOT) }.distinct().size == xs.size)
+                    },
                 )
                 validarIntegridad(contenido)
                 recuperable = dto.licencia
@@ -251,6 +259,9 @@ class RespaldoRepositoryImpl @Inject constructor(
             },
             caja = db.cajaDao().todos().map { m ->
                 MovimientoCajaDto(m.id, m.turnoId, m.fecha, m.tipo, m.importeCent, m.motivo, m.hechoPor, m.uuid, m.sincronizado)
+            },
+            almacenesLocales = db.almacenLocalDao().todos().map {
+                cu.shalev.data.dto.AlmacenLocalDto(it.nombre, it.inventario, it.servicios)
             },
             clientesFijos = db.clienteFijoDao().todos().map { e ->
                 cu.shalev.data.dto.ClienteFijoDto(e.nombreApellidos, e.ci, e.telefono, e.creadoEn, e.actualizadoEn)
@@ -302,6 +313,9 @@ class RespaldoRepositoryImpl @Inject constructor(
                 nombreApellidos = d.nombreApellidos, ci = d.ci, telefono = d.telefono, creadoEn = d.creadoEn, actualizadoEn = d.actualizadoEn,
             )
         })
+        c.almacenesLocales.forEach {
+            db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(it.nombre, it.inventario, it.servicios))
+        }
         restaurarEmpleados(c.empleados, c.perfil)
         // Un preajuste puede referirse a productos eliminados (borrado lógico): solo se enlazan los vigentes.
         val existentes = c.productos.filterNot { it.eliminado }.map { it.id }.toSet()

@@ -14,7 +14,7 @@ class Migracion1011Test {
 
     @Test fun migracion10_11RecreaProductoSinCodigoConservandoDatos() {
         // Versión actual del esquema (0.31.0: la v12 añade `device` a `empleado`) y cadena de migraciones sin huecos.
-        assertEquals(14, ShalevDatabase.VERSION)
+        assertEquals(15, ShalevDatabase.VERSION)
         assertEquals(10, ShalevDatabase.MIGRACION_10_11.startVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_10_11.endVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_11_12.startVersion)

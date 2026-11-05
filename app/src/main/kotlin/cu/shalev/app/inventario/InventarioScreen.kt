@@ -165,6 +165,10 @@ fun InventarioScreen(
     }
     InventarioContent(
         state = state,
+        ubicacion = { cu.shalev.app.ubicacion.AlmacenLocalCampo(
+            cu.shalev.domain.repository.VentanaUbicacion.INVENTARIO,
+            editable = state.modoVenta == null && LocalPermisosApp.current.editarInventario,
+        ) },
         snackbar = snackbar,
         acciones = AccionesInventario(
             onAyuda = { onNavigate(Route.Ayuda) },
@@ -187,6 +191,7 @@ fun InventarioContent(
     state: InventarioUiState,
     acciones: AccionesInventario,
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    ubicacion: @Composable () -> Unit = {},
 ) {
     val venta = state.modoVenta
     // 1.0.2: ayuda de la pestaña (botón «?» de la esquina superior izquierda).
@@ -234,6 +239,7 @@ fun InventarioContent(
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) { // con el teclado abierto la lista queda por encima
             if (state.trabajando) ShalevLinearProgress(Modifier.fillMaxWidth())
             ElementosFijados(state, acciones)
+            ubicacion()
             Buscador(state, acciones)
             if (venta == null && state.seleccion.isNotEmpty()) BarraSeleccion(
                 texto = TextosInventario.seleccionados(state.seleccion.size), todosMarcados = state.todosVisiblesSeleccionados,
