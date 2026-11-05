@@ -2450,3 +2450,12 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
 - Añadidos tests JVM del transporte y derivación, pendientes de ejecutar: Gradle no
   arranca en este entorno por falta de Java. No se ha compilado Android ni desplegado
   en Cloudflare ni probado con móviles reales. Instrucciones/límites en relay/README.md.
+
+## 2026-11-05 — Prueba del relay portable a Windows
+
+- Ante el 400 observado en el test de upgrade WebSocket en Windows, se hace explícita
+  `CF-Connecting-IP: 192.0.2.1` (dirección de documentación, solo en tests). La prueba no
+  depende de que Miniflare añada una IP de loopback del sistema. No cambia el servidor.
+- Los fallos de upgrade muestran ahora también el cuerpo de la respuesta.
+- CI del relay ampliado a Linux y Windows; pendiente ejecutar ese CI.
+- Verificación local Linux: `npm test --prefix relay` 7/7 correctos. Windows no ejecutado aquí.

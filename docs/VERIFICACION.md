@@ -282,3 +282,10 @@ Añadir a esta tabla cada nueva corrida con fecha, SHA, resultado por job y cual
 - Pendiente: compilar Android con/sin endpoint, ejecutar tests, desplegar en cuenta del
   responsable y probar en móviles de redes/operadores distintos (incluida Cuba). Ver
   relay/README.md para cuotas, privacidad y límites. Conexión remota deshabilitada por defecto.
+
+### Portabilidad de la prueba del relay a Windows
+
+Se proporciona una cabecera CF-Connecting-IP de prueba en los tres upgrades del test
+Miniflare, evitando depender de su inyección implícita por el simulador. Comprobado
+`npm test --prefix relay`: 7/7 en Linux. Se añade Windows a la matriz CI; resultado
+Windows pendiente, no hay ejecución Windows disponible en este entorno.
