@@ -81,7 +81,10 @@ interface MantenimientoDao {
         borrarRecetas(); borrarServicioInsumos(); borrarPreajusteServicios(); borrarServicios(); borrarPreajusteProductos(); borrarProductos(); borrarInsumos()
     }
 
+    @Query("DELETE FROM almacen_local") suspend fun borrarAlmacenesLocales()
+
     suspend fun borrarConfiguracion() {
+        borrarAlmacenesLocales()
         borrarPreajusteServicios(); borrarPreajusteProductos(); borrarPreajustes(); borrarTarjetas(); borrarTelefonos(); borrarPerfil(); borrarClientesFijos()
     }
 }

@@ -611,3 +611,17 @@ Dentro de la propia aplicación cuentas siempre con **Ajustes → Manual de usua
 | <img src="app/capturas/claro/07a2_ajustes_configuracion_completa.png" alt="Menú completo de Ajustes" width="230"/> | <img src="app/capturas/claro/07g_ayuda.png" alt="Pantalla de Ayuda integrada" width="230"/> | <img src="app/capturas/claro/07h_soporte.png" alt="Ficha oficial de Soporte" width="230"/> |
 |:---:|:---:|:---:|
 | *Figura 15.1 — Menú completo de Ajustes* | *Figura 15.2 — Ayuda rápida dentro de la app* | *Figura 15.3 — Contacto directo con Soporte* |
+
+## Almacén/Local (Android)
+
+En Inventario y Servicios, sobre el buscador, puedes registrar la ubicación general de
+esa ventana. Escribe el nombre y pulsa ✓ (o la acción del teclado) para confirmar.
+Para reutilizar uno, abre la flecha del desplegable y selecciónalo: se guarda al elegirlo.
+Los nombres de ambas ventanas están disponibles en el mismo historial, pero cambiar la
+ubicación de Inventario no cambia la de Servicios, ni viceversa.
+
+El nombre admite de 1 a 80 caracteres, ignora espacios sobrantes y reutiliza los nombres
+existentes aunque cambies mayúsculas/minúsculas. No separa existencias por almacén ni
+filtra productos o servicios. Las ubicaciones se conservan al volver a abrir la app y
+se incluyen en los respaldos. Restaurar un respaldo antiguo deja estas ubicaciones vacías.
+La edición requiere permiso de Inventario y no está disponible al elegir artículos para vender.

@@ -330,3 +330,17 @@ El manual para el usuario final, sin tecnicismos, está en [MANUAL_USUARIO.md](M
 El repositorio no incluye un archivo de licencia del código fuente; los derechos corresponden al desarrollador (ver Ajustes → Soporte). El documento [LICENSE_CLIENT.md](LICENSE_CLIENT.md) describe el sistema de **licencias de uso** de la app, no la licencia del código fuente.
 
 **Recursos de terceros incluidos en el APK:** iconos con trazados de Material Symbols (Apache 2.0) y, desde la 0.15.0, 9 ilustraciones de [unDraw](https://undraw.co) (licencia unDraw: uso libre, también comercial, sin atribución obligatoria) tomadas del paquete npm `undraw-svg` 2.0.0 (MIT) y convertidas a vectores Compose (`designsystem/.../ilustracion/ShalevIlustraciones.kt`).
+
+### Almacén/Local en Inventario y Servicios (Android)
+
+Encima del buscador de ambas pantallas aparece un combobox editable **Almacén/Local**.
+Es una ubicación general por ventana: no asigna ubicaciones a los artículos ni filtra el catálogo.
+Escribe un nombre (hasta 80 caracteres) y pulsa ✓ o la acción del teclado para guardarlo,
+o despliega los nombres existentes y selecciona uno. El historial se comparte entre ambas
+pantallas, pero cada una conserva su propia selección. Solo quien puede editar Inventario
+puede cambiarla; en selección para venta se muestra sin edición.
+
+Room pasa de v14 a **v15** con una migración aditiva, sin alterar productos ni servicios.
+El seed debug incluye «Almacén central» para Inventario, «Tienda principal» para Servicios
+y «Local de demostración» como alternativa. Ejecutar el seed sigue siendo destructivo para
+los datos de demostración anteriores; no se ejecuta automáticamente en producción.

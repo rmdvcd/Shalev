@@ -39,6 +39,7 @@ import kotlinx.coroutines.Dispatchers
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
+    @Binds abstract fun almacenLocal(impl: cu.shalev.data.repository.AlmacenLocalRepositoryImpl): cu.shalev.domain.repository.AlmacenLocalRepository
     @Binds abstract fun licenseStore(impl: DataStoreLicenseStore): LicenseStore
     @Binds abstract fun licenciaRepository(impl: LicenciaRepositoryImpl): LicenciaRepository
     /** 0.31.0 (mitigación 7): clave con la que la principal firma los sub-tokens de las secundarias. */

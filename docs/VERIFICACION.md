@@ -256,3 +256,14 @@ Añadir a esta tabla cada nueva corrida con fecha, SHA, resultado por job y cual
 - **Perfiles de empleado (implementado y con pruebas unitarias en verde; falta validar la interfaz):** cada perfil exige PIN de 6–12 dígitos; se guarda un verificador PBKDF2-HMAC-SHA256 con sal aleatoria (310 000 iteraciones), nunca el PIN en claro. Cinco fallos bloquean 15 minutos; el perfil vuelve a bloquearse al pasar la app a segundo plano y al reiniciarla. El retorno al administrador conserva autenticación del dispositivo. Se añadieron campos opcionales para que los datos/respaldo anteriores sigan decodificando; perfiles antiguos sin PIN requieren que el administrador lo configure antes de activarlos.
 - **Pendiente mayor:** sincronización de datos entre iOS y Android/otros teléfonos y prueba end-to-end interactiva en Appetize o en un dispositivo físico. Los perfiles y permisos siguen siendo locales y no se sincronizan. El comprobador de actualizaciones no instala (iOS exige TestFlight/App Store/MDM). El SMS se pega manualmente; Excel se exporta como CSV, no `.xlsx`. GL, exportación, respaldo y flujos de venta aún necesitan validación funcional.
 - El respaldo iOS mantiene intencionalmente su formato y cifrado propios; no se cambió el contrato GL ni sus claves.
+
+### 2026-11-05 — Almacén/Local (entorno Arena)
+
+- `git diff --check`: correcto.
+- SQLite en memoria: SQL real de migración 14→15 ejecutado; comprobada conservación de
+  una fila previa, inserción de las tres ubicaciones demo y selección independiente por ventana.
+- `./gradlew shalevTests`: no ejecutable; Gradle aborta por falta de Java/JAVA_HOME.
+- Pendiente: generar el esquema `data/schemas/cu.shalev.data.db.ShalevDatabase/15.json`
+  con Room/KSP (p. ej. `./gradlew :data:kspDebugKotlin`), `shalevCheck`, instrumentados,
+  pruebas de UI y ejecución de `SeedActivity` en una instalación debug. El seed se actualizó
+  en código; no se ha ejecutado sobre una instalación Android en este entorno.
