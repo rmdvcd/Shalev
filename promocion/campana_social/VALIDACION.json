@@ -6,77 +6,77 @@
         1080,
         1350
       ],
-      "bytes": 282515
+      "bytes": 294875
     },
     "collage_feed_whatsapp.jpg": {
       "dimensiones": [
         1080,
         1350
       ],
-      "bytes": 207208
+      "bytes": 202340
     },
     "super_collage_1080x1920.png": {
       "dimensiones": [
         1080,
         1920
       ],
-      "bytes": 355775
+      "bytes": 374733
     },
     "super_collage_whatsapp.jpg": {
       "dimensiones": [
         1080,
         1920
       ],
-      "bytes": 281357
+      "bytes": 272144
     },
     "escenas_reel/01.png": {
       "dimensiones": [
         1080,
         1920
       ],
-      "bytes": 133190
+      "bytes": 156914
     },
     "escenas_reel/02.png": {
       "dimensiones": [
         1080,
         1920
       ],
-      "bytes": 262159
+      "bytes": 279896
     },
     "escenas_reel/03.png": {
       "dimensiones": [
         1080,
         1920
       ],
-      "bytes": 242442
+      "bytes": 243269
     },
     "escenas_reel/04.png": {
       "dimensiones": [
         1080,
         1920
       ],
-      "bytes": 256855
+      "bytes": 199663
     },
     "escenas_reel/05.png": {
       "dimensiones": [
         1080,
         1920
       ],
-      "bytes": 248731
+      "bytes": 279003
     },
     "escenas_reel/06.png": {
       "dimensiones": [
         1080,
         1920
       ],
-      "bytes": 171204
+      "bytes": 167060
     },
     "escenas_reel/07.png": {
       "dimensiones": [
         1080,
         1920
       ],
-      "bytes": 279334
+      "bytes": 293938
     }
   },
   "video": {
@@ -90,24 +90,24 @@
     "fotogramas_decodificados": 720,
     "codec": "H.264",
     "formato_pixel": "yuv420p",
-    "audio": "AAC estÃ©reo silencioso",
+    "audio": "AAC estéreo silencioso",
     "decodificacion_completa_video_y_audio": true,
-    "bytes": 5903415
+    "bytes": 5708935
   },
-  "srt": "7 bloques, 0â€“30 s",
+  "srt": "7 bloques, 0–30 s",
   "sha256_capturas_originales": {
-    "shot_carrito.png": "c8c4eb39047a8825d328449ca01a8e12630eb8326135756e217fd6d699dda799",
-    "shot_inicio.png": "52cc54cbecbab91b1d681ecab4089e89be8cdddbe41f5686c4d24f4fa42b76d3",
-    "shot_inicio_claro.png": "ff8ffb5f440173d6e22e46875885ccf3fc4101d91efa529f17ad5677ad1e1b52",
-    "shot_inventario.png": "d9c3622c1d075cdf98175afea7e6f317d860641d925ce4d9502bfc4b0558a557",
-    "shot_inventario_claro.png": "2541a52e2709eadcda9588896e8241e269c794bbc9260707d0e4d9343b3af166",
-    "shot_pago.png": "dc394822c982050489564587d225acbce4a716f74c03a5e8bae597e841ce58c8",
-    "shot_registros.png": "e54602b82eaef2b8822d447f50159ad98f08fbaee9edff1c996d5bb134f38562",
-    "shot_servicios.png": "f1bab90b08d4f9054d81f86821caf0bf29f2fe9958f48b40d6a194e4c7f1d69b",
-    "shot_servicios_claro.png": "b994a32c2be180f6cfe589e2ac468fd539b503c284a447f3cd8452544760d7bc",
-    "shot_vinculadas.png": "130be00d935b2272c2a2f1e1456fad7ec1c665f8f70a536d7d10004695b9ef22"
+    "shot_carrito.png": "22a9ddbd701de0d92e82a1902ce553bdd867da1e58079d0db9c977f883fe2b1f",
+    "shot_inicio.png": "a2f7099b182c54097d79b0c2d3e9ed2668505ada8e92eb22a8e7fb49b6c2669c",
+    "shot_inicio_claro.png": "f239dc1fead4b5cce5add4943706bfa5ba5b96cf1465853af92c6a67a5f93799",
+    "shot_inventario.png": "a102b10206a3cc2b16db093e1acc75734638848ea7300eb52541869388a7af6b",
+    "shot_inventario_claro.png": "fe0308f20a73f12b2bce3e5672d910216629616f6e3688b56cde758a19528d01",
+    "shot_pago.png": "1c6ff4ef8978b2bddac3daee62bae79291450c8c9be1566012e61c3e273243ab",
+    "shot_registros.png": "e2a9b7e9aaaeb626f9547dd00356bb59e6c17b9dee6f5080da37956087eae2ab",
+    "shot_servicios.png": "220ff3f4926e5a6b8b46a2c50b0d4641089a01d88f3f5ff29fe064a55e76005d",
+    "shot_servicios_claro.png": "80d8a90e5b6fa9a49138aaaa13ba05078ad7b57bcd98accb4461167c33f98825",
+    "shot_vinculadas.png": "f4ca49ed076f6e12aaf114c88bf497263e17a8f8d137b55d439e2f6e27285f2e"
   },
   "revision_visual": "Collages y escenas 1, 5 y 7 revisados; texto sin desbordamientos.",
-  "no_ejecutado": "Tests Android ni pruebas en dispositivo; no se modificÃ³ la app.",
-  "derechos_fotos": "Pendiente de revisiÃ³n por el titular antes de publicaciÃ³n pÃºblica."
+  "no_ejecutado": "Tests Android ni pruebas en dispositivo; no se modificó la app.",
+  "derechos_fotos": "Pendiente de revisión por el titular antes de publicación pública."
 }
