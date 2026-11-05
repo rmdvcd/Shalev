@@ -375,7 +375,7 @@ object CodigoQr {
             val json = String(Base64.getUrlDecoder().decode(t.removePrefix(PREFIJO)), Charsets.UTF_8)
             val c = SyncJson.decodeFromString(Contenido.serializer(), json)
             val token = Base64.getUrlDecoder().decode(c.t)
-            require(token.size == TOKEN_BYTES && c.p in 1..65_535 && c.h.isNotEmpty() && c.e > 0 && c.n.isNotBlank())
+            require(token.size == TOKEN_BYTES && c.p in 1..65_535 && (c.h.isNotEmpty() || RelaySync.habilitado) && c.e > 0 && c.n.isNotBlank())
             CodigoVinculacion(c.n, c.nn, c.h, c.p, c.e, c.en, token, Instant.ofEpochMilli(c.x))
         }.getOrNull()
     }

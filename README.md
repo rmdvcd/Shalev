@@ -344,3 +344,14 @@ Room pasa de v14 a **v15** con una migración aditiva, sin alterar productos ni 
 El seed debug incluye «Almacén central» para Inventario, «Tienda principal» para Servicios
 y «Local de demostración» como alternativa. Ejecutar el seed sigue siendo destructivo para
 los datos de demostración anteriores; no se ejecuta automáticamente en producción.
+
+### Conexión remota por Internet (piloto Android)
+
+Se incorpora un intermediario Cloudflare Workers + Durable Objects en [`relay/`](relay/README.md).
+La secundaria mantiene LAN como primera opción y, si no encuentra a la principal, prueba
+WebSocket seguro cuando el distribuidor compila ambas apps con `-PshalevRelayUrl=https://…`.
+La principal establece también conexiones salientes: no hay VPN, IP pública ni puertos que
+configurar en los teléfonos. Vinculación y sincronización reutilizan el cifrado existente.
+**Sin URL configurada, la app sigue funcionando únicamente por conexión directa.**
+El servidor está preparado en código, no desplegado. La principal debe estar disponible;
+esto no es una base de datos en la nube. Alcance, cuotas, privacidad y despliegue en relay/README.md.

@@ -285,7 +285,9 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
      * (todavía no guarda nada: quien llama decide cuándo borrar los datos del teléfono).
      */
     suspend fun vincular(c: CodigoVinculacion): AppResult<DatosSecundaria> = withContext(Dispatchers.IO) {
-        val socket = conectarA(c.direcciones, c.puerto) ?: red.buscar(c.negocioId)?.let { (h, p) -> conectarA(listOf(h), p) }
+        val socket = conectarA(c.direcciones, c.puerto)
+            ?: red.buscar(c.negocioId)?.let { (h, p) -> conectarA(listOf(h), p) }
+            ?: RelaySync.abrir(RelaySync.sala(c.negocioId, c.empleadoId, c.token, vincular = true), principal = false)
             ?: return@withContext AppResult.Err(AppError.SinPrincipal())
         try {
             socket.soTimeout = 15_000
@@ -308,7 +310,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
                         // 1.0.1 (datos móviles): la dirección que funcionó va primero y las demás del QR quedan de
                         // respaldo para reconectar (por datos móviles el NSD no encuentra a la principal).
                         direcciones = (listOfNotNull(socket.inetAddress?.hostAddress) + c.direcciones).distinct(),
-                        puerto = socket.port,
+                        puerto = if (socket is SocketRelay) c.puerto else socket.port,
                     )
                     clave.fill(0)
                     AppResult.Ok(datos)
@@ -376,9 +378,17 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
         var socket = conectarA(d.direcciones, d.puerto)
         if (socket == null) {
             // ¿La principal cambió de dirección (otra wifi, zona wifi reiniciada)? Se busca por nombre en la red.
-            val (h, p) = red.buscar(d.negocioId) ?: return null
-            socket = conectarA(listOf(h), p) ?: return null
-            config.editarSecundaria { it.copy(direcciones = listOf(h), puerto = p) }
+            val encontrada = red.buscar(d.negocioId)
+            if (encontrada != null) {
+                val (h, p) = encontrada
+                socket = conectarA(listOf(h), p)
+                if (socket != null) config.editarSecundaria { it.copy(direcciones = listOf(h), puerto = p) }
+            }
+        }
+        if (socket == null) {
+            val secreto = CriptoSync.dec(d.clave)
+            val sala = try { RelaySync.sala(d.negocioId, d.empleadoId, secreto, vincular = false) } finally { secreto.fill(0) }
+            socket = RelaySync.abrir(sala, principal = false) ?: return null
         }
         return try {
             socket.soTimeout = ServidorSync.LECTURA_MS
@@ -524,7 +534,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
         /** 0.32.0: a partir de este tamaño el avance se muestra en la barra (debajo no hay nada que ver). */
         const val FRAME_GRANDE = 1024L * 1024L
 
-        const val TEXTO_SIN_CONEXION = "No se encuentra la app principal en esta red ni por datos móviles"
+        const val TEXTO_SIN_CONEXION = "No se encuentra la app principal. Comprueba su conexión y disponibilidad."
         const val TEXTO_CODIGO_INVALIDO = "Este código no es válido. Pide al dueño que genere uno nuevo."
 
         fun textoRechazo(motivo: String): String = when (motivo) {

@@ -10,9 +10,16 @@ plugins {
 android {
     namespace = "cu.shalev.data"
     compileSdk = 35
+    buildFeatures { buildConfig = true }
 
     defaultConfig {
         minSdk = 26
+        // Una URL pública, no una credencial. Vacía mantiene exclusivamente la sincronización local.
+        val relay = providers.gradleProperty("shalevRelayUrl").orElse("").get()
+        require(relay.isEmpty() || relay.matches(Regex("https://[A-Za-z0-9.-]+/?"))) {
+            "shalevRelayUrl debe ser una URL HTTPS sin ruta, credenciales ni parámetros"
+        }
+        buildConfigField("String", "SHALEV_RELAY_URL", "\"$relay\"")
         consumerProguardFiles("consumer-rules.pro")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

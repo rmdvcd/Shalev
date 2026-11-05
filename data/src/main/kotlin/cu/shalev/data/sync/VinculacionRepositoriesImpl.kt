@@ -153,7 +153,7 @@ class PrincipalRepositoryImpl @Inject constructor(
         val est = withTimeoutOrNull(3_000) { servidor.estado.first { it.escuchando } }
             ?: return AppResult.Err(AppError.Red.SinConexion)
         val direcciones = red.direcciones().ifEmpty { est.direcciones }
-        if (direcciones.isEmpty()) return AppResult.Err(AppError.Red.SinConexion)
+        if (direcciones.isEmpty() && !RelaySync.habilitado) return AppResult.Err(AppError.Red.SinConexion)
         val token = CriptoSync.aleatorio(CodigoQr.TOKEN_BYTES)
         val vence = clock.now().plus(Vinculacion.VALIDEZ_CODIGO)
         // Un QR nuevo anula la clave anterior: el teléfono viejo deja de poder sincronizar.

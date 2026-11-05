@@ -17,7 +17,7 @@ object VinculacionLogic {
     const val SIN_SECUNDARIAS = "Aún no hay apps secundarias"
     /** 1.0.1: la vinculación y la conexión también funcionan por datos móviles, no solo por la misma wifi. */
     const val SIN_SECUNDARIAS_DETALLE =
-        "Agrega la app de cada empleado. Necesitan estar en la misma red que este teléfono: wifi, zona wifi o datos móviles."
+        "Agrega la app de cada empleado. Usa la misma wifi o un punto de acceso; desde lugares distintos, ambas apps necesitan Internet y una versión con conexión remota habilitada."
     const val USAR_COMO_SECUNDARIA = "Usar esta app como secundaria"
     /** 0.27.0 (T9). */
     const val PRINCIPAL_NO_SECUNDARIA = "Esta app es la principal del negocio y no puede pasar a secundaria."

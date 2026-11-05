@@ -80,7 +80,7 @@ rm -f "$TC"/lib/{room,hilt}/*symbol-processing-api* "$TC"/lib/pruebas/*nativerun
 PRUEBAS=$(ls "$TC"/lib/pruebas/*.jar | tr '\n' ':')
 
 # R / BuildConfig mínimos (AGP los genera; aquí solo hacen falta para compilar).
-mkdir -p "$TC/stub/src/cu/shalev/app" "$TC/stub/src/cu/shalev/designsystem" "$TC/stub/rt/android/os"
+mkdir -p "$TC/stub/src/cu/shalev/data" "$TC/stub/src/cu/shalev/app" "$TC/stub/src/cu/shalev/designsystem" "$TC/stub/rt/android/os"
 VN=$(sed -n 's/.*versionName *= *"\([^"]*\)".*/\1/p' "$ROOT/app/build.gradle.kts" | head -1)
 VC=$(sed -n 's/.*versionCode *= *\([0-9]*\).*/\1/p' "$ROOT/app/build.gradle.kts" | head -1)
 cat > "$TC/stub/src/cu/shalev/app/R.java" <<'J'
@@ -88,6 +88,9 @@ package cu.shalev.app; public final class R { public static final class drawable
 J
 cat > "$TC/stub/src/cu/shalev/app/BuildConfig.java" <<J
 package cu.shalev.app; public final class BuildConfig { public static final boolean DEBUG = false; public static final int VERSION_CODE = ${VC:-1}; public static final String VERSION_NAME = "${VN:-0}"; public static final String APPLICATION_ID = "cu.shalev.app"; public static final String GITHUB_REPO = ""; }
+J
+cat > "$TC/stub/src/cu/shalev/data/BuildConfig.java" <<'J'
+package cu.shalev.data; public final class BuildConfig { public static final String SHALEV_RELAY_URL = ""; }
 J
 cat > "$TC/stub/src/cu/shalev/designsystem/R.java" <<'J'
 package cu.shalev.designsystem; public final class R { public static final class drawable { public static final int shalev_logo = 0x7f010001; } public static final class font { public static final int orbitron = 0x7f020001; } }

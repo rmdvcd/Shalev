@@ -1,0 +1,29 @@
+name: Pruebas del intermediario remoto
+on:
+  push:
+    branches: [main, "arena/**"]
+    paths: ["relay/**", ".github/workflows/relay.yml"]
+  pull_request:
+    paths: ["relay/**", ".github/workflows/relay.yml"]
+permissions:
+  contents: read
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: relay
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: relay/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm audit
+      - run: npx wrangler deploy --dry-run
