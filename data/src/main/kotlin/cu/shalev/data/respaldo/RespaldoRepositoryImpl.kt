@@ -205,7 +205,7 @@ class RespaldoRepositoryImpl @Inject constructor(
                     caja = dto.caja,
                     clientesFijos = dto.clientesFijos.distinctBy { it.ci },
                     almacenesLocales = dto.almacenesLocales.map {
-                        it.copy(nombre = cu.shalev.domain.repository.NombresAlmacenLocal.validar(it.nombre))
+                        it.copy(nombre = cu.shalev.domain.repository.NombresLocal.validar(it.nombre))
                     }.also { xs ->
                         require(xs.count { it.inventario } <= 1 && xs.count { it.servicios } <= 1)
                         require(xs.map { it.nombre.lowercase(java.util.Locale.ROOT) }.distinct().size == xs.size)

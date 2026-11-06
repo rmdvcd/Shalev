@@ -9,8 +9,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.designsystem.component.ShalevComboBoxEditable
 import cu.shalev.designsystem.token.ShalevSpacing
-import cu.shalev.domain.repository.AlmacenLocal
-import cu.shalev.domain.repository.VentanaUbicacion
+import cu.shalev.domain.repository.Local
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
@@ -18,7 +17,7 @@ import kotlinx.coroutines.flow.map
 fun LocalCampo(editable: Boolean, viewModel: LocalViewModel = hiltViewModel()) {
     // null distingue la carga de un historial realmente vacío y evita sobrescribir la selección al abrir.
     val flujo = remember(viewModel) {
-        viewModel.locales.map<List<AlmacenLocal>, List<AlmacenLocal>?> { it }
+        viewModel.locales.map<List<Local>, List<Local>?> { it }
             .catch { viewModel.error.value = "No se pudieron cargar los locales."; emit(null) }
     }
     val locales by flujo.collectAsStateWithLifecycle(initialValue = null)

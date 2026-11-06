@@ -1,18 +1,18 @@
 package cu.shalev.domain
 
-import cu.shalev.domain.repository.NombresAlmacenLocal
+import cu.shalev.domain.repository.NombresLocal
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AlmacenLocalTest {
     @Test fun normalizaEspaciosSinPerderAcentos() {
-        assertEquals("Almacén central", NombresAlmacenLocal.validar("  Almacén\n  central  "))
+        assertEquals("Almacén central", NombresLocal.validar("  Almacén\n  central  "))
     }
     @Test(expected = IllegalArgumentException::class) fun rechazaVacio() {
-        NombresAlmacenLocal.validar("  ")
+        NombresLocal.validar("  ")
     }
     @Test(expected = IllegalArgumentException::class) fun rechazaNombreLargo() {
-        NombresAlmacenLocal.validar("a".repeat(81))
+        NombresLocal.validar("a".repeat(81))
     }
-    @Test fun admiteLimite() { assertEquals(80, NombresAlmacenLocal.validar("a".repeat(80)).length) }
+    @Test fun admiteLimite() { assertEquals(80, NombresLocal.validar("a".repeat(80)).length) }
 }

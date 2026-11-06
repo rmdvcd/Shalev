@@ -1,11 +1,17 @@
 package cu.shalev.app.inicio
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -47,11 +53,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -60,6 +61,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.app.navigation.Route
+import cu.shalev.app.notificacion.rememberPedirPermisoAviso
 import cu.shalev.core.money.Cup
 import cu.shalev.core.money.Money
 import cu.shalev.core.money.Percent
@@ -89,6 +91,7 @@ import cu.shalev.designsystem.component.shalevAnimateItem
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.theme.AlertTone
 import cu.shalev.designsystem.theme.ShalevTheme
+import cu.shalev.designsystem.theme.ShalevTextos
 import cu.shalev.designsystem.theme.of
 import cu.shalev.designsystem.token.ColorTokens
 import cu.shalev.designsystem.token.ShalevMotion
@@ -104,7 +107,6 @@ import java.time.ZoneId
 import kotlinx.coroutines.launch
 
 import cu.shalev.app.ubicacion.LocalViewModel
-import cu.shalev.app.ubicacion.LocalInicioSelector
 
 object InicioTags {
     const val LISTA = "inicio_lista"
@@ -261,6 +263,7 @@ fun InicioScreen(
         caja = caja,
         snackbar = snackbar,
         conteoVm = conteoVm,
+        localViewModel = localViewModel,
     )
 }
 
@@ -277,6 +280,8 @@ fun InicioContent(
     /** Solo para capturas: abre todos los acordeones (en la app empiezan siempre cerrados). */
     acordeonesAbiertos: Boolean = false,
     conteoVm: cu.shalev.app.caja.CierreConteoViewModel? = null,
+    /** Selector del local único; null en capturas y pruebas sin Hilt. */
+    localViewModel: LocalViewModel? = null,
 ) {
     val permisos = cu.shalev.app.common.LocalPermisosApp.current
     val acordeones = remember { AcordeonesInicio(acordeonesAbiertos) }
@@ -311,7 +316,7 @@ fun InicioContent(
                 // mientras el resto de Inicio hace scroll.
                 
                 // --- NUEVO: Combobox único de Local en Inicio ---
-                LocalInicioSelector(localViewModel)
+                localViewModel?.let { LocalInicioSelector(it) }
                 
                 BloqueFijo(state, acciones, permisos, zona)
                 val estadoLista = remember { LazyListState() }
