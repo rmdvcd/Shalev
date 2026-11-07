@@ -19,6 +19,8 @@ interface AlmacenLocalDao {
     suspend fun inventario(nombre: String)
     @Query("UPDATE almacen_local SET servicios = (nombre = :nombre)")
     suspend fun servicios(nombre: String)
+    @Query("DELETE FROM almacen_local WHERE nombre = :nombre")
+    suspend fun borrarNombre(nombre: String)
     @Query("DELETE FROM almacen_local")
     suspend fun borrar()
 }

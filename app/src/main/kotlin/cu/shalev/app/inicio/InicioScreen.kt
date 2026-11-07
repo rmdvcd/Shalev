@@ -315,7 +315,7 @@ fun InicioContent(
                 // abierto, los botones Venta y Caja NO se desplazan: se quedan fijos arriba, uno debajo de otro,
                 // mientras el resto de Inicio hace scroll.
                 
-                // --- NUEVO: Combobox único de Local en Inicio ---
+                // Selección compartida; los nombres se administran en Ajustes.
                 localViewModel?.let { LocalInicioSelector(it) }
                 
                 BloqueFijo(state, acciones, permisos, zona)

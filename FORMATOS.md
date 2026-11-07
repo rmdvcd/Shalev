@@ -255,8 +255,7 @@ La ficha de costo y la calculadora de cambio no escriben archivos ni incluyen su
 ### Ubicaciones generales (Room v15)
 
 La tabla `almacen_local` guarda `nombre` (clave primaria), `inventario` y `servicios`
-(marcas booleanas, por defecto falsas). El repositorio actualiza la selección de cada
-ventana en una transacción, conservando el historial y la selección de la otra ventana.
+(marcas booleanas, por defecto falsas). El repositorio conserva los nombres y actualiza ambas marcas en una transacción al seleccionar un local común. Al editar un nombre conserva sus marcas. Si un respaldo antiguo tiene selecciones distintas, Inicio muestra la de Inventario hasta que se elija otra.
 La migración 14→15 solo crea esta tabla; las instalaciones existentes empiezan sin ubicación.
 
 El JSON de respaldo incorpora el campo opcional `almacenesLocales`, una lista de objetos

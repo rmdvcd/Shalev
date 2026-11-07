@@ -13,6 +13,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -114,7 +115,11 @@ fun AjustesScreen(
         guardar = { accesoVm.guardar(it) },
         mensaje = { m -> scope.launch { snackbar.showSnackbar(m) } },
     )
+    val localVm: cu.shalev.app.ubicacion.LocalViewModel = hiltViewModel()
+    var mostrarLocales by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    if (mostrarLocales) cu.shalev.app.ubicacion.LocalesAjustes(localVm) { mostrarLocales = false }
     AjustesContent(
+        onLocales = { mostrarLocales = true },
         accesoClave = accesoClave,
         onAccesoClave = cambiarAcceso,
         state = state,
@@ -146,6 +151,7 @@ fun AjustesContent(
     accesoClave: Boolean = false,
     onAccesoClave: (Boolean) -> Unit = {},
     onBack: (() -> Unit)? = null,
+    onLocales: () -> Unit = {},
 ) {
     // 0.31.0 (P5): el cuadro de «Actualizar» lo abre el propio proceso (barra circular + resultado).
     // 1.0.1: al terminar con «Actualizado» o «Estas al día» el cuadro se cierra solo (el proceso lo cierra).
@@ -184,6 +190,7 @@ fun AjustesContent(
                     onNavigate(Route.PagoElectronico)
                 }
             }
+            item { Entry("Local", "Añadir y editar locales", ShalevIcons.Configurar, onClick = onLocales) }
             if (state.permisos.cambiarPrecios) item { Entry("Precios", "Por pago o por importe", ShalevIcons.Precios) { onNavigate(Route.Precios) } }
             if (principal) item {
                 Entry("Avisos de inventario", "Cuándo avisar de stock bajo o crítico", ShalevIcons.Alerta) {

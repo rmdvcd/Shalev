@@ -612,19 +612,16 @@ Dentro de la propia aplicación cuentas siempre con **Ajustes → Manual de usua
 |:---:|:---:|:---:|
 | *Figura 15.1 — Menú completo de Ajustes* | *Figura 15.2 — Ayuda rápida dentro de la app* | *Figura 15.3 — Contacto directo con Soporte* |
 
-## Almacén/Local (Android)
+## Local (Android)
 
-En Inventario y Servicios, sobre el buscador, puedes registrar la ubicación general de
-esa ventana. Escribe el nombre y pulsa ✓ (o la acción del teclado) para confirmar.
-Para reutilizar uno, abre la flecha del desplegable y selecciónalo: se guarda al elegirlo.
-Los nombres de ambas ventanas están disponibles en el mismo historial, pero cambiar la
-ubicación de Inventario no cambia la de Servicios, ni viceversa.
+En Ajustes → Local puedes añadir nombres y tocar uno para editarlo. Se admiten de 1 a
+80 caracteres, sin duplicados por mayúsculas o espacios sobrantes. En Inicio, abre el
+selector de Local y elige uno de los nombres existentes; no se escribe en el selector.
+El primer local añadido queda seleccionado automáticamente.
 
-El nombre admite de 1 a 80 caracteres, ignora espacios sobrantes y reutiliza los nombres
-existentes aunque cambies mayúsculas/minúsculas. No separa existencias por almacén ni
-filtra productos o servicios. Las ubicaciones se conservan al volver a abrir la app y
-se incluyen en los respaldos. Restaurar un respaldo antiguo deja estas ubicaciones vacías.
-La edición requiere permiso de Inventario y no está disponible al elegir artículos para vender.
+La ubicación es general del equipo: no separa existencias ni filtra productos o servicios.
+Se conserva al cerrar la app y se incluye en los respaldos; un respaldo antiguo puede no
+contener locales. Inventario y Servicios ya no muestran selectores propios.
 
 ## Sincronización desde lugares distintos (piloto Android)
 
