@@ -195,11 +195,11 @@ Al finalizar la jornada, desactiva el interruptor de **Turno abierto** en **Inic
 1. **Paso 1 — Conteo de efectivo por billetes:**
    - Shalev muestra el **Efectivo esperado** calculado automáticamente (`Fondo + Ventas en efectivo + Entradas − Salidas`).
    - Escribe cuántos billetes tienes de cada denominación, ordenadas de mayor a menor (**20000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 3 y 1 CUP**) y añade aparte las **Monedas / otro efectivo**. Los campos vacíos valen cero.
-   - ¿Prefieres no contar billete por billete? Pulsa el icono de **Omitir el conteo de billetes** (esquina inferior derecha del cuadro) para escribir directamente el total en efectivo o pulsar el botón rápido **Cuadra** cuando el efectivo contado coincide exactamente con el esperado.
+   - ¿Prefieres no contar billete por billete? Pulsa el icono de **Omitir el conteo de billetes**, en el pie del cuadro, a la izquierda del ✓ de confirmar, para escribir directamente el total en efectivo o pulsar el botón rápido **Cuadra** (junto al campo) cuando el efectivo contado coincide exactamente con el esperado.
 2. **Paso 2 — Conteo parcial de inventario:**
    - Para ahorrarte tiempo, Shalev **solo te pide contar los productos e insumos que se movieron durante ese turno**, todos juntos en una misma lista. Lo que no se tocó se da por bueno.
    - Los artículos usan números enteros y los insumos admiten hasta **3 decimales** (con punto o coma, p. ej. `1.250`). Escribe `0` si se agotó alguno. Los productos *Elaborados* no aparecen aquí porque se controlan contando sus insumos reales.
-   - Si no deseas hacer conteo físico en ese momento, toca **Omitir el conteo de inventario** (junto al botón **Atrás**, debajo de la lista): el turno se cerrará sin modificar tus existencias y quedará anotado *«Conteo de inventario omitido»*.
+   - Si no deseas hacer conteo físico en ese momento, toca **Omitir el conteo de inventario** (en el pie del cuadro, entre **Atrás** y el ✓ de confirmar): el turno se cerrará sin modificar tus existencias y quedará anotado *«Conteo de inventario omitido»*.
 3. **Paso 3 — Revisión y confirmación:**
    - Revisa en pantalla el efectivo contado y cualquier diferencia de inventario. Si hay faltantes o sobrantes de stock, escribe el **Motivo del ajuste** (de 3 a 160 caracteres) y pulsa **Confirmar**.
    - En la **App Principal**, los ajustes de existencias y el cierre del turno se guardan juntos en ese instante. En una **App Secundaria de empleado**, confirmar envía la declaración al encargado para que la revise y apruebe en **Apps vinculadas**.

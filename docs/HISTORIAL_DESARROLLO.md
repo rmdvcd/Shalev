@@ -3,6 +3,14 @@
 - Inicio selecciona un local existente; Ajustes permite añadir y editar nombres. Se retiraron los selectores de Inventario y Servicios.
 - Se ordenaron las acciones y explicaciones del cierre, conservando el efectivo al volver atrás y evitando omitir inventario antes de cargarlo.
 
+## Botones de los diálogos del cierre, en una sola fila centrada (2026-11-07)
+
+- **`ShalevDialog` acepta acciones secundarias** (`secundarias`): se dibujan en **la misma fila centrada** que la confirmación, a su izquierda, con la separación de 16 dp de `ShalevButtonRow`. Sustituye al antiguo parámetro `esquina` (que nadie usaba y dejaba la acción suelta abajo a la derecha) y al patrón de poner botones dentro del contenido del diálogo, que los dejaba flotando en otra fila con un hueco en medio.
+- **Cierre de turno (asistente de 3 pasos):** «Atrás» y «Omitir» ya no van dentro del contenido desplazable; pasan al pie, junto al ✓. Así no dependen del desplazamiento del inventario y no quedan en una fila aparte.
+- **Conteo de efectivo («¿Cerrar el turno?»):** «Omitir el conteo de billetes» y «Contar billetes por denominación» se ven en el pie, en la fila del ✓ (antes: un icono solo, pegado al borde izquierdo del contenido).
+- **«Cuadra» (contado = esperado):** deja de ser un ✓ suelto fuera del campo —se confundía con un testigo de validez y con el ✓ de confirmar— y pasa a `ShalevIconAction` tonal, alineada con el campo.
+- Pendiente (este entorno no dispone de Java ni de Android SDK): ejecutar `./gradlew shalevTests shalevCheck :app:assembleDebug`, las pruebas de `CajaConteoUiTest` y regrabar las capturas Roborazzi de los diálogos de cierre. Paridad en `IShalev/` (iOS) pendiente de su ciclo con Xcode.
+
 ## Correcciones de uso diario: doble pulsación, teclado, errores, permanencia, paneles y datos de licencia (2026-11-03)
 
 - **Doble pulsación:** nueva `GuardiaDobleToque` (lógica pura, ventana de 600 ms) en el sistema de diseño: `ShalevPrimaryButton`, `ShalevSecondaryButton`, `ShalevTextButton`, `ShalevIconAction`, `ShalevFab`, `ShalevCard`/`ShalevListItem` pulsables y la cabecera del acordeón ignoran el segundo toque seguido sobre la misma acción. Quedan repetibles a propósito (parámetro `repetible`) los selectores +/− (cantidades de la venta, billetes, secundarias, niveles y empleados) y las flechas Atrás/Siguiente de los asistentes, porque son acciones secuenciales. Además, las guardas de «ocupado» de Licencia (solicitar/activar), Inicio (cierre de turno y solicitud de cierre), Onboarding y la exportación de Inventario/Servicios se comprueban y se activan de forma síncrona antes de lanzar el trabajo, y las navegaciones directas que quedaban en `MainScaffold` (elegir productos, configurar pago) usan `launchSingleTop`.
