@@ -9,6 +9,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AlmacenLocalDao {
+    /** Local activo (el único marcado para Inventario). Lo usan las consultas por local. */
+    @Query("SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1")
+    suspend fun activo(): String?
+    @Query("SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1")
+    fun observarActivo(): Flow<String?>
     @Query("SELECT * FROM almacen_local ORDER BY nombre COLLATE NOCASE")
     fun observar(): Flow<List<AlmacenLocalEntity>>
     @Query("SELECT * FROM almacen_local ORDER BY nombre COLLATE NOCASE")

@@ -211,7 +211,8 @@ class Sembrador(
 
     private val consumoProducto = LongArray(productos.size)
     private val consumoInsumo = LongArray(insumos.size) // milésimas
-    private val nombreLocalUnico = "Local"
+    /** Locales de la demo: cada uno es un negocio completo (Inventario y Servicios compartidos). */
+    private val localesDemo = listOf("Bodega", "Casa", "Kiosco")
 
     suspend fun sembrar(): String {
         val inicio = clock.now()
@@ -347,11 +348,15 @@ class Sembrador(
         db.withTransaction {
             db.mantenimientoDao().borrarOperacion()
             db.mantenimientoDao().borrarConfiguracion()
-            // Semilla repetible: historial compartido y un único local para ambos.
+            // Semilla repetible: historial compartido y varios locales.
             db.almacenLocalDao().borrar()
-            // --- CAMBIO: ÚNICO LOCAL PARA INVENTARIO Y SERVICIOS ---
-            // Se crea un único local "Local" que se asocia a ambas ventanas.
-            db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(nombreLocalUnico, inventario = true, servicios = true))
+            // Cada local corresponde a un Inventario y Servicios propios (la misma ventana para ambos);
+            // el primero queda activo. El historial de ventas es común al equipo.
+            localesDemo.forEach {
+                db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(it))
+            }
+            db.almacenLocalDao().inventario(localesDemo.first())
+            db.almacenLocalDao().servicios(localesDemo.first())
             // Las apps vinculadas no las borra el vaciado de respaldo (no viajan en él): se limpian aquí.
             db.openHelper.writableDatabase.execSQL("DELETE FROM empleado")
 
@@ -603,7 +608,7 @@ class Sembrador(
         return buildString {
             appendLine("Datos de demostración cargados")
             appendLine("Ventas: ${plan.sumOf { it.ventas.size }} en ${plan.size} turnos")
-            appendLine("Local: $nombreLocalUnico (único para Inventario y Servicios)")
+            appendLine("Locales: ${localesDemo.joinToString()} (Inventario y Servicios por local; activo: ${localesDemo.first()})")
             appendLine("Productos: ${productos.size} · servicios: ${servicios.size} · insumos: ${insumos.size}")
             appendLine("Apps secundarias: ${nombresEmpleados.size}")
             appendLine("Desde: ${desde} · hasta: ${ahora.atZone(zona).toLocalDate()}")

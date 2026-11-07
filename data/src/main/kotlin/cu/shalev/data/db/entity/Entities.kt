@@ -37,6 +37,8 @@ data class ProductoEntity(
     val creadoEn: Long,
     val actualizadoEn: Long,
     val eliminado: Boolean,
+    /** v16: local al que pertenece el artículo (su inventario es independiente por local). */
+    @ColumnInfo(defaultValue = "") val local: String = "",
 )
 
 @Entity(tableName = "insumo", indices = [Index("creadoEn"), Index("nombre")])
@@ -52,6 +54,8 @@ data class InsumoEntity(
     val actualizadoEn: Long,
     /** v4 (P29): precio de venta por unidad de medida; null = no se vende suelto. */
     val precioVentaCent: Long? = null,
+    /** v16: local dueño del insumo (stock independiente por local). */
+    @ColumnInfo(defaultValue = "") val local: String = "",
 )
 
 @Entity(
@@ -106,6 +110,8 @@ data class TurnoEntity(
     val salidasCent: Long? = null,
     val numAnuladas: Int? = null,
     val conteoCierreJson: String? = null,
+    /** v16: local del turno (todo lo que ocurre en él pertenece a ese local). */
+    @ColumnInfo(defaultValue = "") val local: String = "",
 )
 
 /** Totales desnormalizados (suma de sus detalles) para filtros por importe y agregados rápidos. */
@@ -139,6 +145,8 @@ data class VentaEntity(
      * enviarle para que su registro y su caja coincidan. 0 = nada pendiente.
      */
     @ColumnInfo(defaultValue = "0") val bajarCambio: Boolean = false,
+    /** v16: local de la venta (se copia del turno). */
+    @ColumnInfo(defaultValue = "") val local: String = "",
 )
 
 /**
@@ -199,6 +207,8 @@ data class TransaccionEntity(
     val telefonoCobro: String?,
     /** 0.27.0 (N2): en la venta se marcó «Cliente fijo» (viaja a la principal al sincronizar). */
     @ColumnInfo(defaultValue = "0") val clienteFijo: Boolean = false,
+    /** v16: local de la venta asociada. */
+    @ColumnInfo(defaultValue = "") val local: String = "",
 )
 
 /**
@@ -230,6 +240,8 @@ data class MovimientoEntity(
     val nota: String?,
     /** v7 (0.21.0, C7): quién hizo el ajuste desde una app secundaria. Vacío = el del turno o, sin turno, el dueño. */
     @androidx.room.ColumnInfo(defaultValue = "") val hechoPor: String = "",
+    /** v16: local del movimiento (el del turno o el del artículo ajustado). */
+    @ColumnInfo(defaultValue = "") val local: String = "",
 )
 
 /** Fila única (id = 1). */
@@ -307,9 +319,9 @@ data class ServicioEntity(
     val creadoEn: Long,
     val actualizadoEn: Long,
     val eliminado: Boolean,
+    /** v16: local que ofrece el servicio (catálogo independiente por local). */
+    @ColumnInfo(defaultValue = "") val local: String = "",
 )
-
-/** v4 (P29): insumos que gasta un servicio cada vez que se presta. */
 @Entity(
     tableName = "servicio_insumo",
     primaryKeys = ["servicioId", "insumoId"],

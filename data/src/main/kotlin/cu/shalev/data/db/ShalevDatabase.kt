@@ -73,7 +73,24 @@ abstract class ShalevDatabase : RoomDatabase() {
          * v3 (P17): esquema consolidado, sin `tasa_cambio` ni `caducidad_codigo`. Es la base de las migraciones
          * futuras: cada versión nueva añade una `Migration(3, 4)`… explícita (regla: nunca borrar datos de usuarios).
          */
-        const val VERSION = 15
+        const val VERSION = 16
+        /**
+         * v16: cada local tiene su propio catálogo y su propio historial. Los datos existentes se asignan al local
+         * activo; si no hay ninguno, se crea «Local».
+         */
+        val MIGRACION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                SQL_15_16.forEach(db::execSQL)
+            }
+        }
+        internal val SQL_15_16 = buildList {
+            add("INSERT INTO almacen_local(nombre, inventario, servicios) SELECT 'Local', 1, 1 WHERE NOT EXISTS (SELECT 1 FROM almacen_local)")
+            val activo = "COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), (SELECT nombre FROM almacen_local ORDER BY nombre LIMIT 1), 'Local')"
+            listOf("producto", "insumo", "servicio", "turno", "venta", "transaccion", "movimiento").forEach { tabla ->
+                add("ALTER TABLE `$tabla` ADD COLUMN `local` TEXT NOT NULL DEFAULT ''")
+                add("UPDATE `$tabla` SET `local` = $activo")
+            }
+        }
         /** Ubicaciones generales de Inventario/Servicios. No modifica los registros existentes. */
         val MIGRACION_14_15 = object : Migration(14, 15) {
             override fun migrate(db: SupportSQLiteDatabase) { SQL_14_15.forEach(db::execSQL) }
@@ -303,7 +320,7 @@ abstract class ShalevDatabase : RoomDatabase() {
             System.loadLibrary("sqlcipher")
             return Room.databaseBuilder(context, ShalevDatabase::class.java, NOMBRE)
                 .openHelperFactory(SupportOpenHelperFactory(passphrase))
-                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14, MIGRACION_14_15)
+                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14, MIGRACION_14_15, MIGRACION_15_16)
                 .fallbackToDestructiveMigrationFrom(*DESARROLLO)
                 .build()
         }

@@ -1,6 +1,7 @@
 # Ajuste de Local y cierre de turno
 
 - Inicio selecciona un local existente; Ajustes permite añadir y editar nombres. Se retiraron los selectores de Inventario y Servicios.
+- El seed de depuración crea **Bodega**, **Casa** y **Kiosco** (Bodega activo): cada local es un negocio completo con su Inventario y sus Servicios, y comparten el historial de ventas del equipo.
 - Se ordenaron las acciones y explicaciones del cierre, conservando el efectivo al volver atrás y evitando omitir inventario antes de cargarlo.
 
 ## Botones de los diálogos del cierre, en una sola fila centrada (2026-11-07)

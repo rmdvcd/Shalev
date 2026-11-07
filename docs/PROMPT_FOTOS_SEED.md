@@ -52,7 +52,8 @@ la salida de verificar_fotos_seed.py y el resultado de la comprobación en el te
 
 - La función **"Almacén/Local"** se ha renombrado a **"Local"**.
 - El combobox único se ubica ahora en **Inicio** (en lugar de campos separados en Inventario/Servicios).
-- Cada local corresponde a un **único Inventario y Servicios** (compartido).
+- Cada local corresponde a un **único Inventario y Servicios** (compartido): el seed crea
+  **Bodega**, **Casa** y **Kiosco**, con Bodega activo; el historial de ventas es común.
 - El nuevo local se introduce mediante el botón **(+)** (última opción del combobox) y se confirma por teclado.
 - Los documentos seed, el código `Sembrador.kt` y los repositorios han sido actualizados para reflejar este modelo único.
 ```
