@@ -494,7 +494,9 @@ private fun FormDialog(
                         },
                         indicatorColor = null,
                         leading = { Icon(ShalevIcons.Turno, contentDescription = null) },
-                        trailing = when {
+                        subtitleMaxLines = 2,
+                    )
+                    val accionesCierre: (@Composable () -> Unit)? = when {
                             e.cierrePedido && (e.conteoCierre == null || e.conteoCierre?.aprobadoEn != null) -> null
                             // 0.21.0 (C6): el empleado lo pidió: Aprobar (rellena, la acción esperada) o Rechazar.
                             (e.solicitaCierre || (e.cierrePedido && e.conteoCierre != null && e.conteoCierre?.aprobadoEn == null)) -> ({
@@ -515,9 +517,10 @@ private fun FormDialog(
                                     style = IconActionStyle.Tonal, modifier = Modifier.testTag(VinculacionTags.PEDIR_CIERRE),
                                 )
                             })
-                        },
-                        subtitleMaxLines = 2,
-                    )
+                        }
+                    accionesCierre?.let { accion ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { accion() }
+                    }
                 } }
                 empleado?.conteoCierre?.let { cu.shalev.app.caja.ResumenConteo(it) }
                 Text("Permisos", style = MaterialTheme.typography.titleSmall)

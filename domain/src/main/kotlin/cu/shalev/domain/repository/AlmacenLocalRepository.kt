@@ -6,9 +6,10 @@ import kotlinx.coroutines.flow.Flow
 interface LocalRepository {
     fun observar(): Flow<List<Local>>
     suspend fun seleccionar(nombre: String)
+    suspend fun guardar(nombre: String, anterior: String? = null)
 }
 
-data class Local(val nombre: String)
+data class Local(val nombre: String, val seleccionado: Boolean = false)
 
 /** Evita nombres vacíos, saltos de línea y duplicados por espacios o mayúsculas. */
 object NombresLocal {

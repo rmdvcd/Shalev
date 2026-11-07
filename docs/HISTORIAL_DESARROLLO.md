@@ -1,3 +1,8 @@
+# Ajuste de Local y cierre de turno
+
+- Inicio selecciona un local existente; Ajustes permite añadir y editar nombres. Se retiraron los selectores de Inventario y Servicios.
+- Se ordenaron las acciones y explicaciones del cierre, conservando el efectivo al volver atrás y evitando omitir inventario antes de cargarlo.
+
 ## Correcciones de uso diario: doble pulsación, teclado, errores, permanencia, paneles y datos de licencia (2026-11-03)
 
 - **Doble pulsación:** nueva `GuardiaDobleToque` (lógica pura, ventana de 600 ms) en el sistema de diseño: `ShalevPrimaryButton`, `ShalevSecondaryButton`, `ShalevTextButton`, `ShalevIconAction`, `ShalevFab`, `ShalevCard`/`ShalevListItem` pulsables y la cabecera del acordeón ignoran el segundo toque seguido sobre la misma acción. Quedan repetibles a propósito (parámetro `repetible`) los selectores +/− (cantidades de la venta, billetes, secundarias, niveles y empleados) y las flechas Atrás/Siguiente de los asistentes, porque son acciones secuenciales. Además, las guardas de «ocupado» de Licencia (solicitar/activar), Inicio (cierre de turno y solicitud de cierre), Onboarding y la exportación de Inventario/Servicios se comprueban y se activan de forma síncrona antes de lanzar el trabajo, y las navegaciones directas que quedaban en `MainScaffold` (elegir productos, configurar pago) usan `launchSingleTop`.

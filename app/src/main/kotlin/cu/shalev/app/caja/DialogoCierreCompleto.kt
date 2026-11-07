@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -46,13 +47,14 @@ fun DialogoCierreCompleto(
     val error by viewModel.error.collectAsStateWithLifecycle()
     val guardando by viewModel.guardando.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.cargar() }
-    if (paso == 0) {
-        DialogoContado(titulo, texto, "Continuar al inventario", arqueo, trabajando, onConfirmar, onDismiss, dismissDescription,
-            onDesglose = { _, b, o -> billetes = HashMap(b); otro = o.centavos; paso = 1 })
-        return
-    }
+    val estadoEfectivo = rememberSaveableStateHolder()
     val ls = lineas
     LaunchedEffect(ls) { cantidades = ls?.map { "" }.orEmpty() }
+    if (paso == 0) {
+        estadoEfectivo.SaveableStateProvider("efectivo") { DialogoContado(titulo, texto, "Continuar al inventario", arqueo, trabajando, onConfirmar, onDismiss, dismissDescription,
+            onDesglose = { _, b, o -> billetes = HashMap(b); otro = o.centavos; paso = 1 }) }
+        return
+    }
     fun cantidad(i: Int): Long? {
         val l = ls?.getOrNull(i) ?: return null
         val t = cantidades.getOrNull(i).orEmpty()
@@ -70,15 +72,14 @@ fun DialogoCierreCompleto(
     val conteo = ConteoCierre(billetes, Cup(otro), inventario, if (omitido) MOTIVO_OMITIDO else motivo.trim())
     ShalevDialog(
         title = if (paso == 1) "Conteo de inventario" else "Revisar cierre",
-        text = if (paso == 1) "Cuenta solo lo que cambió durante el turno. Los elaborados se concilian mediante sus insumos."
-            else "Revisa las diferencias. Solo la principal ajustará las existencias al cerrar o aprobar la solicitud.",
         onDismiss = { if (!guardando) onDismiss() },
         onConfirm = { if (paso == 1) paso = 2 else viewModel.guardar(conteo) { onConfirmar(conteo.efectivo) } },
         confirmDescription = if (paso == 1) "Revisar diferencias" else confirmar,
         confirmEnabled = (if (paso == 1) completo else conteo.valido()) && !guardando && !trabajando,
         confirmLoading = guardando || trabajando, dismissDescription = dismissDescription,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+            Text(if (paso == 1) "Cuenta solo lo que cambió durante el turno. Los elaborados se concilian mediante sus insumos." else "Revisa las diferencias antes de confirmar. Solo la principal ajustará las existencias.", style = MaterialTheme.typography.bodyMedium)
             error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                 ShalevTextButton("Volver a cargar inventario", onClick = { paso = 1; viewModel.cargar() }, icon = ShalevIcons.Listo)
@@ -125,7 +126,7 @@ fun DialogoCierreCompleto(
             ) {
                 ShalevTextButton("Atrás", onClick = { omitido = false; paso-- }, icon = ShalevIcons.Atras, enabled = !guardando)
                 if (paso == 1) ShalevTextButton(
-                    "Omitir el conteo de inventario", onClick = { omitido = true; paso = 2 }, icon = ShalevIcons.AhoraNo,
+                    "Omitir", onClick = { omitido = true; paso = 2 }, icon = ShalevIcons.AhoraNo, enabled = ls != null && !guardando && !trabajando,
                     modifier = Modifier.testTag(CajaTags.OMITIR_INVENTARIO),
                 )
             }

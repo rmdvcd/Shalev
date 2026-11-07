@@ -258,9 +258,9 @@ fun DialogoContado(
         confirmLoading = trabajando,
         confirmTag = CajaTags.CONFIRMAR,
         dismissDescription = dismissDescription,
-        esquina = omitir,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+            Text(texto, style = MaterialTheme.typography.bodyMedium)
             arqueo?.let { a ->
                 // 0.28.0: los importes («Efectivo esperado: 1 250.00 CUP») van en seminegrita.
                 Text(
@@ -275,6 +275,7 @@ fun DialogoContado(
                     maxLines = 3,
                 )
             }
+            omitir?.invoke()
             // 0.31.0: desde el total suelto se puede volver a contar billete a billete.
             if (!porBilletes) ShalevTextButton(
                 "Contar billetes por denominación", onClick = { porBilletes = true }, icon = ShalevIcons.Efectivo,

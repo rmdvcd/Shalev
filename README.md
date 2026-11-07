@@ -331,19 +331,12 @@ El repositorio no incluye un archivo de licencia del código fuente; los derecho
 
 **Recursos de terceros incluidos en el APK:** iconos con trazados de Material Symbols (Apache 2.0) y, desde la 0.15.0, 9 ilustraciones de [unDraw](https://undraw.co) (licencia unDraw: uso libre, también comercial, sin atribución obligatoria) tomadas del paquete npm `undraw-svg` 2.0.0 (MIT) y convertidas a vectores Compose (`designsystem/.../ilustracion/ShalevIlustraciones.kt`).
 
-### Almacén/Local en Inventario y Servicios (Android)
+### Local (Android)
 
-Encima del buscador de ambas pantallas aparece un combobox editable **Almacén/Local**.
-Es una ubicación general por ventana: no asigna ubicaciones a los artículos ni filtra el catálogo.
-Escribe un nombre (hasta 80 caracteres) y pulsa ✓ o la acción del teclado para guardarlo,
-o despliega los nombres existentes y selecciona uno. El historial se comparte entre ambas
-pantallas, pero cada una conserva su propia selección. Solo quien puede editar Inventario
-puede cambiarla; en selección para venta se muestra sin edición.
-
-Room pasa de v14 a **v15** con una migración aditiva, sin alterar productos ni servicios.
-El seed debug incluye «Almacén central» para Inventario, «Tienda principal» para Servicios
-y «Local de demostración» como alternativa. Ejecutar el seed sigue siendo destructivo para
-los datos de demostración anteriores; no se ejecuta automáticamente en producción.
+En Inicio se selecciona un local mediante un desplegable no editable. En Ajustes → Local
+se añaden y editan los nombres (1 a 80 caracteres); el primero queda seleccionado y la
+selección posterior se conserva en el equipo. No se asignan ubicaciones a los artículos
+ni se filtra el catálogo. Las ubicaciones se incluyen en los respaldos.
 
 ### Conexión remota por Internet (piloto Android)
 
