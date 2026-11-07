@@ -127,13 +127,16 @@ fun ShalevAvisoExito(texto: String, onFin: () -> Unit, modifier: Modifier = Modi
 }
 
 /**
- * Diálogo con el título centrado arriba (0.27.0: sin logo). El pie solo muestra la acción de confirmación (icono);
- * se descarta tocando fuera o con el botón atrás del sistema. [destructive] pinta la confirmación en color de error.
+ * Diálogo con el título centrado arriba (0.27.0: sin logo). El pie muestra la acción de confirmación (icono) y, si se
+ * piden, las [secundarias] en la misma fila; se descarta tocando fuera o con el botón atrás del sistema.
+ * [destructive] pinta la confirmación en color de error.
  *
  * P24: ventana emergente **centrada**; título centrado arriba; el botón de confirmar queda centrado. La confirmación
  * va rellena (Von Restorff). El contenido largo se desplaza dentro del diálogo y el botón sigue siempre a la vista.
  *
  * 1.0.3: sin botón Cancelar en el pie (redundante: se cierra tocando fuera o con Atrás).
+ * 1.0.4: las acciones del asistente («Atrás», «Omitir»…) van en el pie, en la misma fila que la confirmación y
+ * centradas como ella (antes flotaban dentro del contenido, en otra fila y con un hueco en medio).
  */
 @Composable
 fun ShalevDialog(
@@ -150,11 +153,12 @@ fun ShalevDialog(
     confirmTag: String? = null,
     confirmIcon: ImageVector? = null,
     /**
-     * 0.31.0: acción suelta en la **esquina inferior derecha** de la ventana (p. ej. «Omitir»). La confirmación
-     * sigue centrada; con `esquina = null` el pie es el de siempre. Va antes de [content] para no romper la lambda
-     * final de las llamadas.
+     * 1.0.4: acciones secundarias del pie (p. ej. «Atrás» y «Omitir» de un asistente). Van en la **misma fila**
+     * centrada que la confirmación, a su izquierda y en el orden en que se declaran. Antes cada pantalla las ponía
+     * dentro del contenido —o sueltas en una esquina— y quedaban flotando, desalineadas de la confirmación.
+     * Va antes de [content] para no romper la lambda final de las llamadas.
      */
-    esquina: (@Composable () -> Unit)? = null,
+    secundarias: (@Composable RowScope.() -> Unit)? = null,
     content: (@Composable () -> Unit)? = null,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -163,29 +167,23 @@ fun ShalevDialog(
         title = title,
         modifier = modifier,
         footer = { _ ->
-            // 1.0.3: pie con solo la acción de confirmación centrada; la acción de la esquina va en su línea.
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                ShalevButtonRow {
-                    if (onConfirm != null) {
-                        if (confirmLoading) {
-                            Box(Modifier.size(ShalevSize.touchTarget), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(Modifier.size(ShalevSize.icon).semantics { contentDescription = confirmDescription })
-                            }
-                        } else {
-                            ShalevIconAction(
-                                icon = confirmIcon ?: if (destructive) ShalevIcons.Eliminar else ShalevIcons.Confirmar,
-                                contentDescription = confirmDescription,
-                                onClick = onConfirm,
-                                enabled = confirmEnabled,
-                                style = IconActionStyle.Filled,
-                                containerColor = if (destructive) cs.error else null,
-                                modifier = if (confirmTag != null) Modifier.testTag(confirmTag) else Modifier,
-                            )
-                        }
+            // 1.0.4: una sola fila centrada: secundarias (Atrás, Omitir…) y luego la confirmación (Von Restorff).
+            secundarias?.invoke(this)
+            if (onConfirm != null) {
+                if (confirmLoading) {
+                    Box(Modifier.size(ShalevSize.touchTarget), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(Modifier.size(ShalevSize.icon).semantics { contentDescription = confirmDescription })
                     }
-                }
-                esquina?.let { accion ->
-                    Box(Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs), contentAlignment = Alignment.CenterEnd) { accion() }
+                } else {
+                    ShalevIconAction(
+                        icon = confirmIcon ?: if (destructive) ShalevIcons.Eliminar else ShalevIcons.Confirmar,
+                        contentDescription = confirmDescription,
+                        onClick = onConfirm,
+                        enabled = confirmEnabled,
+                        style = IconActionStyle.Filled,
+                        containerColor = if (destructive) cs.error else null,
+                        modifier = if (confirmTag != null) Modifier.testTag(confirmTag) else Modifier,
+                    )
                 }
             }
         },

@@ -2,7 +2,6 @@ package cu.shalev.app.caja
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
@@ -10,7 +9,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
@@ -77,12 +75,24 @@ fun DialogoCierreCompleto(
         confirmDescription = if (paso == 1) "Revisar diferencias" else confirmar,
         confirmEnabled = (if (paso == 1) completo else conteo.valido()) && !guardando && !trabajando,
         confirmLoading = guardando || trabajando, dismissDescription = dismissDescription,
+        // 1.0.4: «Atrás» y «Omitir» comparten fila centrada con la confirmación. Antes iban dentro del contenido
+        // —que se desplaza— y con el texto largo quedaban flotando en otra fila, lejos del ✓.
+        secundarias = {
+            ShalevTextButton("Atrás", onClick = { omitido = false; paso-- }, icon = ShalevIcons.Atras, enabled = !guardando)
+            if (paso == 1) ShalevTextButton(
+                "Omitir", onClick = { omitido = true; paso = 2 }, icon = ShalevIcons.AhoraNo, enabled = ls != null && !guardando && !trabajando,
+                modifier = Modifier.testTag(CajaTags.OMITIR_INVENTARIO),
+            )
+            // 1.0.4: la recuperación del inventario también es una acción del pie (antes, un icono suelto en el contenido).
+            if (error != null) ShalevTextButton(
+                "Volver a cargar inventario", onClick = { paso = 1; viewModel.cargar() }, icon = ShalevIcons.Listo,
+            )
+        },
     ) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             Text(if (paso == 1) "Cuenta solo lo que cambió durante el turno. Los elaborados se concilian mediante sus insumos." else "Revisa las diferencias antes de confirmar. Solo la principal ajustará las existencias.", style = MaterialTheme.typography.bodyMedium)
             error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-                ShalevTextButton("Volver a cargar inventario", onClick = { paso = 1; viewModel.cargar() }, icon = ShalevIcons.Listo)
             }
             if (ls == null) Text("Cargando inventario…", style = MaterialTheme.typography.bodyMedium)
             else if (paso == 1) {
@@ -117,19 +127,7 @@ fun DialogoCierreCompleto(
                     supportingText = "De 3 a 160 caracteres. Los ajustes quedarán registrados.", modifier = Modifier,
                 )
             }
-            // Botones juntos y alineados en una misma fila (antes «Atrás» suelto al final del contenido y
-            // «Omitir» aparte en la esquina inferior derecha del pie: quedaban desalineados).
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ShalevTextButton("Atrás", onClick = { omitido = false; paso-- }, icon = ShalevIcons.Atras, enabled = !guardando)
-                if (paso == 1) ShalevTextButton(
-                    "Omitir", onClick = { omitido = true; paso = 2 }, icon = ShalevIcons.AhoraNo, enabled = ls != null && !guardando && !trabajando,
-                    modifier = Modifier.testTag(CajaTags.OMITIR_INVENTARIO),
-                )
-            }
+            // 1.0.4: las acciones del asistente («Atrás», «Omitir») se pasan al pie del diálogo (ver `secundarias`).
         }
     }
 }

@@ -210,7 +210,9 @@ fun DialogoFondo(
  * «Cuadra» rellena el contado con el esperado. No se confirma con el campo vacío. [arqueo] null = turno sin fondo
  * (anterior a 0.25.0): se pide igualmente el contado, sin diferencia.
  *
- * 0.31.0: el conteo **por billetes** se muestra de entrada y «Omitir» (esquina inferior derecha) pasa al total suelto.
+ * 0.31.0: el conteo **por billetes** se muestra de entrada y «Omitir» pasa al total suelto.
+ * 1.0.4: «Omitir» y «Contar billetes por denominación» viven en el **pie del diálogo**, en la misma fila centrada que
+ * la confirmación; «Cuadra» es un botón tonal junto al campo (antes, un ✓ suelto que parecía un testigo de validez).
  */
 @Composable
 fun DialogoContado(
@@ -258,6 +260,16 @@ fun DialogoContado(
         confirmLoading = trabajando,
         confirmTag = CajaTags.CONFIRMAR,
         dismissDescription = dismissDescription,
+        // 1.0.4: «Omitir» y «Contar billetes» van en el pie, en la misma fila centrada que el ✓. Antes quedaban
+        // sueltos dentro del contenido (un icono solo, pegado al borde izquierdo y lejos del resto).
+        secundarias = {
+            omitir?.invoke()
+            // 0.31.0: desde el total suelto se puede volver a contar billete a billete.
+            if (!porBilletes) ShalevTextButton(
+                "Contar billetes por denominación", onClick = { porBilletes = true }, icon = ShalevIcons.Efectivo,
+                modifier = Modifier.testTag(CajaTags.POR_BILLETES),
+            )
+        },
     ) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             Text(texto, style = MaterialTheme.typography.bodyMedium)
@@ -275,12 +287,6 @@ fun DialogoContado(
                     maxLines = 3,
                 )
             }
-            omitir?.invoke()
-            // 0.31.0: desde el total suelto se puede volver a contar billete a billete.
-            if (!porBilletes) ShalevTextButton(
-                "Contar billetes por denominación", onClick = { porBilletes = true }, icon = ShalevIcons.Efectivo,
-                modifier = Modifier.testTag(CajaTags.POR_BILLETES),
-            )
             if (porBilletes) {
                 BilletesCUP.denominaciones.indices.reversed().forEach { i ->
                     val denominacion = BilletesCUP.denominaciones[i]
@@ -336,15 +342,23 @@ fun DialogoContado(
                     filtro = FiltroEntrada.DINERO, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier)
                 Text("Total contado: ${contado?.let(Money::format) ?: "Importe inválido"}", style = ShalevTextos.datoEn(MaterialTheme.typography.bodyMedium))
-            } else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+            } else Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+            ) {
                 ShalevTextField(
                     value = valorTexto, onValueChange = { valorTexto = it.take(16) }, label = "${TextosCaja.CONTADO} *",
                     isError = valorTexto.isNotBlank() && contado == null, errorText = TextosCaja.IMPORTE_INVALIDO,
                     filtro = FiltroEntrada.DINERO, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f).testTag(CajaTags.CONTADO),
                 )
-                if (arqueo != null) ShalevTextButton(
-                    TextosCaja.CUADRA_BOTON, onClick = { valorTexto = CajaForm.textoInicial(arqueo.esperado) }, icon = ShalevIcons.Listo,
+                // 1.0.4: «Cuadra» era un ✓ suelto fuera del campo que se confundía con un testigo de «válido» y con
+                // el ✓ de confirmar. Ahora es un botón tonal, del mismo alto y alineado con el campo.
+                if (arqueo != null) ShalevIconAction(
+                    ShalevIcons.Listo, TextosCaja.CUADRA_BOTON,
+                    onClick = { valorTexto = CajaForm.textoInicial(arqueo.esperado) },
+                    style = IconActionStyle.Tonal,
                     modifier = Modifier.testTag(CajaTags.CUADRA),
                 )
             }

@@ -1,6 +1,7 @@
 package cu.shalev.app
 
 import android.app.Application
+import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -134,6 +135,34 @@ class AuditoriaUiTest {
         }
         rule.onNodeWithText("Cancelar").assertDoesNotExist()
         rule.onNodeWithContentDescription("Cancelar").assertDoesNotExist()
+    }
+
+    // 1.0.4: las acciones secundarias del pie («Atrás», «Omitir»…) van en la MISMA fila centrada que la confirmación.
+    // Antes cada pantalla las ponía dentro del contenido y aparecían en otra fila, lejos del ✓ (capturas del cierre).
+    @Test
+    fun lasAccionesSecundariasDelDialogoCompartenFilaConLaConfirmacion() {
+        rule.setContent {
+            ShalevTheme {
+                ShalevDialog(
+                    title = "Revisar cierre",
+                    onDismiss = {},
+                    onConfirm = {},
+                    secundarias = {
+                        ShalevIconAction(ShalevIcons.Atras, "Atrás", onClick = {})
+                        ShalevIconAction(ShalevIcons.AhoraNo, "Omitir", onClick = {})
+                    },
+                ) {
+                    Text("El inventario cuadra.")
+                }
+            }
+        }
+
+        val atras = rule.onNodeWithContentDescription("Atrás").fetchSemanticsNode().boundsInRoot
+        val omitir = rule.onNodeWithContentDescription("Omitir").fetchSemanticsNode().boundsInRoot
+        val confirmar = rule.onNodeWithContentDescription("Confirmar").fetchSemanticsNode().boundsInRoot
+        assertEquals("Atrás va en la fila de la confirmación", atras.center.y, confirmar.center.y, 1f)
+        assertEquals("Omitir va en la fila de la confirmación", omitir.center.y, confirmar.center.y, 1f)
+        assertTrue("Orden: Atrás, Omitir y la confirmación", atras.right <= omitir.left && omitir.right <= confirmar.left)
     }
 
     @Test

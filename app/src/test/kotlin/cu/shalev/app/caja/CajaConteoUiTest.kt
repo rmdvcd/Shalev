@@ -21,7 +21,8 @@ import org.robolectric.annotation.GraphicsMode
 /**
  * 0.31.0 (tarea 5): el conteo de billetes al cerrar el turno estaba implementado pero oculto tras un botón de solo
  * icono —y el texto que lo explicaba lo descarta `ShalevDialog` cuando hay contenido—. Ahora las denominaciones se ven
- * de entrada y «Omitir», en la esquina inferior derecha, pasa al total suelto (y desde ahí se vuelve al conteo).
+ * de entrada y «Omitir» —en el pie del diálogo, junto al ✓ desde la 1.0.4— pasa al total suelto (y desde ahí se
+ * vuelve al conteo).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
