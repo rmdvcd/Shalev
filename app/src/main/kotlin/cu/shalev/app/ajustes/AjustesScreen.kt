@@ -190,7 +190,7 @@ fun AjustesContent(
                     onNavigate(Route.PagoElectronico)
                 }
             }
-            item { Entry("Local", "Añadir y editar locales", ShalevIcons.Configurar, onClick = onLocales) }
+            item { Entry("Local", "Añadir y editar locales", ShalevIcons.Local, onClick = onLocales) }
             if (state.permisos.cambiarPrecios) item { Entry("Precios", "Por pago o por importe", ShalevIcons.Precios) { onNavigate(Route.Precios) } }
             if (principal) item {
                 Entry("Avisos de inventario", "Cuándo avisar de stock bajo o crítico", ShalevIcons.Alerta) {

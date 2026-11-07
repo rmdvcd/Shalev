@@ -20,7 +20,7 @@ fun LocalInicioSelector(viewModel: LocalViewModel) {
     ShalevComboBox(
         label = "Local", opciones = locales.map { it.nombre },
         seleccion = locales.firstOrNull { it.seleccionado }?.nombre ?: "Selecciona un local en Ajustes",
-        etiqueta = { it }, onSeleccion = viewModel::seleccionar,
+        etiqueta = { it }, onSeleccion = viewModel::seleccionar, centrado = true,
         modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag("local_inicio_selector"),
     )
     error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = ShalevSpacing.md)) }

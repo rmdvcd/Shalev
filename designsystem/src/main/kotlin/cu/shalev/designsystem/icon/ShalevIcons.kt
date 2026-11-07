@@ -33,6 +33,8 @@ object ShalevIcons {
     val CalculadoraCambio: ImageVector get() = MaterialSolido.SwapHoriz    // CUP ⇄ USD: conversión de moneda
     val PagoElectronico: ImageVector get() = MaterialSolido.CreditCard
     val Turno: ImageVector get() = MaterialSolido.Storefront
+    /** Local del negocio: tienda/almacén (Ajustes → Local). */
+    val Local: ImageVector get() = MaterialSolido.Storefront
     val Telefono: ImageVector get() = MaterialSolido.Phone
     val Porcentaje: ImageVector get() = MaterialSolido.Percent
     val Escanear: ImageVector get() = MaterialSolido.QrCodeScanner

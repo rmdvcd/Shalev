@@ -37,7 +37,7 @@ fun LocalesAjustes(viewModel: LocalViewModel, onCerrar: () -> Unit) {
             ShalevTextButton("Añadir local", onClick = {
                 viewModel.error.value = null
                 anterior = null; nombre = ""; editando = true
-            }, icon = ShalevIcons.Agregar)
+            }, icon = ShalevIcons.Agregar, modifier = Modifier.fillMaxWidth())
         }
     }
     if (editando) ShalevDialog(
