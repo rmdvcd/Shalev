@@ -1,0 +1,14 @@
+__pycache__/
+.pytest_cache/
+.coverage
+.ruff_cache/
+.venv/
+build/
+dist/
+*.spec
+DShalevData/
+*.db
+*.db-shm
+*.db-wal
+portable-settings.json
+*.log

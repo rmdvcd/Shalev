@@ -1,5 +1,13 @@
 # Shalev — Verificación real
 
+## DShalev web/sync (2026-11-08, branch `arena/6d58a4f3-shalev`)
+
+- `cd DShalev && .venv/bin/pytest -q`: **13 passed**, 1 Starlette/anyio deprecation warning. Incluye pairing TCP SPVI, generación SVG QR, ECDH/HMAC, sesión AES-GCM, límite de descompresión, lote de venta, actualización idempotente del stock, replay idempotente de comandos, permisos, actividad web y revocación autenticada sobre loopback.
+- `python -m compileall -q dshalev`: OK. `git diff --check`: OK.
+- No se ha probado con Android/iOS físicos ni en dos dispositivos/redes reales (este entorno tampoco tiene Java ni Swift/Xcode). No existe EXE Windows verificado; el intento PyInstaller Linux anterior no pudo cargar `libpython3.11.so`. El relay, licencia GL/sub-token y flujos SPVI no implementados siguen bloqueando una afirmación de paridad completa.
+- Preview iniciado en modo LAN: web `0.0.0.0:8000` y SPVI TCP `0.0.0.0:47811`; `/healthz` devolvió 200 y `/` llevó al setup inicial. Proceso de preview activo mientras dure esta sesión.
+
+
 ## Cambios de interfaz en curso (2026-11-01)
 
 - `./gradlew shalevTests`: no se pudo iniciar, falta Java y no hay SDK Android en este entorno.
