@@ -1,29 +1,37 @@
 import SwiftUI
+import UIKit
 
-// MARK: - Miniaturas de Bancos Cubanos
-// Código de banco en los dígitos 5–8: BPA 1299, BANDEC 0699, BANMET 9598
-
-enum BancoCubanoThumbnail: String {
-    case bpa = "bpa_miniatura"
-    case bandec = "bandec_miniatura"
-    case banmet = "banmet_miniatura"
-    
+// MARK: - Miniaturas de bancos cubanos
+// Código de banco en los dígitos 5–8: BPA 1299, BANDEC 0699, BANMET 9598.
+enum BancoCubanoThumbnail {
     static func imagen(para banco: BancoCubano) -> String? {
         switch banco {
-        case .bpa: return BancoCubanoThumbnail.bpa.rawValue
-        case .bandec: return BancoCubanoThumbnail.bandec.rawValue
-        case .banmet: return BancoCubanoThumbnail.banmet.rawValue
+        case .bpa: "bpa_miniatura"
+        case .bandec: "bandec_miniatura"
+        case .banmet: "banmet_miniatura"
         }
     }
 }
-
-// MARK: - Función interna para asignar imagen según banco
-// Basado en el modelo ShalevBanknoteThumbnail de DesignSystem.swift
 
 struct ShalevBankThumbnail: View {
     let banco: BancoCubano
     var width: CGFloat = 40
     var height: CGFloat = 24
-    
+
     var body: some View {
-        if let nombreImagen = BancoCubanoThumbnail.imagen(para: banco),\n           let uiImage = UIImage(named: nombreImagen) {\n            Image(uiImage: uiImage)\n                .resizable()\n                .scaledToFit()\n                .frame(width: width, height: height)\n                .accessibilityLabel("Logo de \(banco.nombre)")\n        } else {\n            // Fallback a SF Symbol si la imagen no existe\n            Image(systemName: "creditcard.fill")\n                .font(.shalevIcono(17, weight: .semibold))\n                .foregroundStyle(Color.shalevSecondaryText)\n                .frame(width: width, height: height)\n                .accessibilityLabel("Logo de \(banco.nombre)")\n        }\n    }\n}
+        Group {
+            if let name = BancoCubanoThumbnail.imagen(para: banco), UIImage(named: name) != nil {
+                Image(name)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: "creditcard.fill")
+                    .font(.shalevIcono(17, weight: .semibold))
+                    .foregroundStyle(Color.shalevSecondaryText)
+            }
+        }
+        .frame(width: width, height: height)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Logo de \(banco.nombre)")
+    }
+}

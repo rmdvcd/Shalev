@@ -784,6 +784,8 @@ struct LicenseView: View {
             } else {
                 secondaries = min(10, max(0, count))
             }
+        } else {
+            secondaries = store.data.settings.effectivePlannedEmployees
         }
         editingData = firstName.isBlank || lastName.isBlank || identification.isBlank || phone.isBlank
     }
@@ -802,7 +804,7 @@ struct LicenseView: View {
             profile.ownerName = "\(profile.ownerFirstName ?? "") \(profile.ownerLastName ?? "")".trimmingCharacters(in: .whitespacesAndNewlines)
             profile.identification = identification.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
             profile.licensePhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
-            try store.saveProfile(profile)
+            try store.saveProfile(profile, plannedEmployees: isExtensionFlow ? nil : secondaries)
             requestProfile.firstName = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
             requestProfile.lastName = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
             let effectiveType = isExtensionFlow ? (license.installedType ?? type) : type

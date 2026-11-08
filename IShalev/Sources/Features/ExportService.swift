@@ -462,14 +462,14 @@ struct ExportCenterView: View {
                                     [service.name, service.type, service.description,
                                      Cup(cents: service.priceCents).inputValue,
                                      service.uses.map { use in
-                                         let name = store.data.products.first(where: { $0.id == use.ingredientID })?.name ?? "Insumo"
+                                         let name = store.activeProducts.first(where: { $0.id == use.ingredientID })?.name ?? "Insumo"
                                          return "\(name): \(FixedNumber.formatMilli(use.milliUnits))"
                                      }.joined(separator: ", ")]
                                 })
         case .sales:
             return ExportReport(title: "Ventas", subtitle: subtitle,
                                 headers: ["Fecha", "Artículos", "Pago", "Total CUP", "Costo CUP", "Ganancia CUP", "Transacción", "Cliente", "Carné", "Teléfono", "Tarjeta de cobro", "Teléfono de cobro", "Vendedor", "Estado"],
-                                rows: store.data.sales.filter { sale in
+                                rows: store.activeSales.filter { sale in
                                     sale.isService ? canExportServices : canExportSales
                                 }.sorted { $0.date > $1.date }.map { sale in
                                     [sale.date.shalevDateTime, sale.lines.map { "\($0.quantity) × \($0.name)" }.joined(separator: ", "),

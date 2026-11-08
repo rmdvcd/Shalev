@@ -171,8 +171,9 @@ enum SyncCatalog {
     static let negativeStockNote = "Vendido en otra app sin existencias suficientes: revisa el conteo"
 
     static func snapshot(app: AppData, employee: LocalEmployee, license: SyncLicense, modules: [String]) throws -> [String: Any] {
-        let regular = app.products.filter { $0.kind != .ingredient }
-        let ingredients = app.products.filter { $0.kind == .ingredient }
+        let local = app.selectedLocation ?? app.locations?.first?.name ?? "Local"
+        let regular = app.products.filter { $0.kind != .ingredient && $0.localName == local }
+        let ingredients = app.products.filter { $0.kind == .ingredient && $0.localName == local }
         let products = try regular.map { product -> [String: Any] in
             var row = try AndroidBackupCodec.exportProduct(product)
             row.removeValue(forKey: "fotoData")
@@ -189,7 +190,7 @@ enum SyncCatalog {
                 ["insumoId": AndroidID.int64("ingredient", $0.ingredientID), "cantidadMil": $0.milliUnits]
             }] as [String: Any]
         }
-        let services = app.services.map { service -> [String: Any] in
+        let services = app.services.filter { $0.localName == local }.map { service -> [String: Any] in
             var row = AndroidBackupCodec.exportService(service)
             row.removeValue(forKey: "fotoData")
             if service.imageData != nil { row["fotoUri"] = photoName(for: service) }
@@ -197,19 +198,37 @@ enum SyncCatalog {
         }
         let photos = regular.filter { $0.isActive && $0.imageData != nil }.map {
             ["entidad": "producto", "id": AndroidID.int64("product", $0.id), "nombre": photoName(for: $0), "bytes": Int64($0.imageData!.count)] as [String: Any]
-        } + app.services.filter { $0.isActive && $0.imageData != nil }.map {
+        } + app.services.filter { $0.localName == local && $0.isActive && $0.imageData != nil }.map {
             ["entidad": "servicio", "id": AndroidID.int64("service", $0.id), "nombre": photoName(for: $0), "bytes": Int64($0.imageData!.count)] as [String: Any]
         }
+        let alertDefaults = app.settings.effectiveInventoryAlertDefaults
         return [
             "nombreNegocio": app.settings.profile.businessName.isEmpty ? app.settings.profile.ownerName : app.settings.profile.businessName,
             "empleado": ["nombre": employee.name, "permisos": AndroidBackupCodec.exportPermissions(employee.permissions)],
             "licencia": license.dictionary(), "productos": products, "recetas": recipes, "insumos": ingredientRows,
-            "servicios": services, "preajustes": try app.settings.priceAdjustments.map { try AndroidBackupCodec.exportAdjustment($0, app: app) },
+            "servicios": services, "preajustes": try adjustmentRows(app: app, local: local),
             "perfil": limitedProfile(app.settings.profile, employee: employee),
-            "preferencias": ["productoBajo": 5, "productoCritico": 1, "insumoBajoMil": 5_000, "insumoCriticoMil": 1_000,
-                              "modulos": modules.sorted(), "empleadosPrevistos": 0],
+            "local": local,
+            "preferencias": ["productoBajo": alertDefaults.productLowMilli / 1_000,
+                              "productoCritico": alertDefaults.productCriticalMilli / 1_000,
+                              "insumoBajoMil": alertDefaults.ingredientLowMilli,
+                              "insumoCriticoMil": alertDefaults.ingredientCriticalMilli,
+                              "modulos": modules.sorted(),
+                              "empleadosPrevistos": app.settings.effectivePlannedEmployees],
             "fotos": photos
         ]
+    }
+
+    private static func adjustmentRows(app: AppData, local: String) throws -> [[String: Any]] {
+        let localIDs = Set(app.products.filter { $0.localName == local && $0.kind != .ingredient }.map(\.id))
+            .union(app.services.filter { $0.localName == local }.map(\.id))
+        return try app.settings.priceAdjustments.compactMap { adjustment -> [String: Any]? in
+            var scoped = adjustment
+            let selectedIDs = adjustment.productIDs.map { $0.intersection(localIDs) } ?? localIDs
+            guard !selectedIDs.isEmpty else { return nil }
+            scoped.productIDs = selectedIDs
+            return try AndroidBackupCodec.exportAdjustment(scoped, app: app)
+        }
     }
 
     static func hash(_ snapshot: [String: Any]) throws -> String {
@@ -322,19 +341,32 @@ enum SyncCatalog {
 
     static func applySnapshot(_ snapshot: [String: Any], to current: AppData) throws -> AppData {
         guard let employee = snapshot["empleado"] as? [String: Any] else { throw SyncError.invalidMessage }
+        let selectedLocal = current.selectedLocation ?? current.locations?.first?.name ?? "Local"
+        let sourceLocal = AndroidBackupCodec.string(snapshot["local"]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let matchingLocal = current.locations?.first {
+            $0.name.caseInsensitiveCompare(sourceLocal) == .orderedSame
+        }?.name
+        let local = !sourceLocal.isEmpty ? (matchingLocal ?? selectedLocal) : selectedLocal
+        let localProducts = current.products.filter { $0.localName == local }
+        let localServices = current.services.filter { $0.localName == local }
         var recipes: [Int64: [[String: Any]]] = [:]
         for recipe in AndroidBackupCodec.dictionaries(snapshot["recetas"]) {
             recipes[AndroidBackupCodec.int64(recipe["productoId"])] = AndroidBackupCodec.dictionaries(recipe["lineas"])
         }
         var products = try AndroidBackupCodec.dictionaries(snapshot["productos"]).map { row -> Product in
-            let product = try AndroidBackupCodec.importProduct(row, recipe: recipes[AndroidBackupCodec.int64(row["id"])])
-            return preserveIdentity(product, current: current.products)
+            var product = try AndroidBackupCodec.importProduct(row, recipe: recipes[AndroidBackupCodec.int64(row["id"])])
+            product.localName = local
+            return preserveIdentity(product, current: localProducts)
         }
-        products += try AndroidBackupCodec.dictionaries(snapshot["insumos"]).map {
-            preserveIdentity(try AndroidBackupCodec.importIngredient($0), current: current.products)
+        products += try AndroidBackupCodec.dictionaries(snapshot["insumos"]).map { row in
+            var product = try AndroidBackupCodec.importIngredient(row)
+            product.localName = local
+            return preserveIdentity(product, current: localProducts)
         }
-        var services = AndroidBackupCodec.dictionaries(snapshot["servicios"]).map {
-            preserveIdentity(AndroidBackupCodec.importService($0), current: current.services)
+        var services = AndroidBackupCodec.dictionaries(snapshot["servicios"]).map { row in
+            var service = AndroidBackupCodec.importService(row)
+            service.localName = local
+            return preserveIdentity(service, current: localServices)
         }
         for productIndex in products.indices {
             for useIndex in products[productIndex].uses.indices {
@@ -347,26 +379,11 @@ enum SyncCatalog {
             }
         }
         var next = current
-        next.products = products
-        next.services = services
-        next.settings.priceAdjustments = AndroidBackupCodec.dictionaries(snapshot["preajustes"]).map(AndroidBackupCodec.importAdjustment)
-        for index in next.settings.priceAdjustments.indices {
-            let androidID = AndroidID.int64("adjustment", next.settings.priceAdjustments[index].id)
-            if let localID = adjustmentID(androidID: androidID, in: current.settings.priceAdjustments) {
-                next.settings.priceAdjustments[index].id = localID
-            }
-            if let ids = next.settings.priceAdjustments[index].productIDs {
-                next.settings.priceAdjustments[index].productIDs = Set(ids.compactMap {
-                    productID(androidID: AndroidID.int64("product", $0), ingredient: false, in: products)
-                })
-            }
-        }
-        let activeProductIDs = Set(products.filter { $0.isActive && $0.kind != .ingredient }.map(\.id))
-        for index in next.settings.priceAdjustments.indices {
-            if let ids = next.settings.priceAdjustments[index].productIDs {
-                next.settings.priceAdjustments[index].productIDs = ids.intersection(activeProductIDs)
-            }
-        }
+        next.products = current.products.filter { $0.localName != local } + products
+        next.services = current.services.filter { $0.localName != local } + services
+        next.settings.priceAdjustments = mergeSnapshotAdjustments(
+            AndroidBackupCodec.dictionaries(snapshot["preajustes"]), current: current.settings.priceAdjustments,
+            local: local, products: next.products, services: next.services)
         var profile = (snapshot["perfil"] as? [String: Any]).map(AndroidBackupCodec.importProfile) ?? StoreProfile()
         profile.ownerName = AndroidBackupCodec.string(employee["nombre"])
         profile.ownerFirstName = profile.ownerName
@@ -374,10 +391,27 @@ enum SyncCatalog {
         profile.identification = ""
         profile.businessName = AndroidBackupCodec.string(snapshot["nombreNegocio"], default: profile.businessName)
         next.settings.profile = profile
+        if let preferences = snapshot["preferencias"] as? [String: Any] {
+            let existing = current.settings.effectiveInventoryAlertDefaults
+            let productLow = preferences["productoBajo"].map { AndroidBackupCodec.int64($0) } ?? existing.productLowMilli / 1_000
+            let productCritical = preferences["productoCritico"].map { AndroidBackupCodec.int64($0) } ?? existing.productCriticalMilli / 1_000
+            let ingredientLow = preferences["insumoBajoMil"].map { AndroidBackupCodec.int64($0) } ?? existing.ingredientLowMilli
+            let ingredientCritical = preferences["insumoCriticoMil"].map { AndroidBackupCodec.int64($0) } ?? existing.ingredientCriticalMilli
+            if (0...999_999).contains(productLow), (0...999_999).contains(productCritical),
+               (0...999_999_000).contains(ingredientLow), (0...999_999_000).contains(ingredientCritical),
+               productCritical <= productLow, ingredientCritical <= ingredientLow {
+                next.settings.inventoryAlertDefaults = InventoryAlertDefaults(
+                    productLowMilli: productLow * 1_000, productCriticalMilli: productCritical * 1_000,
+                    ingredientLowMilli: ingredientLow, ingredientCriticalMilli: ingredientCritical)
+            }
+            let planned = preferences["empleadosPrevistos"].map { AndroidBackupCodec.int64($0) }
+                ?? Int64(current.settings.effectivePlannedEmployees)
+            if (0...10).contains(planned) { next.settings.plannedEmployees = Int(planned) }
+        }
 
         // El catálogo de la principal ya incluye lo confirmado. Solo se repiten los descuentos de ventas aún pendientes.
-        let pendingSaleIDs = Set(next.sales.filter { !$0.synced }.map(\.id))
-        let pending = next.inventoryMovements.filter { $0.saleID.map { pendingSaleIDs.contains($0) } ?? false }
+        let pendingSaleIDs = Set(next.sales.filter { !$0.synced && $0.localName == local }.map(\.id))
+        let pending = next.inventoryMovements.filter { $0.localName == local && ($0.saleID.map { pendingSaleIDs.contains($0) } ?? false) }
         for movement in pending {
             guard let index = next.products.firstIndex(where: { $0.id == movement.productID }) else { continue }
             let sum = next.products[index].stockMilli.addingReportingOverflow(movement.deltaMilli)
@@ -387,8 +421,66 @@ enum SyncCatalog {
         return next
     }
 
+    /// Reemplaza las selecciones del local sincronizado y conserva asociaciones de los demás locales.
+    private static func mergeSnapshotAdjustments(_ rows: [[String: Any]], current: [PriceAdjustment], local: String,
+                                                  products: [Product], services: [ServiceItem]) -> [PriceAdjustment] {
+        let localProducts = products.filter { $0.localName == local && $0.kind != .ingredient }
+        let localServices = services.filter { $0.localName == local }
+        let localIDs = Set(localProducts.map(\.id)).union(localServices.map(\.id))
+        var replacements: [UUID: PriceAdjustment] = [:]
+        var incomingOrder: [UUID] = []
+
+        for row in rows {
+            var incoming = AndroidBackupCodec.importAdjustment(row)
+            let androidID = AndroidBackupCodec.int64(row["id"])
+            let existing = current.first { AndroidID.int64("adjustment", $0.id) == androidID }
+            let id = existing?.id ?? incoming.id
+            let mappedIDs = Set((incoming.productIDs ?? []).compactMap { sourceID -> UUID? in
+                if let product = productID(androidID: AndroidID.int64("product", sourceID),
+                                           ingredient: false, in: localProducts) {
+                    return product
+                }
+                return serviceID(androidID: AndroidID.int64("service", sourceID), in: localServices)
+            })
+            guard !mappedIDs.isEmpty else { continue }
+            incoming.id = id
+            if let existing, let existingIDs = existing.productIDs {
+                incoming.productIDs = existingIDs.subtracting(localIDs).union(mappedIDs)
+            } else if existing?.productIDs == nil && existing != nil {
+                // Un preajuste heredado sin selección explícita sigue siendo global.
+                incoming.productIDs = nil
+            } else {
+                incoming.productIDs = mappedIDs
+            }
+            replacements[id] = incoming
+            incomingOrder.append(id)
+        }
+
+        var merged: [PriceAdjustment] = []
+        for old in current {
+            if let replacement = replacements.removeValue(forKey: old.id) {
+                merged.append(replacement)
+            } else if let oldIDs = old.productIDs {
+                let otherLocalIDs = oldIDs.subtracting(localIDs)
+                if !otherLocalIDs.isEmpty {
+                    var preserved = old
+                    preserved.productIDs = otherLocalIDs
+                    merged.append(preserved)
+                }
+            } else {
+                // Sin una selección explícita no se puede atribuirlo a un solo local: no borrar accidentalmente.
+                merged.append(old)
+            }
+        }
+        for id in incomingOrder {
+            if let addition = replacements.removeValue(forKey: id) { merged.append(addition) }
+        }
+        return merged
+    }
+
     static func pendingBatch(app: AppData) throws -> [String: Any] {
-        let shifts = try app.shifts.filter { !$0.synced && $0.employeeID == nil }.map { shift -> [String: Any] in
+        let local = app.selectedLocation ?? app.locations?.first?.name ?? "Local"
+        let shifts = try app.shifts.filter { $0.localName == local && !$0.synced && $0.employeeID == nil }.map { shift -> [String: Any] in
             var outgoing = shift
             // En una secundaria el cierre se envía primero como conteo de un turno abierto; se cierra tras aprobarlo la principal.
             if outgoing.closedAt != nil && outgoing.closingCount != nil && outgoing.closingCount?.approvedAt == nil {
@@ -397,14 +489,14 @@ enum SyncCatalog {
             return ["uuid": shift.id.uuidString.lowercased(), "turno": try AndroidBackupCodec.exportShift(outgoing, app: app)]
         }
         let reconstructed = AndroidBackupCodec.reconstructedStocks(app)
-        let sales = try app.sales.filter { !$0.synced && $0.employeeID == nil }.map { sale -> [String: Any] in
-            let movements = try app.inventoryMovements.filter { $0.saleID == sale.id }.map {
+        let sales = try app.sales.filter { $0.localName == local && !$0.synced && $0.employeeID == nil }.map { sale -> [String: Any] in
+            let movements = try app.inventoryMovements.filter { $0.localName == local && $0.saleID == sale.id }.map {
                 try AndroidBackupCodec.exportMovement($0, app: app, reconstructed: reconstructed)
             }
             return ["uuid": sale.id.uuidString.lowercased(), "turnoUuid": sale.shiftID.uuidString.lowercased(),
                     "venta": AndroidBackupCodec.exportSale(sale, app: app), "movimientos": movements]
         }
-        let cash = app.cashMovements.filter { !$0.synced }.map { movement -> [String: Any] in
+        let cash = app.cashMovements.filter { $0.localName == local && !$0.synced }.map { movement -> [String: Any] in
             ["uuid": movement.id.uuidString.lowercased(), "turnoUuid": movement.shiftID.uuidString.lowercased(),
              "mov": ["id": AndroidID.int64("cash", movement.id), "turnoId": AndroidID.int64("shift", movement.shiftID),
                      "fecha": Int64(movement.date.timeIntervalSince1970 * 1_000), "tipo": movement.kind == .income ? "ENTRADA" : "SALIDA",
@@ -417,12 +509,14 @@ enum SyncCatalog {
     /// Aplica en la principal. Cada confirmación corresponde a una fila realmente insertada/actualizada o a un duplicado.
     static func applyBatch(_ batch: [String: Any], employeeID: Int64, to current: AppData) throws -> (app: AppData, received: [String: Any]) {
         var next = current
+        let local = current.selectedLocation ?? current.locations?.first?.name ?? "Local"
         var receivedShifts: [[String: Any]] = []
         var newlyClosed = Set<UUID>()
         for wrapper in AndroidBackupCodec.dictionaries(batch["turnos"]) {
             guard let id = UUID(uuidString: AndroidBackupCodec.string(wrapper["uuid"])),
                   let row = wrapper["turno"] as? [String: Any] else { throw SyncError.invalidMessage }
             var incoming = try AndroidBackupCodec.importShift(row)
+            incoming.localName = local
             incoming.closingCount = incoming.closingCount.map { canonicalCount($0, app: next) }
             incoming.id = id; incoming.employeeID = employeeID; incoming.synced = true
             incoming.closingCount?.approvedBy = nil; incoming.closingCount?.approvedAt = nil
@@ -464,15 +558,17 @@ enum SyncCatalog {
             guard let shift = next.shifts.first(where: { $0.id == shiftID && $0.employeeID == employeeID }) else { continue }
             var sale = canonicalSale(AndroidBackupCodec.importSale(row), app: next)
             sale.id = id; sale.shiftID = shift.id; sale.employeeID = employeeID; sale.synced = true; sale.changePending = false
+            sale.localName = shift.localName ?? local
             next.sales.insert(sale, at: 0)
             if sale.customerIsFixed, let customer = sale.customer { upsertCustomer(customer, in: &next, at: sale.date) }
             for row in AndroidBackupCodec.dictionaries(wrapper["movimientos"]) {
                 var movement = try AndroidBackupCodec.importMovement(row)
                 movement.id = UUID(); movement.saleID = id; movement.shiftID = shiftID
+                movement.localName = shift.localName ?? local
                 let entityID = AndroidBackupCodec.int64(row["entidadId"])
                 let domain = AndroidBackupCodec.string(row["entidad"]) == "INSUMO" ? "ingredient" : "product"
                 guard let productIndex = next.products.firstIndex(where: {
-                    $0.id == movement.productID || AndroidID.int64(domain, $0.id) == entityID
+                    $0.localName == (shift.localName ?? local) && ($0.id == movement.productID || AndroidID.int64(domain, $0.id) == entityID)
                 }) else { continue }
                 movement.productID = next.products[productIndex].id
                 let sum = next.products[productIndex].stockMilli.addingReportingOverflow(movement.deltaMilli)
@@ -497,6 +593,7 @@ enum SyncCatalog {
             guard next.shifts.contains(where: { $0.id == shiftID && $0.employeeID == employeeID }) else { continue }
             var movement = AndroidBackupCodec.importCash(row)
             movement.id = id; movement.shiftID = shiftID; movement.synced = true
+            movement.localName = next.shifts.first(where: { $0.id == shiftID })?.localName ?? local
             if movement.amountCents <= 0 { receivedCash.append(id.uuidString.lowercased()); continue }
             movement.reason = String(movement.reason.prefix(160))
             next.cashMovements.insert(movement, at: 0)
@@ -521,7 +618,8 @@ enum SyncCatalog {
     }
 
     static func changes(for employeeID: Int64, app: AppData) -> [[String: Any]] {
-        app.sales.filter { $0.employeeID == employeeID && $0.changePending }.compactMap { sale in
+        let local = app.selectedLocation ?? app.locations?.first?.name ?? "Local"
+        return app.sales.filter { $0.localName == local && $0.employeeID == employeeID && $0.changePending }.compactMap { sale in
             var row: [String: Any] = ["uuid": sale.id.uuidString.lowercased(), "turnoUuid": sale.shiftID.uuidString.lowercased()]
             if let cancelled = sale.cancelledAt { row["anuladaEn"] = Int64(cancelled.timeIntervalSince1970 * 1_000) }
             if let reason = sale.cancellationReason { row["motivo"] = reason }
@@ -532,25 +630,30 @@ enum SyncCatalog {
     }
 
     static func applyChanges(_ changes: [[String: Any]], to current: AppData) throws -> (app: AppData, applied: [String]) {
+        let local = current.selectedLocation ?? current.locations?.first?.name ?? "Local"
         var next = current
         var applied: [String] = []
         for change in changes {
             guard let id = UUID(uuidString: AndroidBackupCodec.string(change["uuid"])),
                   let shiftID = UUID(uuidString: AndroidBackupCodec.string(change["turnoUuid"])) else { throw SyncError.invalidMessage }
+            guard let shift = next.shifts.first(where: { $0.id == shiftID }), shift.localName == local else { continue }
             if let index = next.sales.firstIndex(where: { $0.id == id }) {
+                guard next.sales[index].shiftID == shiftID, next.sales[index].localName == local else { continue }
                 if !(change["nueva"] is [String: Any]), let cancelled = AndroidBackupCodec.optionalInt64(change["anuladaEn"]), next.sales[index].cancelledAt == nil {
                     next.sales[index].isCancelled = true
                     next.sales[index].cancelledAt = Date(timeIntervalSince1970: Double(cancelled) / 1_000)
                     next.sales[index].cancellationReason = AndroidBackupCodec.optionalString(change["motivo"])
                 }
             } else if let row = change["nueva"] as? [String: Any] {
-                guard next.shifts.contains(where: { $0.id == shiftID }) else { continue }
                 var sale = canonicalSale(AndroidBackupCodec.importSale(row), app: next)
                 sale.id = id; sale.shiftID = shiftID; sale.employeeID = nil; sale.synced = true; sale.changePending = false
+                sale.localName = shift.localName
                 if let original = AndroidBackupCodec.optionalString(change["corrigeUuid"]).flatMap(UUID.init(uuidString:)) {
                     sale.correctionOfSaleID = original
                 }
                 next.sales.insert(sale, at: 0)
+            } else {
+                continue
             }
             applied.append(id.uuidString.lowercased())
         }
@@ -558,9 +661,10 @@ enum SyncCatalog {
     }
 
     static func acknowledgeChanges(_ ids: [String], employeeID: Int64, in current: AppData) -> AppData {
+        let local = current.selectedLocation ?? current.locations?.first?.name ?? "Local"
         let uuids = Set(ids.compactMap { UUID(uuidString: $0) })
         var next = current
-        for index in next.sales.indices where next.sales[index].employeeID == employeeID && uuids.contains(next.sales[index].id) {
+        for index in next.sales.indices where next.sales[index].employeeID == employeeID && next.sales[index].localName == local && uuids.contains(next.sales[index].id) {
             next.sales[index].changePending = false
         }
         return next

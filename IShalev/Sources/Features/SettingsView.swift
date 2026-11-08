@@ -4,7 +4,7 @@ import UIKit
 import LocalAuthentication
 
 private enum SettingsSheet: String, Identifiable, Equatable {
-    case license, profile, payment, prices, backup, export, employees, sync, updates, help, support, about
+    case license, profile, payment, prices, inventoryAlerts, backup, export, employees, locations, sync, updates, help, support, about
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -12,9 +12,11 @@ private enum SettingsSheet: String, Identifiable, Equatable {
         case .profile: "Perfil"
         case .payment: "Pago electrónico"
         case .prices: "Precios"
+        case .inventoryAlerts: "Avisos de inventario"
         case .backup: "Respaldo"
         case .export: "Exportar"
         case .employees: "Empleados"
+        case .locations: "Locales"
         case .sync: "Apps vinculadas"
         case .updates: "Actualizaciones"
         case .help: "Ayuda"
@@ -31,6 +33,7 @@ struct SettingsView: View {
     @ObservedObject var sync: SyncManager
     @Binding var selectedOperatorID: String
     let isAdministrator: Bool
+    var onBack: () -> Void = { }
     let canChangePrices: Bool
     let canExport: Bool
     let canExportInventory: Bool
@@ -46,8 +49,16 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 15) {
+                HStack {
+                    Button(action: onBack) {
+                        Label("Inicio", systemImage: "chevron.left")
+                            .font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
+                    }
+                    .accessibilityLabel("Volver a Inicio")
+                    Spacer()
+                }
+                .padding(.top, 8)
                 ShalevScreenTitle(title: "Ajustes")
-                    .padding(.top, 8)
                 ShalevCard(padding: 5) {
                     VStack(spacing: 0) {
                         // Mismo orden que Android. «Completar configuración» solo aparece si falta algo.
@@ -80,7 +91,13 @@ struct SettingsView: View {
                         }
                         if isAdministrator {
                             settingsDivider
+                            settingsRow("Avisos de inventario", subtitle: "Niveles bajos y críticos predeterminados", symbol: "bell.badge.fill", sheet: .inventoryAlerts)
+                        }
+                        if isAdministrator {
+                            settingsDivider
                             settingsRow("Permisos", subtitle: "Perfiles locales y qué puede hacer cada empleado", symbol: "lock.fill", sheet: .employees)
+                            settingsDivider
+                            settingsRow("Locales", subtitle: "Productos, servicios y operaciones por establecimiento", symbol: "mappin.and.ellipse", sheet: .locations)
                             settingsDivider
                             accessLockRow
                         }
@@ -124,7 +141,8 @@ struct SettingsView: View {
             canUseDeviceAuthentication = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
         }
         .sheet(isPresented: $showSetupWizard) {
-            OnboardingView(store: store, startAtData: true) { showSetupWizard = false }
+            OnboardingView(store: store, licenseManager: licenseManager, startAtData: true,
+                           onComplete: { showSetupWizard = false })
         }
         .alert("Acceso con clave", isPresented: Binding(get: { lockMessage != nil }, set: { if !$0 { lockMessage = nil } })) {
             Button("Entendido", role: .cancel) { lockMessage = nil }
@@ -142,10 +160,12 @@ struct SettingsView: View {
                         case .profile: ProfileSettingsView(store: store)
                         case .payment: PaymentSettingsView(store: store)
                         case .prices: PriceAdjustmentsView(store: store, sync: sync)
+                        case .inventoryAlerts: InventoryAlertSettingsView(store: store)
                         case .backup: BackupSettingsView(store: store)
                         case .export: ExportCenterView(store: store, canExportInventory: canExportInventory,
                                                        canExportServices: canExportServices, canExportSales: canExportSales)
                         case .employees: EmployeeSettingsView(store: store, selectedOperatorID: $selectedOperatorID)
+                        case .locations: LocationSettingsView(store: store, sync: sync)
                         case .sync: SyncView(sync: sync)
                         case .updates: UpdatesView()
                         case .help: HelpView()
@@ -525,7 +545,7 @@ private struct PaymentTarget: Identifiable {
 
 /// Identificación visual orientativa por el código de banco (dígitos 5–8), igual que en Android.
 /// Los 4 primeros dígitos indican moneda y producto, no el banco.
-private enum BancoCubano: String, CaseIterable {
+enum BancoCubano: String, CaseIterable {
     case bpa, bandec, banmet
 
     var nombre: String {
@@ -732,7 +752,7 @@ private struct PaymentSettingsView: View {
         .background(selected ? Color.shalevPrimaryContainer : Color.shalevSurface)
     }
 
-    private func floatingAdd: some View {
+    private var floatingAdd: some View {
         VStack(alignment: .trailing, spacing: 10) {
             if expanded {
                 addPill("Tarjeta o cuenta", symbol: "creditcard.fill") {
@@ -1006,7 +1026,13 @@ private struct PriceAdjustmentsView: View {
     @State private var showCreate = false
     @State private var errorMessage: String?
 
-    private var adjustments: [PriceAdjustment] { store.data.settings.priceAdjustments }
+    private var adjustments: [PriceAdjustment] {
+        let activeIDs = Set(store.activeProducts.map(\.id) + store.activeServices.map(\.id))
+        return store.data.settings.priceAdjustments.filter { adjustment in
+            guard let productIDs = adjustment.productIDs else { return true }
+            return !productIDs.isDisjoint(with: activeIDs)
+        }
+    }
     private var hasArticles: Bool { !store.activeProducts.isEmpty || !store.activeServices.isEmpty }
 
     var body: some View {
@@ -1142,6 +1168,7 @@ private struct PriceAdjustmentEditor: View {
     @State private var method: PaymentMethod?
     @State private var productIDs: Set<UUID>
     @State private var articleType: PriceAdjustmentArticleType
+    @AppStorage("shalev.module.sales") private var salesEnabled = true
     @AppStorage("shalev.module.inventory") private var inventoryEnabled = true
     @AppStorage("shalev.module.services") private var servicesEnabled = true
     @State private var errorMessage: String?
@@ -1814,7 +1841,7 @@ private struct HelpView: View {
 
     private static let topics: [HelpTopic] = [
         HelpTopic(title: "Primeros pasos", steps: [
-            "Abajo tienes 5 botones: Inicio, Inventario, Servicios, Registros y Ajustes.",
+            "Abajo tienes cinco botones: Inicio, Inventario, Servicios, Registros y Herramientas. Ajustes se abre desde Inicio.",
             "Toca una sección de la barra para cambiar de pantalla.",
             "En Ajustes → Completar configuración escribe tus datos y elige los avisos.",
             "Tienes 7 días de prueba gratis. Después hace falta una licencia.",
@@ -2108,5 +2135,204 @@ private struct BackupInputStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration.font(.shalev(15)).padding(12)
             .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+    }
+}
+
+@MainActor
+struct LocationSettingsView: View {
+    @ObservedObject var store: ShalevStore
+    @ObservedObject var sync: SyncManager
+    @State private var editingName: String?
+    @State private var draftName = ""
+    @State private var errorMessage: String?
+    @State private var deleteTarget: String?
+
+    var body: some View {
+        Form {
+            locationList
+            locationEditor
+        }
+        .disabled(sync.isBusy)
+        .scrollContentBackground(.hidden)
+        .background(Color.shalevBackground)
+        .navigationTitle("Locales")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("No se pudo guardar el local", isPresented: errorAlertPresented) {
+            Button("Entendido", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
+        }
+        .confirmationDialog("¿Eliminar \(deleteTarget ?? "este local")?", isPresented: deleteAlertPresented, titleVisibility: .visible) {
+            Button("Eliminar y reasignar datos", role: .destructive) {
+                guard let target = deleteTarget else { return }
+                do { try store.deleteLocation(target) }
+                catch { errorMessage = error.localizedDescription }
+                deleteTarget = nil
+            }
+            Button("Cancelar", role: .cancel) { deleteTarget = nil }
+        } message: {
+            Text("El local dejará de aparecer, pero sus productos, ventas y movimientos se conservarán en otro local.")
+        }
+    }
+
+    private var errorAlertPresented: Binding<Bool> {
+        Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+    }
+
+    private var deleteAlertPresented: Binding<Bool> {
+        Binding(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } })
+    }
+
+    private var locationList: some View {
+        Section {
+            ForEach(store.locations) { location in
+                HStack(spacing: 12) {
+                    Button {
+                        guard store.openShift == nil || location.name == store.activeLocationName else { return }
+                        do { try store.selectLocation(location.name) }
+                        catch { errorMessage = error.localizedDescription }
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(location.name).foregroundStyle(Color.shalevText)
+                                if location.name == store.activeLocationName {
+                                    Text("Local activo").font(.caption).foregroundStyle(Color.shalevPrimary)
+                                }
+                            }
+                            Spacer()
+                            if location.name == store.activeLocationName {
+                                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.shalevPrimary)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(store.openShift != nil && location.name != store.activeLocationName)
+
+                    Button {
+                        editingName = location.name
+                        draftName = location.name
+                    } label: {
+                        Image(systemName: "pencil").foregroundStyle(Color.shalevPrimary)
+                    }
+                    .accessibilityLabel("Renombrar \(location.name)")
+
+                    Button(role: .destructive) { deleteTarget = location.name } label: {
+                        Image(systemName: "trash")
+                    }
+                    .accessibilityLabel("Eliminar \(location.name)")
+                    .disabled(store.locations.count < 2)
+                }
+                .padding(.vertical, 3)
+            }
+        } header: {
+            Text("Locales")
+        } footer: {
+            Text("Cambiar de local se desactiva mientras haya un turno abierto. Al renombrar, todas sus operaciones conservan su asociación. Al eliminar, sus datos se reasignan al primer local restante; no se borran ventas ni movimientos.")
+        }
+    }
+
+    private var locationEditor: some View {
+        Section {
+            TextField("Nombre del local", text: $draftName)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+            HStack {
+                if editingName != nil {
+                    Button("Cancelar", role: .cancel) { resetEditor() }
+                }
+                Spacer()
+                Button(editingName == nil ? "Añadir" : "Guardar") { saveLocation() }
+                    .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        } header: {
+            Text(editingName == nil ? "Añadir local" : "Renombrar local")
+        }
+    }
+
+    private func saveLocation() {
+        do {
+            try store.saveLocation(draftName, replacing: editingName)
+            resetEditor()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func resetEditor() {
+        editingName = nil
+        draftName = ""
+    }
+}
+
+@MainActor
+private struct InventoryAlertSettingsView: View {
+    @ObservedObject var store: ShalevStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var productLow = ""
+    @State private var productCritical = ""
+    @State private var ingredientLow = ""
+    @State private var ingredientCritical = ""
+    @State private var errorMessage: String?
+
+    init(store: ShalevStore) {
+        self.store = store
+        let defaults = store.data.settings.effectiveInventoryAlertDefaults
+        _productLow = State(initialValue: FixedNumber.formatMilli(defaults.productLowMilli))
+        _productCritical = State(initialValue: FixedNumber.formatMilli(defaults.productCriticalMilli))
+        _ingredientLow = State(initialValue: FixedNumber.formatMilli(defaults.ingredientLowMilli))
+        _ingredientCritical = State(initialValue: FixedNumber.formatMilli(defaults.ingredientCriticalMilli))
+    }
+
+    var body: some View {
+        Form {
+            Section("Productos") {
+                TextField("Nivel bajo (unidades)", text: $productLow)
+                    .keyboardType(.numberPad)
+                TextField("Nivel crítico (unidades)", text: $productCritical)
+                    .keyboardType(.numberPad)
+            }
+            Section("Insumos") {
+                TextField("Nivel bajo (cantidad)", text: $ingredientLow)
+                    .keyboardType(.decimalPad)
+                TextField("Nivel crítico (cantidad)", text: $ingredientCritical)
+                    .keyboardType(.decimalPad)
+            }
+            Section {
+                Text("Se usan como valores iniciales al crear artículos. Los niveles de los artículos existentes no cambian. Crítico debe ser menor o igual que bajo.")
+                    .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.shalevBackground)
+        .navigationTitle("Avisos de inventario")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Guardar", action: save).fontWeight(.semibold)
+            }
+        }
+        .alert("No se guardaron los niveles", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("Entendido", role: .cancel) { errorMessage = nil }
+        } message: { Text(errorMessage ?? "") }
+    }
+
+    private func save() {
+        guard let productLowValue = Int64(productLow), (0...999_999).contains(productLowValue),
+              let productCriticalValue = Int64(productCritical), (0...999_999).contains(productCriticalValue),
+              let ingredientLowValue = FixedNumber.parse(ingredientLow, multiplier: 1_000),
+              let ingredientCriticalValue = FixedNumber.parse(ingredientCritical, multiplier: 1_000) else {
+            errorMessage = "Escribe cantidades válidas; los niveles de productos deben ser números enteros."
+            return
+        }
+        let defaults = InventoryAlertDefaults(productLowMilli: productLowValue * 1_000,
+            productCriticalMilli: productCriticalValue * 1_000,
+            ingredientLowMilli: ingredientLowValue, ingredientCriticalMilli: ingredientCriticalValue)
+        do {
+            try store.saveInventoryAlertDefaults(defaults)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }

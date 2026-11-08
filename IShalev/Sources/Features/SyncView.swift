@@ -285,7 +285,7 @@ private struct SyncLinkedAppRow: View {
     @State private var confirmRemove = false
     @State private var errorMessage: String?
 
-    private var remoteShift: Shift? { sync.store.data.shifts.first(where: { $0.employeeID == employee.syncID && $0.closedAt == nil }) }
+    private var remoteShift: Shift? { sync.store.activeShifts.first(where: { $0.employeeID == employee.syncID && $0.closedAt == nil }) }
     private var isConnected: Bool { sync.connectedEmployeeIDs.contains(employee.syncID ?? 0) }
 
     private var statusLine: String {

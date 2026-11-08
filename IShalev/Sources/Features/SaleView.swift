@@ -307,10 +307,10 @@ struct SaleComposerView: View {
     private func availabilityText(_ draft: CartDraft) -> String {
         let ceiling = store.maxAllowedQuantity(kind: itemKind, sourceID: draft.sourceID, in: cart)
         if itemKind == .product {
-            let kind = store.data.products.first(where: { $0.id == draft.sourceID })?.kind
+            let kind = store.activeProducts.first(where: { $0.id == draft.sourceID })?.kind
             return kind == .prepared ? " · Alcanza para \(ceiling)" : " · Máx. \(ceiling)"
         }
-        let service = store.data.services.first(where: { $0.id == draft.sourceID })
+        let service = store.activeServices.first(where: { $0.id == draft.sourceID })
         return (service?.uses.isEmpty ?? true) ? "" : " · Alcanza para \(ceiling)"
     }
 
@@ -594,15 +594,15 @@ struct SaleComposerView: View {
 
     private func lineName(for draft: CartDraft) -> String {
         switch draft.kind {
-        case .product: store.data.products.first(where: { $0.id == draft.sourceID })?.name ?? "Artículo"
-        case .service: store.data.services.first(where: { $0.id == draft.sourceID })?.name ?? "Servicio"
+        case .product: store.activeProducts.first(where: { $0.id == draft.sourceID })?.name ?? "Artículo"
+        case .service: store.activeServices.first(where: { $0.id == draft.sourceID })?.name ?? "Servicio"
         }
     }
 
     private func basePrice(for draft: CartDraft) -> Int64 {
         switch draft.kind {
-        case .product: store.data.products.first(where: { $0.id == draft.sourceID })?.priceCents ?? 0
-        case .service: store.data.services.first(where: { $0.id == draft.sourceID })?.priceCents ?? 0
+        case .product: store.activeProducts.first(where: { $0.id == draft.sourceID })?.priceCents ?? 0
+        case .service: store.activeServices.first(where: { $0.id == draft.sourceID })?.priceCents ?? 0
         }
     }
 

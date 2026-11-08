@@ -15,6 +15,12 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+private open class ClosingWebSocketListener : WebSocketListener() {
+    override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+        webSocket.close(1000, null)
+    }
+}
+
 class RelaySyncTest {
     @Test fun endpointSoloHttpsSinCredencialesRutaNiParametros() {
         assertEquals("https://relay.example", RelaySync.validarEndpoint("https://relay.example/"))
@@ -34,7 +40,7 @@ class RelaySyncTest {
     }
     @Test fun recibeBytesSinDependerDeLosLimitesDeMensajesWebsocket() {
         MockWebServer().use { server ->
-            server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+            server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
                     webSocket.send("ready")
                     webSocket.send(byteArrayOf(1, 2).toByteString())
@@ -49,7 +55,7 @@ class RelaySyncTest {
     }
     @Test fun cerrarDespiertaLectorBloqueado() {
         MockWebServer().use { server ->
-            server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+            server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) { webSocket.send("ready") }
             }))
             val executor = Executors.newSingleThreadExecutor()
@@ -65,7 +71,7 @@ class RelaySyncTest {
     @Test fun cierreOrdenadoNoPierdeUltimaRespuesta() {
         MockWebServer().use { server ->
             val recibido = CountDownLatch(1)
-            server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+            server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) { webSocket.send("ready") }
                 override fun onMessage(webSocket: WebSocket, bytes: okio.ByteString) {
                     if (bytes == byteArrayOf(7, 8).toByteString()) recibido.countDown()
@@ -79,7 +85,7 @@ class RelaySyncTest {
     }
     @Test(expected = IOException::class) fun sinReadyNoAbreCanal() {
         MockWebServer().use { server ->
-            server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {}))
+            server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {}))
             SocketRelay.abrir(server.url("/").toString(), 100).close()
         }
     }

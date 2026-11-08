@@ -77,6 +77,13 @@ class AlmacenSync @Inject constructor(
             s.toDomain().toDto(lineasServicio[s.id].orEmpty().filter { it.insumoId in idsInsumos })
         }
         val idsProductos = productos.map { it.id }.toSet()
+        val idsServicios = servicios.map { it.id }.toSet()
+        val preajustesLocales = db.preciosDao().todos().map { it.toDomain() }.mapNotNull { ajuste ->
+            val productosLocal = ajuste.productoIds.intersect(idsProductos)
+            val serviciosLocal = ajuste.servicioIds.intersect(idsServicios)
+            if (productosLocal.isEmpty() && serviciosLocal.isEmpty()) null
+            else ajuste.copy(productoIds = productosLocal, servicioIds = serviciosLocal).toDto()
+        }
         Instantanea(
             nombreNegocio = nombreNegocio,
             empleado = EmpleadoInfo(empleado.nombre, PermisoEmpleado.deNombres(empleado.permisos.split(',')).map { it.name }.sorted()),
@@ -87,7 +94,7 @@ class AlmacenSync @Inject constructor(
                 .groupBy { it.productoId }.map { (id, l) -> l.toReceta(id).toDto() },
             insumos = insumos.map { it.toDomain().toDto() },
             servicios = servicios,
-            preajustes = db.preciosDao().todos().map { it.toDomain().toDto() },
+            preajustes = preajustesLocales,
             // Solo lo necesario para cobrar por transferencia: ni nombre ni carné del dueño, y (0.20.0, H4) solo la
             // tarjeta y el teléfono con los que cobra ESTE empleado.
             perfil = perfil.paraEmpleado(empleado.tarjetaId, empleado.telefonoId, empleado.telefono).toDto().copy(nombre = "", apellidos = "", ci = ""),
@@ -97,6 +104,7 @@ class AlmacenSync @Inject constructor(
                 productos.filterNot { it.eliminado }.map { Triple("producto", it.id, it.fotoUri) } +
                     db.servicioDao().todos().filter { it.local == local && !it.eliminado }.map { Triple("servicio", it.id, it.fotoUri) },
             ),
+            local = local,
         )
     }
 
