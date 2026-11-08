@@ -26,6 +26,32 @@ final class DomainParityTests: XCTestCase {
         return ShalevStore(storage: MemoryStorage(initial))
     }
 
+    func testLocationsScopeCatalogAndBlockSwitchUntilShiftCloses() throws {
+        let centerProduct = product(name: "Agua Centro")
+        let northProduct = product(name: "Agua Norte")
+        var initial = AppData.empty
+        initial.locations = [BusinessLocation(name: "Centro"), BusinessLocation(name: "Norte")]
+        initial.selectedLocation = "Centro"
+        initial.products = [centerProduct, northProduct].enumerated().map { index, item in
+            var item = item
+            item.localName = index == 0 ? "Centro" : "Norte"
+            return item
+        }
+        initial.shifts = [Shift(openingCashCents: 0, localName: "Centro")]
+        let store = ShalevStore(storage: MemoryStorage(initial))
+
+        XCTAssertEqual(store.activeProducts.map(\.id), [centerProduct.id])
+        XCTAssertThrowsError(try store.selectLocation("Norte")) {
+            XCTAssertEqual($0 as? BusinessError, .shiftAlreadyOpen)
+        }
+        try store.closeShift(countedCashCents: 0)
+        try store.selectLocation("Norte")
+        XCTAssertEqual(store.activeProducts.map(\.id), [northProduct.id])
+        try store.saveLocation("Norte Sur", replacing: "Norte")
+        XCTAssertEqual(store.activeLocationName, "Norte Sur")
+        XCTAssertEqual(store.activeProducts.first?.localName, "Norte Sur")
+    }
+
     private func customer(id: UUID = UUID(), identification: String = "00110112345") -> Customer {
         Customer(id: id, name: "  Ana   Pérez ", identification: identification, phone: "52123456")
     }
@@ -262,6 +288,54 @@ final class DomainParityTests: XCTestCase {
         let decoded = try BackupCodec.decode(BackupCodec.encode(initial, password: "clave-segura"), password: "clave-segura")
         XCTAssertEqual(decoded.shifts[0].closingCount?.cashCents, 12_300)
         XCTAssertEqual(decoded.shifts[0].closingCount?.bills[100], 1)
+    }
+
+    func testPriceAdjustmentEditsAndDeletionStayInsideSelectedLocation() throws {
+        let center = product(name: "Agua Centro")
+        var north = product(name: "Agua Norte")
+        north.localName = "Norte"
+        let existing = PriceAdjustment(name: "Precio especial", basisPoints: -500,
+            productIDs: [center.id, north.id])
+        var initial = AppData.empty
+        initial.locations = [BusinessLocation(name: "Centro"), BusinessLocation(name: "Norte")]
+        initial.selectedLocation = "Centro"
+        initial.products = [center, north]
+        initial.settings.priceAdjustments = [existing]
+        let store = ShalevStore(storage: MemoryStorage(initial))
+
+        try store.savePriceAdjustment(PriceAdjustment(id: existing.id, name: existing.name,
+            basisPoints: -1_000, productIDs: [center.id]))
+        XCTAssertEqual(store.data.settings.priceAdjustments.first?.productIDs, Set([center.id, north.id]))
+
+        try store.deletePriceAdjustment(existing.id)
+        XCTAssertEqual(store.data.settings.priceAdjustments.first?.productIDs, Set([north.id]))
+        try store.selectLocation("Norte")
+        try store.deletePriceAdjustment(existing.id)
+        XCTAssertTrue(store.data.settings.priceAdjustments.isEmpty)
+    }
+
+    func testInventoryAlertDefaultValidationAndPersistence() throws {
+        let store = makeStore()
+        let defaults = InventoryAlertDefaults(productLowMilli: 9_000, productCriticalMilli: 3_000,
+            ingredientLowMilli: 14_500, ingredientCriticalMilli: 2_500)
+        try store.saveInventoryAlertDefaults(defaults)
+        try store.saveProfile(store.data.settings.profile, plannedEmployees: 2)
+        XCTAssertEqual(store.data.settings.effectiveInventoryAlertDefaults, defaults)
+        let restored = try BackupCodec.decode(BackupCodec.encode(store.data, password: "local-prefs-9"), password: "local-prefs-9")
+        XCTAssertEqual(restored.settings.effectiveInventoryAlertDefaults, defaults)
+        XCTAssertEqual(restored.settings.effectivePlannedEmployees, 2)
+
+        XCTAssertThrowsError(try store.saveInventoryAlertDefaults(InventoryAlertDefaults(
+            productLowMilli: 2_000, productCriticalMilli: 3_000))) {
+            XCTAssertEqual($0 as? BusinessError, .invalidInventoryAlertDefaults)
+        }
+        XCTAssertThrowsError(try store.saveInventoryAlertDefaults(InventoryAlertDefaults(
+            productLowMilli: 5_500, productCriticalMilli: 1_000))) {
+            XCTAssertEqual($0 as? BusinessError, .invalidInventoryAlertDefaults)
+        }
+        XCTAssertThrowsError(try store.saveProfile(store.data.settings.profile, plannedEmployees: 11)) {
+            XCTAssertEqual($0 as? BusinessError, .invalidPlannedEmployees)
+        }
     }
 
     func testSharedIngredientCapacityAndCashOutflowGuards() throws {

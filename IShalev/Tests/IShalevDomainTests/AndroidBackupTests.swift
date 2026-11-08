@@ -16,6 +16,26 @@ final class AndroidBackupTests: XCTestCase {
     private let androidV3 = Data(base64Encoded: "U1BWSUJBSwMAAAGgxFBsAAAEuvAAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobAAAAAAAAAFsWCsHn7BpQmVeRA6U9ob41BNLfHcorI4TN6pJl7TSBFntcuo5xxFUYaxzwCcyw1LNgfILK5nP/PFjyRaLDyIrEw0JtMEwXjNL9G8f7CtoIWyZ1woIrlR2Y86DP6ZkT6+ew0xMfPkHvefKtW9F98l0R/41VH7RgG2yqJ6g=")!
     private let androidWithoutPassword = Data(base64Encoded: "U1BWSUJBSwQAAAABoMRQbAAAACcQAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGwAAAAAAAABbybPCLze62eDyFogM8cJ4ZQUMIelvSe54F8j1uxUaM5lrCH5alZEGhT7/q9yH+SJLk0yk7DBQig+w536sJsDuRLkSVSQBA0/hHM2WFcH07rUsOK09KGSGyCbDlh1jvtXAHdzOlIpO2aJPYIHoaZPmgNOThOxZxUCGj2AN")!
 
+    func testInventoryAlertDefaultsRoundTripAndLegacyFallback() throws {
+        var app = AppData.empty
+        app.settings.inventoryAlertDefaults = InventoryAlertDefaults(productLowMilli: 8_000,
+            productCriticalMilli: 2_000, ingredientLowMilli: 12_500, ingredientCriticalMilli: 2_500)
+        app.settings.plannedEmployees = 2
+        let json = try AndroidBackupCodec.jsonForExport(app)
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: json) as? [String: Any])
+        let preferences = try XCTUnwrap(root["preferencias"] as? [String: Any])
+        XCTAssertEqual(AndroidBackupCodec.int64(preferences["productoBajo"]), 8)
+        XCTAssertEqual(AndroidBackupCodec.int64(preferences["insumoBajoMil"]), 12_500)
+        XCTAssertEqual(AndroidBackupCodec.int64(preferences["empleadosPrevistos"]), 2)
+        let restored = try AndroidBackupCodec.appFromJSON(json)
+        XCTAssertEqual(restored.settings.effectiveInventoryAlertDefaults, app.settings.effectiveInventoryAlertDefaults)
+        XCTAssertEqual(restored.settings.effectivePlannedEmployees, 2)
+
+        let legacy = try AndroidBackupCodec.appFromJSON(Data(#"{"formato":"spvi-respaldo","version":4}"#.utf8))
+        XCTAssertNil(legacy.settings.inventoryAlertDefaults)
+        XCTAssertEqual(legacy.settings.effectiveInventoryAlertDefaults, .recommended)
+    }
+
     func testReadsAndroidV4AndPreservesUnitsMoneyRecipesAndClosing() throws {
         XCTAssertTrue(AndroidBackupCodec.isAndroidBackup(androidV4))
         XCTAssertTrue(AndroidBackupCodec.requiresPassword(androidV4))
@@ -77,6 +97,27 @@ final class AndroidBackupTests: XCTestCase {
         XCTAssertEqual(restored.sales.first?.id, sale.id)
         XCTAssertEqual(restored.sales.first?.totalCents, 7_500)
         XCTAssertEqual(restored.shifts.first?.closingCount?.inventory.count, 2)
+    }
+
+    func testAndroidBackupPreservesLocalListSelectionAndRecordOwnership() throws {
+        var app = AppData.empty
+        app.locations = [
+            BusinessLocation(name: "Centro", inventoryEnabled: true, servicesEnabled: true),
+            BusinessLocation(name: "Norte")
+        ]
+        app.selectedLocation = "Centro"
+        app.products = [
+            Product(name: "Agua Centro", localName: "Centro"),
+            Product(name: "Agua Norte", localName: "Norte")
+        ]
+
+        let json = try AndroidBackupCodec.jsonForExport(app)
+        let restored = try AndroidBackupCodec.appFromJSON(json)
+        XCTAssertEqual(restored.selectedLocation, "Centro")
+        XCTAssertEqual(Set(restored.locations?.map(\.name) ?? []), ["Centro", "Norte"])
+        XCTAssertEqual(restored.products.first(where: { $0.name == "Agua Centro" })?.localName, "Centro")
+        XCTAssertEqual(restored.products.first(where: { $0.name == "Agua Norte" })?.localName, "Norte")
+        XCTAssertEqual(restored.locations?.first(where: { $0.name == "Centro" })?.inventoryEnabled, true)
     }
 
     func testReadsLegacyV3AndAndroidFilesWithoutUserPassword() throws {

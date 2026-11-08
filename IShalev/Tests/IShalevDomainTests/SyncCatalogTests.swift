@@ -25,6 +25,7 @@ final class SyncCatalogTests: XCTestCase {
             reason: "Venta", saleID: sale.id, shiftID: shift.id, resultingStockMilli: 8_000, actorName: "Luis")]
         app.cashMovements = [CashMovement(shiftID: shift.id, kind: .income, amountCents: 50, reason: "Propina")]
         app.products[0].stockMilli = 8_000
+        app.normalizeLocations()
         return (app, product, shift, sale)
     }
 
@@ -59,11 +60,21 @@ final class SyncCatalogTests: XCTestCase {
     }
 
     func testSnapshotReappliesOnlyUnconfirmedSaleMovements() throws {
-        let fixture = self.fixture()
+        var fixture = self.fixture()
+        let alertDefaults = InventoryAlertDefaults(productLowMilli: 7_000, productCriticalMilli: 2_000,
+            ingredientLowMilli: 9_500, ingredientCriticalMilli: 1_500)
+        fixture.app.settings.inventoryAlertDefaults = alertDefaults
+        fixture.app.settings.plannedEmployees = 3
         let employee = LocalEmployee(name: "Luis", permissions: [], syncID: 7)
         let snapshot = try SyncCatalog.snapshot(app: fixture.app, employee: employee,
             license: SyncLicense(clase: "PERPETUA"), modules: ["VENTAS", "INVENTARIO"])
-        let withPending = try SyncCatalog.applySnapshot(snapshot, to: fixture.app)
+        let preferences = try XCTUnwrap(snapshot["preferencias"] as? [String: Any])
+        XCTAssertEqual(AndroidBackupCodec.int64(preferences["productoBajo"]), 7)
+        var replica = fixture.app
+        replica.settings.inventoryAlertDefaults = .recommended
+        let withPending = try SyncCatalog.applySnapshot(snapshot, to: replica)
+        XCTAssertEqual(withPending.settings.effectiveInventoryAlertDefaults, alertDefaults)
+        XCTAssertEqual(withPending.settings.effectivePlannedEmployees, 3)
         XCTAssertEqual(withPending.products[0].stockMilli, 6_000)
         XCTAssertEqual(withPending.products[0].id, fixture.product.id)
         XCTAssertEqual(withPending.settings.profile.ownerName, "Luis")
@@ -77,6 +88,65 @@ final class SyncCatalogTests: XCTestCase {
         confirmed.sales[0].synced = true
         let applied = try SyncCatalog.applySnapshot(currentSnapshot, to: confirmed)
         XCTAssertEqual(applied.products[0].stockMilli, 8_000)
+    }
+
+    func testSyncIsScopedToActiveLocationAndSnapshotKeepsOtherCatalogs() throws {
+        var fixture = self.fixture()
+        let other = Product(name: "Café Norte", localName: "Norte", stockMilli: 3_000, priceCents: 200)
+        fixture.app.locations = [BusinessLocation(name: "Local"), BusinessLocation(name: "Norte")]
+        fixture.app.selectedLocation = "Local"
+        fixture.app.products.append(other)
+        fixture.app.normalizeLocations()
+
+        let employee = LocalEmployee(name: "Luis", permissions: [], syncID: 7)
+        let snapshot = try SyncCatalog.snapshot(app: fixture.app, employee: employee,
+            license: SyncLicense(clase: "PERPETUA"), modules: ["VENTAS"])
+        XCTAssertEqual(AndroidBackupCodec.dictionaries(snapshot["productos"]).count, 1)
+        let updated = try SyncCatalog.applySnapshot(snapshot, to: fixture.app)
+        XCTAssertEqual(updated.products.count, 2)
+        XCTAssertEqual(updated.products.first(where: { $0.id == other.id })?.localName, "Norte")
+        XCTAssertEqual(AndroidBackupCodec.dictionaries(try SyncCatalog.pendingBatch(app: updated)["ventas"]).count, 1)
+
+        var northReplica = fixture.app
+        northReplica.selectedLocation = "Norte"
+        let mapped = try SyncCatalog.applySnapshot(snapshot, to: northReplica)
+        XCTAssertEqual(mapped.selectedLocation, "Norte")
+        XCTAssertEqual(mapped.products.first(where: { $0.name == "Agua" })?.localName, "Local")
+        var olderSnapshot = snapshot
+        olderSnapshot.removeValue(forKey: "local")
+        let backwardCompatible = try SyncCatalog.applySnapshot(olderSnapshot, to: northReplica)
+        XCTAssertNotNil(backwardCompatible.products.first(where: { $0.name == "Agua" && $0.localName == "Norte" }))
+
+        var north = updated
+        north.selectedLocation = "Norte"
+        XCTAssertEqual(AndroidBackupCodec.dictionaries(try SyncCatalog.pendingBatch(app: north)["ventas"]).count, 0)
+    }
+
+    func testSnapshotAndApplyAdjustmentsAreScopedWithoutLosingOtherLocations() throws {
+        let localProduct = Product(name: "Agua Centro", localName: "Centro", priceCents: 100)
+        let northProduct = Product(name: "Agua Norte", localName: "Norte", priceCents: 200)
+        var app = AppData.empty
+        app.locations = [BusinessLocation(name: "Centro"), BusinessLocation(name: "Norte")]
+        app.selectedLocation = "Centro"
+        app.products = [localProduct, northProduct]
+        let shared = PriceAdjustment(name: "Efectivo", basisPoints: -500,
+            productIDs: [localProduct.id, northProduct.id])
+        let northOnly = PriceAdjustment(name: "Solo Norte", basisPoints: 1_000, productIDs: [northProduct.id])
+        app.settings.priceAdjustments = [shared, northOnly]
+
+        let snapshot = try SyncCatalog.snapshot(app: app,
+            employee: LocalEmployee(name: "Luis", permissions: [], syncID: 7),
+            license: SyncLicense(clase: "PERPETUA"), modules: ["VENTAS"])
+        let rows = AndroidBackupCodec.dictionaries(snapshot["preajustes"])
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual((rows[0]["productoIds"] as? [Int64])?.count, 1)
+
+        let received = try SyncCatalog.applySnapshot(snapshot, to: app)
+        XCTAssertEqual(received.settings.priceAdjustments.count, 2)
+        XCTAssertEqual(received.settings.priceAdjustments.first(where: { $0.id == shared.id })?.productIDs,
+                       Set([localProduct.id, northProduct.id]))
+        XCTAssertEqual(received.settings.priceAdjustments.first(where: { $0.id == northOnly.id })?.productIDs,
+                       Set([northProduct.id]))
     }
 
     func testApprovedCountSurvivesAndroidIDsAndMillisecondDates() throws {

@@ -118,7 +118,7 @@ struct RecordsView: View {
     @State private var showFilterSheet = false
 
     private var sales: [Sale] {
-        store.data.sales.filter { sale in
+        store.activeSales.filter { sale in
             guard sale.isService ? canViewServices : canViewSales else { return false }
             return switch selectedTab {
             case .sales: !sale.isService
@@ -136,12 +136,12 @@ struct RecordsView: View {
     }
 
     private var movements: [MovementRecord] {
-        let inventory = canViewInventory ? store.data.inventoryMovements.map { movement in
+        let inventory = canViewInventory ? store.activeInventoryMovements.map { movement in
             MovementRecord(id: movement.id.uuidString, date: movement.date, title: movement.productName,
                            detail: "\(movement.reason) · \(FixedNumber.formatMilli(movement.deltaMilli))", amountCents: nil,
                            isNegative: movement.deltaMilli < 0)
         } : []
-        let cash = canManageCash ? store.data.cashMovements.map { movement in
+        let cash = canManageCash ? store.activeCashMovements.map { movement in
             MovementRecord(id: movement.id.uuidString, date: movement.date,
                            title: movement.kind.rawValue + " de caja",
                            detail: movement.reason,
@@ -168,7 +168,7 @@ struct RecordsView: View {
     }
 
     private var shifts: [Shift] {
-        store.data.shifts.filter { shift in
+        store.activeShifts.filter { shift in
             filter.contains(shift.openedAt)
         }.filter { shift in
             search.isEmpty || shift.openedAt.shalevDate.localizedCaseInsensitiveContains(search)
@@ -352,10 +352,10 @@ struct RecordsView: View {
                                 })
         case .movements:
             let headers = ["Fecha", "Tipo", "Detalle", "Variación", "Importe CUP"]
-            let inventoryRows: [[String]] = canViewInventory ? store.data.inventoryMovements.filter {
+            let inventoryRows: [[String]] = canViewInventory ? store.activeInventoryMovements.filter {
                 search.isEmpty || $0.productName.localizedCaseInsensitiveContains(search) || $0.reason.localizedCaseInsensitiveContains(search)
             }.map { [ $0.date.shalevDateTime, "Inventario", "\($0.productName) · \($0.reason)", FixedNumber.formatMilli($0.deltaMilli), "" ] } : []
-            let cashRows: [[String]] = canManageCash ? store.data.cashMovements.filter {
+            let cashRows: [[String]] = canManageCash ? store.activeCashMovements.filter {
                 search.isEmpty || $0.reason.localizedCaseInsensitiveContains(search) || $0.kind.rawValue.localizedCaseInsensitiveContains(search)
             }.map { [ $0.date.shalevDateTime, "Caja · \($0.kind.rawValue)", $0.reason, "", Cup(cents: $0.amountCents).inputValue ] } : []
             return ExportReport(title: "Movimientos", subtitle: subtitle, headers: headers, rows: inventoryRows + cashRows)
@@ -755,7 +755,7 @@ private struct SaleDetailView: View {
     }
 
     private var canModify: Bool {
-        allowModifications && !sale.isCancelled && store.data.shifts.contains(where: { $0.id == sale.shiftID && $0.closedAt == nil })
+        allowModifications && !sale.isCancelled && store.activeShifts.contains(where: { $0.id == sale.shiftID && $0.closedAt == nil })
     }
 
     private func cancelSale() {
@@ -1046,10 +1046,10 @@ private struct ShiftDetailView: View {
     @ObservedObject var store: ShalevStore
     @Environment(\.dismiss) private var dismiss
 
-    private var shiftSales: [Sale] { store.data.sales.filter { $0.shiftID == shift.id && !$0.isCancelled } }
+    private var shiftSales: [Sale] { store.activeSales.filter { $0.shiftID == shift.id && !$0.isCancelled } }
     private var cashSales: Int64 { shiftSales.filter { $0.paymentMethod == .cash }.reduce(0) { $0 + $1.totalCents } }
     private var cashMovementsTotal: Int64 {
-        store.data.cashMovements.filter { $0.shiftID == shift.id }.reduce(Int64(0)) { total, movement in
+        store.activeCashMovements.filter { $0.shiftID == shift.id }.reduce(Int64(0)) { total, movement in
             total + (movement.kind == .income ? movement.amountCents : -movement.amountCents)
         }
     }

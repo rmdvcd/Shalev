@@ -251,7 +251,7 @@ struct ToolsView: View {
             let trimmedName = part.name.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedName.isEmpty else { continue }
             // Buscar insumo existente por nombre (insensible a mayúsculas)
-            if let existing = store.data.products.first(where: { $0.kind == .ingredient && $0.isActive && $0.name.lowercased() == trimmedName.lowercased() }) {
+            if let existing = store.activeProducts.first(where: { $0.kind == .ingredient && $0.isActive && $0.name.lowercased() == trimmedName.lowercased() }) {
                 let milli = milliUnits(from: part.quantity)
                 uses.append(IngredientUse(ingredientID: existing.id, milliUnits: milli))
                 continue
@@ -260,9 +260,12 @@ struct ToolsView: View {
             let unitCostDecimal = Decimal(string: part.unitCost.replacingOccurrences(of: ",", with: ".")) ?? 0
             let costInCup: Decimal = part.currency == .cup ? unitCostDecimal : unitCostDecimal * rate
             let costCents = cents(costInCup)
-            let newIngredient = Product(name: trimmedName, category: "Insumos", kind: .ingredient, stockMilli: 0, unit: part.unit.isEmpty ? "u" : part.unit, lowStockMilli: 0, criticalStockMilli: 0, priceCents: 0, costCents: costCents, uses: [])
+            let alertDefaults = store.data.settings.effectiveInventoryAlertDefaults
+            let newIngredient = Product(name: trimmedName, category: "Insumos", kind: .ingredient, stockMilli: 0,
+                unit: part.unit.isEmpty ? "u" : part.unit, lowStockMilli: alertDefaults.ingredientLowMilli,
+                criticalStockMilli: alertDefaults.ingredientCriticalMilli, priceCents: 0, costCents: costCents, uses: [])
             try store.saveProduct(newIngredient)
-            guard let created = store.data.products.first(where: { $0.kind == .ingredient && $0.isActive && $0.name.lowercased() == trimmedName.lowercased() }) else {
+            guard let created = store.activeProducts.first(where: { $0.kind == .ingredient && $0.isActive && $0.name.lowercased() == trimmedName.lowercased() }) else {
                 throw BusinessError.invalidRecipe
             }
             let milli = milliUnits(from: part.quantity)

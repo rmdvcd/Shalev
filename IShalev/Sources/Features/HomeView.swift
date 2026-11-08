@@ -49,12 +49,13 @@ struct HomeView: View {
     @State private var expandedCards: Set<String> = []
     @State private var shiftSheet: ShiftSheetAction?
     @State private var showSaleTypeDialog = false
+    @State private var locationError: String?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// Turno del que habla el período «Turno»: el abierto o, si no hay, el último cerrado.
     private var referenceShift: Shift? {
         if let open = store.openShift { return open }
-        return store.data.shifts
+        return store.activeShifts
             .filter { $0.closedAt != nil && $0.employeeID == nil }
             .sorted { ($0.closedAt ?? .distantPast) > ($1.closedAt ?? .distantPast) }
             .first
@@ -65,7 +66,7 @@ struct HomeView: View {
         if let stats = period.statsPeriod {
             base = store.sales(for: stats)
         } else if let shift = referenceShift {
-            base = store.data.sales.filter { $0.shiftID == shift.id && !$0.isCancelled }
+            base = store.activeSales.filter { $0.shiftID == shift.id && !$0.isCancelled }
         } else {
             base = []
         }
@@ -82,7 +83,7 @@ struct HomeView: View {
             guard let month = calendar.date(byAdding: .month, value: -offset,
                                             to: calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now),
                   let interval = calendar.dateInterval(of: .month, for: month) else { return nil }
-            let total = store.data.sales.filter {
+            let total = store.activeSales.filter {
                 !$0.isCancelled && ($0.isService ? canViewServices : canViewSales)
                     && $0.date >= interval.start && $0.date < interval.end
             }.reduce(Int64(0)) { $0 + $1.totalCents }
@@ -169,6 +170,9 @@ struct HomeView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        .alert("No se pudo cambiar de local", isPresented: Binding(get: { locationError != nil }, set: { if !$0 { locationError = nil } })) {
+            Button("Entendido", role: .cancel) { locationError = nil }
+        } message: { Text(locationError ?? "") }
     }
 
     // MARK: - Bloque fijo (no se desplaza)
@@ -177,6 +181,27 @@ struct HomeView: View {
         VStack(spacing: 12) {
             ShalevScreenTitle(title: "Shalev", isBrand: true)
                 .padding(.top, 10)
+            if store.locations.count > 1 {
+                Menu {
+                    ForEach(store.locations) { location in
+                        Button {
+                            do { try store.selectLocation(location.name) }
+                            catch { locationError = error.localizedDescription }
+                        } label: {
+                            if location.name == store.activeLocationName {
+                                Label(location.name, systemImage: "checkmark")
+                            } else { Text(location.name) }
+                        }
+                        .disabled(sync.isBusy || (store.openShift != nil && location.name != store.activeLocationName))
+                    }
+                } label: {
+                    Label(store.activeLocationName, systemImage: "mappin.and.ellipse")
+                        .font(.shalev(13, weight: .semibold))
+                        .foregroundStyle(Color.shalevPrimary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .accessibilityLabel("Local activo: \(store.activeLocationName). Cambiar local")
+            }
             if isEmployeeSession {
                 Button(action: onSwitchToOwner) {
                     Label("Cambiar a dueño / administrador", systemImage: "person.badge.key.fill")
@@ -640,7 +665,7 @@ private struct ShiftClosingSheet: View {
     private var expectedCash: Int64 { store.openShift.map { store.expectedCashCents(for: $0.id) } ?? 0 }
     private var validShiftSales: [Sale] {
         guard let shiftID = store.openShift?.id else { return [] }
-        return store.data.sales.filter { $0.shiftID == shiftID && !$0.isCancelled }
+        return store.activeSales.filter { $0.shiftID == shiftID && !$0.isCancelled }
     }
     private var salesTotal: Int64 { validShiftSales.reduce(0) { $0 + $1.totalCents } }
     private var cashSalesTotal: Int64 { validShiftSales.filter { $0.paymentMethod == .cash }.reduce(0) { $0 + $1.totalCents } }

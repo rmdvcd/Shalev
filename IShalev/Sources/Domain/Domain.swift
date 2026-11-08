@@ -196,6 +196,8 @@ struct IngredientUse: Codable, Identifiable, Equatable, Hashable {
 struct Product: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var name: String
+    /// Local al que pertenece el artículo; nil solo en datos antiguos antes de migrarlos.
+    var localName: String? = nil
     var category: String = "Otros"
     var kind: InventoryKind = .product
     var description: String = ""
@@ -227,6 +229,8 @@ struct Product: Codable, Identifiable, Equatable {
 struct ServiceItem: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var name: String
+    /// Local al que pertenece el servicio; nil solo en respaldos anteriores.
+    var localName: String? = nil
     var type: String = "General"
     var description: String = ""
     var imageData: Data? = nil
@@ -286,6 +290,8 @@ struct Sale: Codable, Identifiable, Equatable {
     var synced: Bool = false
     /// Cambios de una venta sincronizada que la principal aún debe devolver a esa secundaria.
     var changePending: Bool = false
+    /// Local del turno donde se registró.
+    var localName: String? = nil
 
     var isService: Bool { !lines.isEmpty && lines.allSatisfy { $0.kind == .service } }
     var totalCents: Int64 { lines.reduce(0) { $0 + $1.subtotalCents } }
@@ -306,6 +312,8 @@ struct InventoryMovement: Codable, Identifiable, Equatable {
     var shiftID: UUID? = nil
     var resultingStockMilli: Int64? = nil
     var actorName: String? = nil
+    /// Local del catálogo e historial al que pertenece.
+    var localName: String? = nil
 }
 
 struct CashMovement: Codable, Identifiable, Equatable {
@@ -318,6 +326,8 @@ struct CashMovement: Codable, Identifiable, Equatable {
     var actorName: String? = nil
     /// Confirmación de la principal al recibir este movimiento por UUID.
     var synced: Bool = false
+    /// Local del turno asociado.
+    var localName: String? = nil
 }
 
 /// Desglose de efectivo y conciliación física asociados al cierre de un turno.
@@ -391,6 +401,8 @@ struct Shift: Codable, Identifiable, Equatable {
     var employeeID: Int64? = nil
     /// La secundaria solo lo confirma después de que la principal guarda el turno.
     var synced: Bool = false
+    /// Local al que pertenece el turno.
+    var localName: String? = nil
 }
 
 struct PriceAdjustment: Codable, Identifiable, Equatable {
@@ -559,13 +571,47 @@ extension LocalEmployee {
     }
 }
 
+struct InventoryAlertDefaults: Codable, Equatable {
+    /// Milésimas de unidad (5 unidades = 5_000).
+    var productLowMilli: Int64 = 5_000
+    var productCriticalMilli: Int64 = 1_000
+    /// Milésimas de la unidad seleccionada para insumos.
+    var ingredientLowMilli: Int64 = 5_000
+    var ingredientCriticalMilli: Int64 = 1_000
+
+    static let recommended = InventoryAlertDefaults()
+}
+
 struct AppSettings: Codable, Equatable {
     var profile: StoreProfile = StoreProfile()
     var priceAdjustments: [PriceAdjustment] = []
+    /// Opcionales para que los respaldos de iOS previos mantengan su compatibilidad.
+    var inventoryAlertDefaults: InventoryAlertDefaults? = nil
+    var plannedEmployees: Int? = nil
+
+    var effectiveInventoryAlertDefaults: InventoryAlertDefaults {
+        inventoryAlertDefaults ?? .recommended
+    }
+
+    var effectivePlannedEmployees: Int {
+        min(10, max(0, plannedEmployees ?? 0))
+    }
+}
+
+struct BusinessLocation: Codable, Identifiable, Equatable {
+    var id: String { name }
+    var name: String
+    /// Flags de alcance que también conserva el respaldo Android v4.
+    var inventoryEnabled: Bool = false
+    var servicesEnabled: Bool = false
 }
 
 struct AppData: Codable, Equatable {
-    var schemaVersion: Int = 1
+    var schemaVersion: Int = 2
+    /// Lista de locales disponible para elegir; opcional para leer los archivos v1 existentes.
+    var locations: [BusinessLocation]? = nil
+    /// Local activo compartido por Inicio, catálogo, caja, historial y sincronización.
+    var selectedLocation: String? = nil
     var settings: AppSettings = AppSettings()
     var products: [Product] = []
     var services: [ServiceItem] = []
@@ -577,6 +623,62 @@ struct AppData: Codable, Equatable {
     var employees: [LocalEmployee]? = nil
 
     static let empty = AppData()
+}
+
+extension AppData {
+    /// Migración no destructiva de los documentos anteriores a locales.
+    mutating func normalizeLocations() {
+        let existingLocations = locations ?? []
+        var names = existingLocations.map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if let selectedLocation, !selectedLocation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           !names.contains(where: { $0.caseInsensitiveCompare(selectedLocation) == .orderedSame }) {
+            names.append(selectedLocation.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        var uniqueNames: [String] = []
+        for name in names where !uniqueNames.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) {
+            uniqueNames.append(name)
+        }
+        names = uniqueNames
+        let recorded = products.compactMap(\.localName) + services.compactMap(\.localName)
+            + sales.compactMap(\.localName) + shifts.compactMap(\.localName)
+            + inventoryMovements.compactMap(\.localName) + cashMovements.compactMap(\.localName)
+        for name in recorded where !names.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) {
+            names.append(name)
+        }
+        if names.isEmpty { names = ["Local"] }
+        let selected = selectedLocation.flatMap { candidate in
+            let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+            return names.first { $0.caseInsensitiveCompare(trimmed) == .orderedSame }
+        }
+            ?? existingLocations.first(where: { $0.inventoryEnabled })?.name
+            ?? existingLocations.first(where: { $0.servicesEnabled })?.name
+            ?? names[0]
+        locations = names.map { name in
+            BusinessLocation(name: name, inventoryEnabled: name == selected, servicesEnabled: name == selected)
+        }
+        selectedLocation = selected
+        for index in products.indices where products[index].localName == nil || products[index].localName?.isEmpty == true {
+            products[index].localName = selected
+        }
+        for index in services.indices where services[index].localName == nil || services[index].localName?.isEmpty == true {
+            services[index].localName = selected
+        }
+        for index in sales.indices where sales[index].localName == nil || sales[index].localName?.isEmpty == true {
+            sales[index].localName = shifts.first(where: { $0.id == sales[index].shiftID })?.localName ?? selected
+        }
+        for index in shifts.indices where shifts[index].localName == nil || shifts[index].localName?.isEmpty == true {
+            shifts[index].localName = selected
+        }
+        for index in inventoryMovements.indices where inventoryMovements[index].localName == nil || inventoryMovements[index].localName?.isEmpty == true {
+            inventoryMovements[index].localName = shifts.first(where: { $0.id == inventoryMovements[index].shiftID })?.localName
+                ?? products.first(where: { $0.id == inventoryMovements[index].productID })?.localName ?? selected
+        }
+        for index in cashMovements.indices where cashMovements[index].localName == nil || cashMovements[index].localName?.isEmpty == true {
+            cashMovements[index].localName = shifts.first(where: { $0.id == cashMovements[index].shiftID })?.localName ?? selected
+        }
+        schemaVersion = max(schemaVersion, 2)
+    }
 }
 
 struct CartDraft: Identifiable, Equatable {
@@ -647,6 +749,8 @@ enum BusinessError: LocalizedError, Equatable {
     case invalidTransactionNumber
     case invalidPrice
     case invalidPriceAdjustment
+    case invalidInventoryAlertDefaults
+    case invalidPlannedEmployees
     case closingCountChanged
     case invalidClosingCount
     case saleCorrectionRequiresPrincipal
@@ -681,6 +785,8 @@ enum BusinessError: LocalizedError, Equatable {
         case .invalidTransactionNumber: "El número de transacción es obligatorio y debe tener de 6 a 30 letras o dígitos."
         case .invalidPrice: "Revisa el precio: debe ser mayor que cero y superar el costo del artículo."
         case .invalidPriceAdjustment: "El ajuste necesita un nombre, un porcentaje entre −90 % y +100 % y al menos un artículo."
+        case .invalidInventoryAlertDefaults: "Revisa los niveles: el crítico no puede superar el nivel bajo."
+        case .invalidPlannedEmployees: "La cantidad prevista de empleados debe estar entre 0 y 10."
         case .closingCountChanged: "El inventario cambió mientras contabas. Vuelve a cargar el conteo antes de cerrar."
         case .invalidClosingCount: "Revisa el efectivo, las cantidades contadas y el motivo de las diferencias (de 3 a 160 caracteres)."
         case .saleCorrectionRequiresPrincipal: "Las ventas solo se pueden anular o modificar en la app principal."
@@ -864,18 +970,82 @@ final class ShalevStore: ObservableObject {
             loadMessage = "No se pudieron abrir los datos cifrados. La app no los reemplazará automáticamente."
             readOnly = true
         }
+        let dataBeforeLocationMigration = initial
+        initial.normalizeLocations()
+        if initial != dataBeforeLocationMigration { try? self.storage.save(initial) }
         self.data = initial
         self.loadError = loadMessage
         self.readOnlyAfterLoadFailure = readOnly
     }
 
-    var activeProducts: [Product] { data.products.filter(\.isActive).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
-    var activeServices: [ServiceItem] { data.services.filter(\.isActive).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
+    var locations: [BusinessLocation] { data.locations ?? [BusinessLocation(name: "Local")] }
+    var activeLocationName: String { data.selectedLocation ?? locations.first?.name ?? "Local" }
+    var activeProducts: [Product] { data.products.filter { $0.isActive && $0.localName == activeLocationName }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
+    var activeServices: [ServiceItem] { data.services.filter { $0.isActive && $0.localName == activeLocationName }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
+    var activeSales: [Sale] { data.sales.filter { $0.localName == activeLocationName } }
+    var activeShifts: [Shift] { data.shifts.filter { $0.localName == activeLocationName } }
+    var activeInventoryMovements: [InventoryMovement] { data.inventoryMovements.filter { $0.localName == activeLocationName } }
+    var activeCashMovements: [CashMovement] { data.cashMovements.filter { $0.localName == activeLocationName } }
+
+    func selectLocation(_ name: String) throws {
+        guard locations.contains(where: { $0.name == name }) else { throw BusinessError.invalidName }
+        guard name == activeLocationName || openShift == nil else { throw BusinessError.shiftAlreadyOpen }
+        var next = data
+        next.selectedLocation = name
+        try commit(next)
+    }
+
+    func saveLocation(_ rawName: String, replacing oldName: String? = nil) throws {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        guard (1...80).contains(name.count) else { throw BusinessError.invalidName }
+        let current = locations
+        guard !current.contains(where: { $0.name != oldName && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) else {
+            throw BusinessError.invalidName
+        }
+        var next = data
+        if let oldName {
+            guard current.contains(where: { $0.name == oldName }) else { throw BusinessError.invalidName }
+            for index in next.products.indices where next.products[index].localName == oldName { next.products[index].localName = name }
+            for index in next.services.indices where next.services[index].localName == oldName { next.services[index].localName = name }
+            for index in next.sales.indices where next.sales[index].localName == oldName { next.sales[index].localName = name }
+            for index in next.shifts.indices where next.shifts[index].localName == oldName { next.shifts[index].localName = name }
+            for index in next.inventoryMovements.indices where next.inventoryMovements[index].localName == oldName { next.inventoryMovements[index].localName = name }
+            for index in next.cashMovements.indices where next.cashMovements[index].localName == oldName { next.cashMovements[index].localName = name }
+            next.locations = current.map { location in
+                BusinessLocation(name: location.name == oldName ? name : location.name,
+                                 inventoryEnabled: location.inventoryEnabled, servicesEnabled: location.servicesEnabled)
+            }
+            if next.selectedLocation == oldName { next.selectedLocation = name }
+        } else {
+            next.locations = current + [BusinessLocation(name: name)]
+        }
+        try commit(next)
+    }
+
+    func deleteLocation(_ name: String) throws {
+        let current = locations
+        guard current.count > 1, current.contains(where: { $0.name == name }), openShift == nil || name != activeLocationName else {
+            throw BusinessError.invalidName
+        }
+        // No se borran operaciones: se reasignan al primer local restante y permanecen auditables.
+        let destination = current.first(where: { $0.name != name })!.name
+        var next = data
+        for index in next.products.indices where next.products[index].localName == name { next.products[index].localName = destination }
+        for index in next.services.indices where next.services[index].localName == name { next.services[index].localName = destination }
+        for index in next.sales.indices where next.sales[index].localName == name { next.sales[index].localName = destination }
+        for index in next.shifts.indices where next.shifts[index].localName == name { next.shifts[index].localName = destination }
+        for index in next.inventoryMovements.indices where next.inventoryMovements[index].localName == name { next.inventoryMovements[index].localName = destination }
+        for index in next.cashMovements.indices where next.cashMovements[index].localName == name { next.cashMovements[index].localName = destination }
+        next.locations = current.filter { $0.name != name }
+        if next.selectedLocation == name { next.selectedLocation = destination }
+        try commit(next)
+    }
+
     /// Perfiles con PIN de este dispositivo; las apps vinculadas se administran aparte.
     var employees: [LocalEmployee] { (data.employees ?? []).filter { $0.syncID == nil } }
     var linkedApps: [LocalEmployee] { (data.employees ?? []).filter { $0.syncID != nil } }
     /// Como en Android, los turnos recibidos de secundarias no bloquean el turno de esta instalación.
-    var openShift: Shift? { data.shifts.first(where: { $0.closedAt == nil && $0.employeeID == nil }) }
+    var openShift: Shift? { activeShifts.first(where: { $0.closedAt == nil && $0.employeeID == nil }) }
     var actorName: String {
         let explicit = currentOperatorName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !explicit.isEmpty { return String(explicit.prefix(80)) }
@@ -883,12 +1053,12 @@ final class ShalevStore: ObservableObject {
         return owner.isEmpty ? "Titular del dispositivo" : String(owner.prefix(80))
     }
     var suggestedOpeningCashCents: Int64? {
-        data.shifts.filter { $0.closedAt != nil && $0.employeeID == nil }.sorted { ($0.closedAt ?? .distantPast) > ($1.closedAt ?? .distantPast) }
+        activeShifts.filter { $0.closedAt != nil && $0.employeeID == nil }.sorted { ($0.closedAt ?? .distantPast) > ($1.closedAt ?? .distantPast) }
             .first.map { $0.countedCashCents ?? $0.openingCashCents }
     }
 
     func purchases(for customer: Customer) -> [Sale] {
-        data.sales.filter { sale in
+        activeSales.filter { sale in
             !sale.isCancelled && sale.paymentMethod == .transfer && sale.customer?.identification == customer.identification
         }.sorted { $0.date > $1.date }
     }
@@ -1019,8 +1189,11 @@ final class ShalevStore: ObservableObject {
               incoming.criticalStockMilli <= incoming.lowStockMilli,
               incoming.uses.allSatisfy({ (1...1_000_000_000).contains($0.milliUnits) }),
               Set(incoming.uses.map(\.ingredientID)).count == incoming.uses.count else { throw BusinessError.invalidAmount }
+        let previousProduct = data.products.first(where: { $0.id == incoming.id })
+        if let previousProduct, previousProduct.localName != activeLocationName { throw BusinessError.unavailableItem("artículo de otro local") }
+        let targetLocal = previousProduct?.localName ?? activeLocationName
         if incoming.kind == .prepared {
-            let ingredientIDs = Set(data.products.filter { $0.isActive && $0.kind == .ingredient }.map(\.id))
+            let ingredientIDs = Set(activeProducts.filter { $0.kind == .ingredient }.map(\.id))
             guard !incoming.uses.isEmpty,
                   incoming.uses.allSatisfy({ ingredientIDs.contains($0.ingredientID) }) else { throw BusinessError.invalidRecipe }
         }
@@ -1034,6 +1207,7 @@ final class ShalevStore: ObservableObject {
         product.name = name
         product.category = category
         product.description = description
+        product.localName = targetLocal
         product.updatedAt = Date()
         if product.kind != .prepared { product.uses = [] }
         else { product.imageData = nil; product.stockMilli = 0; product.lowStockMilli = 0; product.criticalStockMilli = 0; product.expiresAt = nil }
@@ -1042,12 +1216,12 @@ final class ShalevStore: ObservableObject {
             if delta != 0 {
                 next.inventoryMovements.insert(InventoryMovement(productID: product.id, productName: product.name,
                     deltaMilli: delta, reason: "Ajuste manual", shiftID: openShift?.id,
-                    resultingStockMilli: product.stockMilli, actorName: actorName), at: 0)
+                    resultingStockMilli: product.stockMilli, actorName: actorName, localName: targetLocal), at: 0)
             }
         } else if product.kind != .prepared && product.stockMilli > 0 {
             next.inventoryMovements.insert(InventoryMovement(productID: product.id, productName: product.name,
                 deltaMilli: product.stockMilli, reason: "Alta inicial", shiftID: openShift?.id,
-                resultingStockMilli: product.stockMilli, actorName: actorName), at: 0)
+                resultingStockMilli: product.stockMilli, actorName: actorName, localName: targetLocal), at: 0)
         }
         try upsert(product, in: &next.products)
         try commit(next)
@@ -1055,11 +1229,11 @@ final class ShalevStore: ObservableObject {
 
     func deleteProduct(_ id: UUID) throws {
         var next = data
-        guard let index = next.products.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = next.products.firstIndex(where: { $0.id == id && $0.localName == activeLocationName }) else { return }
         if next.products[index].kind != .prepared && next.products[index].stockMilli > 0 {
             next.inventoryMovements.insert(InventoryMovement(productID: id, productName: next.products[index].name,
                 deltaMilli: -next.products[index].stockMilli, reason: "Baja de inventario", shiftID: openShift?.id,
-                resultingStockMilli: 0, actorName: actorName), at: 0)
+                resultingStockMilli: 0, actorName: actorName, localName: next.products[index].localName), at: 0)
         }
         next.products[index].isActive = false
         next.products[index].updatedAt = Date()
@@ -1067,7 +1241,7 @@ final class ShalevStore: ObservableObject {
     }
 
     func adjustStock(productID: UUID, newStockMilli: Int64, reason: String) throws {
-        guard let current = data.products.first(where: { $0.id == productID && $0.isActive }) else { throw BusinessError.invalidName }
+        guard let current = activeProducts.first(where: { $0.id == productID && $0.isActive }) else { throw BusinessError.invalidName }
         guard current.kind != .prepared, (0...9_000_000_000_000).contains(newStockMilli) else { throw BusinessError.invalidAmount }
         let note = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         guard note.count >= 3, note.count <= 60 else { throw BusinessError.invalidReason }
@@ -1078,7 +1252,7 @@ final class ShalevStore: ObservableObject {
         next.products[index].stockMilli = newStockMilli
         next.products[index].updatedAt = Date()
         next.inventoryMovements.insert(InventoryMovement(productID: productID, productName: current.name, deltaMilli: delta,
-            reason: note, shiftID: openShift?.id, resultingStockMilli: newStockMilli, actorName: actorName), at: 0)
+            reason: note, shiftID: openShift?.id, resultingStockMilli: newStockMilli, actorName: actorName, localName: current.localName), at: 0)
         try commit(next)
     }
 
@@ -1091,12 +1265,16 @@ final class ShalevStore: ObservableObject {
         guard (1...9_000_000_000_000).contains(incoming.priceCents),
               incoming.uses.allSatisfy({ (1...1_000_000_000).contains($0.milliUnits) }),
               Set(incoming.uses.map(\.ingredientID)).count == incoming.uses.count else { throw BusinessError.invalidAmount }
-        let ingredientIDs = Set(data.products.filter { $0.isActive && $0.kind == .ingredient }.map(\.id))
+        let ingredientIDs = Set(activeProducts.filter { $0.kind == .ingredient }.map(\.id))
         guard incoming.uses.allSatisfy({ ingredientIDs.contains($0.ingredientID) }) else { throw BusinessError.invalidRecipe }
+        if let old = data.services.first(where: { $0.id == incoming.id }), old.localName != activeLocationName {
+            throw BusinessError.unavailableItem("servicio de otro local")
+        }
         var service = incoming
         service.name = name
         service.type = type
         service.description = description
+        service.localName = data.services.first(where: { $0.id == incoming.id })?.localName ?? activeLocationName
         var next = data
         try upsert(service, in: &next.services)
         try commit(next)
@@ -1104,12 +1282,13 @@ final class ShalevStore: ObservableObject {
 
     func deleteService(_ id: UUID) throws {
         var next = data
-        guard let index = next.services.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = next.services.firstIndex(where: { $0.id == id && $0.localName == activeLocationName }) else { return }
         next.services[index].isActive = false
         try commit(next)
     }
 
-    func saveProfile(_ profile: StoreProfile) throws {
+    func saveProfile(_ profile: StoreProfile, inventoryAlertDefaults: InventoryAlertDefaults? = nil,
+                     plannedEmployees: Int? = nil) throws {
         var normalized = profile
         normalized.businessName = profile.businessName.trimmingCharacters(in: .whitespacesAndNewlines)
         normalized.ownerName = profile.ownerName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1139,7 +1318,34 @@ final class ShalevStore: ObservableObject {
         normalized.transferPhone = normalized.paymentPhone?.number ?? ""
         var next = data
         next.settings.profile = normalized
+        if let inventoryAlertDefaults {
+            try validateInventoryAlertDefaults(inventoryAlertDefaults)
+            next.settings.inventoryAlertDefaults = inventoryAlertDefaults
+        }
+        if let plannedEmployees {
+            guard (0...10).contains(plannedEmployees) else { throw BusinessError.invalidPlannedEmployees }
+            next.settings.plannedEmployees = plannedEmployees
+        }
         try commit(next)
+    }
+
+    func saveInventoryAlertDefaults(_ defaults: InventoryAlertDefaults) throws {
+        try validateInventoryAlertDefaults(defaults)
+        var next = data
+        next.settings.inventoryAlertDefaults = defaults
+        try commit(next)
+    }
+
+    private func validateInventoryAlertDefaults(_ defaults: InventoryAlertDefaults) throws {
+        guard (0...999_999_000).contains(defaults.productLowMilli),
+              (0...999_999_000).contains(defaults.productCriticalMilli),
+              defaults.productLowMilli % 1_000 == 0, defaults.productCriticalMilli % 1_000 == 0,
+              (0...999_999_000).contains(defaults.ingredientLowMilli),
+              (0...999_999_000).contains(defaults.ingredientCriticalMilli),
+              defaults.productCriticalMilli <= defaults.productLowMilli,
+              defaults.ingredientCriticalMilli <= defaults.ingredientLowMilli else {
+            throw BusinessError.invalidInventoryAlertDefaults
+        }
     }
 
     func savePriceAdjustment(_ adjustment: PriceAdjustment) throws {
@@ -1154,29 +1360,67 @@ final class ShalevStore: ObservableObject {
         var normalized = adjustment
         normalized.name = name
         normalized.minimumAmountCents = nil
-        try upsert(normalized, in: &next.settings.priceAdjustments)
+        if let existingIndex = next.settings.priceAdjustments.firstIndex(where: { $0.id == adjustment.id }),
+           adjustment.productIDs != nil {
+            let localIDs = priceAdjustmentEntityIDs(in: activeLocationName)
+            let otherIDs: Set<UUID>
+            if let existingIDs = next.settings.priceAdjustments[existingIndex].productIDs {
+                otherIDs = existingIDs.subtracting(localIDs)
+            } else {
+                otherIDs = priceAdjustmentEntityIDs(in: nil).subtracting(localIDs)
+            }
+            let selectedHere = (adjustment.productIDs ?? []).intersection(localIDs)
+            guard !selectedHere.isEmpty else { throw BusinessError.invalidPriceAdjustment }
+            normalized.productIDs = otherIDs.union(selectedHere)
+            next.settings.priceAdjustments[existingIndex] = normalized
+        } else {
+            if let selectedIDs = adjustment.productIDs {
+                let selectedHere = selectedIDs.intersection(priceAdjustmentEntityIDs(in: activeLocationName))
+                guard !selectedHere.isEmpty else { throw BusinessError.invalidPriceAdjustment }
+                normalized.productIDs = selectedHere
+            }
+            try upsert(normalized, in: &next.settings.priceAdjustments)
+        }
         try commit(next)
     }
 
     func deletePriceAdjustment(_ id: UUID) throws {
         var next = data
-        next.settings.priceAdjustments.removeAll { $0.id == id }
+        guard let index = next.settings.priceAdjustments.firstIndex(where: { $0.id == id }) else { return }
+        let localIDs = priceAdjustmentEntityIDs(in: activeLocationName)
+        let remaining: Set<UUID>
+        if let selectedIDs = next.settings.priceAdjustments[index].productIDs {
+            remaining = selectedIDs.subtracting(localIDs)
+        } else {
+            remaining = priceAdjustmentEntityIDs(in: nil).subtracting(localIDs)
+        }
+        if remaining.isEmpty {
+            next.settings.priceAdjustments.remove(at: index)
+        } else {
+            next.settings.priceAdjustments[index].productIDs = remaining
+        }
         try commit(next)
+    }
+
+    private func priceAdjustmentEntityIDs(in localName: String?) -> Set<UUID> {
+        let products = data.products.filter { $0.kind != .ingredient && (localName == nil || $0.localName == localName) }.map(\.id)
+        let services = data.services.filter { localName == nil || $0.localName == localName }.map(\.id)
+        return Set(products).union(services)
     }
 
     func openShift(openingCashCents: Int64) throws {
         guard openShift == nil else { throw BusinessError.shiftAlreadyOpen }
         guard (0...9_000_000_000_000).contains(openingCashCents) else { throw BusinessError.invalidAmount }
         var next = data
-        next.shifts.insert(Shift(openingCashCents: openingCashCents, openedBy: actorName), at: 0)
+        next.shifts.insert(Shift(openingCashCents: openingCashCents, openedBy: actorName, localName: activeLocationName), at: 0)
         try commit(next)
     }
 
     /// Solo los artículos que cambiaron durante el turno; los elaborados se concilian mediante sus insumos.
     func prepareClosingCount() throws -> ShiftClosingCount {
         guard let shift = openShift else { throw BusinessError.noOpenShift }
-        let saleIDs = Set(data.sales.filter { $0.shiftID == shift.id }.map(\.id))
-        let movedIDs = Set(data.inventoryMovements.compactMap { movement -> UUID? in
+        let saleIDs = Set(activeSales.filter { $0.shiftID == shift.id }.map(\.id))
+        let movedIDs = Set(activeInventoryMovements.compactMap { movement -> UUID? in
             if movement.shiftID == shift.id { return movement.productID }
             if let saleID = movement.saleID, saleIDs.contains(saleID) { return movement.productID }
             return nil
@@ -1210,7 +1454,7 @@ final class ShalevStore: ObservableObject {
         let now = Date()
         for line in count.inventory where line.differenceMilli != 0 {
             guard let index = next.products.firstIndex(where: {
-                $0.id == line.productID && $0.isActive && $0.kind != .prepared
+                $0.id == line.productID && $0.isActive && $0.kind != .prepared && $0.localName == current.localName
             }) else { throw BusinessError.closingCountChanged }
             let adjusted = next.products[index].stockMilli.addingReportingOverflow(line.differenceMilli)
             guard !adjusted.overflow, (0...9_000_000_000_000).contains(adjusted.partialValue) else {
@@ -1221,7 +1465,7 @@ final class ShalevStore: ObservableObject {
             let note = "Conciliación de cierre · Esperado \(FixedNumber.formatMilli(line.expectedMilli)) · Contado \(FixedNumber.formatMilli(line.countedMilli)) · \(count.reason.trimmingCharacters(in: .whitespacesAndNewlines))"
             next.inventoryMovements.insert(InventoryMovement(productID: line.productID, productName: line.productName,
                 deltaMilli: line.differenceMilli, reason: note, shiftID: current.id,
-                resultingStockMilli: adjusted.partialValue, actorName: actorName), at: 0)
+                resultingStockMilli: adjusted.partialValue, actorName: actorName, localName: current.localName), at: 0)
         }
         guard let index = next.shifts.firstIndex(where: { $0.id == current.id }) else { throw BusinessError.noOpenShift }
         var savedCount = count
@@ -1251,9 +1495,9 @@ final class ShalevStore: ObservableObject {
     }
 
     func expectedCashCents(for shiftID: UUID) -> Int64 {
-        let shift = data.shifts.first(where: { $0.id == shiftID })
-        let cashSales = data.sales.filter { $0.shiftID == shiftID && !$0.isCancelled && $0.paymentMethod == .cash }.reduce(Int64(0)) { $0 + $1.totalCents }
-        let movements = data.cashMovements.filter { $0.shiftID == shiftID }.reduce(Int64(0)) { total, movement in
+        let shift = activeShifts.first(where: { $0.id == shiftID })
+        let cashSales = activeSales.filter { $0.shiftID == shiftID && !$0.isCancelled && $0.paymentMethod == .cash }.reduce(Int64(0)) { $0 + $1.totalCents }
+        let movements = activeCashMovements.filter { $0.shiftID == shiftID }.reduce(Int64(0)) { total, movement in
             total + (movement.kind == .income ? movement.amountCents : -movement.amountCents)
         }
         return (shift?.openingCashCents ?? 0) + cashSales + movements
@@ -1269,7 +1513,7 @@ final class ShalevStore: ObservableObject {
         }
         var next = data
         next.cashMovements.insert(CashMovement(shiftID: shift.id, kind: kind, amountCents: amountCents,
-            reason: note, actorName: actorName), at: 0)
+            reason: note, actorName: actorName, localName: shift.localName), at: 0)
         try commit(next)
     }
 
@@ -1280,12 +1524,12 @@ final class ShalevStore: ObservableObject {
         let credits = returningSaleID.map(inventoryCredits(for:)) ?? [:]
         switch kind {
         case .product:
-            guard let product = data.products.first(where: { $0.id == sourceID && $0.isActive }) else { return nil }
+            guard let product = activeProducts.first(where: { $0.id == sourceID && $0.isActive }) else { return nil }
             if product.kind == .prepared { return availableForUses(product.uses, credits: credits) }
             let units = safeAvailable(stockMilli: product.stockMilli, creditMilli: credits[sourceID] ?? 0) / 1_000
             return units > Int64(Int.max) ? Int.max : Int(units)
         case .service:
-            guard let service = data.services.first(where: { $0.id == sourceID && $0.isActive }) else { return nil }
+            guard let service = activeServices.first(where: { $0.id == sourceID && $0.isActive }) else { return nil }
             return service.uses.isEmpty ? Int.max : availableForUses(service.uses, credits: credits)
         }
     }
@@ -1336,7 +1580,7 @@ final class ShalevStore: ObservableObject {
             guard (1...100_000).contains(draft.quantity) else { throw BusinessError.invalidAmount }
             switch draft.kind {
             case .product:
-                guard let product = data.products.first(where: { $0.id == draft.sourceID && $0.isActive }) else {
+                guard let product = activeProducts.first(where: { $0.id == draft.sourceID && $0.isActive }) else {
                     throw BusinessError.unavailableItem("Artículo")
                 }
                 guard (availableQuantity(kind: .product, sourceID: product.id, returningSaleID: returningSaleID) ?? 0) >= draft.quantity else {
@@ -1347,7 +1591,7 @@ final class ShalevStore: ObservableObject {
                                 quantity: draft.quantity, basePriceCents: product.priceCents,
                                 unitPriceCents: product.priceCents, unitCostCents: cost)
             case .service:
-                guard let service = data.services.first(where: { $0.id == draft.sourceID && $0.isActive }) else {
+                guard let service = activeServices.first(where: { $0.id == draft.sourceID && $0.isActive }) else {
                     throw BusinessError.unavailableItem("Servicio")
                 }
                 guard (availableQuantity(kind: .service, sourceID: service.id, returningSaleID: returningSaleID) ?? Int.max) >= draft.quantity else {
@@ -1408,7 +1652,8 @@ final class ShalevStore: ObservableObject {
         var sale = Sale(shiftID: shift.id, paymentMethod: payment, lines: preview.lines,
                         transactionNumber: transaction, customer: validCustomer,
                         customerIsFixed: payment == .transfer && customerIsFixed,
-                        paymentCard: paymentCard, paymentPhone: paymentPhone, sellerName: actorName)
+                        paymentCard: paymentCard, paymentPhone: paymentPhone, sellerName: actorName,
+                        localName: shift.localName ?? activeLocationName)
         var next = data
 
         try applyInventory(lines: preview.lines, to: &next, saleID: sale.id, reason: "Venta", shiftID: shift.id)
@@ -1430,7 +1675,7 @@ final class ShalevStore: ObservableObject {
 
     func cancelSale(_ saleID: UUID, reason: String) throws {
         guard allowsSaleCorrections else { throw BusinessError.saleCorrectionRequiresPrincipal }
-        guard let original = data.sales.first(where: { $0.id == saleID }) else { throw BusinessError.unavailableItem("venta") }
+        guard let original = activeSales.first(where: { $0.id == saleID }) else { throw BusinessError.unavailableItem("venta") }
         guard !original.isCancelled else { throw BusinessError.saleAlreadyCancelled }
         guard let shift = data.shifts.first(where: { $0.id == original.shiftID }) else { throw BusinessError.turnClosed }
         guard shift.closedAt == nil,
@@ -1455,7 +1700,7 @@ final class ShalevStore: ObservableObject {
     func modifySale(_ saleID: UUID, cart: [CartDraft], payment: PaymentMethod, transactionNumber: String,
                     reason: String, customer: Customer? = nil, customerIsFixed: Bool? = nil) throws -> Sale {
         guard allowsSaleCorrections else { throw BusinessError.saleCorrectionRequiresPrincipal }
-        guard let original = data.sales.first(where: { $0.id == saleID }) else { throw BusinessError.unavailableItem("venta") }
+        guard let original = activeSales.first(where: { $0.id == saleID }) else { throw BusinessError.unavailableItem("venta") }
         guard !original.isCancelled else { throw BusinessError.saleAlreadyCancelled }
         guard let shift = data.shifts.first(where: { $0.id == original.shiftID }) else { throw BusinessError.turnClosed }
         guard shift.closedAt == nil,
@@ -1497,7 +1742,7 @@ final class ShalevStore: ObservableObject {
                                transactionNumber: transaction, customer: validCustomer,
                                customerIsFixed: payment == .transfer && (customerIsFixed ?? original.customerIsFixed),
                                paymentCard: paymentCard, paymentPhone: paymentPhone,
-                               correctionOfSaleID: original.id, sellerName: actorName)
+                               correctionOfSaleID: original.id, sellerName: actorName, localName: original.localName)
         var next = data
         try restoreInventory(for: original, in: &next, reason: "Corrección · devolución · \(note)")
         try applyInventory(lines: replacement.lines, to: &next, saleID: replacement.id,
@@ -1517,7 +1762,7 @@ final class ShalevStore: ObservableObject {
 
     func sales(for period: StatsPeriod, now: Date = Date()) -> [Sale] {
         let calendar = Calendar.current
-        return data.sales.filter { sale in
+        return activeSales.filter { sale in
             guard !sale.isCancelled else { return false }
             switch period {
             case .today: return calendar.isDate(sale.date, inSameDayAs: now)
@@ -1537,7 +1782,7 @@ final class ShalevStore: ObservableObject {
         return (0..<months).reversed().compactMap { offset in
             guard let month = calendar.date(byAdding: .month, value: -offset, to: calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now),
                   let interval = calendar.dateInterval(of: .month, for: month) else { return nil }
-            let total = data.sales.filter { !$0.isCancelled && !$0.isService && $0.date >= interval.start && $0.date < interval.end }
+            let total = activeSales.filter { !$0.isCancelled && !$0.isService && $0.date >= interval.start && $0.date < interval.end }
                 .reduce(Int64(0)) { $0 + $1.totalCents }
             return (formatter.string(from: month).lowercased(), total)
         }
@@ -1559,7 +1804,7 @@ final class ShalevStore: ObservableObject {
         } else {
             restored = try BackupCodec.decode(backup, password: password)
         }
-        guard restored.schemaVersion == AppData.empty.schemaVersion else { throw BusinessError.unsupportedBackup }
+        guard (1...AppData.empty.schemaVersion).contains(restored.schemaVersion) else { throw BusinessError.unsupportedBackup }
         try commit(restored)
     }
 
@@ -1615,7 +1860,7 @@ final class ShalevStore: ObservableObject {
                 return sum.overflow ? Int64.max : sum.partialValue
             }
             guard required > 0,
-                  let ingredient = data.products.first(where: { $0.id == ingredientID && $0.isActive && $0.kind == .ingredient }) else { return nil }
+                  let ingredient = activeProducts.first(where: { $0.id == ingredientID && $0.isActive && $0.kind == .ingredient }) else { return nil }
             let count = safeAvailable(stockMilli: ingredient.stockMilli, creditMilli: credits[ingredientID] ?? 0) / required
             return count > Int64(Int.max) ? Int.max : Int(count)
         }
@@ -1644,7 +1889,7 @@ final class ShalevStore: ObservableObject {
 
     private func unitCost(for uses: [IngredientUse]) -> Int64 {
         uses.reduce(Int64(0)) { total, use in
-            guard let ingredient = data.products.first(where: { $0.id == use.ingredientID && $0.isActive }) else { return total }
+            guard let ingredient = activeProducts.first(where: { $0.id == use.ingredientID && $0.isActive }) else { return total }
             let value = Decimal(ingredient.costCents) * Decimal(use.milliUnits) / Decimal(1_000)
             var rounded = Decimal()
             var source = value
@@ -1659,7 +1904,7 @@ final class ShalevStore: ObservableObject {
     private func restoreInventory(for sale: Sale, in next: inout AppData, reason: String) throws {
         let outbound = next.inventoryMovements.filter { $0.saleID == sale.id && $0.deltaMilli < 0 }
         for movement in outbound {
-            guard let index = next.products.firstIndex(where: { $0.id == movement.productID && $0.isActive && $0.kind != .prepared }) else { continue }
+            guard let index = next.products.firstIndex(where: { $0.id == movement.productID && $0.isActive && $0.kind != .prepared && $0.localName == sale.localName }) else { continue }
             let amount = movement.deltaMilli == Int64.min ? Int64.max : -movement.deltaMilli
             let restored = next.products[index].stockMilli.addingReportingOverflow(amount)
             guard !restored.overflow, (0...9_000_000_000_000).contains(restored.partialValue) else { throw BusinessError.invalidAmount }
@@ -1667,7 +1912,7 @@ final class ShalevStore: ObservableObject {
             next.products[index].updatedAt = Date()
             next.inventoryMovements.insert(InventoryMovement(productID: movement.productID, productName: movement.productName,
                 deltaMilli: amount, reason: reason, saleID: sale.id, shiftID: sale.shiftID,
-                resultingStockMilli: restored.partialValue, actorName: actorName), at: 0)
+                resultingStockMilli: restored.partialValue, actorName: actorName, localName: sale.localName), at: 0)
         }
     }
 
@@ -1676,7 +1921,7 @@ final class ShalevStore: ObservableObject {
         for line in lines {
             switch line.kind {
             case .product:
-                guard let product = next.products.first(where: { $0.id == line.sourceID && $0.isActive }) else {
+                guard let product = next.products.first(where: { $0.id == line.sourceID && $0.isActive && $0.localName == activeLocationName }) else {
                     throw BusinessError.unavailableItem(line.name)
                 }
                 if product.kind == .prepared {
@@ -1692,10 +1937,10 @@ final class ShalevStore: ObservableObject {
                     next.products[index].updatedAt = Date()
                     next.inventoryMovements.insert(InventoryMovement(productID: product.id, productName: product.name,
                         deltaMilli: -amount.partialValue, reason: reason, saleID: saleID, shiftID: shiftID,
-                        resultingStockMilli: next.products[index].stockMilli, actorName: actorName), at: 0)
+                        resultingStockMilli: next.products[index].stockMilli, actorName: actorName, localName: product.localName), at: 0)
                 }
             case .service:
-                guard let service = next.services.first(where: { $0.id == line.sourceID && $0.isActive }) else {
+                guard let service = next.services.first(where: { $0.id == line.sourceID && $0.isActive && $0.localName == activeLocationName }) else {
                     throw BusinessError.unavailableItem(line.name)
                 }
                 if !service.uses.isEmpty {
@@ -1710,7 +1955,9 @@ final class ShalevStore: ObservableObject {
         guard !uses.isEmpty else { throw BusinessError.insufficientStock("receta o insumos") }
         let grouped = Dictionary(grouping: uses, by: \.ingredientID)
         for (ingredientID, ingredientUses) in grouped {
-            guard let index = next.products.firstIndex(where: { $0.id == ingredientID && $0.isActive && $0.kind == .ingredient }) else {
+            guard let index = next.products.firstIndex(where: {
+                $0.id == ingredientID && $0.isActive && $0.kind == .ingredient && $0.localName == activeLocationName
+            }) else {
                 throw BusinessError.insufficientStock("insumo de la receta")
             }
             let perUnit = ingredientUses.reduce(Int64(0)) { $0 + $1.milliUnits }
@@ -1723,7 +1970,8 @@ final class ShalevStore: ObservableObject {
             next.products[index].updatedAt = Date()
             next.inventoryMovements.insert(InventoryMovement(productID: ingredientID, productName: next.products[index].name,
                 deltaMilli: -amount.partialValue, reason: "Consumo por venta", saleID: saleID, shiftID: shiftID,
-                resultingStockMilli: next.products[index].stockMilli, actorName: actorName), at: 0)
+                resultingStockMilli: next.products[index].stockMilli, actorName: actorName,
+                localName: next.products[index].localName), at: 0)
         }
     }
 
@@ -1744,9 +1992,11 @@ final class ShalevStore: ObservableObject {
         guard !readOnlyAfterLoadFailure else { throw BusinessError.storageUnavailable }
         do {
             let previous = data
-            try storage.save(next)
-            data = next
-            changeHandler?(previous, next)
+            var normalized = next
+            normalized.normalizeLocations()
+            try storage.save(normalized)
+            data = normalized
+            changeHandler?(previous, normalized)
         } catch {
             throw BusinessError.storageUnavailable
         }

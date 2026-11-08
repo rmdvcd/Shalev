@@ -35,6 +35,7 @@ class Sync32Test {
             """{"nombreNegocio":"N","empleado":{"nombre":"Luis","permisos":[]},"licencia":{"clase":"PRUEBA"}}""",
         )
         assertTrue(inst.fotos.isEmpty())
+        assertEquals("", inst.local)
     }
 
     @Test fun `la instantánea avisa de las fotos del catálogo`() {
@@ -44,11 +45,13 @@ class Sync32Test {
             licencia = LicenciaDto("PRUEBA"),
             productos = emptyList(),
             fotos = listOf(FotoCatalogoDto("producto", 7, "abc.jpg", 1234)),
+            local = "Centro",
         )
         val otra = SyncJson.decodeFromString(Instantanea.serializer(), SyncJson.encodeToString(Instantanea.serializer(), inst))
         assertEquals(1, otra.fotos.size)
         assertEquals("abc.jpg", otra.fotos.first().nombre)
         assertEquals(1234L, otra.fotos.first().bytes)
+        assertEquals("Centro", otra.local)
     }
 
     @Test fun `el bloque de una foto lleva su hash`() {

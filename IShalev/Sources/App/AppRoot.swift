@@ -45,6 +45,7 @@ enum MainSection: String, CaseIterable, Identifiable, Equatable {
     case inventory = "Inventario"
     case services = "Servicios"
     case records = "Registros"
+    case tools = "Herramientas"
     case settings = "Ajustes"
 
     var id: String { rawValue }
@@ -85,6 +86,7 @@ struct ShalevRootView: View {
     @State private var saleMode: SaleMode?
     @State private var showStorageAlert = false
     @State private var showLicenseSheet = false
+    @State private var showSyncSetup = false
     @State private var appUnlocked = false
     @State private var backgroundedAt: TimeInterval?
     @State private var operatorAuthError: String?
@@ -150,7 +152,9 @@ struct ShalevRootView: View {
                     LicenseView(store: store, license: licenseManager, blocking: true)
                 }
             } else if !onboardingCompleted && !sync.isSecondary {
-                OnboardingView(store: store) { onboardingCompleted = true }
+                OnboardingView(store: store, licenseManager: licenseManager, onComplete: { onboardingCompleted = true }, onLinkSecondary: {
+                    showSyncSetup = true
+                }, onAccessLockEnabled: { appUnlocked = true })
             } else if appLockEnabled && !appUnlocked {
                 DeviceLockView { appUnlocked = true }
             } else if let employee = activeEmployee, authenticatedOperatorID != employee.id.uuidString {
@@ -219,6 +223,12 @@ struct ShalevRootView: View {
             store.currentOperatorName = nil
             repairSelection()
         }
+        .onChange(of: sync.isSecondary) { _, linked in
+            if linked {
+                onboardingCompleted = true
+                showSyncSetup = false
+            }
+        }
         .onChange(of: dynamicTypeSize) { _, categoria in
             ShalevDynamicType.shared.actualizar(categoria)
         }
@@ -251,7 +261,8 @@ struct ShalevRootView: View {
                 ToolsView(store: store)
             case .settings:
                 SettingsView(store: store, licenseManager: licenseManager, sync: sync, selectedOperatorID: $selectedOperatorID,
-                             isAdministrator: isAdministrator, canChangePrices: canChangePrices, canExport: canExport,
+                             isAdministrator: isAdministrator, onBack: { selectedSection = .home },
+                             canChangePrices: canChangePrices, canExport: canExport,
                              canExportInventory: effectiveSales || effectiveInventory,
                              canExportServices: effectiveServices, canExportSales: effectiveSales)
             }
@@ -260,12 +271,27 @@ struct ShalevRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.shalevBackground.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            ShalevTabBar(selection: $selectedSection, visibleSections: visibleSections)
+            // Igual que Android: Ajustes se abre desde Inicio; los cinco destinos inferiores son módulos de trabajo.
+            if selectedSection != .settings {
+                ShalevTabBar(selection: $selectedSection, visibleSections: visibleSections.filter { $0 != .settings })
+            }
         }
         // La venta ocupa toda la pantalla (como en Android), no una hoja parcial.
         .fullScreenCover(item: $saleMode) { mode in
             SaleComposerView(store: store, mode: mode, onOpenHome: { selectedSection = .home },
                              onOpenSettings: { selectedSection = .settings }, canOpenSettings: canOpenSettings)
+        }
+        .sheet(isPresented: $showSyncSetup) {
+            NavigationStack {
+                SyncView(sync: sync)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Cerrar") { showSyncSetup = false }.foregroundStyle(Color.shalevPrimary)
+                        }
+                    }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showLicenseSheet) {
             NavigationStack {

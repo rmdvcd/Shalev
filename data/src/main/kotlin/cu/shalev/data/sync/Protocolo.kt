@@ -263,6 +263,8 @@ data class Instantanea(
     val preferencias: PreferenciasDto? = null,
     /** 0.32.0: fotos del catálogo. Los bytes NO van aquí: viajan aparte, por bloques ([PedirFoto]). */
     val fotos: List<FotoCatalogoDto> = emptyList(),
+    /** v16: local cuyo catálogo contiene esta instantánea. Vacío en clientes anteriores a este campo. */
+    val local: String = "",
 )
 
 @Serializable

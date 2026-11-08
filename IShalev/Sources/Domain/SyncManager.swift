@@ -43,9 +43,9 @@ final class SyncManager: ObservableObject {
     var isSecondary: Bool { role == .secondary && configuration.link != nil }
     var linkedApps: [LocalEmployee] { store.linkedApps }
     var pendingCount: Int {
-        store.data.shifts.filter { !$0.synced && $0.employeeID == nil }.count
-            + store.data.sales.filter { !$0.synced && $0.employeeID == nil }.count
-            + store.data.cashMovements.filter { !$0.synced }.count
+        store.activeShifts.filter { !$0.synced && $0.employeeID == nil }.count
+            + store.activeSales.filter { !$0.synced && $0.employeeID == nil }.count
+            + store.activeCashMovements.filter { !$0.synced }.count
     }
     var secondaryLicenseState: GLLicenseState? { isSecondary ? (link?.license?.state() ?? .revoked) : nil }
     var closeRequestedByPrincipal: Bool { link?.closePending ?? false }
@@ -310,7 +310,7 @@ final class SyncManager: ObservableObject {
                 syncTask = nil
                 throw error
             }
-            let approvedClosePending = store.data.shifts.contains {
+            let approvedClosePending = store.activeShifts.contains {
                 !$0.synced && $0.closedAt != nil && $0.closingCount?.approvedAt != nil
             }
             if (link?.changesAcknowledged.isEmpty ?? true) && !approvedClosePending { break }
@@ -329,6 +329,7 @@ final class SyncManager: ObservableObject {
         guard !requestInFlight else { throw SyncError.remote("Ya hay una comunicación en curso.") }
         isBusy = true; status = "Sincronizando…"; lastError = nil
         defer { isBusy = false }
+        let synchronizationLocation = store.activeLocationName
         do {
             let id = nextID()
             let batch = try SyncCatalog.pendingBatch(app: store.data)
@@ -337,6 +338,9 @@ final class SyncManager: ObservableObject {
             if let hash = link.catalogHash { message["hash"] = hash }
             if let phone = link.phone { message["telefono"] = phone }
             let response = try await clientRequest(message, expected: "sync_ok")
+            guard store.activeLocationName == synchronizationLocation else {
+                throw SyncError.remote("Se cambió el local durante la sincronización. Inténtalo de nuevo.")
+            }
             guard AndroidBackupCodec.int64(response["id"]) == id,
                   let received = response["recibidos"] as? [String: Any] else { throw SyncError.invalidMessage }
             let changed = try SyncCatalog.applyChanges(AndroidBackupCodec.dictionaries(response["cambiosVentas"]), to: store.data)
@@ -377,7 +381,7 @@ final class SyncManager: ObservableObject {
             status = "Sincronizado · \(Date().shalevDateTime)"
             startMaintenance()
             // Si llegó la aprobación, el siguiente envío ya lleva el turno cerrado.
-            if store.data.shifts.contains(where: { !$0.synced && $0.closedAt != nil && $0.closingCount?.approvedAt != nil }) {
+            if store.activeShifts.contains(where: { !$0.synced && $0.closedAt != nil && $0.closingCount?.approvedAt != nil }) {
                 status = "Conteo aprobado; confirma el cierre"
             }
             return true
@@ -682,10 +686,10 @@ final class SyncManager: ObservableObject {
         var response = SyncJSON.message("sync_ok", ["id": AndroidBackupCodec.int64(message["id"]),
             "recibidos": applied.received, "hash": hash, "cambiosVentas": SyncCatalog.changes(for: employeeID, app: store.data)])
         if includeSnapshot { response["instantanea"] = snapshot }
-        let open = store.data.shifts.first(where: { $0.employeeID == employeeID && $0.closedAt == nil })
+        let open = store.activeShifts.first(where: { $0.employeeID == employeeID && $0.closedAt == nil })
         response["cerrarTurno"] = current.closeRequestedAt != nil && open != nil
         response["cierreRechazado"] = rejectionPending
-        if let approvedOpen = store.data.shifts.first(where: {
+        if let approvedOpen = store.activeShifts.first(where: {
             $0.employeeID == employeeID && $0.closedAt == nil && $0.closingCount?.approvedAt != nil
         }) {
             let row = try AndroidBackupCodec.exportShift(approvedOpen, app: store.data)
@@ -711,7 +715,9 @@ final class SyncManager: ObservableObject {
     private func dataChanged(old: AppData, new: AppData) {
         guard !isSecondary else { return }
         if old.products != new.products || old.services != new.services
-            || old.settings.priceAdjustments != new.settings.priceAdjustments || old.settings.profile != new.settings.profile {
+            || old.settings.priceAdjustments != new.settings.priceAdjustments || old.settings.profile != new.settings.profile
+            || old.settings.effectiveInventoryAlertDefaults != new.settings.effectiveInventoryAlertDefaults
+            || old.settings.effectivePlannedEmployees != new.settings.effectivePlannedEmployees {
             notifyCatalogChanged()
         }
     }
@@ -897,7 +903,12 @@ enum SyncCommands {
             var adjustment = AndroidBackupCodec.importAdjustment(row)
             if let id = SyncCatalog.adjustmentID(androidID: AndroidBackupCodec.int64(row["id"]), in: store.data.settings.priceAdjustments) { adjustment.id = id }
             if let ids = adjustment.productIDs {
-                adjustment.productIDs = Set(ids.compactMap { SyncCatalog.productID(androidID: AndroidID.int64("product", $0), ingredient: false, in: store.data.products) })
+                let localProducts = store.data.products.filter { $0.localName == store.activeLocationName && $0.kind != .ingredient }
+                let localServices = store.data.services.filter { $0.localName == store.activeLocationName }
+                adjustment.productIDs = Set(ids.compactMap { sourceID in
+                    SyncCatalog.productID(androidID: AndroidID.int64("product", sourceID), ingredient: false, in: localProducts)
+                        ?? SyncCatalog.serviceID(androidID: AndroidID.int64("service", sourceID), in: localServices)
+                })
             }
             try store.savePriceAdjustment(adjustment)
             return AndroidID.int64("adjustment", adjustment.id)
