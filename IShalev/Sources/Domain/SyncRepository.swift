@@ -405,7 +405,7 @@ enum SyncCatalog {
                     ingredientLowMilli: ingredientLow, ingredientCriticalMilli: ingredientCritical)
             }
             let planned = preferences["empleadosPrevistos"].map { AndroidBackupCodec.int64($0) }
-                ?? Int64(existing.effectivePlannedEmployees)
+                ?? Int64(current.settings.effectivePlannedEmployees)
             if (0...10).contains(planned) { next.settings.plannedEmployees = Int(planned) }
         }
 
