@@ -29,3 +29,16 @@ interface AlmacenLocalDao {
     @Query("DELETE FROM almacen_local")
     suspend fun borrar()
 }
+
+/**
+ * Local activo, creándolo si la base no tiene ninguno (respaldos y secundarias anteriores a la v16).
+ * Todo lo que se escribe en catálogo o historial se marca con este nombre.
+ */
+suspend fun AlmacenLocalDao.localActivo(): String {
+    activo()?.let { return it }
+    val existente = todos().firstOrNull()?.nombre
+    val nombre = existente ?: "Local".also { insertar(AlmacenLocalEntity(it, inventario = true, servicios = true)) }
+    inventario(nombre)
+    servicios(nombre)
+    return nombre
+}

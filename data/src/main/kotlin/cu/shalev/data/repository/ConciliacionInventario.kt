@@ -82,6 +82,7 @@ internal suspend fun ShalevDatabase.aplicarConteo(turnoId: Long, usuario: String
             fecha = ahora, tipo = "AJUSTE", entidad = l.entidad.name, entidadId = l.id, nombre = l.nombre,
             delta = delta, existencia = existencia, turnoId = turnoId, ventaId = null,
             nota = "Conciliación de cierre · Esperado ${cantidadConteo(l.esperado, l)} · Contado ${cantidadConteo(l.contado, l)} · ${c.motivo.trim()}", hechoPor = usuario,
+            local = turno.local,
         ))
     }
     syncDao().actualizarTurno(turno.copy(conteoCierreJson = c.copy(aprobadoPor = usuario, aprobadoEn = ahora).aJson(), sincronizado = false))

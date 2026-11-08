@@ -8,6 +8,7 @@ import cu.shalev.core.result.AppResult
 import cu.shalev.core.time.Clock
 import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.abortar
+import cu.shalev.data.db.dao.localActivo
 import cu.shalev.data.db.entity.MovimientoEntity
 import cu.shalev.data.db.tx
 import cu.shalev.data.mapper.toDomain
@@ -36,6 +37,7 @@ class ProductoRepositoryImpl @Inject constructor(
     private val recetas = db.recetaDao()
     private val movimientos = db.movimientoDao()
     private val turnos = db.turnoDao()
+    private val locales = db.almacenLocalDao()
 
     override fun observarTodos(): Flow<List<Producto>> = productos.observarActivos().map { l -> l.map { it.toDomain() } }
     override fun observar(id: Long): Flow<Producto?> = productos.observar(id).map { it?.toDomain() }.distinctUntilChanged()
@@ -45,7 +47,7 @@ class ProductoRepositoryImpl @Inject constructor(
     override suspend fun categoriasEnUso() = productos.categorias()
 
     override suspend fun crear(producto: Producto, receta: Receta?): AppResult<Long> = db.tx {
-        val id = productos.insertar(producto.toEntity().copy(id = 0, eliminado = false))
+        val id = productos.insertar(producto.toEntity().copy(id = 0, eliminado = false, local = locales.localActivo()))
         receta?.let { recetas.insertarTodas(it.toEntities(id)) }
         if (producto.cantidad != 0L) mov(TipoMovimiento.ALTA, id, producto.nombreCompleto, producto.cantidad, producto.cantidad)
         id
@@ -56,7 +58,7 @@ class ProductoRepositoryImpl @Inject constructor(
     override suspend fun actualizar(producto: Producto, receta: Receta?, cantidadLeida: Long?): AppResult<Unit> = db.tx {
         val viejo = productos.obtener(producto.id)?.takeUnless { it.eliminado } ?: abortar(AppError.NoEncontrado)
         val p = producto.copy(cantidad = Stock.cantidadAlGuardar(cantidadLeida, producto.cantidad, viejo.cantidad))
-        productos.actualizar(p.toEntity().copy(creadoEn = viejo.creadoEn, eliminado = false))
+        productos.actualizar(p.toEntity().copy(creadoEn = viejo.creadoEn, eliminado = false, local = viejo.local))
         recetas.borrarDe(p.id)
         receta?.let { recetas.insertarTodas(it.toEntities(p.id)) }
         val delta = p.cantidad - viejo.cantidad
@@ -98,7 +100,7 @@ class ProductoRepositoryImpl @Inject constructor(
             MovimientoEntity(
                 fecha = clock.now().toEpochMilli(), tipo = tipo.name, entidad = entidad.name, entidadId = entidadId,
                 nombre = nombre, delta = delta, existencia = existencia, turnoId = turnos.turnoParaMovimiento(), ventaId = null, nota = nota,
-                hechoPor = hechoPorActual(),
+                hechoPor = hechoPorActual(), local = locales.localActivo(),
             ),
         )
     }

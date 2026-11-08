@@ -15,6 +15,7 @@ import cu.shalev.domain.model.TipoMovimientoCaja
 import cu.shalev.data.db.entity.PerfilEntity
 import cu.shalev.data.db.entity.ServicioInsumoEntity
 import cu.shalev.data.db.tx
+import cu.shalev.data.db.dao.localActivo
 import cu.shalev.data.dto.PerfilDto
 import cu.shalev.data.dto.toDomain
 import cu.shalev.data.dto.toDto
@@ -66,17 +67,25 @@ class AlmacenSync @Inject constructor(
     suspend fun instantanea(empleado: EmpleadoEntity, nombreNegocio: String, licencia: LicenciaDto): AppResult<Instantanea> = db.tx {
         val perfilDao = db.perfilDao()
         val perfil = perfilDe(perfilDao.obtener(), perfilDao.tarjetas(), perfilDao.telefonos())
-        val servicios = db.servicioDao().let { dao ->
-            val lineas = dao.todosInsumos().groupBy({ it.servicioId }, { it.toDomain() })
-            dao.todos().map { it.toDomain().toDto(lineas[it.id].orEmpty()) }
+        // v16: la secundaria recibe solo el catálogo del local activo; el suyo (un único local) lo sustituye entero.
+        val local = db.almacenLocalDao().localActivo()
+        val productos = db.productoDao().todos().filter { it.local == local }
+        val insumos = db.insumoDao().todos().filter { it.local == local }
+        val idsInsumos = insumos.map { it.id }.toSet()
+        val lineasServicio = db.servicioDao().todosInsumos().groupBy({ it.servicioId }, { it.toDomain() })
+        val servicios = db.servicioDao().todos().filter { it.local == local }.map { s ->
+            s.toDomain().toDto(lineasServicio[s.id].orEmpty().filter { it.insumoId in idsInsumos })
         }
+        val idsProductos = productos.map { it.id }.toSet()
         Instantanea(
             nombreNegocio = nombreNegocio,
             empleado = EmpleadoInfo(empleado.nombre, PermisoEmpleado.deNombres(empleado.permisos.split(',')).map { it.name }.sorted()),
             licencia = licencia,
-            productos = db.productoDao().todos().map { it.toDomain().toDto() },
-            recetas = db.recetaDao().todas().groupBy { it.productoId }.map { (id, l) -> l.toReceta(id).toDto() },
-            insumos = db.insumoDao().todos().map { it.toDomain().toDto() },
+            productos = productos.map { it.toDomain().toDto() },
+            recetas = db.recetaDao().todas()
+                .filter { it.productoId in idsProductos && it.insumoId in idsInsumos }
+                .groupBy { it.productoId }.map { (id, l) -> l.toReceta(id).toDto() },
+            insumos = insumos.map { it.toDomain().toDto() },
             servicios = servicios,
             preajustes = db.preciosDao().todos().map { it.toDomain().toDto() },
             // Solo lo necesario para cobrar por transferencia: ni nombre ni carné del dueño, y (0.20.0, H4) solo la
@@ -85,8 +94,8 @@ class AlmacenSync @Inject constructor(
             preferencias = preferencias.preferencias.first().toDto(),
             // 0.32.0: las fotos del catálogo. Los bytes no van aquí: la secundaria los pide por bloques.
             fotos = fotosDe(
-                db.productoDao().todos().filterNot { it.eliminado }.map { Triple("producto", it.id, it.fotoUri) } +
-                    db.servicioDao().todos().filterNot { it.eliminado }.map { Triple("servicio", it.id, it.fotoUri) },
+                productos.filterNot { it.eliminado }.map { Triple("producto", it.id, it.fotoUri) } +
+                    db.servicioDao().todos().filter { it.local == local && !it.eliminado }.map { Triple("servicio", it.id, it.fotoUri) },
             ),
         )
     }
@@ -110,13 +119,15 @@ class AlmacenSync @Inject constructor(
     /** Aplica el lote de una secundaria. Devuelve lo que quedó guardado (la secundaria solo marca eso como enviado). */
     suspend fun aplicarLote(empleadoId: Long, lote: Lote): AppResult<Recibidos> = db.tx {
         val ahora = clock.now().toEpochMilli()
+        // v16: lo que llega de una secundaria es del local activo de la principal (la secundaria copia ese catálogo).
+        val local = db.almacenLocalDao().localActivo()
         val turnos = mutableListOf<TurnoRecibido>()
         val cerradosAhora = mutableListOf<Long>()
         for (ts in lote.turnos) {
             val recibido = ts.turno.toDomain()
             val conteo = recibido.conteoCierre?.copy(aprobadoPor = null, aprobadoEn = null)
             if (conteo != null && (!conteo.valido() || recibido.contado != conteo.efectivo)) continue
-            val nuevo = recibido.copy(conteoCierre = conteo).toEntity().copy(id = 0, uuid = ts.uuid, empleadoId = empleadoId, sincronizado = true)
+            val nuevo = recibido.copy(conteoCierre = conteo).toEntity().copy(id = 0, uuid = ts.uuid, empleadoId = empleadoId, sincronizado = true, local = local)
             val existente = sync.turnoPorUuid(ts.uuid)
             val autorizado = existente?.conteoCierreJson?.conteoDeJson()?.takeIf { it.aprobadoEn != null }
             if (autorizado != null && (conteo != autorizado.copy(aprobadoPor = null, aprobadoEn = null) || recibido.contado != autorizado.efectivo))
@@ -150,9 +161,9 @@ class AlmacenSync @Inject constructor(
             if (sync.ventaPorUuid(vs.uuid) != null) { ventas += vs.uuid; continue }
             val turno = sync.turnoPorUuid(vs.turnoUuid)?.takeIf { it.empleadoId == empleadoId } ?: continue
             val venta = vs.venta.toDomain().copy(turnoId = turno.id)
-            val ventaId = ventaDao.insertarVenta(venta.toEntity().copy(id = 0, uuid = vs.uuid, empleadoId = empleadoId, sincronizado = true))
+            val ventaId = ventaDao.insertarVenta(venta.toEntity().copy(id = 0, uuid = vs.uuid, empleadoId = empleadoId, sincronizado = true, local = local))
             ventaDao.insertarDetalles(venta.detalles.map { it.toEntity(ventaId).copy(id = 0) })
-            venta.transaccion?.let { ventaDao.insertarTransaccion(it.toEntity(ventaId).copy(id = 0)) }
+            venta.transaccion?.let { ventaDao.insertarTransaccion(it.toEntity(ventaId).copy(id = 0, local = local)) }
             // 0.27.0 (N2): el cliente fijo marcado en una secundaria queda también en la principal.
             venta.transaccion?.takeIf { it.clienteFijo }?.let { t ->
                 db.clienteFijoDao().registrar(t.cliente.nombreApellidos, t.cliente.ci, t.cliente.telefono, venta.fecha.toEpochMilli())
@@ -170,6 +181,7 @@ class AlmacenSync @Inject constructor(
                         fecha = m.fecha, tipo = m.tipo, entidad = m.entidad, entidadId = m.entidadId, nombre = m.nombre,
                         delta = m.delta, existencia = existencia, turnoId = turno.id, ventaId = ventaId,
                         nota = if (existencia < 0) listOfNotNull(m.nota, NOTA_SIN_EXISTENCIAS).joinToString(" · ") else m.nota,
+                        local = local,
                     ),
                 )
             }
@@ -275,9 +287,9 @@ class AlmacenSync @Inject constructor(
                 if (turno == null) continue // aún no existe aquí: se reintentará
                 val corrige = c.corrigeUuid?.let { ventaDao.porUuid(it)?.id }
                 val venta = c.nueva.toDomain().copy(turnoId = turno.id, corrigeVentaId = corrige)
-                val id = ventaDao.insertarVenta(venta.toEntity().copy(id = 0, uuid = c.uuid, sincronizado = true))
+                val id = ventaDao.insertarVenta(venta.toEntity().copy(id = 0, uuid = c.uuid, sincronizado = true, local = turno.local))
                 ventaDao.insertarDetalles(venta.detalles.map { it.toEntity(id).copy(id = 0) })
-                venta.transaccion?.let { ventaDao.insertarTransaccion(it.toEntity(id).copy(id = 0)) }
+                venta.transaccion?.let { ventaDao.insertarTransaccion(it.toEntity(id).copy(id = 0, local = turno.local)) }
             } else if (existente != null && c.anuladaEn != null && existente.anuladaEn == null) {
                 ventaDao.anular(existente.id, c.anuladaEn, c.motivo.orEmpty(), c.anuladaPor.orEmpty(), bajar = false)
             }
@@ -312,6 +324,7 @@ class AlmacenSync @Inject constructor(
     }
 
     private suspend fun reemplazarCatalogo(inst: Instantanea) {
+        val local = db.almacenLocalDao().localActivo()
         val m = db.mantenimientoDao()
         m.borrarRecetas(); m.borrarServicioInsumos(); m.borrarPreajusteServicios(); m.borrarPreajusteProductos(); m.borrarPreajustes()
         m.borrarServicios(); m.borrarProductos(); m.borrarInsumos(); m.borrarTarjetas(); m.borrarTelefonos(); m.borrarPerfil()
@@ -319,11 +332,13 @@ class AlmacenSync @Inject constructor(
         // 0.32.0: la foto es un archivo de ESTE teléfono. La instantánea trae la ruta del principal (aquí no
         // significa nada): si el archivo ya está en el álbum, se conserva la ruta propia; si no, queda vacía y la
         // descarga de la foto la rellena (ver [ClienteSync.descargarFotos]).
-        db.productoDao().insertarTodos(inst.productos.map { p -> p.toDomain().toEntity().copy(fotoUri = fotoLocal(p.fotoUri)) })
-        db.insumoDao().insertarTodos(inst.insumos.map { it.toDomain().toEntity() })
+        db.productoDao().insertarTodos(inst.productos.map { p ->
+            p.toDomain().toEntity().copy(fotoUri = fotoLocal(p.fotoUri), local = local)
+        })
+        db.insumoDao().insertarTodos(inst.insumos.map { it.toDomain().toEntity().copy(local = local) })
         db.recetaDao().insertarTodas(inst.recetas.flatMap { it.toDomain().toEntities() })
         val servicios = inst.servicios.map { it.toDomain() }
-        db.servicioDao().insertarTodos(servicios.map { s -> s.first.toEntity().copy(fotoUri = fotoLocal(s.first.fotoUri)) })
+        db.servicioDao().insertarTodos(servicios.map { s -> s.first.toEntity().copy(fotoUri = fotoLocal(s.first.fotoUri), local = local) })
         db.servicioDao().insertarInsumos(servicios.flatMap { (s, l) -> l.map { ServicioInsumoEntity(s.id, it.insumoId, it.cantidad.milesimas) } })
 
         val perfil = (inst.perfil ?: PerfilDto("", "", "")).toDomain()

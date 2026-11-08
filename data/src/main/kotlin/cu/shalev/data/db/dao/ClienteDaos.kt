@@ -19,7 +19,8 @@ interface ClienteFijoDao {
     @Query(
         "SELECT t.clienteCi AS ci, COUNT(*) AS compras, SUM(t.importeCent) AS totalCent, MAX(t.fecha) AS ultima " +
             "FROM transaccion t JOIN venta v ON v.id = t.ventaId " +
-            "WHERE v.anuladaEn IS NULL AND t.clienteCi IN (SELECT ci FROM cliente_fijo) GROUP BY t.clienteCi",
+            "WHERE v.anuladaEn IS NULL AND t.clienteCi IN (SELECT ci FROM cliente_fijo) " +
+            "AND v.local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), v.local) GROUP BY t.clienteCi",
     )
     fun observarCompras(): Flow<List<ComprasClienteFila>>
 

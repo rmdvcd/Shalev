@@ -7,6 +7,7 @@ import cu.shalev.core.result.AppError
 import cu.shalev.core.result.AppResult
 import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.abortar
+import cu.shalev.data.db.dao.localActivo
 import cu.shalev.data.db.entity.TurnoEntity
 import cu.shalev.data.db.entity.ArqueoRow
 import cu.shalev.data.db.entity.MovimientoCajaEntity
@@ -63,7 +64,8 @@ class TurnoRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         if (fondo != null && fondo.isNegative) abortar(AppError.Validacion("fondo", AppError.Regla.RANGO))
         val e = TurnoEntity(abiertoEn = ahora.toEpochMilli(), cerradoEn = null, numVentas = null, unidades = null,
             totalCent = null, efectivoCent = null, transferenciaCent = null, costoCent = null, numMovimientos = null,
-            abiertoPor = usuario, uuid = java.util.UUID.randomUUID().toString(), fondoCent = fondo?.centavos)
+            abiertoPor = usuario, uuid = java.util.UUID.randomUUID().toString(), fondoCent = fondo?.centavos,
+            local = db.almacenLocalDao().localActivo())
         e.copy(id = turnos.insertar(e)).toDomain()
     }
 

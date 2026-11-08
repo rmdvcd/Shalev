@@ -7,6 +7,7 @@ import cu.shalev.core.result.AppResult
 import cu.shalev.core.time.Clock
 import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.abortar
+import cu.shalev.data.db.dao.localActivo
 import cu.shalev.data.db.entity.MovimientoEntity
 import cu.shalev.data.db.tx
 import cu.shalev.data.mapper.toDomain
@@ -33,6 +34,7 @@ class InsumoRepositoryImpl @Inject constructor(
     private val movimientos = db.movimientoDao()
     private val turnos = db.turnoDao()
     private val servicios = db.servicioDao()
+    private val locales = db.almacenLocalDao()
 
     override fun observarTodos(): Flow<List<Insumo>> = insumos.observarTodos().map { l -> l.map { it.toDomain() } }
     override suspend fun obtener(id: Long) = insumos.obtener(id)?.toDomain()
@@ -41,7 +43,7 @@ class InsumoRepositoryImpl @Inject constructor(
     override suspend fun todos() = insumos.todos().map { it.toDomain() }
 
     override suspend fun crear(insumo: Insumo): AppResult<Long> = db.tx {
-        val id = insumos.insertar(insumo.toEntity().copy(id = 0))
+        val id = insumos.insertar(insumo.toEntity().copy(id = 0, local = locales.localActivo()))
         if (insumo.cantidad.milesimas != 0L) mov(TipoMovimiento.ALTA, id, insumo.nombre, insumo.cantidad.milesimas, insumo.cantidad.milesimas)
         id
     }
@@ -51,7 +53,7 @@ class InsumoRepositoryImpl @Inject constructor(
     override suspend fun actualizar(insumo: Insumo, cantidadLeida: Cantidad?): AppResult<Unit> = db.tx {
         val viejo = insumos.obtener(insumo.id) ?: abortar(AppError.NoEncontrado)
         val i = insumo.copy(cantidad = Cantidad(Stock.cantidadAlGuardar(cantidadLeida?.milesimas, insumo.cantidad.milesimas, viejo.cantidadMil)))
-        insumos.actualizar(i.toEntity().copy(creadoEn = viejo.creadoEn))
+        insumos.actualizar(i.toEntity().copy(creadoEn = viejo.creadoEn, local = viejo.local))
         val delta = i.cantidad.milesimas - viejo.cantidadMil
         if (delta != 0L) mov(TipoMovimiento.AJUSTE, i.id, i.nombre, delta, i.cantidad.milesimas, "Edición")
     }
@@ -80,7 +82,7 @@ class InsumoRepositoryImpl @Inject constructor(
             MovimientoEntity(
                 fecha = clock.now().toEpochMilli(), tipo = tipo.name, entidad = TipoEntidad.INSUMO.name, entidadId = id,
                 nombre = nombre, delta = deltaMil, existencia = existenciaMil, turnoId = turnos.turnoParaMovimiento(), ventaId = null, nota = nota,
-                hechoPor = hechoPorActual(),
+                hechoPor = hechoPorActual(), local = locales.localActivo(),
             ),
         )
     }

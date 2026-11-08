@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ProductoDao {
-    @Query("SELECT * FROM producto WHERE eliminado = 0 AND local = (SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1) ORDER BY creadoEn DESC, id DESC")
+    @Query("SELECT * FROM producto WHERE eliminado = 0 AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY creadoEn DESC, id DESC")
     fun observarActivos(): Flow<List<ProductoEntity>>
 
     @Query("SELECT * FROM producto WHERE id = :id")
@@ -27,7 +27,7 @@ interface ProductoDao {
     @Query("SELECT * FROM producto WHERE id IN (:ids)")
     suspend fun obtenerVarios(ids: List<Long>): List<ProductoEntity>
 
-    @Query("SELECT DISTINCT categoria FROM producto WHERE eliminado = 0 AND local = (SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1)")
+    @Query("SELECT DISTINCT categoria FROM producto WHERE eliminado = 0 AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local)")
     suspend fun categorias(): List<String>
 
     @Insert suspend fun insertar(p: ProductoEntity): Long
@@ -75,7 +75,7 @@ interface RecetaDao {
 
 @Dao
 interface InsumoDao {
-    @Query("SELECT * FROM insumo WHERE local = (SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1) ORDER BY creadoEn DESC, id DESC")
+    @Query("SELECT * FROM insumo WHERE local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY creadoEn DESC, id DESC")
     fun observarTodos(): Flow<List<InsumoEntity>>
 
     @Query("SELECT * FROM insumo WHERE id = :id")
@@ -111,6 +111,7 @@ interface MovimientoDao {
     @Query(
         """
         SELECT m.id, m.fecha, m.tipo, m.entidad, m.entidadId, m.nombre, m.delta, m.existencia, m.turnoId, m.ventaId, m.nota,
+               m.local,
                COALESCE(NULLIF(m.hechoPor, ''), t.abiertoPor, NULLIF(TRIM(COALESCE(p.nombre, '') || ' ' || COALESCE(p.apellidos, '')), ''),
                         'Titular del dispositivo') AS hechoPor
         FROM movimiento m
@@ -118,7 +119,7 @@ interface MovimientoDao {
         LEFT JOIN perfil p ON p.id = 1
         WHERE (:desde IS NULL OR m.fecha >= :desde)
           AND (:hasta IS NULL OR m.fecha < :hasta)
-          AND m.local = (SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1)
+          AND m.local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), m.local)
           AND (:texto IS NULL OR m.nombre LIKE '%' || :texto || '%' ESCAPE '\' OR m.nota LIKE '%' || :texto || '%' ESCAPE '\')
         ORDER BY m.fecha DESC, m.id DESC
         """,
@@ -159,7 +160,7 @@ interface MovimientoDao {
 /** v4 (P29): servicios y los insumos que consumen. */
 @Dao
 interface ServicioDao {
-    @Query("SELECT * FROM servicio WHERE eliminado = 0 AND local = (SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1) ORDER BY creadoEn DESC, id DESC")
+    @Query("SELECT * FROM servicio WHERE eliminado = 0 AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY creadoEn DESC, id DESC")
     fun observarTodos(): Flow<List<ServicioEntity>>
 
     @Query("SELECT * FROM servicio WHERE id = :id")
@@ -171,7 +172,7 @@ interface ServicioDao {
     @Query("SELECT * FROM servicio ORDER BY id")
     suspend fun todos(): List<ServicioEntity>
 
-    @Query("SELECT DISTINCT tipo FROM servicio WHERE eliminado = 0 AND local = (SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1) ORDER BY tipo COLLATE NOCASE")
+    @Query("SELECT DISTINCT tipo FROM servicio WHERE eliminado = 0 AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY tipo COLLATE NOCASE")
     suspend fun tiposEnUso(): List<String>
 
     @Insert suspend fun insertar(s: ServicioEntity): Long
@@ -185,7 +186,7 @@ interface ServicioDao {
     @Query("UPDATE servicio SET eliminado = 1, actualizadoEn = :ahora WHERE id = :id AND eliminado = 0")
     suspend fun marcarEliminado(id: Long, ahora: Long): Int
 
-    @Query("SELECT si.* FROM servicio_insumo si JOIN servicio s ON s.id = si.servicioId WHERE s.eliminado = 0 AND s.local = (SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1)")
+    @Query("SELECT si.* FROM servicio_insumo si JOIN servicio s ON s.id = si.servicioId WHERE s.eliminado = 0 AND s.local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), s.local)")
     fun observarInsumos(): Flow<List<ServicioInsumoEntity>>
 
     @Query("SELECT * FROM servicio_insumo WHERE servicioId = :servicioId")

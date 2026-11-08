@@ -213,6 +213,11 @@ class Sembrador(
     private val consumoInsumo = LongArray(insumos.size) // milésimas
     /** Locales de la demo: cada uno es un negocio completo (Inventario y Servicios compartidos). */
     private val localesDemo = listOf("Bodega", "Casa", "Kiosco")
+    /** Índices del catálogo (ver [productos]/[servicios]) que usa cada local además de Bodega, que los tiene todos. */
+    private val catalogoCasa = listOf(0, 3, 5, 7, 12, 14, 16, 20, 25, 26, 30, 32, 33, 34, 35, 27, 28, 29)
+    private val catalogoKiosco = listOf(1, 6, 8, 15, 18, 19, 21, 22, 23, 24, 26, 27, 28, 29, 31)
+    private val serviciosCasa = listOf(10, 11, 12, 13, 14, 15, 16, 19)
+    private val serviciosKiosco = listOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 17, 18)
 
     suspend fun sembrar(): String {
         val inicio = clock.now()
@@ -338,8 +343,49 @@ class Sembrador(
     // Inserción
     // ---------------------------------------------------------------------------------------------
 
-    private suspend fun ejecutar(plan: List<TurnoPlan>, desde: LocalDate, ahora: Instant): String {
-        plan.forEach { t -> t.ventas.forEach { v -> v.lineas.forEach(::acumularConsumo) } }
+    /**
+     * Catálogo propio de un local sin historial: copia los insumos (cada local lleva su propio inventario)
+     * y solo los productos y servicios elegidos, con sus fotos.
+     */
+    private suspend fun sembrarCatalogoLocal(local: String, idxProductos: List<Int>, idxServicios: List<Int>, creadoEn: Long) {
+        val idsInsumo = insumos.mapIndexed { i, ins ->
+            val unidades = if (ins.unidad == "UNIDAD") 40L + azar.nextInt(60) else 300L + azar.nextInt(900)
+            db.insumoDao().insertar(
+                InsumoEntity(
+                    nombre = ins.nombre, unidad = ins.unidad, precioCent = ins.precioCent,
+                    cantidadMil = unidades * 1000, nivelBajoMil = unidades * 250, nivelCriticoMil = unidades * 100,
+                    creadoEn = creadoEn, actualizadoEn = creadoEn, precioVentaCent = null, local = local,
+                ),
+            )
+        }
+        idxProductos.forEach { i ->
+            val p = productos[i]
+            db.productoDao().insertar(
+                ProductoEntity(
+                    categoria = p.categoria, nombre = p.nombre, descripcion = null, fotoUri = foto("prod", i),
+                    fechaCaducidad = if (p.caduca) LocalDate.now(zona).plusDays(2L + azar.nextInt(25)).toEpochDay() else null,
+                    precioCostoCent = p.costo, precioVentaCent = p.venta, cantidad = (15 + azar.nextInt(40)).toLong(),
+                    nivelBajo = 8, nivelCritico = 3, creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false,
+                    local = local,
+                ),
+            )
+        }
+        idxServicios.forEach { i ->
+            val s = servicios[i]
+            val id = db.servicioDao().insertar(
+                ServicioEntity(
+                    nombre = s.nombre, tipo = s.tipo, importeCent = s.importeCent,
+                    descripcion = null, fotoUri = foto("serv", i),
+                    creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false, local = local,
+                ),
+            )
+            consumoServicio[i]?.let { lineas ->
+                db.servicioDao().insertarInsumos(lineas.map { (j, mil) -> ServicioInsumoEntity(id, idsInsumo[j], mil) })
+            }
+        }
+    }
+
+    private suspend fun ejecutar(plan: List<TurnoPlan>, desde: LocalDate, ahora: Instant): String {        plan.forEach { t -> t.ventas.forEach { v -> v.lineas.forEach(::acumularConsumo) } }
 
         val creadoEn = desde.minusDays(15).atStartOfDay(zona).toInstant().toEpochMilli()
         val existenciasProducto = LongArray(productos.size)
@@ -348,15 +394,16 @@ class Sembrador(
         db.withTransaction {
             db.mantenimientoDao().borrarOperacion()
             db.mantenimientoDao().borrarConfiguracion()
-            // Semilla repetible: historial compartido y varios locales.
+            // Semilla repetible: cada local tiene su propio catálogo y su propio historial.
             db.almacenLocalDao().borrar()
             // Cada local corresponde a un Inventario y Servicios propios (la misma ventana para ambos);
-            // el primero queda activo. El historial de ventas es común al equipo.
+            // el primero queda activo. Solo Bodega recibe el histórico de ventas.
             localesDemo.forEach {
                 db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(it))
             }
             db.almacenLocalDao().inventario(localesDemo.first())
             db.almacenLocalDao().servicios(localesDemo.first())
+            val localBodega = localesDemo.first()
             // Las apps vinculadas no las borra el vaciado de respaldo (no viajan en él): se limpian aquí.
             db.openHelper.writableDatabase.execSQL("DELETE FROM empleado")
 
@@ -391,6 +438,7 @@ class Sembrador(
                         nivelBajoMil = resto / 4, nivelCriticoMil = resto / 10,
                         creadoEn = creadoEn, actualizadoEn = creadoEn,
                         precioVentaCent = null,
+                        local = localBodega,
                     ),
                 )
             }
@@ -409,6 +457,7 @@ class Sembrador(
                         cantidad = resto,
                         nivelBajo = 10, nivelCritico = 4,
                         creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false,
+                        local = localBodega,
                     ),
                 )
             }
@@ -418,6 +467,7 @@ class Sembrador(
                         nombre = s.nombre, tipo = s.tipo, importeCent = s.importeCent,
                         descripcion = null, fotoUri = foto("serv", i),
                         creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false,
+                        local = localBodega,
                     ),
                 )
             }
@@ -441,7 +491,7 @@ class Sembrador(
                     altas += MovimientoEntity(
                         fecha = creadoEn, tipo = "ALTA", entidad = "PRODUCTO", entidadId = idsProducto[i],
                         nombre = p.nombre, delta = existenciasProducto[i], existencia = existenciasProducto[i],
-                        turnoId = null, ventaId = null, nota = null, hechoPor = "",
+                        turnoId = null, ventaId = null, nota = null, hechoPor = "", local = localBodega,
                     )
                 }
             }
@@ -449,10 +499,14 @@ class Sembrador(
                 altas += MovimientoEntity(
                     fecha = creadoEn, tipo = "ALTA", entidad = "INSUMO", entidadId = idsInsumo[i],
                     nombre = ins.nombre, delta = existenciasInsumo[i], existencia = existenciasInsumo[i],
-                    turnoId = null, ventaId = null, nota = null, hechoPor = "",
+                    turnoId = null, ventaId = null, nota = null, hechoPor = "", local = localBodega,
                 )
             }
             db.movimientoDao().insertarTodos(altas)
+
+            // --- Catálogo propio de Casa y Kiosco (sin historial de ventas) ----------------------
+            sembrarCatalogoLocal(localesDemo[1], catalogoCasa, serviciosCasa, creadoEn)
+            sembrarCatalogoLocal(localesDemo[2], catalogoKiosco, serviciosKiosco, creadoEn)
 
             // --- Empleados (apps secundarias de prueba) -----------------------------------------
             nombresEmpleados.forEachIndexed { i, nombre ->
@@ -497,7 +551,7 @@ class Sembrador(
                         ventasEfectivo = null, ventasTransferencia = null,
                         movimientosProducto = null, movimientosInsumo = null,
                         uuid = UUID.randomUUID().toString(),
-                        sincronizado = true, fondoCent = tp.fondoCent,
+                        sincronizado = true, fondoCent = tp.fondoCent, local = localBodega,
                     ),
                 )
                 tp.caja.forEach { c ->
@@ -533,6 +587,7 @@ class Sembrador(
                             turnoId = turnoId, fecha = vp.en, metodoPago = vp.metodo,
                             totalCent = total, costoCent = costo, unidades = unidades,
                             uuid = UUID.randomUUID().toString(), empleadoId = null, sincronizado = true,
+                            local = localBodega,
                         ),
                     )
                     db.ventaDao().insertarDetalles(detalles.map { it.copy(ventaId = ventaId) })
@@ -545,6 +600,7 @@ class Sembrador(
                                 clienteNombre = c.nombre, clienteCi = c.ci, clienteTelefono = c.telefono,
                                 tarjetaCobro = "9234567812349021", telefonoCobro = "+5352168959",
                                 clienteFijo = azar.nextInt(100) < 55,
+                                local = localBodega,
                             ),
                         )
                     }
@@ -556,7 +612,7 @@ class Sembrador(
                                 fecha = vp.en, tipo = "VENTA", entidad = "PRODUCTO", entidadId = idsProducto[l.idx],
                                 nombre = productos[l.idx].nombre, delta = -l.cantidad,
                                 existencia = existenciasProducto[l.idx], turnoId = turnoId, ventaId = ventaId,
-                                nota = null, hechoPor = abiertoPor,
+                                nota = null, hechoPor = abiertoPor, local = localBodega,
                             )
                         }
                         lineas.forEach { (i, mil) ->
@@ -566,7 +622,7 @@ class Sembrador(
                                 fecha = vp.en, tipo = "CONSUMO", entidad = "INSUMO", entidadId = idsInsumo[i],
                                 nombre = insumos[i].nombre, delta = delta,
                                 existencia = existenciasInsumo[i], turnoId = turnoId, ventaId = ventaId,
-                                nota = null, hechoPor = abiertoPor,
+                                nota = null, hechoPor = abiertoPor, local = localBodega,
                             )
                         }
                     }
@@ -586,7 +642,7 @@ class Sembrador(
                     movimientosProducto = movimientos.count { it.turnoId == turnoId && it.entidad == "PRODUCTO" },
                     movimientosInsumo = movimientos.count { it.turnoId == turnoId && it.entidad == "INSUMO" },
                     uuid = UUID.randomUUID().toString(), empleadoId = null, sincronizado = true,
-                    fondoCent = tp.fondoCent,
+                    fondoCent = tp.fondoCent, local = localBodega,
                     contadoCent = tp.fondoCent + efectivo.sumOf { v -> v.lineas.sumOf { precioLinea(it) * it.cantidad } } + entradas - salidas,
                     entradasCent = if (entradas == 0L) null else entradas,
                     salidasCent = if (salidas == 0L) null else salidas,
@@ -607,9 +663,11 @@ class Sembrador(
         }
         return buildString {
             appendLine("Datos de demostración cargados")
-            appendLine("Ventas: ${plan.sumOf { it.ventas.size }} en ${plan.size} turnos")
-            appendLine("Locales: ${localesDemo.joinToString()} (Inventario y Servicios por local; activo: ${localesDemo.first()})")
-            appendLine("Productos: ${productos.size} · servicios: ${servicios.size} · insumos: ${insumos.size}")
+            appendLine("Ventas (Bodega): ${plan.sumOf { it.ventas.size }} en ${plan.size} turnos")
+            appendLine("Locales: ${localesDemo.joinToString()} (catálogo propio por local; activo: ${localesDemo.first()})")
+            appendLine("Productos: ${productos.size} en Bodega · ${catalogoCasa.size} en Casa · ${catalogoKiosco.size} en Kiosco")
+            appendLine("Servicios: ${servicios.size} en Bodega · ${serviciosCasa.size} en Casa · ${serviciosKiosco.size} en Kiosco")
+            appendLine("Insumos: ${insumos.size} por local")
             appendLine("Apps secundarias: ${nombresEmpleados.size}")
             appendLine("Desde: ${desde} · hasta: ${ahora.atZone(zona).toLocalDate()}")
         }

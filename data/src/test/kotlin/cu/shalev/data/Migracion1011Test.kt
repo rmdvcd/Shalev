@@ -13,12 +13,14 @@ import org.junit.Test
 class Migracion1011Test {
 
     @Test fun migracion10_11RecreaProductoSinCodigoConservandoDatos() {
-        // Versión actual del esquema (0.31.0: la v12 añade `device` a `empleado`) y cadena de migraciones sin huecos.
-        assertEquals(15, ShalevDatabase.VERSION)
+        // Versión actual del esquema (v16: `local` en catálogo e historial) y cadena de migraciones sin huecos.
+        assertEquals(16, ShalevDatabase.VERSION)
         assertEquals(10, ShalevDatabase.MIGRACION_10_11.startVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_10_11.endVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_11_12.startVersion)
         assertEquals(12, ShalevDatabase.MIGRACION_11_12.endVersion)
+        assertEquals(15, ShalevDatabase.MIGRACION_15_16.startVersion)
+        assertEquals(16, ShalevDatabase.MIGRACION_15_16.endVersion)
         val sql = ShalevDatabase.SQL_10_11
         assertTrue(sql.any { it.startsWith("CREATE TABLE IF NOT EXISTS `producto_nuevo`") && "codigo" !in it })
         assertTrue(sql.any { it.startsWith("INSERT INTO `producto_nuevo`") && "FROM `producto`" in it })
@@ -27,6 +29,17 @@ class Migracion1011Test {
         assertTrue(sql.none { "codigo" in it })
         assertTrue(sql.none { it.startsWith("DELETE") })
         assertTrue(sql.none { it.startsWith("DROP") && it != "DROP TABLE `producto`" })
+    }
+
+    @Test fun migracion15_16SellaTodoEnElLocalActivo() {
+        val sql = ShalevDatabase.SQL_15_16
+        // Si no hay ningún local, se crea «Local» y queda activo.
+        assertTrue(sql.any { it.startsWith("INSERT INTO almacen_local") && "'Local'" in it })
+        listOf("producto", "insumo", "servicio", "turno", "venta", "transaccion", "movimiento").forEach { tabla ->
+            assertTrue(sql.any { it == "ALTER TABLE `$tabla` ADD COLUMN `local` TEXT NOT NULL DEFAULT ''" })
+            assertTrue(sql.any { it.startsWith("UPDATE `$tabla` SET `local` = COALESCE(") })
+        }
+        assertTrue(sql.none { it.startsWith("DELETE") || it.startsWith("DROP") })
     }
 
     @Test fun respaldoViejoConCodigoYConsentimientoSeImporta() {

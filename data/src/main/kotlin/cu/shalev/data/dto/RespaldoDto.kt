@@ -70,6 +70,8 @@ data class ProductoDto(
     val fechaCaducidad: String? = null, val precioCostoCent: Long, val precioVentaCent: Long, val cantidad: Long,
     val nivelBajo: Long? = null, val nivelCritico: Long? = null,
     val creadoEn: Long, val actualizadoEn: Long, val eliminado: Boolean = false,
+    /** v16: local dueño del artículo ("" en respaldos anteriores → local activo al restaurar). */
+    val local: String = "",
 )
 
 @Serializable data class RecetaLineaDto(val insumoId: Long, val cantidadMil: Long)
@@ -81,6 +83,8 @@ data class InsumoDto(
     val nivelBajoMil: Long? = null, val nivelCriticoMil: Long? = null, val creadoEn: Long, val actualizadoEn: Long,
     /** P29: null = no se vende suelto (y en respaldos anteriores). */
     val precioVentaCent: Long? = null,
+    /** v16: local dueño del insumo. */
+    val local: String = "",
 )
 
 /** 0.20.0 (H7): ficha de una app secundaria: nombre, permisos y con qué cobra. Nunca la clave. */
@@ -96,6 +100,8 @@ data class ServicioDto(
     val id: Long, val nombre: String, val tipo: String, val importeCent: Long, val descripcion: String? = null,
     val fotoUri: String? = null, val creadoEn: Long, val actualizadoEn: Long, val eliminado: Boolean = false,
     val insumos: List<RecetaLineaDto> = emptyList(),
+    /** v16: local que ofrece el servicio. */
+    val local: String = "",
 )
 
 @Serializable
@@ -123,6 +129,8 @@ data class TurnoDto(
     val fondoCent: Long? = null,
     val contadoCent: Long? = null,
     val conteoCierre: ConteoCierreDto? = null,
+    /** v16: local del turno. */
+    val local: String = "",
 )
 
 @Serializable
@@ -157,6 +165,8 @@ data class VentaDto(
     /** 0.25.0: anulación (null = válida, y en respaldos anteriores) y venta original a la que corrige. */
     val anuladaEn: Long? = null, val motivoAnulacion: String? = null, val anuladaPor: String? = null,
     val corrigeVentaId: Long? = null,
+    /** v16: local de la venta. */
+    val local: String = "",
 )
 
 @Serializable
@@ -165,6 +175,8 @@ data class MovimientoDto(
     val delta: Long, val existencia: Long, val turnoId: Long? = null, val ventaId: Long? = null, val nota: String? = null,
     /** 0.21.0 (C7). Ausente en respaldos anteriores. */
     val hechoPor: String = "",
+    /** v16: local del movimiento. */
+    val local: String = "",
 )
 
 

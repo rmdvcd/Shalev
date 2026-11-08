@@ -28,7 +28,7 @@ interface VentaDao {
     suspend fun obtener(id: Long): VentaCompleta?
 
     @Transaction
-    @Query("SELECT * FROM venta WHERE fecha >= :desde AND fecha < :hasta ORDER BY fecha, id")
+    @Query("SELECT * FROM venta WHERE fecha >= :desde AND fecha < :hasta AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY fecha, id")
     suspend fun entre(desde: Long, hasta: Long): List<VentaCompleta>
 
     @Transaction
@@ -42,6 +42,7 @@ interface VentaDao {
         SELECT * FROM venta
         WHERE (:desde IS NULL OR fecha >= :desde)
           AND (:hasta IS NULL OR fecha < :hasta)
+          AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local)
           AND (:minCent IS NULL OR totalCent >= :minCent)
           AND (:maxCent IS NULL OR totalCent <= :maxCent)
           AND (:texto IS NULL OR id IN (SELECT ventaId FROM detalle_venta WHERE nombre LIKE '%' || :texto || '%' ESCAPE '\'))
@@ -51,7 +52,7 @@ interface VentaDao {
     fun filtrar(desde: Long?, hasta: Long?, minCent: Long?, maxCent: Long?, texto: String?): Flow<List<VentaCompleta>>
 
     /** 0.20.0 (H1): quién vendió cada venta = quien abrió su turno (nombre congelado al abrir). */
-    @Query("SELECT v.id AS ventaId, t.abiertoPor AS vendedor FROM venta v JOIN turno t ON t.id = v.turnoId WHERE t.abiertoPor IS NOT NULL")
+    @Query("SELECT v.id AS ventaId, t.abiertoPor AS vendedor FROM venta v JOIN turno t ON t.id = v.turnoId WHERE t.abiertoPor IS NOT NULL AND v.local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), v.local)")
     fun observarVendedores(): Flow<List<VendedorDeVenta>>
 
     /** 0.29.2: quién vendió cada venta = quien abrió su turno (nombre congelado al abrir); por lote para `obtener`/`entre`/`deTurno`. */
@@ -59,7 +60,7 @@ interface VentaDao {
     suspend fun vendedoresDe(ids: List<Long>): List<VendedorDeVenta>
 
     /** 0.20.0 (H1): opciones del filtro «Vendedor». */
-    @Query("SELECT DISTINCT abiertoPor FROM turno WHERE abiertoPor IS NOT NULL AND TRIM(abiertoPor) != '' ORDER BY abiertoPor COLLATE NOCASE")
+    @Query("SELECT DISTINCT abiertoPor FROM turno WHERE abiertoPor IS NOT NULL AND TRIM(abiertoPor) != '' AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY abiertoPor COLLATE NOCASE")
     fun nombresVendedores(): Flow<List<String>>
 
     /** Registros → Transferencias recibidas. */
@@ -68,6 +69,7 @@ interface VentaDao {
         SELECT * FROM transaccion
         WHERE (:desde IS NULL OR fecha >= :desde)
           AND (:hasta IS NULL OR fecha < :hasta)
+          AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local)
           AND (:minCent IS NULL OR importeCent >= :minCent)
           AND (:maxCent IS NULL OR importeCent <= :maxCent)
           AND (:texto IS NULL OR numero LIKE '%' || :texto || '%' ESCAPE '\' OR clienteNombre LIKE '%' || :texto || '%' ESCAPE '\'
@@ -111,24 +113,24 @@ interface VentaDao {
 /** P37: el turno «activo» es siempre el de ESTA app; los turnos de las secundarias (empleadoId) solo se ven en el historial. */
 @Dao
 interface TurnoDao {
-    @Query("SELECT * FROM turno WHERE cerradoEn IS NULL AND empleadoId IS NULL ORDER BY abiertoEn DESC LIMIT 1")
+    @Query("SELECT * FROM turno WHERE cerradoEn IS NULL AND empleadoId IS NULL AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY abiertoEn DESC LIMIT 1")
     fun observarActivo(): Flow<TurnoEntity?>
 
-    @Query("SELECT * FROM turno WHERE cerradoEn IS NULL AND empleadoId IS NULL ORDER BY abiertoEn DESC LIMIT 1")
+    @Query("SELECT * FROM turno WHERE cerradoEn IS NULL AND empleadoId IS NULL AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY abiertoEn DESC LIMIT 1")
     suspend fun activo(): TurnoEntity?
 
     /** 0.19.3: turno abierto de una secundaria en la principal (para asociar sus cambios de stock remotos). */
     @Query("SELECT * FROM turno WHERE cerradoEn IS NULL AND empleadoId = :empleadoId ORDER BY abiertoEn DESC LIMIT 1")
     suspend fun activoDeEmpleado(empleadoId: Long): TurnoEntity?
 
-    @Query("SELECT * FROM turno WHERE cerradoEn IS NOT NULL AND empleadoId IS NULL ORDER BY cerradoEn DESC LIMIT 1")
+    @Query("SELECT * FROM turno WHERE cerradoEn IS NOT NULL AND empleadoId IS NULL AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY cerradoEn DESC LIMIT 1")
     suspend fun ultimoCerrado(): TurnoEntity?
 
     /** 0.26.0 (§4): último turno cerrado de esa secundaria (propone el fondo que asigna el dueño). */
     @Query("SELECT * FROM turno WHERE cerradoEn IS NOT NULL AND empleadoId = :empleadoId ORDER BY cerradoEn DESC LIMIT 1")
     suspend fun ultimoCerradoDeEmpleado(empleadoId: Long): TurnoEntity?
 
-    @Query("SELECT * FROM turno ORDER BY abiertoEn DESC")
+    @Query("SELECT * FROM turno WHERE local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY abiertoEn DESC")
     fun observarHistorial(): Flow<List<TurnoEntity>>
 
     @Query("SELECT * FROM turno WHERE id = :id")
@@ -164,7 +166,9 @@ interface TurnoDao {
                COALESCE((SELECT SUM(v.totalCent) FROM venta v WHERE v.turnoId = t.id AND v.anuladaEn IS NULL AND v.metodoPago = 'EFECTIVO'), 0) AS efectivoCent,
                COALESCE((SELECT SUM(c.importeCent) FROM movimiento_caja c WHERE c.turnoId = t.id AND c.tipo = 'ENTRADA'), 0) AS entradasCent,
                COALESCE((SELECT SUM(c.importeCent) FROM movimiento_caja c WHERE c.turnoId = t.id AND c.tipo = 'SALIDA'), 0) AS salidasCent
-        FROM turno t WHERE t.cerradoEn IS NULL AND t.empleadoId IS NULL ORDER BY t.abiertoEn DESC LIMIT 1
+        FROM turno t WHERE t.cerradoEn IS NULL AND t.empleadoId IS NULL
+          AND t.local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), t.local)
+        ORDER BY t.abiertoEn DESC LIMIT 1
         """,
     )
     fun observarArqueoActivo(): Flow<ArqueoRow?>

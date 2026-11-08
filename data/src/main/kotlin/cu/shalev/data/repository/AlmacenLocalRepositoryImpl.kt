@@ -21,6 +21,10 @@ class LocalRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
             val dao = db.almacenLocalDao()
             val existente = dao.todos().firstOrNull { it.nombre == nombre }
                 ?: throw IllegalArgumentException("El local ya no existe.")
+            // Cambiar de local con un turno abierto mezclaría la caja de dos locales.
+            if (existente.nombre != dao.activo() && db.turnoDao().activo() != null) {
+                throw IllegalArgumentException("Cierra el turno antes de cambiar de local.")
+            }
             dao.inventario(existente.nombre)
             dao.servicios(existente.nombre)
         }
@@ -38,10 +42,20 @@ class LocalRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
             }
             if (previo != null) dao.borrarNombre(previo.nombre)
             dao.insertar(AlmacenLocalEntity(limpio, inventario = previo?.inventario ?: false, servicios = previo?.servicios ?: false))
+            // v16: el nombre del local es la clave del catálogo y del historial; renombrarlo arrastra sus datos.
+            if (previo != null && previo.nombre != limpio) {
+                val sql = db.openHelper.writableDatabase
+                TABLAS_CON_LOCAL.forEach { sql.execSQL("UPDATE `$it` SET `local` = ? WHERE `local` = ?", arrayOf(limpio, previo.nombre)) }
+            }
             if (todos.isEmpty()) {
                 dao.inventario(limpio)
                 dao.servicios(limpio)
             }
         }
+    }
+
+    private companion object {
+        /** Tablas cuya fila pertenece a un local (v16). */
+        val TABLAS_CON_LOCAL = listOf("producto", "insumo", "servicio", "turno", "venta", "transaccion", "movimiento")
     }
 }

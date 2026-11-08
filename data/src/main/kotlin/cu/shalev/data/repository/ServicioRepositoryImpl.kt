@@ -5,6 +5,7 @@ import cu.shalev.core.result.AppResult
 import cu.shalev.core.time.Clock
 import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.abortar
+import cu.shalev.data.db.dao.localActivo
 import cu.shalev.data.db.entity.ServicioInsumoEntity
 import cu.shalev.data.db.tx
 import cu.shalev.data.mapper.toDomain
@@ -25,6 +26,7 @@ class ServicioRepositoryImpl @Inject constructor(
 ) : ServicioRepository {
 
     private val dao = db.servicioDao()
+    private val locales = db.almacenLocalDao()
 
     override fun observarTodos(): Flow<List<Servicio>> = dao.observarTodos().map { l -> l.map { it.toDomain() } }
 
@@ -38,14 +40,14 @@ class ServicioRepositoryImpl @Inject constructor(
     override suspend fun tiposEnUso() = dao.tiposEnUso()
 
     override suspend fun crear(servicio: Servicio, insumos: List<RecetaLinea>): AppResult<Long> = db.tx {
-        val id = dao.insertar(servicio.toEntity().copy(id = 0, eliminado = false))
+        val id = dao.insertar(servicio.toEntity().copy(id = 0, eliminado = false, local = locales.localActivo()))
         guardarInsumos(id, insumos)
         id
     }
 
     override suspend fun actualizar(servicio: Servicio, insumos: List<RecetaLinea>): AppResult<Unit> = db.tx {
         val viejo = dao.obtener(servicio.id)?.takeUnless { it.eliminado } ?: abortar(AppError.NoEncontrado)
-        dao.actualizar(servicio.toEntity().copy(creadoEn = viejo.creadoEn, eliminado = false))
+        dao.actualizar(servicio.toEntity().copy(creadoEn = viejo.creadoEn, eliminado = false, local = viejo.local))
         dao.borrarInsumosDe(servicio.id)
         guardarInsumos(servicio.id, insumos)
     }

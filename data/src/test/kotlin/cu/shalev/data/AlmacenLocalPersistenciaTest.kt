@@ -9,7 +9,7 @@ import org.junit.Test
 
 class AlmacenLocalPersistenciaTest {
     @Test fun migracionSoloAnadeTabla() {
-        assertEquals(15, ShalevDatabase.VERSION)
+        assertEquals(16, ShalevDatabase.VERSION)
         assertEquals(14, ShalevDatabase.MIGRACION_14_15.startVersion)
         assertEquals(15, ShalevDatabase.MIGRACION_14_15.endVersion)
         assertEquals(1, ShalevDatabase.SQL_14_15.size)

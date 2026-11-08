@@ -9,6 +9,7 @@ import cu.shalev.core.time.Clock
 import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.entity.PerfilEntity
 import cu.shalev.data.db.tx
+import cu.shalev.data.db.dao.localActivo
 import cu.shalev.domain.di.IoDispatcher
 import cu.shalev.data.dto.EmpleadoRespaldoDto
 import cu.shalev.data.dto.RespaldoDto
@@ -100,6 +101,18 @@ class RespaldoRepositoryImpl @Inject constructor(
         /** 0.27.0 (N2): clientes fijos. */
         val clientesFijos: List<cu.shalev.data.dto.ClienteFijoDto> = emptyList(),
         val almacenesLocales: List<cu.shalev.data.dto.AlmacenLocalDto> = emptyList(),
+        /** v16: local de cada fila (vacío en respaldos anteriores → el local activo al restaurar). */
+        val locales: LocalFilas = LocalFilas(),
+    )
+
+    /** v16: nombre del local por id de fila. */
+    private data class LocalFilas(
+        val productos: Map<Long, String> = emptyMap(),
+        val insumos: Map<Long, String> = emptyMap(),
+        val servicios: Map<Long, String> = emptyMap(),
+        val turnos: Map<Long, String> = emptyMap(),
+        val ventas: Map<Long, String> = emptyMap(),
+        val movimientos: Map<Long, String> = emptyMap(),
     )
 
     /** uuid + app secundaria de origen + enviado. Se conservan para que restaurar no duplique al sincronizar. */
@@ -119,20 +132,23 @@ class RespaldoRepositoryImpl @Inject constructor(
             guard {
                 val dto = RespaldoDto(
                     creadoEn = clock.now().toEpochMilli(),
-                    productos = c.productos.map { it.toDto() }, recetas = c.recetas.map { it.toDto() },
-                    insumos = c.insumos.map { it.toDto() },
+                    productos = c.productos.map { it.toDto().copy(local = c.locales.productos[it.id].orEmpty()) },
+                    recetas = c.recetas.map { it.toDto() },
+                    insumos = c.insumos.map { it.toDto().copy(local = c.locales.insumos[it.id].orEmpty()) },
                     turnos = c.turnos.map { t ->
-                        val d = t.toDto()
+                        val d = t.toDto().copy(local = c.locales.turnos[t.id].orEmpty())
                         c.marcasTurno[t.id]?.let { m -> d.copy(uuid = m.uuid, sincronizado = m.sincronizado) } ?: d
                     },
                     ventas = c.ventas.map { v ->
-                        val d = v.toDto()
+                        val d = v.toDto().copy(local = c.locales.ventas[v.id].orEmpty())
                         c.marcasVenta[v.id]?.let { m -> d.copy(uuid = m.uuid, empleadoId = m.empleadoId, sincronizado = m.sincronizado) } ?: d
                     },
-                    movimientos = c.movimientos.map { it.toDto() },
+                    movimientos = c.movimientos.map { it.toDto().copy(local = c.locales.movimientos[it.id].orEmpty()) },
                     perfil = c.perfil?.toDto(), preajustes = c.preajustes.map { it.toDto() },
                     preferencias = preferencias.preferencias.first().toDto(),
-                    servicios = c.servicios.map { (s, l) -> s.toDto(l) },
+                    servicios = c.servicios.map { (s, l) ->
+                        s.toDto(l).copy(local = c.locales.servicios[s.id].orEmpty())
+                    },
                     empleados = c.empleados,
                     caja = c.caja,
                     clientesFijos = c.clientesFijos,
@@ -210,6 +226,14 @@ class RespaldoRepositoryImpl @Inject constructor(
                         require(xs.count { it.inventario } <= 1 && xs.count { it.servicios } <= 1)
                         require(xs.map { it.nombre.lowercase(java.util.Locale.ROOT) }.distinct().size == xs.size)
                     },
+                    locales = LocalFilas(
+                        productos = dto.productos.associate { it.id to it.local },
+                        insumos = dto.insumos.associate { it.id to it.local },
+                        servicios = dto.servicios.associate { it.id to it.local },
+                        turnos = dto.turnos.associate { it.id to it.local },
+                        ventas = dto.ventas.associate { it.id to it.local },
+                        movimientos = dto.movimientos.associate { it.id to it.local },
+                    ),
                 )
                 validarIntegridad(contenido)
                 recuperable = dto.licencia
@@ -240,22 +264,34 @@ class RespaldoRepositoryImpl @Inject constructor(
         val transacciones = ventaDao.todasTransacciones().associateBy { it.ventaId }
         val turnoEntities = db.turnoDao().todos()
         val ventaEntities = ventaDao.todas()
+        val productoEntities = db.productoDao().todos()
+        val insumoEntities = db.insumoDao().todos()
+        val servicioEntities = db.servicioDao().todos()
+        val movimientoEntities = db.movimientoDao().todos()
         return Contenido(
-            productos = db.productoDao().todos().map { it.toDomain() },
+            productos = productoEntities.map { it.toDomain() },
             recetas = db.recetaDao().todas().groupBy { it.productoId }.map { (id, l) -> l.toReceta(id) },
-            insumos = db.insumoDao().todos().map { it.toDomain() },
+            insumos = insumoEntities.map { it.toDomain() },
             turnos = turnoEntities.map { it.toDomain() },
             marcasTurno = turnoEntities.associate { it.id to MarcaSync(it.uuid, it.empleadoId, it.sincronizado) }.filterValues { !it.vacia },
             marcasVenta = ventaEntities.associate { it.id to MarcaSync(it.uuid, it.empleadoId, it.sincronizado) }.filterValues { !it.vacia },
             ventas = ventaEntities.map { v ->
                 cu.shalev.data.db.entity.VentaCompleta(v, detalles[v.id].orEmpty(), transacciones[v.id]).toDomain()
             },
-            movimientos = db.movimientoDao().todos().map { it.toDomain() },
+            movimientos = movimientoEntities.map { it.toDomain() },
+            locales = LocalFilas(
+                productos = productoEntities.associate { it.id to it.local },
+                insumos = insumoEntities.associate { it.id to it.local },
+                servicios = servicioEntities.associate { it.id to it.local },
+                turnos = turnoEntities.associate { it.id to it.local },
+                ventas = ventaEntities.associate { it.id to it.local },
+                movimientos = movimientoEntities.associate { it.id to it.local },
+            ),
             perfil = perfilDe(perfilDao.obtener(), perfilDao.tarjetas(), perfilDao.telefonos()),
             preajustes = db.preciosDao().todos().map { it.toDomain() },
             servicios = db.servicioDao().let { dao ->
                 val lineas = dao.todosInsumos().groupBy({ it.servicioId }, { it.toDomain() })
-                dao.todos().map { it.toDomain() to lineas[it.id].orEmpty() }
+                servicioEntities.map { it.toDomain() to lineas[it.id].orEmpty() }
             },
             caja = db.cajaDao().todos().map { m ->
                 MovimientoCajaDto(m.id, m.turnoId, m.fecha, m.tipo, m.importeCent, m.motivo, m.hechoPor, m.uuid, m.sincronizado)
@@ -279,24 +315,36 @@ class RespaldoRepositoryImpl @Inject constructor(
         val m = db.mantenimientoDao()
         m.borrarOperacion()
         m.borrarConfiguracion()
+        // v16: los locales primero; su nombre identifica el catálogo y el historial que se restaura.
+        c.almacenesLocales.forEach {
+            db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(it.nombre, it.inventario, it.servicios))
+        }
+        val activo = db.almacenLocalDao().localActivo()
+        val validos = c.almacenesLocales.map { it.nombre }.toSet()
+        fun localDe(nombre: String) = nombre.takeIf { it.isNotEmpty() && it in validos } ?: activo
 
-        db.productoDao().insertarTodos(c.productos.map { it.toEntity() })
-        db.insumoDao().insertarTodos(c.insumos.map { it.toEntity() })
+        db.productoDao().insertarTodos(c.productos.map { it.toEntity().copy(local = localDe(c.locales.productos[it.id].orEmpty())) })
+        db.insumoDao().insertarTodos(c.insumos.map { it.toEntity().copy(local = localDe(c.locales.insumos[it.id].orEmpty())) })
         db.recetaDao().insertarTodas(c.recetas.flatMap { it.toEntities() })
-        db.servicioDao().insertarTodos(c.servicios.map { it.first.toEntity() })
+        db.servicioDao().insertarTodos(c.servicios.map { it.first.toEntity().copy(local = localDe(c.locales.servicios[it.first.id].orEmpty())) })
         db.servicioDao().insertarInsumos(c.servicios.flatMap { (s, l) -> l.map { ServicioInsumoEntity(s.id, it.insumoId, it.cantidad.milesimas) } })
         db.turnoDao().insertarTodos(c.turnos.map { t ->
-            val e = t.toEntity()
+            val e = t.toEntity().copy(local = localDe(c.locales.turnos[t.id].orEmpty()))
             c.marcasTurno[t.id]?.let { m -> e.copy(uuid = m.uuid, sincronizado = m.sincronizado) } ?: e
         })
         val ventaDao = db.ventaDao()
+        val localesVenta = c.ventas.associate { it.id to localDe(c.locales.ventas[it.id].orEmpty()) }
         ventaDao.insertarVentas(c.ventas.map { v ->
-            val e = v.toEntity()
+            val e = v.toEntity().copy(local = localesVenta.getValue(v.id))
             c.marcasVenta[v.id]?.let { m -> e.copy(uuid = m.uuid, empleadoId = m.empleadoId, sincronizado = m.sincronizado) } ?: e
         })
         ventaDao.insertarDetalles(c.ventas.flatMap { v -> v.detalles.map { it.toEntity(v.id) } })
-        ventaDao.insertarTransacciones(c.ventas.mapNotNull { v -> v.transaccion?.toEntity(v.id) })
-        db.movimientoDao().insertarTodos(c.movimientos.map { it.toEntity() })
+        ventaDao.insertarTransacciones(c.ventas.mapNotNull { v ->
+            v.transaccion?.toEntity(v.id)?.copy(local = localesVenta.getValue(v.id))
+        })
+        db.movimientoDao().insertarTodos(c.movimientos.map {
+            it.toEntity().copy(local = localDe(c.locales.movimientos[it.id].orEmpty()))
+        })
         db.cajaDao().insertarTodos(c.caja.map { d ->
             MovimientoCajaEntity(d.id, d.turnoId, d.fecha, d.tipo, d.importeCent, d.motivo, d.hechoPor, d.uuid, d.sincronizado)
         })
@@ -313,9 +361,6 @@ class RespaldoRepositoryImpl @Inject constructor(
                 nombreApellidos = d.nombreApellidos, ci = d.ci, telefono = d.telefono, creadoEn = d.creadoEn, actualizadoEn = d.actualizadoEn,
             )
         })
-        c.almacenesLocales.forEach {
-            db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(it.nombre, it.inventario, it.servicios))
-        }
         restaurarEmpleados(c.empleados, c.perfil)
         // Un preajuste puede referirse a productos eliminados (borrado lógico): solo se enlazan los vigentes.
         val existentes = c.productos.filterNot { it.eliminado }.map { it.id }.toSet()

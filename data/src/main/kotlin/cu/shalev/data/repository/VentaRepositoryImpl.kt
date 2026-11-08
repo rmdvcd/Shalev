@@ -5,6 +5,7 @@ import cu.shalev.core.result.AppError
 import cu.shalev.core.result.AppResult
 import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.abortar
+import cu.shalev.data.db.dao.localActivo
 import cu.shalev.data.db.entity.MovimientoEntity
 import cu.shalev.data.db.tx
 import cu.shalev.data.db.dao.registrar
@@ -54,21 +55,22 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         // P37: id global para que la principal no la duplique al sincronizar.
         // 0.25.0: una venta corregida en la principal dentro del turno de una secundaria es de ese empleado y se le envía.
         val deSecundaria = turno.empleadoId != null
+        val local = turno.local.ifEmpty { db.almacenLocalDao().localActivo() }
         val ventaId = ventas.insertarVenta(
             venta.toEntity().copy(
                 id = 0, uuid = java.util.UUID.randomUUID().toString(), anuladaEn = null, motivoAnulacion = null, anuladaPor = null,
-                empleadoId = turno.empleadoId, sincronizado = deSecundaria, bajarCambio = deSecundaria,
+                empleadoId = turno.empleadoId, sincronizado = deSecundaria, bajarCambio = deSecundaria, local = local,
             ),
         )
         ventas.insertarDetalles(venta.detalles.map { it.toEntity(ventaId).copy(id = 0) })
-        venta.transaccion?.let { ventas.insertarTransaccion(it.toEntity(ventaId).copy(id = 0)) }
+        venta.transaccion?.let { ventas.insertarTransaccion(it.toEntity(ventaId).copy(id = 0, local = local)) }
         // 0.27.0 (N2): «Cliente fijo» → alta o actualización por carné, en la misma transacción.
         venta.transaccion?.takeIf { it.clienteFijo }?.let { t ->
             clientesFijos.registrar(t.cliente.nombreApellidos, t.cliente.ci, t.cliente.telefono, venta.fecha.toEpochMilli())
         }
 
         val fecha = venta.fecha.toEpochMilli()
-        elaborados.forEach { e -> consumirInsumos(e, fecha, venta.turnoId, ventaId) }
+        elaborados.forEach { e -> consumirInsumos(e, fecha, venta.turnoId, ventaId, local) }
         val idsElaborados = elaborados.filter { it.clase == ClaseArticulo.PRODUCTO }.map { it.productoId }.toSet()
         val faltantes = mutableListOf<String>()
         // P29: insumos vendidos sueltos (unidades enteras de su medida); los servicios no tienen existencias.
@@ -84,6 +86,7 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
                         fecha = fecha, tipo = TipoMovimiento.VENTA.name, entidad = TipoEntidad.INSUMO.name,
                         entidadId = insumoId, nombre = nombre, delta = -mil,
                         existencia = insumos.cantidad(insumoId) ?: 0, turnoId = venta.turnoId, ventaId = ventaId, nota = null,
+                        local = local,
                     ),
                 )
             }
@@ -103,6 +106,7 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
                         fecha = fecha, tipo = TipoMovimiento.VENTA.name, entidad = TipoEntidad.PRODUCTO.name,
                         entidadId = productoId, nombre = nombre, delta = -unidades,
                         existencia = productos.cantidad(productoId) ?: 0, turnoId = venta.turnoId, ventaId = ventaId, nota = null,
+                        local = local,
                     ),
                 )
             }
@@ -153,7 +157,7 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
                 MovimientoEntity(
                     fecha = fecha, tipo = TipoMovimiento.ANULACION.name, entidad = m.entidad, entidadId = m.entidadId,
                     nombre = m.nombre, delta = devuelto, existencia = existencia, turnoId = v.turnoId, ventaId = ventaId,
-                    nota = "Venta anulada · ${a.motivo.trim()}".take(NOTA_MAX), hechoPor = a.por,
+                    nota = "Venta anulada · ${a.motivo.trim()}".take(NOTA_MAX), hechoPor = a.por, local = v.local,
                 ),
             )
         }
@@ -164,7 +168,7 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         db.syncDao().movimientosDeVentas(listOf(ventaId)).map { it.toDomain() }
 
     /** P26: el Elaborado no tiene existencias; se descuentan sus insumos. Debe llamarse dentro de la transacción de [registrar]. */
-    private suspend fun consumirInsumos(e: ElaboradoEnVenta, fecha: Long, turnoId: Long, ventaId: Long) {
+    private suspend fun consumirInsumos(e: ElaboradoEnVenta, fecha: Long, turnoId: Long, ventaId: Long, local: String) {
         // P29: también los servicios que gastan insumos.
         val existe = if (e.clase == ClaseArticulo.SERVICIO) servicios.obtener(e.productoId)?.takeUnless { it.eliminado } != null
         else productos.obtener(e.productoId)?.takeUnless { it.eliminado } != null
@@ -180,7 +184,7 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
                         fecha = fecha, tipo = TipoMovimiento.CONSUMO.name, entidad = TipoEntidad.INSUMO.name,
                         entidadId = insumoId, nombre = i.nombre, delta = -c.milesimas,
                         existencia = insumos.cantidad(insumoId) ?: 0, turnoId = turnoId, ventaId = ventaId,
-                        nota = "Venta de ${e.nombre} ×${e.unidades}",
+                        nota = "Venta de ${e.nombre} ×${e.unidades}", local = local,
                     ),
                 )
             }
