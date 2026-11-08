@@ -619,7 +619,7 @@ enum SyncCatalog {
 
     static func changes(for employeeID: Int64, app: AppData) -> [[String: Any]] {
         let local = app.selectedLocation ?? app.locations?.first?.name ?? "Local"
-        app.sales.filter { $0.localName == local && $0.employeeID == employeeID && $0.changePending }.compactMap { sale in
+        return app.sales.filter { $0.localName == local && $0.employeeID == employeeID && $0.changePending }.compactMap { sale in
             var row: [String: Any] = ["uuid": sale.id.uuidString.lowercased(), "turnoUuid": sale.shiftID.uuidString.lowercased()]
             if let cancelled = sale.cancelledAt { row["anuladaEn"] = Int64(cancelled.timeIntervalSince1970 * 1_000) }
             if let reason = sale.cancellationReason { row["motivo"] = reason }
