@@ -204,6 +204,45 @@ final class SyncCatalogTests: XCTestCase {
         XCTAssertEqual(store.data.settings.priceAdjustments[0].productIDs, [fixture.product.id])
     }
 
+    func testRemoteSaleChangesCannotMutateOrAcknowledgeAnotherLocation() throws {
+        var fixture = self.fixture()
+        var app = fixture.app
+        app.locations = [BusinessLocation(name: "Centro"), BusinessLocation(name: "Norte")]
+        app.selectedLocation = "Norte"
+        app.shifts[0].localName = "Centro"
+        app.sales[0].localName = "Centro"
+        app.sales[0].employeeID = 7
+        app.sales[0].changePending = true
+
+        var northShift = Shift(openingCashCents: 0, openedBy: "Ana")
+        northShift.localName = "Norte"
+        let northLine = SaleLine(sourceID: fixture.product.id, kind: .product, name: fixture.product.name,
+            category: fixture.product.category, quantity: 1, unitPriceCents: 100, unitCostCents: 50)
+        var northSale = Sale(shiftID: northShift.id, paymentMethod: .cash, lines: [northLine])
+        northSale.localName = "Norte"
+        northSale.employeeID = 7
+        northSale.changePending = true
+        app.shifts.append(northShift)
+        app.sales.append(northSale)
+
+        let changeCentro: [String: Any] = ["uuid": fixture.sale.id.uuidString, "turnoUuid": fixture.shift.id.uuidString,
+            "anuladaEn": Int64(1_800_000_000_000), "motivo": "Fuera de local"]
+        let changeNorte: [String: Any] = ["uuid": northSale.id.uuidString, "turnoUuid": northShift.id.uuidString,
+            "anuladaEn": Int64(1_800_000_001_000), "motivo": "Ajuste autorizado"]
+
+        XCTAssertEqual(SyncCatalog.changes(for: 7, app: app).compactMap { $0["uuid"] as? String },
+            [northSale.id.uuidString.lowercased()])
+        let result = try SyncCatalog.applyChanges([changeCentro, changeNorte], to: app)
+        XCTAssertEqual(result.applied, [northSale.id.uuidString.lowercased()])
+        XCTAssertNil(result.app.sales.first(where: { $0.id == fixture.sale.id })?.cancelledAt)
+        XCTAssertNotNil(result.app.sales.first(where: { $0.id == northSale.id })?.cancelledAt)
+
+        let acknowledged = SyncCatalog.acknowledgeChanges(
+            [fixture.sale.id.uuidString, northSale.id.uuidString], employeeID: 7, in: app)
+        XCTAssertTrue(acknowledged.sales.first(where: { $0.id == fixture.sale.id })?.changePending == true)
+        XCTAssertFalse(acknowledged.sales.first(where: { $0.id == northSale.id })?.changePending ?? true)
+    }
+
     func testRemoteOpenShiftDoesNotBlockLocalShift() throws {
         let fixture = self.fixture()
         let batch = try SyncCatalog.pendingBatch(app: fixture.app)

@@ -630,26 +630,30 @@ enum SyncCatalog {
     }
 
     static func applyChanges(_ changes: [[String: Any]], to current: AppData) throws -> (app: AppData, applied: [String]) {
+        let local = current.selectedLocation ?? current.locations?.first?.name ?? "Local"
         var next = current
         var applied: [String] = []
         for change in changes {
             guard let id = UUID(uuidString: AndroidBackupCodec.string(change["uuid"])),
                   let shiftID = UUID(uuidString: AndroidBackupCodec.string(change["turnoUuid"])) else { throw SyncError.invalidMessage }
+            guard let shift = next.shifts.first(where: { $0.id == shiftID }), shift.localName == local else { continue }
             if let index = next.sales.firstIndex(where: { $0.id == id }) {
+                guard next.sales[index].shiftID == shiftID, next.sales[index].localName == local else { continue }
                 if !(change["nueva"] is [String: Any]), let cancelled = AndroidBackupCodec.optionalInt64(change["anuladaEn"]), next.sales[index].cancelledAt == nil {
                     next.sales[index].isCancelled = true
                     next.sales[index].cancelledAt = Date(timeIntervalSince1970: Double(cancelled) / 1_000)
                     next.sales[index].cancellationReason = AndroidBackupCodec.optionalString(change["motivo"])
                 }
             } else if let row = change["nueva"] as? [String: Any] {
-                guard next.shifts.contains(where: { $0.id == shiftID }) else { continue }
                 var sale = canonicalSale(AndroidBackupCodec.importSale(row), app: next)
                 sale.id = id; sale.shiftID = shiftID; sale.employeeID = nil; sale.synced = true; sale.changePending = false
-                sale.localName = next.shifts.first(where: { $0.id == shiftID })?.localName
+                sale.localName = shift.localName
                 if let original = AndroidBackupCodec.optionalString(change["corrigeUuid"]).flatMap(UUID.init(uuidString:)) {
                     sale.correctionOfSaleID = original
                 }
                 next.sales.insert(sale, at: 0)
+            } else {
+                continue
             }
             applied.append(id.uuidString.lowercased())
         }
@@ -657,9 +661,10 @@ enum SyncCatalog {
     }
 
     static func acknowledgeChanges(_ ids: [String], employeeID: Int64, in current: AppData) -> AppData {
+        let local = current.selectedLocation ?? current.locations?.first?.name ?? "Local"
         let uuids = Set(ids.compactMap { UUID(uuidString: $0) })
         var next = current
-        for index in next.sales.indices where next.sales[index].employeeID == employeeID && uuids.contains(next.sales[index].id) {
+        for index in next.sales.indices where next.sales[index].employeeID == employeeID && next.sales[index].localName == local && uuids.contains(next.sales[index].id) {
             next.sales[index].changePending = false
         }
         return next
