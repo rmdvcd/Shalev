@@ -2184,7 +2184,7 @@ struct LocationSettingsView: View {
     }
 
     private var locationList: some View {
-        Section("Locales") {
+        Section {
             ForEach(store.locations) { location in
                 HStack(spacing: 12) {
                     Button {
@@ -2225,13 +2225,15 @@ struct LocationSettingsView: View {
                 }
                 .padding(.vertical, 3)
             }
+        } header: {
+            Text("Locales")
         } footer: {
             Text("Cambiar de local se desactiva mientras haya un turno abierto. Al renombrar, todas sus operaciones conservan su asociación. Al eliminar, sus datos se reasignan al primer local restante; no se borran ventas ni movimientos.")
         }
     }
 
     private var locationEditor: some View {
-        Section(editingName == nil ? "Añadir local" : "Renombrar local") {
+        Section {
             TextField("Nombre del local", text: $draftName)
                 .textInputAutocapitalization(.words)
                 .autocorrectionDisabled()
@@ -2243,6 +2245,8 @@ struct LocationSettingsView: View {
                 Button(editingName == nil ? "Añadir" : "Guardar") { saveLocation() }
                     .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+        } header: {
+            Text(editingName == nil ? "Añadir local" : "Renombrar local")
         }
     }
 
