@@ -752,7 +752,7 @@ private struct PaymentSettingsView: View {
         .background(selected ? Color.shalevPrimaryContainer : Color.shalevSurface)
     }
 
-    private func floatingAdd: some View {
+    private var floatingAdd: some View {
         VStack(alignment: .trailing, spacing: 10) {
             if expanded {
                 addPill("Tarjeta o cuenta", symbol: "creditcard.fill") {
