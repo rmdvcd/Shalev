@@ -1,0 +1,43 @@
+name: DShalev Windows portable
+
+on:
+  push:
+    paths:
+      - 'DShalev/**'
+      - '.github/workflows/dshalev-windows.yml'
+  pull_request:
+    paths:
+      - 'DShalev/**'
+      - '.github/workflows/dshalev-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-portable:
+    runs-on: windows-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependencias y probar
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r DShalev/requirements-dev.txt
+          python -m pytest DShalev/tests -q
+      - name: Crear ejecutable portable
+        shell: pwsh
+        working-directory: DShalev
+        run: .\build_windows.ps1
+      - name: Publicar DShalev.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: DShalev-Windows-x64
+          path: DShalev/dist/DShalev.exe
+          if-no-files-found: error
+          retention-days: 14

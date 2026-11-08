@@ -2,7 +2,7 @@
 
 App Android nativa para pequeños negocios: vender en turnos, controlar inventario e insumos, cobrar por transferencia, ver estadísticas y exportar registros. Funciona **sin conexión** y guarda todos los datos **cifrados en el teléfono**. El uso se controla con licencias offline emitidas por la app GL del desarrollador (contrato v1).
 
-**Contraparte iOS:** [IShalev](IShalev/README.md) es un proyecto SwiftUI nativo e independiente dentro de este repositorio. Incluye onboarding, licencia GL, perfiles locales de empleados, venta, caja, inventario, servicios, corrección de ventas, exportación y soporte; la sincronización iOS↔Android y la distribución firmada aún no están resueltas. El estado de compilación y pruebas está en [docs/VERIFICACION.md](docs/VERIFICACION.md).
+**Contraparte iOS:** [IShalev](IShalev/README.md) es un proyecto SwiftUI nativo e independiente dentro de este repositorio. Incluye onboarding, licencia GL, perfiles locales de empleados, venta, caja, inventario, servicios, corrección de ventas, exportación y soporte. **Contraparte de escritorio:** [DShalev](DShalev/README.md) es una app web Python planeada para EXE portable Windows; el MVP cubre acceso local/LAN, panel, turnos, inventario, ventas básicas y ya incluye una implementación inicial del protocolo SPVI v1 para pairing/sync cifrado. Esta integración tiene pruebas automatizadas loopback, pero no pruebas reales en Android/iOS, licencia GL, relay ni paridad completa; tampoco se ha verificado todavía el EXE Windows. Detalle en [docs/DSHALEV_DISENO.md](docs/DSHALEV_DISENO.md) y [docs/VERIFICACION.md](docs/VERIFICACION.md).
 
 | | |
 |---|---|
@@ -18,6 +18,7 @@ App Android nativa para pequeños negocios: vender en turnos, controlar inventar
 | Documento | Contenido |
 |---|---|
 | [IShalev/README.md](IShalev/README.md) | Proyecto iOS nativo SwiftUI, alcance, compilación y pruebas online |
+| [DShalev/README.md](DShalev/README.md) · [docs/DSHALEV_DISENO.md](docs/DSHALEV_DISENO.md) | App web-escritorio Python, ejecutable portable y alcance de la integración móvil |
 | [SECURITY.md](SECURITY.md) | Gestión de claves, cifrado, modelo de amenazas y buenas prácticas |
 | [LICENSE_CLIENT.md](LICENSE_CLIENT.md) | Cómo aplica Shalev el contrato de licencias GL v1 |
 | [FORMATOS.md](FORMATOS.md) | Formato del respaldo `.shalev` y de las exportaciones (PDF, Excel, imágenes; registro de la prueba) |
@@ -33,7 +34,7 @@ Los documentos de trabajo que estaban fuera del proyecto (`DECISIONES_LICENCIA_S
 
 ## Alcance actual y cambios recientes — 24 de octubre de 2026
 
-La aplicación principal de este repositorio sigue siendo **Android nativa**. Los antiguos proyectos Flutter/iOS y web de escritorio se retiraron; `IShalev/` es una contraparte iOS nueva, nativa en SwiftUI y con proyecto Xcode separado, no una restauración del código Flutter eliminado. La sincronización por red local entre teléfonos Android sigue siendo parte de la app Android.
+La aplicación principal de este repositorio sigue siendo **Android nativa**. Los antiguos proyectos Flutter/iOS y web de escritorio se retiraron; `IShalev/` es una contraparte iOS nueva, nativa en SwiftUI y con proyecto Xcode separado, no una restauración del código Flutter eliminado. `DShalev/` es una implementación nueva de escritorio en Python; no restaura el antiguo proyecto. La sincronización por red local entre teléfonos Android sigue siendo parte de la app Android.
 
 La rama contiene mejoras recientes en Inicio, Inventario, Registros, Actualizar y Licencia. Además: protección contra la doble pulsación en todos los botones (una acción no se ejecuta dos veces por tocar dos veces seguidas; los selectores +/− y las flechas de los asistentes quedan fuera, a propósito), el campo en edición siempre visible al aparecer el teclado, errores siempre en lenguaje llano (sin códigos internos, con un traductor central que cubre todos los tipos de error), permanencia al cerrar la app de los ajustes de pantalla (período de Inicio, pestaña y filtros de Registros, filtros de Inventario y Servicios, tasa de la calculadora de cambio; el texto del buscador no se recuerda de un día para otro), paneles de solo información como acordeones que se pliegan solos al escribir (Licencia, Respaldo, ficha de costo, precios del asistente) y el arranque sin repetir datos: activar la licencia en los primeros pasos ya no hace que el asistente vuelva a pedir los datos del titular. Herramientas estrena iconos propios (llave para la sección, hoja de partidas para la ficha de costo y conversión de moneda para la calculadora). El detalle para usuarios está en [MANUAL_USUARIO.md](MANUAL_USUARIO.md), los cambios técnicos en [docs/HISTORIAL_DESARROLLO.md](docs/HISTORIAL_DESARROLLO.md) y el estado medido de las pruebas en [docs/VERIFICACION.md](docs/VERIFICACION.md).
 
