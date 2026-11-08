@@ -545,7 +545,7 @@ private struct PaymentTarget: Identifiable {
 
 /// Identificación visual orientativa por el código de banco (dígitos 5–8), igual que en Android.
 /// Los 4 primeros dígitos indican moneda y producto, no el banco.
-private enum BancoCubano: String, CaseIterable {
+enum BancoCubano: String, CaseIterable {
     case bpa, bandec, banmet
 
     var nombre: String {
@@ -1168,6 +1168,7 @@ private struct PriceAdjustmentEditor: View {
     @State private var method: PaymentMethod?
     @State private var productIDs: Set<UUID>
     @State private var articleType: PriceAdjustmentArticleType
+    @AppStorage("shalev.module.sales") private var salesEnabled = true
     @AppStorage("shalev.module.inventory") private var inventoryEnabled = true
     @AppStorage("shalev.module.services") private var servicesEnabled = true
     @State private var errorMessage: String?
@@ -2148,74 +2149,20 @@ struct LocationSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Locales") {
-                ForEach(store.locations) { location in
-                    HStack(spacing: 12) {
-                        Button {
-                            guard store.openShift == nil || location.name == store.activeLocationName else { return }
-                            do { try store.selectLocation(location.name) }
-                            catch { errorMessage = error.localizedDescription }
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(location.name).foregroundStyle(Color.shalevText)
-                                    if location.name == store.activeLocationName {
-                                        Text("Local activo").font(.caption).foregroundStyle(Color.shalevPrimary)
-                                    }
-                                }
-                                Spacer()
-                                if location.name == store.activeLocationName {
-                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.shalevPrimary)
-                                }
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(store.openShift != nil && location.name != store.activeLocationName)
-
-                        Button {
-                            editingName = location.name
-                            draftName = location.name
-                        } label: {
-                            Image(systemName: "pencil").foregroundStyle(Color.shalevPrimary)
-                        }
-                        .accessibilityLabel("Renombrar \(location.name)")
-
-                        Button(role: .destructive) { deleteTarget = location.name } label: {
-                            Image(systemName: "trash")
-                        }
-                        .accessibilityLabel("Eliminar \(location.name)")
-                        .disabled(store.locations.count < 2)
-                    }
-                    .padding(.vertical, 3)
-                }
-            } footer: {
-                Text("Cambiar de local se desactiva mientras haya un turno abierto. Al renombrar, todas sus operaciones conservan su asociación. Al eliminar, sus datos se reasignan al primer local restante; no se borran ventas ni movimientos.")
-            }
-
-            Section(editingName == nil ? "Añadir local" : "Renombrar local") {
-                TextField("Nombre del local", text: $draftName)
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled()
-                HStack {
-                    if editingName != nil {
-                        Button("Cancelar", role: .cancel) { resetEditor() }
-                    }
-                    Spacer()
-                    Button(editingName == nil ? "Añadir" : "Guardar") { saveLocation() }
-                        .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
+            locationList
+            locationEditor
         }
         .disabled(sync.isBusy)
         .scrollContentBackground(.hidden)
         .background(Color.shalevBackground)
         .navigationTitle("Locales")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("No se pudo guardar el local", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+        .alert("No se pudo guardar el local", isPresented: errorAlertPresented) {
             Button("Entendido", role: .cancel) { errorMessage = nil }
-        } message: { Text(errorMessage ?? "") }
-        .confirmationDialog("¿Eliminar \(deleteTarget ?? "este local")?", isPresented: Binding(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } }), titleVisibility: .visible) {
+        } message: {
+            Text(errorMessage ?? "")
+        }
+        .confirmationDialog("¿Eliminar \(deleteTarget ?? "este local")?", isPresented: deleteAlertPresented, titleVisibility: .visible) {
             Button("Eliminar y reasignar datos", role: .destructive) {
                 guard let target = deleteTarget else { return }
                 do { try store.deleteLocation(target) }
@@ -2225,6 +2172,77 @@ struct LocationSettingsView: View {
             Button("Cancelar", role: .cancel) { deleteTarget = nil }
         } message: {
             Text("El local dejará de aparecer, pero sus productos, ventas y movimientos se conservarán en otro local.")
+        }
+    }
+
+    private var errorAlertPresented: Binding<Bool> {
+        Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+    }
+
+    private var deleteAlertPresented: Binding<Bool> {
+        Binding(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } })
+    }
+
+    private var locationList: some View {
+        Section("Locales") {
+            ForEach(store.locations) { location in
+                HStack(spacing: 12) {
+                    Button {
+                        guard store.openShift == nil || location.name == store.activeLocationName else { return }
+                        do { try store.selectLocation(location.name) }
+                        catch { errorMessage = error.localizedDescription }
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(location.name).foregroundStyle(Color.shalevText)
+                                if location.name == store.activeLocationName {
+                                    Text("Local activo").font(.caption).foregroundStyle(Color.shalevPrimary)
+                                }
+                            }
+                            Spacer()
+                            if location.name == store.activeLocationName {
+                                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.shalevPrimary)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(store.openShift != nil && location.name != store.activeLocationName)
+
+                    Button {
+                        editingName = location.name
+                        draftName = location.name
+                    } label: {
+                        Image(systemName: "pencil").foregroundStyle(Color.shalevPrimary)
+                    }
+                    .accessibilityLabel("Renombrar \(location.name)")
+
+                    Button(role: .destructive) { deleteTarget = location.name } label: {
+                        Image(systemName: "trash")
+                    }
+                    .accessibilityLabel("Eliminar \(location.name)")
+                    .disabled(store.locations.count < 2)
+                }
+                .padding(.vertical, 3)
+            }
+        } footer: {
+            Text("Cambiar de local se desactiva mientras haya un turno abierto. Al renombrar, todas sus operaciones conservan su asociación. Al eliminar, sus datos se reasignan al primer local restante; no se borran ventas ni movimientos.")
+        }
+    }
+
+    private var locationEditor: some View {
+        Section(editingName == nil ? "Añadir local" : "Renombrar local") {
+            TextField("Nombre del local", text: $draftName)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+            HStack {
+                if editingName != nil {
+                    Button("Cancelar", role: .cancel) { resetEditor() }
+                }
+                Spacer()
+                Button(editingName == nil ? "Añadir" : "Guardar") { saveLocation() }
+                    .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
         }
     }
 

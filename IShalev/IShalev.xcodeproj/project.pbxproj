@@ -9,6 +9,7 @@
 		000000000000000000000101 /* AppRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* AppRoot.swift */; };
 		000000000000000000000102 /* Domain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000012 /* Domain.swift */; };
 		000000000000000000000103 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000013 /* DesignSystem.swift */; };
+		000000000000000000000120 /* BankThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002F /* BankThumbnail.swift */; };
 		000000000000000000000104 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000014 /* HomeView.swift */; };
 		000000000000000000000105 /* InventoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000015 /* InventoryView.swift */; };
 		000000000000000000000106 /* SaleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000016 /* SaleView.swift */; };
@@ -66,6 +67,7 @@
 		000000000000000000000023 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		000000000000000000000024 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		000000000000000000000025 /* Orbitron-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Orbitron-Bold.ttf"; sourceTree = "<group>"; };
+		00000000000000000000002F /* BankThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankThumbnail.swift; sourceTree = "<group>"; };
 		000000000000000000000026 /* IShalev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IShalev.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -114,7 +116,7 @@
 		};
 		000000000000000000000006 /* Design */ = {
 			isa = PBXGroup;
-			children = (000000000000000000000013 /* DesignSystem.swift */,);
+			children = (000000000000000000000013 /* DesignSystem.swift */, 00000000000000000000002F /* BankThumbnail.swift */,);
 			path = Design;
 			sourceTree = "<group>";
 		};
@@ -223,6 +225,7 @@
 				000000000000000000000101 /* AppRoot.swift in Sources */,
 				000000000000000000000102 /* Domain.swift in Sources */,
 				000000000000000000000103 /* DesignSystem.swift in Sources */,
+				000000000000000000000120 /* BankThumbnail.swift in Sources */,
 				000000000000000000000104 /* HomeView.swift in Sources */,
 				000000000000000000000105 /* InventoryView.swift in Sources */,
 				000000000000000000000106 /* SaleView.swift in Sources */,
