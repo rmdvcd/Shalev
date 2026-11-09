@@ -15,8 +15,13 @@
   <a href="/" class="nav-link {% if section == 'inicio' %}active{% endif %}"><span>⌂</span>Inicio</a>
   <a href="/inventario" class="nav-link {% if section == 'inventario' %}active{% endif %}"><span>▦</span>Inventario</a>
   <a href="/ventas" class="nav-link {% if section == 'ventas' %}active{% endif %}"><span>＋</span>Ventas</a>
+  <a href="/turnos" class="nav-link {% if section == 'turnos' %}active{% endif %}"><span>▤</span>Turnos</a>
+  <a href="/reportes" class="nav-link {% if section == 'reportes' %}active{% endif %}"><span>▧</span>Reportes</a>
+  <a href="/recetas" class="nav-link {% if section == 'recetas' %}active{% endif %}"><span>◈</span>Recetas</a>
+  <a href="/clientes" class="nav-link {% if section == 'clientes' %}active{% endif %}"><span>♧</span>Clientes</a>
   <a href="/equipo" class="nav-link {% if section == 'equipo' %}active{% endif %}"><span>♙</span>Equipo</a>
   <a href="/red" class="nav-link {% if section == 'red' %}active{% endif %}"><span>⌁</span>Acceso</a>
+  {% if user.role == 'admin' %}<a href="/distribucion" class="nav-link {% if section == 'distribucion' %}active{% endif %}"><span>⇧</span>Fotos / APK</a><a href="/respaldo" class="nav-link {% if section == 'respaldo' %}active{% endif %}"><span>⬡</span>Respaldo</a>{% endif %}
   <div class="rail-footer">DShalev · 0.1</div>
 </aside>
 <main class="main-shell">

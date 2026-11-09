@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from dshalev.app import create_app
 from dshalev.config import AppConfig
 from dshalev.database import Database
+from dshalev.sync_server import ShalevSyncServer, snapshot
 from dshalev.sync_protocol import (
     EncryptedChannel,
     pairing_mac_primary,
@@ -107,32 +108,65 @@ def test_lan_pairing_qr_and_encrypted_spvi_sync(tmp_path: Path, monkeypatch):
         shift_uuid = "223e4567-e89b-12d3-a456-426614174001"
         sale_uuid = "123e4567-e89b-12d3-a456-426614174000"
         batch = {
-            "turnos": [{"uuid": shift_uuid, "turno": {"cerradoEn": None}}],
+            "turnos": [{"uuid": shift_uuid, "turno": {
+                "abiertoEn": int(time.time() * 1000) - 3_600_000, "cerradoEn": int(time.time() * 1000),
+                "fondoCent": 10_000, "contadoCent": 150_000,
+                "conteoCierre": {"billetes": {"500": 3}, "otroCent": 0, "inventario": [], "motivo": "Cierre de turno", "aprobadoPor": None, "aprobadoEn": None},
+            }}],
             "ventas": [{"uuid": sale_uuid, "turnoUuid": shift_uuid,
                         "venta": {"fecha": int(time.time() * 1000), "metodoPago": "EFECTIVO",
-                                  "detalles": [{"nombre": "Café", "cantidad": 2, "precioUnitarioCent": 500}]},
+                                  "detalles": [{"id": 0, "productoId": 3, "nombre": "Café", "categoria": "Producto", "cantidad": 2,
+                                              "precioBaseCent": 500, "precioUnitarioCent": 500, "costoUnitarioCent": 200, "clase": "PRODUCTO"}]},
                         "movimientos": [{"tipo": "VENTA", "entidad": "PRODUCTO", "entidadId": 3, "delta": -2}]}],
-            "caja": [],
+            "caja": [{"uuid": "323e4567-e89b-12d3-a456-426614174002", "turnoUuid": shift_uuid,
+                       "mov": {"tipo": "SALIDA", "importeCent": 250, "motivo": "Compra menor", "fecha": int(time.time() * 1000)}}],
         }
         secondary.send(stream, {
             "t": "sync", "id": 41, "lote": batch, "telefono": None,
-            "solicitaCierre": False, "cambiosAplicados": [], "versionCode": None,
+            "solicitaCierre": True, "cambiosAplicados": [], "versionCode": None,
         })
         synced = secondary.receive(stream)
         assert synced["t"] == "sync_ok" and synced["id"] == 41
-        assert synced["recibidos"]["turnos"] == [{"uuid": shift_uuid, "cerrado": False}]
+        assert synced["recibidos"]["turnos"] == [{"uuid": shift_uuid, "cerrado": True}]
         assert synced["recibidos"]["ventas"] == [sale_uuid]
         assert synced["instantanea"]["nombreNegocio"] == "Café Central"
         assert synced["instantanea"]["empleado"]["permisos"] == ["VENDER_PRODUCTOS"]
+        assert not synced["cerrarTurno"] and not synced["cierreRechazado"]
         with db.connect() as conn:
             assert conn.execute("SELECT stock FROM items WHERE id=3").fetchone()[0] == 8
             assert conn.execute("SELECT total_cents FROM sync_sales WHERE uuid=?", (sale_uuid,)).fetchone()[0] == 1000
+            shift_row = conn.execute("SELECT closed_ms,counted_cash_cents FROM sync_shifts WHERE uuid=?", (shift_uuid,)).fetchone()
+            assert shift_row["closed_ms"] and shift_row["counted_cash_cents"] == 150000
+            assert conn.execute("SELECT amount_cents,reason FROM sync_cash_movements WHERE uuid=?", ("323e4567-e89b-12d3-a456-426614174002",)).fetchone()["amount_cents"] == 250
+        team = client.get("/equipo")
+        assert "Solicitudes de cierre móvil" in team.text and "Aprobar conteo" in team.text
+        approved_close = client.post("/equipo/1/cierre", data={"csrf": _csrf(team), "decision": "aprobar"}, follow_redirects=True)
+        assert "Se aprobó el cierre" in approved_close.text
+        team = client.get("/equipo")
+        approved_count = client.post(f"/equipo/1/turnos/{shift_uuid}/conteo/aprobar", data={"csrf": _csrf(team)}, follow_redirects=True)
+        assert "Arqueo móvil aprobado" in approved_count.text
         secondary.send(stream, {
             "t": "sync", "id": 42, "lote": batch, "hash": synced["hash"],
+            "telefono": None, "solicitaCierre": True, "cambiosAplicados": [], "versionCode": None,
+        })
+        approved = secondary.receive(stream)
+        assert approved["cerrarTurno"] is True and approved["conteoTurnoUuid"] == shift_uuid
+        assert approved["conteoAprobado"]["aprobadoPor"] == "dueno"
+        batch_approved = {**batch, "turnos": [{**batch["turnos"][0], "turno": {**batch["turnos"][0]["turno"], "conteoCierre": approved["conteoAprobado"]}}]}
+        secondary.send(stream, {
+            "t": "sync", "id": 52, "lote": batch_approved, "hash": approved["hash"],
+            "telefono": None, "solicitaCierre": False, "cambiosAplicados": [], "versionCode": None,
+        })
+        acknowledged = secondary.receive(stream)
+        assert acknowledged["conteoAprobado"] is None
+        with db.connect() as conn:
+            assert conn.execute("SELECT COUNT(*) FROM mobile_count_approvals WHERE employee_id=1").fetchone()[0] == 0
+        secondary.send(stream, {
+            "t": "sync", "id": 53, "lote": batch, "hash": synced["hash"],
             "telefono": None, "solicitaCierre": False, "cambiosAplicados": [], "versionCode": None,
         })
         repeated = secondary.receive(stream)
-        assert repeated["id"] == 42 and repeated["instantanea"] is None
+        assert repeated["id"] == 53 and repeated["instantanea"] is None
         activity = client.get("/ventas")
         assert "Café × 2" in activity.text and "App secundaria · Ana" in activity.text
         team_activity = client.get("/equipo")
@@ -172,6 +206,48 @@ def test_lan_pairing_qr_and_encrypted_spvi_sync(tmp_path: Path, monkeypatch):
         assert "error" not in price_success
         secondary.send(stream, {"t": "ping", "id": 49})
         assert secondary.receive(stream) == {"id": 49, "t": "pong"}
+        sales_page = client.get("/ventas")
+        corrected = client.post(f"/ventas/movil/{sale_uuid}/corregir", data={
+            "csrf": _csrf(sales_page), "quantity_0": "1", "payment_method": "EFECTIVO", "reason": "Cantidad incorrecta",
+        }, follow_redirects=True)
+        assert "Venta móvil corregida" in corrected.text and "Corregida" not in corrected.text
+        with db.connect() as conn:
+            assert conn.execute("SELECT stock FROM items WHERE id=3").fetchone()[0] == 8
+            corrected_uuid = conn.execute("SELECT uuid FROM sync_sales WHERE uuid!=? ORDER BY sale_at_ms DESC LIMIT 1", (sale_uuid,)).fetchone()[0]
+            assert conn.execute("SELECT total_cents FROM sync_sales WHERE uuid=?", (corrected_uuid,)).fetchone()[0] == 500
+            assert conn.execute("SELECT cancelled_at FROM sync_sales WHERE uuid=?", (sale_uuid,)).fetchone()[0] is not None
+        secondary.send(stream, {
+            "t": "sync", "id": 54, "lote": {}, "telefono": None,
+            "solicitaCierre": False, "cambiosAplicados": [], "versionCode": None,
+        })
+        correction = secondary.receive(stream)
+        assert [change["uuid"] for change in correction["cambiosVentas"]] == [sale_uuid, corrected_uuid]
+        assert correction["cambiosVentas"][0]["motivo"] == "Cantidad incorrecta"
+        assert correction["cambiosVentas"][1]["corrigeUuid"] == sale_uuid
+        secondary.send(stream, {
+            "t": "sync", "id": 55, "lote": {}, "telefono": None,
+            "solicitaCierre": False, "cambiosAplicados": [sale_uuid, corrected_uuid], "versionCode": None,
+        })
+        acknowledged_change = secondary.receive(stream)
+        assert acknowledged_change["cambiosVentas"] == []
+        sales_page = client.get("/ventas")
+        cancelled = client.post(f"/ventas/movil/{corrected_uuid}/anular", data={
+            "csrf": _csrf(sales_page), "reason": "Error de caja",
+        }, follow_redirects=True)
+        assert "Venta móvil anulada" in cancelled.text and "Anulada" in cancelled.text
+        with db.connect() as conn:
+            assert conn.execute("SELECT stock FROM items WHERE id=3").fetchone()[0] == 9
+        secondary.send(stream, {
+            "t": "sync", "id": 56, "lote": {}, "telefono": None,
+            "solicitaCierre": False, "cambiosAplicados": [], "versionCode": None,
+        })
+        cancelled_change = secondary.receive(stream)
+        assert cancelled_change["cambiosVentas"][0]["uuid"] == corrected_uuid
+        secondary.send(stream, {
+            "t": "sync", "id": 57, "lote": {}, "telefono": None,
+            "solicitaCierre": False, "cambiosAplicados": [corrected_uuid], "versionCode": None,
+        })
+        assert secondary.receive(stream)["cambiosVentas"] == []
         team = client.get("/equipo")
         removed = client.post("/equipo/1/retirar", data={"csrf": _csrf(team)}, follow_redirects=True)
         assert "credenciales revocadas" in removed.text
@@ -195,3 +271,35 @@ def test_lan_pairing_qr_and_encrypted_spvi_sync(tmp_path: Path, monkeypatch):
         with db.connect() as conn:
             assert conn.execute("SELECT COUNT(*) FROM employees WHERE id=1").fetchone()[0] == 0
             assert conn.execute("SELECT employee_name FROM sync_sales WHERE uuid=?", (sale_uuid,)).fetchone()[0] == "Ana"
+
+
+def test_sync_recipe_commands_and_milli_ingredient_stock(tmp_path: Path):
+    db = Database(tmp_path / "spvi.sqlite3")
+    db.initialize()
+    with db.transaction() as conn:
+        ShalevSyncServer._apply_command(conn, {"t": "insumo_guardar", "insumo": {
+            "id": 12, "nombre": "Leche", "unidad": "litro", "cantidadMil": 1275,
+            "nivelBajoMil": 500, "nivelCriticoMil": 125, "precioCent": 250,
+        }})
+        ShalevSyncServer._apply_command(conn, {"t": "producto_guardar", "producto": {
+            "id": 13, "nombre": "Café con leche", "categoria": "Producto", "cantidad": 10,
+            "precioVentaCent": 500, "precioCostoCent": 100,
+        }, "receta": {"productoId": 13, "lineas": [{"insumoId": 12, "cantidadMil": 125}]}})
+        ShalevSyncServer._apply_command(conn, {"t": "servicio_guardar", "servicio": {
+            "id": 21, "nombre": "Corte", "tipo": "Belleza", "importeCent": 1500, "descripcion": "Corte básico",
+            "creadoEn": 1000, "actualizadoEn": 2000, "insumos": [{"insumoId": 12, "cantidadMil": 50}],
+        }})
+        ShalevSyncServer._apply_command(conn, {"t": "preajuste_guardar", "preajuste": {
+            "id": 31, "nombre": "Transferencia +10", "puntosBasicos": 1000, "productoIds": [13],
+            "servicioIds": [21], "metodoPago": "TRANSFERENCIA", "importeMinimoCent": 500, "activo": True,
+        }})
+        conn.execute("INSERT INTO employees(slot,name,permissions_json,active) VALUES(1,'Ana','[]',1)")
+    current = snapshot(db, 1)
+    assert current["recetas"] == [{"productoId": 13, "lineas": [{"insumoId": 12, "cantidadMil": 125}]}]
+    assert current["servicios"][0]["id"] == 21 and current["servicios"][0]["insumos"] == [{"insumoId": 12, "cantidadMil": 50}]
+    assert current["preajustes"][0]["servicioIds"] == [21] and current["preajustes"][0]["puntosBasicos"] == 1000
+    with db.transaction() as conn:
+        remaining_milli = ShalevSyncServer._apply_command(conn, {"t": "insumo_stock", "id": 12, "deltaMil": -125})
+    assert remaining_milli == 1150
+    with db.connect() as conn:
+        assert conn.execute("SELECT stock FROM items WHERE id=12").fetchone()[0] == 1.15

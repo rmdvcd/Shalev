@@ -10,7 +10,9 @@ import socketserver
 import sqlite3
 import time
 import uuid as uuidlib
+from decimal import Decimal
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from cryptography.hazmat.primitives import serialization
@@ -82,8 +84,48 @@ def snapshot(db: Database, employee_id: int) -> dict[str, Any]:
             raise ValueError("empleado no disponible")
         name = _read_meta(conn, "business_name", "Mi negocio")
         limit = int(_read_meta(conn, "secondary_limit", "5"))
-        products = conn.execute("SELECT * FROM items WHERE active=1 AND category!='Insumo' ORDER BY id").fetchall()
+        products = conn.execute("SELECT * FROM items WHERE active=1 AND category NOT IN ('Insumo','Servicio') ORDER BY id").fetchall()
         ingredients = conn.execute("SELECT * FROM items WHERE active=1 AND category='Insumo' ORDER BY id").fetchall()
+        service_rows = conn.execute("SELECT * FROM sync_services WHERE deleted=0 ORDER BY service_id").fetchall()
+        preset_rows = conn.execute("SELECT * FROM presets WHERE active=1 ORDER BY id").fetchall()
+        photo_rows = conn.execute("SELECT entity,entity_id,filename,byte_length FROM catalog_photos ORDER BY entity,entity_id").fetchall()
+        recipe_rows = conn.execute("SELECT product_id,ingredient_id,quantity_milli FROM recipes ORDER BY product_id,ingredient_id").fetchall()
+        recipes_by_product: dict[int, list[dict[str, int]]] = {}
+        for recipe in recipe_rows:
+            recipes_by_product.setdefault(recipe["product_id"], []).append({"insumoId": recipe["ingredient_id"], "cantidadMil": recipe["quantity_milli"]})
+        product_ids = {row["id"] for row in products}
+        recipes = [{"productoId": product_id, "lineas": lines} for product_id, lines in recipes_by_product.items() if product_id in product_ids]
+        service_ids = {row["service_id"] for row in service_rows}
+        photo_entities = {"producto": product_ids, "servicio": service_ids}
+        photos = [{"entidad": row["entity"], "id": row["entity_id"], "nombre": row["filename"], "bytes": row["byte_length"]}
+                  for row in photo_rows if row["entity_id"] in photo_entities.get(row["entity"], set())]
+        services = []
+        for row in service_rows:
+            try:
+                components = json.loads(row["ingredients_json"] or "[]")
+                if not isinstance(components, list):
+                    components = []
+            except json.JSONDecodeError:
+                components = []
+            services.append({
+                "id": row["service_id"], "nombre": row["name"], "tipo": row["service_type"],
+                "importeCent": row["price_cents"], "descripcion": row["description"] or None,
+                "fotoUri": row["photo_uri"], "creadoEn": row["created_ms"],
+                "actualizadoEn": row["updated_ms"], "eliminado": False,
+                "insumos": components, "local": row["local_name"] or "Local",
+            })
+        presets = []
+        for row in preset_rows:
+            try:
+                product_ids = json.loads(row["product_ids_json"] or "[]")
+                service_ids = json.loads(row["service_ids_json"] or "[]")
+                if not isinstance(product_ids, list) or not isinstance(service_ids, list):
+                    raise ValueError("preset")
+            except (json.JSONDecodeError, ValueError):
+                product_ids, service_ids = [], []
+            presets.append({"id": row["id"], "nombre": row["name"], "puntosBasicos": row["basis_points"],
+                           "productoIds": product_ids, "servicioIds": service_ids, "metodoPago": row["payment_method"],
+                           "importeMinimoCent": row["minimum_cents"], "activo": True})
         business_preferences = {
             "productoBajo": 5, "productoCritico": 1, "insumoBajoMil": 5000,
             "insumoCriticoMil": 1000, "modulos": None, "empleadosPrevistos": limit,
@@ -95,16 +137,16 @@ def snapshot(db: Database, employee_id: int) -> dict[str, Any]:
             "empleado": {"nombre": employee["name"], "permisos": sorted(employee_permissions)},
             "licencia": trial,
             "productos": [_product_snapshot(row) for row in products],
-            "recetas": [],
+            "recetas": recipes,
             "insumos": [
                 {"id": row["id"], "nombre": row["name"], "unidad": row["unit"], "precioCent": row["cost_cents"],
-                 "cantidadMil": row["stock"] * 1000, "nivelBajoMil": row["low_stock"] * 1000,
-                 "nivelCriticoMil": row["critical_stock"] * 1000, "creadoEn": _epoch_ms(row["created_at"]),
+                 "cantidadMil": int(Decimal(str(row["stock"])) * 1000), "nivelBajoMil": int(Decimal(str(row["low_stock"])) * 1000),
+                 "nivelCriticoMil": int(Decimal(str(row["critical_stock"])) * 1000), "creadoEn": _epoch_ms(row["created_at"]),
                  "actualizadoEn": _epoch_ms(row["created_at"]), "precioVentaCent": row["sale_price_cents"], "local": "Local"}
                 for row in ingredients
             ],
-            "servicios": [], "preajustes": [], "perfil": None, "preferencias": business_preferences,
-            "fotos": [], "local": "Local",
+            "servicios": services, "preajustes": presets, "perfil": None, "preferencias": business_preferences,
+            "fotos": photos, "local": "Local",
         }
 
 
@@ -224,9 +266,9 @@ class _SyncHandler(socketserver.StreamRequestHandler):
             elif kind == "cmd":
                 channel.send(self.wfile, self.server.handle_command(employee_id, message))
             elif kind == "foto_pedir":
-                channel.send(self.wfile, {"t": "foto_bloque", "id": int(message.get("id", 0)), "desde": int(message.get("desde", 0)), "datos": "", "total": 0, "error": "no_encontrado"})
+                channel.send(self.wfile, self.server.photo_block(message))
             elif kind == "apk_pedir":
-                channel.send(self.wfile, {"t": "apk_bloque", "id": int(message.get("id", 0)), "desde": int(message.get("desde", 0)), "datos": "", "total": 0, "error": "no_encontrado"})
+                channel.send(self.wfile, self.server.apk_block(message))
             else:
                 # La versión 1 tolera mensajes opcionales desconocidos.
                 pass
@@ -297,6 +339,59 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
         if self._thread:
             self._thread.join(timeout=2)
 
+    @staticmethod
+    def _block_data(path: Path, offset: int, total: int, *, sha256: str | None = None) -> str:
+        with path.open("rb") as stream:
+            stream.seek(offset)
+            return base64.b64encode(stream.read(256 * 1024)).decode("ascii")
+
+    def photo_block(self, message: dict[str, Any]) -> dict[str, Any]:
+        request_id, offset = 0, -1
+        try:
+            request_id = int(message.get("id", 0))
+            offset = int(message.get("desde", -1))
+            name = str(message.get("nombre", ""))
+            parsed = uuidlib.UUID(name.removesuffix(".jpg"))
+            if name != f"{parsed}.jpg":
+                raise ValueError("nombre")
+        except (ValueError, TypeError, AttributeError):
+            return {"t": "foto_bloque", "id": request_id, "desde": 0, "datos": "", "total": 0, "error": "no_encontrado"}
+        with self.database.connect() as conn:
+            photo = conn.execute("SELECT byte_length,sha256 FROM catalog_photos WHERE filename=?", (name,)).fetchone()
+        path = self.database.path.parent / "catalog_photos" / name
+        if not photo or not path.is_file() or path.stat().st_size != photo["byte_length"] or not 0 <= offset < photo["byte_length"]:
+            return {"t": "foto_bloque", "id": request_id, "desde": max(offset, 0), "datos": "", "total": int(photo["byte_length"]) if photo else 0, "error": "no_encontrado"}
+        return {"t": "foto_bloque", "id": request_id, "desde": offset,
+                "datos": self._block_data(path, offset, photo["byte_length"]), "total": photo["byte_length"],
+                "sha256": photo["sha256"], "error": None}
+
+    def _apk_metadata(self) -> dict[str, Any] | None:
+        with self.database.connect() as conn:
+            values = {row["key"]: row["value"] for row in conn.execute("SELECT key,value FROM app_meta WHERE key IN ('apk_version_code','apk_sha256','apk_bytes')")}
+        try:
+            code, size = int(values.get("apk_version_code", "0")), int(values.get("apk_bytes", "0"))
+            sha = values.get("apk_sha256", "")
+        except (TypeError, ValueError):
+            return None
+        path = self.database.path.parent / "updates" / "shalev.apk"
+        if code <= 0 or size <= 0 or not re.fullmatch(r"[0-9a-f]{64}", sha) or not path.is_file() or path.stat().st_size != size:
+            return None
+        return {"nombre": "shalev.apk", "code": code, "sha256": sha, "bytes": size, "path": path}
+
+    def apk_block(self, message: dict[str, Any]) -> dict[str, Any]:
+        try:
+            request_id = int(message.get("id", 0))
+            offset = int(message.get("desde", -1))
+            requested_sha = str(message.get("sha256", ""))
+        except (ValueError, TypeError):
+            request_id, offset, requested_sha = 0, -1, ""
+        metadata = self._apk_metadata()
+        if not metadata or requested_sha != metadata["sha256"] or not 0 <= offset < metadata["bytes"]:
+            return {"t": "apk_bloque", "id": request_id, "desde": max(offset, 0), "datos": "", "total": metadata["bytes"] if metadata else 0, "error": "no_encontrado"}
+        return {"t": "apk_bloque", "id": request_id, "desde": offset,
+                "datos": self._block_data(metadata["path"], offset, metadata["bytes"]),
+                "total": metadata["bytes"], "error": None}
+
     def employee_is_active(self, employee_id: int) -> bool:
         with self.database.connect() as conn:
             row = conn.execute("SELECT active FROM employees WHERE id=?", (employee_id,)).fetchone()
@@ -341,15 +436,61 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
             if not 1 <= item_id <= 2**63 - 1 or abs(delta) > 10**12:
                 continue
             if entity == "INSUMO":
-                if delta % 1000:
-                    continue
-                conn.execute("UPDATE items SET stock=stock+? WHERE id=? AND category='Insumo' AND active=1", (delta // 1000, item_id))
+                conn.execute("UPDATE items SET stock=stock+? WHERE id=? AND category='Insumo' AND active=1", (delta / 1000, item_id))
             elif entity == "PRODUCTO":
                 conn.execute("UPDATE items SET stock=stock+? WHERE id=? AND category!='Insumo' AND active=1", (delta, item_id))
+
+    @staticmethod
+    def _store_shift(conn, employee_id: int, uuid: str, wrapper: dict[str, Any]) -> None:
+        turn = wrapper.get("turno", {})
+        if not isinstance(turn, dict):
+            return
+        try:
+            opened_ms = max(0, int(turn.get("abiertoEn", 0) or 0))
+            closed_ms = int(turn["cerradoEn"]) if turn.get("cerradoEn") is not None else None
+            opening_cash = int(turn["fondoCent"]) if turn.get("fondoCent") is not None else None
+            counted_cash = int(turn["contadoCent"]) if turn.get("contadoCent") is not None else None
+        except (TypeError, ValueError):
+            return
+        count = turn.get("conteoCierre")
+        count_json = canonical_json(count).decode("utf-8") if isinstance(count, dict) else None
+        employee = conn.execute("SELECT name FROM employees WHERE id=?", (employee_id,)).fetchone()
+        employee_name = employee["name"] if employee else "Empleado"
+        conn.execute("""INSERT INTO sync_shifts(employee_id,employee_name,uuid,opened_ms,closed_ms,opening_cash_cents,counted_cash_cents,count_json,payload_json)
+            VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(employee_id,uuid) DO UPDATE SET
+            employee_name=excluded.employee_name,opened_ms=excluded.opened_ms,closed_ms=COALESCE(excluded.closed_ms,sync_shifts.closed_ms),
+            opening_cash_cents=COALESCE(excluded.opening_cash_cents,sync_shifts.opening_cash_cents),
+            counted_cash_cents=COALESCE(excluded.counted_cash_cents,sync_shifts.counted_cash_cents),
+            count_json=COALESCE(excluded.count_json,sync_shifts.count_json),payload_json=excluded.payload_json,
+            updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')""",
+            (employee_id, employee_name, uuid, opened_ms, closed_ms, opening_cash, counted_cash, count_json, canonical_json(wrapper).decode("utf-8")))
+
+    @staticmethod
+    def _store_cash_movement(conn, employee_id: int, uuid: str, shift_uuid: str, wrapper: dict[str, Any]) -> None:
+        movement = wrapper.get("mov", {})
+        if not isinstance(movement, dict):
+            return
+        kind = str(movement.get("tipo", ""))[:32]
+        try:
+            amount = int(movement.get("importeCent", 0))
+            created_ms = max(0, int(movement.get("fecha", 0) or 0))
+        except (TypeError, ValueError):
+            return
+        if amount < 0:
+            return
+        employee = conn.execute("SELECT name FROM employees WHERE id=?", (employee_id,)).fetchone()
+        employee_name = employee["name"] if employee else "Empleado"
+        conn.execute("INSERT OR IGNORE INTO sync_cash_movements(uuid,employee_id,employee_name,shift_uuid,movement_type,amount_cents,reason,created_ms,payload_json) VALUES(?,?,?,?,?,?,?,?,?)",
+                     (uuid, employee_id, employee_name, shift_uuid, kind, amount, str(movement.get("motivo", ""))[:200], created_ms, canonical_json(wrapper).decode("utf-8")))
 
     def handle_sync(self, employee_id: int, message: dict[str, Any]) -> dict[str, Any]:
         batch = message.get("lote") if isinstance(message.get("lote"), dict) else {}
         received: dict[str, list[Any]] = {"turnos": [], "ventas": [], "caja": []}
+        close_turn = False
+        close_rejected = False
+        approved_count = None
+        approved_shift_uuid = None
+        pending_sale_changes: list[dict[str, Any]] = []
         with self.database.transaction() as conn:
             for list_name, receipt_type in (("turnos", "turno"), ("ventas", "venta"), ("caja", "caja")):
                 rows = batch.get(list_name, [])
@@ -384,20 +525,70 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
                             continue
                     if list_name == "turnos":
                         turno = row["turno"]
+                        self._store_shift(conn, employee_id, uuid, row)
+                        count = turno.get("conteoCierre")
+                        if isinstance(count, dict) and count.get("aprobadoEn") is not None:
+                            approved = conn.execute("SELECT count_json FROM mobile_count_approvals WHERE employee_id=? AND shift_uuid=?", (employee_id, uuid)).fetchone()
+                            try:
+                                expected_count = json.loads(approved["count_json"]) if approved else None
+                            except json.JSONDecodeError:
+                                expected_count = None
+                            if expected_count == count:
+                                conn.execute("DELETE FROM mobile_count_approvals WHERE employee_id=? AND shift_uuid=?", (employee_id, uuid))
                         received[list_name].append({"uuid": uuid, "cerrado": turno.get("cerradoEn") is not None})
                     else:
                         received[list_name].append(uuid)
+                    if list_name == "caja" and inserted and shift_uuid:
+                        self._store_cash_movement(conn, employee_id, uuid, shift_uuid, row)
                     if list_name == "ventas" and inserted:
                         self._store_sale(conn, employee_id, row, uuid)
             if message.get("telefono") and isinstance(message["telefono"], str):
                 conn.execute("UPDATE employees SET phone=? WHERE id=?", (message["telefono"][:32], employee_id))
+            if message.get("solicitaCierre") is True:
+                conn.execute("INSERT OR IGNORE INTO mobile_close_requests(employee_id) VALUES(?)", (employee_id,))
+            close_request = conn.execute("SELECT decision FROM mobile_close_requests WHERE employee_id=?", (employee_id,)).fetchone()
+            if close_request and close_request["decision"] is not None:
+                close_turn = close_request["decision"] == 1
+                close_rejected = close_request["decision"] == 0
+                conn.execute("DELETE FROM mobile_close_requests WHERE employee_id=?", (employee_id,))
+            count_approval = conn.execute("SELECT shift_uuid,count_json FROM mobile_count_approvals WHERE employee_id=? ORDER BY approved_at DESC LIMIT 1", (employee_id,)).fetchone()
+            if count_approval:
+                try:
+                    approved_count = json.loads(count_approval["count_json"])
+                    approved_shift_uuid = count_approval["shift_uuid"]
+                except json.JSONDecodeError:
+                    approved_count = None
+            acknowledgements = message.get("cambiosAplicados", [])
+            if isinstance(acknowledgements, list):
+                for acknowledged_uuid in acknowledgements[:5000]:
+                    if not isinstance(acknowledged_uuid, str):
+                        continue
+                    try:
+                        acknowledged_uuid = str(uuidlib.UUID(acknowledged_uuid))
+                    except ValueError:
+                        continue
+                    conn.execute("DELETE FROM sync_sale_changes WHERE uuid=? AND employee_id=?", (acknowledged_uuid, employee_id))
+            for change in conn.execute("SELECT payload_json FROM sync_sale_changes WHERE employee_id=? ORDER BY created_at LIMIT 500", (employee_id,)):
+                try:
+                    decoded_change = json.loads(change["payload_json"])
+                    if isinstance(decoded_change, dict):
+                        pending_sale_changes.append(decoded_change)
+                except json.JSONDecodeError:
+                    continue
         catalog = snapshot(self.database, employee_id)
         digest = _catalog_hash(catalog)
         same = message.get("hash") == digest
+        apk = self._apk_metadata()
+        try:
+            installed_version = int(message.get("versionCode", 0) or 0)
+        except (TypeError, ValueError):
+            installed_version = 0
+        apk_offer = {key: value for key, value in apk.items() if key != "path"} if apk and apk["code"] > installed_version else None
         return {
             "t": "sync_ok", "id": int(message.get("id", 0)), "recibidos": received, "hash": digest,
-            "instantanea": None if same else catalog, "cerrarTurno": False, "cierreRechazado": False,
-            "cambiosVentas": [], "conteoAprobado": None, "conteoTurnoUuid": None,
+            "instantanea": None if same else catalog, "cerrarTurno": close_turn, "cierreRechazado": close_rejected,
+            "cambiosVentas": pending_sale_changes, "conteoAprobado": approved_count, "conteoTurnoUuid": approved_shift_uuid,
+            "apk": apk_offer,
         }
 
     def handle_command(self, employee_id: int, message: dict[str, Any]) -> dict[str, Any]:
@@ -433,9 +624,9 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
                         response["error"] = "otro"
                         return response
             permissions = set(json.loads(employee["permissions_json"] or "[]"))
-            if kind in {"producto_guardar", "producto_eliminar", "producto_stock", "insumo_guardar", "insumo_eliminar", "insumo_stock"}:
+            if kind in {"producto_guardar", "producto_eliminar", "producto_stock", "insumo_guardar", "insumo_eliminar", "insumo_stock", "servicio_guardar", "servicio_eliminar"}:
                 required = "EDITAR_INVENTARIO"
-            elif kind == "producto_precios":
+            elif kind in {"producto_precios", "preajuste_guardar", "preajuste_eliminar"}:
                 required = "CAMBIAR_PRECIOS"
             else:
                 required = None
@@ -474,8 +665,27 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
             cost = int(item.get("precioCostoCent", 0))
             low = int(item.get("nivelBajo", 5) or 0)
             critical = int(item.get("nivelCritico", 1) or 0)
-            if action.get("receta") is not None:
-                raise RemoteCommandError("validacion:receta:FORMATO")
+            raw_recipe = action.get("receta")
+            recipe_rows: list[tuple[int, int]] = []
+            if raw_recipe is not None:
+                if isinstance(raw_recipe, dict):
+                    recipe_product_id = int(raw_recipe.get("productoId", item_id))
+                    if recipe_product_id != item_id:
+                        raise ValueError("receta")
+                    raw_recipe = raw_recipe.get("lineas", raw_recipe.get("ingredientes", []))
+                if not isinstance(raw_recipe, list) or len(raw_recipe) > 5000:
+                    raise ValueError("receta")
+                seen_ingredients: set[int] = set()
+                for component in raw_recipe:
+                    if not isinstance(component, dict):
+                        raise ValueError("receta")
+                    ingredient_id = int(component.get("insumoId", component.get("ingredienteId", component.get("id", 0))))
+                    quantity_milli = int(component.get("cantidadMil", component.get("cantidad_mil", 0)))
+                    ingredient = conn.execute("SELECT 1 FROM items WHERE id=? AND category='Insumo' AND active=1", (ingredient_id,)).fetchone()
+                    if ingredient_id <= 0 or ingredient_id in seen_ingredients or not 1 <= quantity_milli <= 10**12 or not ingredient:
+                        raise ValueError("receta")
+                    seen_ingredients.add(ingredient_id)
+                    recipe_rows.append((ingredient_id, quantity_milli))
             if not 1 <= item_id <= 2**63 - 1 or not name or len(name) > 80 or not 0 <= stock <= 10**12:
                 raise ValueError("producto")
             if not 0 <= sale_price <= 2**63 - 1 or not 0 <= cost <= 2**63 - 1 or not 0 <= critical <= low <= 10**12:
@@ -486,6 +696,10 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
                 low_stock=excluded.low_stock,critical_stock=excluded.critical_stock,active=1""",
                 (item_id, name, str(item.get("categoria", "Producto"))[:40], "unidad", stock,
                  sale_price, cost, low, critical))
+            if raw_recipe is not None:
+                conn.execute("DELETE FROM recipes WHERE product_id=?", (item_id,))
+                conn.executemany("INSERT INTO recipes(product_id,ingredient_id,quantity_milli) VALUES(?,?,?)",
+                                 [(item_id, ingredient_id, quantity_milli) for ingredient_id, quantity_milli in recipe_rows])
             return item_id
         if kind == "producto_eliminar":
             item_id = int(action["id"])
@@ -515,6 +729,79 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
             for item_id, price in normalized:
                 conn.execute("UPDATE items SET sale_price_cents=? WHERE id=?", (price, item_id))
             return None
+        if kind == "servicio_guardar":
+            service = action.get("servicio")
+            if not isinstance(service, dict):
+                raise ValueError("servicio")
+            service_id = int(service["id"])
+            name = str(service.get("nombre", "")).strip()
+            service_type = str(service.get("tipo", "General")).strip()
+            price = int(service.get("importeCent", 0))
+            description = str(service.get("descripcion") or "").strip()
+            photo_uri = service.get("fotoUri")
+            if photo_uri is not None:
+                photo_uri = str(photo_uri)
+            components = service.get("insumos", [])
+            if not isinstance(components, list) or len(components) > 5000:
+                raise ValueError("insumos del servicio")
+            normalized_components = []
+            seen = set()
+            for component in components:
+                if not isinstance(component, dict):
+                    raise ValueError("insumos del servicio")
+                ingredient_id = int(component.get("insumoId", 0))
+                quantity_milli = int(component.get("cantidadMil", 0))
+                ingredient = conn.execute("SELECT 1 FROM items WHERE id=? AND category='Insumo' AND active=1", (ingredient_id,)).fetchone()
+                if ingredient_id in seen or not ingredient or not 1 <= quantity_milli <= 10**12:
+                    raise ValueError("insumos del servicio")
+                seen.add(ingredient_id)
+                normalized_components.append({"insumoId": ingredient_id, "cantidadMil": quantity_milli})
+            created_ms = int(service.get("creadoEn", 0) or 0)
+            updated_ms = int(service.get("actualizadoEn", created_ms) or created_ms)
+            local_name = str(service.get("local", "") or "")[:80]
+            deleted = 1 if bool(service.get("eliminado", False)) else 0
+            if not 1 <= service_id <= 2**63 - 1 or not name or len(name) > 100 or not service_type or len(service_type) > 40 or not 0 <= price <= 2**63 - 1 or len(description) > 1000 or (photo_uri is not None and len(photo_uri) > 2048) or created_ms < 0 or updated_ms < 0:
+                raise ValueError("servicio")
+            conn.execute("""INSERT INTO sync_services(service_id,name,service_type,price_cents,description,photo_uri,created_ms,updated_ms,deleted,ingredients_json,local_name)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(service_id) DO UPDATE SET name=excluded.name,service_type=excluded.service_type,
+                price_cents=excluded.price_cents,description=excluded.description,photo_uri=excluded.photo_uri,created_ms=excluded.created_ms,
+                updated_ms=excluded.updated_ms,deleted=excluded.deleted,ingredients_json=excluded.ingredients_json,local_name=excluded.local_name""",
+                (service_id, name, service_type, price, description, photo_uri, created_ms, updated_ms, deleted, json.dumps(normalized_components, ensure_ascii=False), local_name))
+            return service_id
+        if kind == "servicio_eliminar":
+            updated = conn.execute("UPDATE sync_services SET deleted=1 WHERE service_id=? AND deleted=0", (int(action["id"]),)).rowcount
+            if updated != 1:
+                raise RemoteCommandError("no_encontrado")
+            return None
+        if kind == "preajuste_guardar":
+            preset = action.get("preajuste")
+            if not isinstance(preset, dict):
+                raise ValueError("preajuste")
+            preset_id = int(preset["id"])
+            name = str(preset.get("nombre", "")).strip()
+            points = int(preset.get("puntosBasicos", 0))
+            product_ids, service_ids = preset.get("productoIds", []), preset.get("servicioIds", [])
+            payment = preset.get("metodoPago")
+            minimum = preset.get("importeMinimoCent")
+            if not isinstance(product_ids, list) or not isinstance(service_ids, list) or len(product_ids) > 5000 or len(service_ids) > 5000:
+                raise ValueError("preajuste")
+            product_ids = sorted({int(value) for value in product_ids})
+            service_ids = sorted({int(value) for value in service_ids})
+            if not 1 <= preset_id <= 2**63 - 1 or not name or len(name) > 80 or points == 0 or not -9000 <= points <= 10000:
+                raise ValueError("preajuste")
+            if payment not in {None, "EFECTIVO", "TRANSFERENCIA"} or (minimum is not None and not 0 <= int(minimum) <= 10**12):
+                raise ValueError("preajuste")
+            conn.execute("""INSERT INTO presets(id,name,basis_points,product_ids_json,service_ids_json,payment_method,minimum_cents,active)
+                VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,basis_points=excluded.basis_points,
+                product_ids_json=excluded.product_ids_json,service_ids_json=excluded.service_ids_json,payment_method=excluded.payment_method,
+                minimum_cents=excluded.minimum_cents,active=excluded.active""",
+                (preset_id, name, points, json.dumps(product_ids), json.dumps(service_ids), payment, int(minimum) if minimum is not None else None, int(bool(preset.get("activo", True)))))
+            return preset_id
+        if kind == "preajuste_eliminar":
+            updated = conn.execute("UPDATE presets SET active=0 WHERE id=? AND active=1", (int(action["id"]),)).rowcount
+            if updated != 1:
+                raise RemoteCommandError("no_encontrado")
+            return None
         if kind == "insumo_guardar":
             item = action.get("insumo")
             if not isinstance(item, dict):
@@ -528,15 +815,13 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
             critical_milli = int(item.get("nivelCriticoMil", 1000) or 0)
             if not 1 <= item_id <= 2**63 - 1 or not name or len(name) > 80 or not unit or len(unit) > 20:
                 raise ValueError("insumo")
-            if quantity_milli % 1000 or low_milli % 1000 or critical_milli % 1000:
-                raise ValueError("precisión de insumo")
-            if not 0 <= cost <= 2**63 - 1 or not 0 <= sale <= 2**63 - 1 or not 0 <= critical_milli <= low_milli <= 10**12:
+            if not 0 <= quantity_milli <= 10**12 or not 0 <= cost <= 2**63 - 1 or not 0 <= sale <= 2**63 - 1 or not 0 <= critical_milli <= low_milli <= 10**12:
                 raise ValueError("insumo")
             conn.execute("""INSERT INTO items(id,name,category,unit,stock,sale_price_cents,cost_cents,low_stock,critical_stock,active)
                 VALUES(?,?,'Insumo',?,?,?,?,?,?,1) ON CONFLICT(id) DO UPDATE SET name=excluded.name,category='Insumo',
                 unit=excluded.unit,stock=excluded.stock,sale_price_cents=excluded.sale_price_cents,cost_cents=excluded.cost_cents,
                 low_stock=excluded.low_stock,critical_stock=excluded.critical_stock,active=1""",
-                (item_id, name, unit, quantity_milli // 1000, sale, cost, low_milli // 1000, critical_milli // 1000))
+                (item_id, name, unit, quantity_milli / 1000, sale, cost, low_milli / 1000, critical_milli / 1000))
             return item_id
         if kind == "insumo_eliminar":
             updated = conn.execute("UPDATE items SET active=0 WHERE id=? AND category='Insumo' AND active=1", (int(action["id"]),)).rowcount
@@ -545,12 +830,12 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
             return None
         if kind == "insumo_stock":
             delta = int(action["deltaMil"])
-            if delta % 1000:
-                raise ValueError("precisión de insumo")
+            if abs(delta) > 10**12:
+                raise ValueError("movimiento de insumo")
             item_id = int(action["id"])
-            updated = conn.execute("UPDATE items SET stock=stock+? WHERE id=? AND category='Insumo' AND active=1", (delta // 1000, item_id)).rowcount
+            updated = conn.execute("UPDATE items SET stock=stock+? WHERE id=? AND category='Insumo' AND active=1", (delta / 1000, item_id)).rowcount
             if updated != 1:
                 raise RemoteCommandError("no_encontrado")
             row = conn.execute("SELECT stock FROM items WHERE id=?", (item_id,)).fetchone()
-            return int(row[0]) * 1000
+            return int(Decimal(str(row[0])) * 1000)
         raise RemoteCommandError("no_encontrado")

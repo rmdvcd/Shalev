@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import ctypes
+import hashlib
 import os
 import secrets
 import sqlite3
+import uuid as uuidlib
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -39,6 +41,45 @@ CREATE TABLE IF NOT EXISTS items (
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
+CREATE TABLE IF NOT EXISTS catalog_photos (
+    entity TEXT NOT NULL CHECK (entity IN ('producto','servicio')),
+    entity_id INTEGER NOT NULL,
+    filename TEXT NOT NULL UNIQUE,
+    byte_length INTEGER NOT NULL,
+    sha256 TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    PRIMARY KEY(entity,entity_id)
+);
+CREATE TABLE IF NOT EXISTS sync_services (
+    service_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    service_type TEXT NOT NULL DEFAULT 'General',
+    price_cents INTEGER NOT NULL DEFAULT 0,
+    description TEXT NOT NULL DEFAULT '',
+    photo_uri TEXT,
+    created_ms INTEGER NOT NULL DEFAULT 0,
+    updated_ms INTEGER NOT NULL DEFAULT 0,
+    deleted INTEGER NOT NULL DEFAULT 0,
+    ingredients_json TEXT NOT NULL DEFAULT '[]',
+    local_name TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS presets (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    basis_points INTEGER NOT NULL DEFAULT 0,
+    product_ids_json TEXT NOT NULL DEFAULT '[]',
+    service_ids_json TEXT NOT NULL DEFAULT '[]',
+    payment_method TEXT,
+    minimum_cents INTEGER,
+    active INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS recipes (
+    product_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    ingredient_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    quantity_milli INTEGER NOT NULL CHECK (quantity_milli > 0),
+    PRIMARY KEY(product_id, ingredient_id),
+    CHECK (product_id != ingredient_id)
+);
 CREATE TABLE IF NOT EXISTS shifts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     opened_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -46,6 +87,15 @@ CREATE TABLE IF NOT EXISTS shifts (
     opening_cash_cents INTEGER NOT NULL DEFAULT 0,
     counted_cash_cents INTEGER
 );
+CREATE TABLE IF NOT EXISTS cash_movements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    shift_id INTEGER NOT NULL REFERENCES shifts(id),
+    movement_type TEXT NOT NULL CHECK (movement_type IN ('ENTRADA','SALIDA')),
+    amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+    reason TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_cash_shift ON cash_movements(shift_id,created_at);
 CREATE TABLE IF NOT EXISTS employees (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     slot INTEGER NOT NULL UNIQUE CHECK (slot BETWEEN 1 AND 10),
@@ -62,6 +112,15 @@ CREATE TABLE IF NOT EXISTS employees (
     phone TEXT,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
+CREATE TABLE IF NOT EXISTS customers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
 CREATE TABLE IF NOT EXISTS sales (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     shift_id INTEGER NOT NULL REFERENCES shifts(id),
@@ -69,6 +128,7 @@ CREATE TABLE IF NOT EXISTS sales (
     payment_method TEXT NOT NULL CHECK (payment_method IN ('EFECTIVO','TRANSFERENCIA')),
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     employee_id INTEGER REFERENCES employees(id),
+    customer_id INTEGER REFERENCES customers(id),
     note TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS sale_lines (
@@ -92,6 +152,45 @@ CREATE TABLE IF NOT EXISTS sync_receipts (
     payload_json TEXT NOT NULL DEFAULT '{}',
     received_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
+CREATE TABLE IF NOT EXISTS sync_shifts (
+    employee_id INTEGER NOT NULL,
+    employee_name TEXT NOT NULL DEFAULT '',
+    uuid TEXT NOT NULL,
+    opened_ms INTEGER NOT NULL DEFAULT 0,
+    closed_ms INTEGER,
+    opening_cash_cents INTEGER,
+    counted_cash_cents INTEGER,
+    count_json TEXT,
+    payload_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    PRIMARY KEY(employee_id,uuid)
+);
+CREATE TABLE IF NOT EXISTS sync_cash_movements (
+    uuid TEXT PRIMARY KEY,
+    employee_id INTEGER NOT NULL,
+    employee_name TEXT NOT NULL DEFAULT '',
+    shift_uuid TEXT NOT NULL,
+    movement_type TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    created_ms INTEGER NOT NULL DEFAULT 0,
+    payload_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS mobile_close_requests (
+    employee_id INTEGER PRIMARY KEY REFERENCES employees(id) ON DELETE CASCADE,
+    requested_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    decision INTEGER,
+    decided_by TEXT,
+    decided_at TEXT
+);
+CREATE TABLE IF NOT EXISTS mobile_count_approvals (
+    employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    shift_uuid TEXT NOT NULL,
+    count_json TEXT NOT NULL,
+    approved_by TEXT NOT NULL,
+    approved_at INTEGER NOT NULL,
+    PRIMARY KEY(employee_id,shift_uuid)
+);
 CREATE TABLE IF NOT EXISTS sync_sales (
     uuid TEXT PRIMARY KEY,
     employee_id INTEGER NOT NULL,
@@ -101,7 +200,16 @@ CREATE TABLE IF NOT EXISTS sync_sales (
     payment_method TEXT NOT NULL,
     total_cents INTEGER NOT NULL CHECK (total_cents >= 0),
     payload_json TEXT NOT NULL,
+    cancelled_at INTEGER,
+    cancellation_reason TEXT,
+    cancelled_by TEXT,
     received_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE TABLE IF NOT EXISTS sync_sale_changes (
+    uuid TEXT PRIMARY KEY,
+    employee_id INTEGER NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_sync_sales_date ON sync_sales(sale_at_ms);
 CREATE TABLE IF NOT EXISTS sync_commands (
@@ -123,6 +231,9 @@ CREATE INDEX IF NOT EXISTS idx_items_active ON items(active, name);
 """
 
 DB_MAGIC = b"DSHALEVDB1"
+BACKUP_MAGIC = b"DSHALEV-BACKUP-1\n"
+BACKUP_PLAIN_MAGIC = b"DSHALEV-BACKUP-DATA-1\n"
+BACKUP_KDF_ROUNDS = 300_000
 KEY_MAGIC_DPAPI = b"DSPAPI1"
 KEY_MAGIC_DEV = b"DSKEY1"
 DB_AAD = b"DShalev SQLite snapshot v1"
@@ -258,6 +369,197 @@ class Database:
             pass
         temp.replace(self.path)
 
+    @staticmethod
+    def _backup_passphrase(passphrase: str) -> bytes:
+        if not isinstance(passphrase, str) or not 12 <= len(passphrase) <= 1024:
+            raise ValueError("La contraseña del respaldo debe tener entre 12 y 1024 caracteres.")
+        return passphrase.encode("utf-8")
+
+    def export_backup(self, passphrase: str) -> bytes:
+        password = self._backup_passphrase(passphrase)
+        raw_db = self.path.read_bytes()
+        assets: dict[str, bytes] = {}
+        with self.connect() as conn:
+            photos = conn.execute("SELECT filename,byte_length,sha256 FROM catalog_photos").fetchall()
+            meta = {row["key"]: row["value"] for row in conn.execute("SELECT key,value FROM app_meta WHERE key IN ('apk_version_code','apk_sha256','apk_bytes')")}
+        photo_dir = self.path.parent / "catalog_photos"
+        for photo in photos:
+            asset_path = photo_dir / photo["filename"]
+            data = asset_path.read_bytes() if asset_path.is_file() else b""
+            if len(data) != photo["byte_length"] or hashlib.sha256(data).hexdigest() != photo["sha256"]:
+                raise ValueError(f"Falta o está dañada la foto {photo['filename']}; no se creó el respaldo.")
+            assets[f"catalog_photos/{photo['filename']}"] = data
+        if meta.get("apk_version_code"):
+            apk_path = self.path.parent / "updates" / "shalev.apk"
+            apk_data = apk_path.read_bytes() if apk_path.is_file() else b""
+            if len(apk_data) != int(meta.get("apk_bytes", 0)) or hashlib.sha256(apk_data).hexdigest() != meta.get("apk_sha256"):
+                raise ValueError("El APK publicado falta o está dañado; no se creó el respaldo.")
+            assets["updates/shalev.apk"] = apk_data
+        payload = bytearray(BACKUP_PLAIN_MAGIC + self._key + len(raw_db).to_bytes(8, "big") + raw_db)
+        payload.extend(len(assets).to_bytes(2, "big"))
+        for name, data in sorted(assets.items()):
+            name_bytes = name.encode("ascii")
+            payload.extend(len(name_bytes).to_bytes(2, "big"))
+            payload.extend(name_bytes)
+            payload.extend(len(data).to_bytes(8, "big"))
+            payload.extend(data)
+        salt, nonce = secrets.token_bytes(16), secrets.token_bytes(12)
+        encryption_key = hashlib.pbkdf2_hmac("sha256", password, salt, BACKUP_KDF_ROUNDS, dklen=32)
+        return BACKUP_MAGIC + salt + nonce + AESGCM(encryption_key).encrypt(nonce, bytes(payload), BACKUP_MAGIC)
+
+    def restore_backup(self, backup: bytes, passphrase: str) -> None:
+        password = self._backup_passphrase(passphrase)
+        if not isinstance(backup, bytes) or len(backup) > 1024 * 1024 * 1024:
+            raise ValueError("El archivo de respaldo excede el límite permitido.")
+        header_size = len(BACKUP_MAGIC) + 16 + 12
+        if len(backup) < header_size + 16 or not backup.startswith(BACKUP_MAGIC):
+            raise ValueError("El archivo no es un respaldo DShalev reconocido.")
+        offset = len(BACKUP_MAGIC)
+        salt, nonce = backup[offset:offset + 16], backup[offset + 16:offset + 28]
+        encryption_key = hashlib.pbkdf2_hmac("sha256", password, salt, BACKUP_KDF_ROUNDS, dklen=32)
+        try:
+            payload = AESGCM(encryption_key).decrypt(nonce, backup[header_size:], BACKUP_MAGIC)
+        except Exception as exc:
+            raise ValueError("Contraseña incorrecta o respaldo dañado.") from exc
+        prefix_len = len(BACKUP_PLAIN_MAGIC)
+        if len(payload) < prefix_len + 40 or not payload.startswith(BACKUP_PLAIN_MAGIC):
+            raise ValueError("El contenido del respaldo no es válido.")
+        restored_key = payload[prefix_len:prefix_len + 32]
+        db_length = int.from_bytes(payload[prefix_len + 32:prefix_len + 40], "big")
+        db_start, db_end = prefix_len + 40, prefix_len + 40 + db_length
+        raw_db = payload[db_start:db_end]
+        if len(restored_key) != 32 or len(raw_db) != db_length or not raw_db.startswith(DB_MAGIC):
+            raise ValueError("El respaldo está incompleto o no es válido.")
+        assets: dict[str, bytes] = {}
+        cursor = db_end
+        if cursor < len(payload):
+            if len(payload) < cursor + 2:
+                raise ValueError("El manifiesto de archivos del respaldo está truncado.")
+            asset_count = int.from_bytes(payload[cursor:cursor + 2], "big")
+            cursor += 2
+            if asset_count > 10_000:
+                raise ValueError("El respaldo contiene demasiados archivos.")
+            for _ in range(asset_count):
+                if len(payload) < cursor + 2:
+                    raise ValueError("El manifiesto de archivos del respaldo está truncado.")
+                name_length = int.from_bytes(payload[cursor:cursor + 2], "big")
+                cursor += 2
+                if not 1 <= name_length <= 256 or len(payload) < cursor + name_length + 8:
+                    raise ValueError("Una ruta del respaldo no es válida.")
+                try:
+                    asset_name = payload[cursor:cursor + name_length].decode("ascii")
+                except UnicodeDecodeError as exc:
+                    raise ValueError("Una ruta del respaldo no es válida.") from exc
+                cursor += name_length
+                asset_length = int.from_bytes(payload[cursor:cursor + 8], "big")
+                cursor += 8
+                if asset_length > 300 * 1024 * 1024 or len(payload) < cursor + asset_length:
+                    raise ValueError("Un archivo del respaldo está truncado o supera el máximo.")
+                if asset_name == "updates/shalev.apk":
+                    pass
+                elif asset_name.startswith("catalog_photos/") and asset_name.endswith(".jpg"):
+                    try:
+                        if asset_name != f"catalog_photos/{uuidlib.UUID(asset_name.removeprefix('catalog_photos/').removesuffix('.jpg'))}.jpg":
+                            raise ValueError("ruta")
+                    except ValueError as exc:
+                        raise ValueError("Una ruta de foto del respaldo no es válida.") from exc
+                else:
+                    raise ValueError("El respaldo contiene una ruta de archivo no permitida.")
+                if asset_name in assets:
+                    raise ValueError("El respaldo contiene nombres de archivo duplicados.")
+                assets[asset_name] = payload[cursor:cursor + asset_length]
+                cursor += asset_length
+            if cursor != len(payload):
+                raise ValueError("El respaldo contiene datos adicionales no reconocidos.")
+        nonce_db = raw_db[len(DB_MAGIC):len(DB_MAGIC) + 12]
+        source: sqlite3.Connection | None = None
+        try:
+            clear = AESGCM(restored_key).decrypt(nonce_db, raw_db[len(DB_MAGIC) + 12:], DB_AAD)
+            source = sqlite3.connect(":memory:", isolation_level=None)
+            source.row_factory = sqlite3.Row
+            source.deserialize(clear)
+            integrity = source.execute("PRAGMA integrity_check").fetchone()[0]
+            tables = {row[0] for row in source.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if integrity != "ok" or not {"users", "items", "sales"}.issubset(tables):
+                raise ValueError("La base del respaldo no pasó la verificación de integridad.")
+            if "catalog_photos" in tables:
+                for photo in source.execute("SELECT filename,byte_length,sha256 FROM catalog_photos"):
+                    asset = assets.get(f"catalog_photos/{photo['filename']}")
+                    if asset is None or len(asset) != photo["byte_length"] or hashlib.sha256(asset).hexdigest() != photo["sha256"]:
+                        raise ValueError("Falta una foto o su hash no coincide con el catálogo del respaldo.")
+                    if len(asset) < 4 or not asset.startswith(b"\xff\xd8") or not asset.endswith(b"\xff\xd9"):
+                        raise ValueError("Una foto del respaldo no es JPEG válido.")
+            if "app_meta" in tables:
+                meta = {row["key"]: row["value"] for row in source.execute("SELECT key,value FROM app_meta WHERE key IN ('apk_version_code','apk_sha256','apk_bytes')")}
+                if meta.get("apk_version_code"):
+                    apk = assets.get("updates/shalev.apk")
+                    if apk is None or len(apk) != int(meta.get("apk_bytes", 0)) or hashlib.sha256(apk).hexdigest() != meta.get("apk_sha256"):
+                        raise ValueError("El APK y sus metadatos no coinciden en el respaldo.")
+        except ValueError:
+            if source is not None:
+                source.close()
+            raise
+        except Exception as exc:
+            if source is not None:
+                source.close()
+            raise ValueError("No se pudo verificar la base cifrada del respaldo.") from exc
+
+        if source is None:
+            raise ValueError("No se pudo abrir la base de datos del respaldo.")
+        staged_assets: list[tuple[Path, Path, bytes | None]] = []
+        for name, data in assets.items():
+            target = self.path.parent / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            temporary = target.with_name(target.name + ".restore-" + secrets.token_hex(6))
+            temporary.write_bytes(data)
+            try:
+                os.chmod(temporary, 0o600)
+            except OSError:
+                pass
+            staged_assets.append((temporary, target, target.read_bytes() if target.is_file() else None))
+        with self._lock:
+            old_clear = self._anchor.serialize()
+            old_db = self.path.read_bytes() if self.path.exists() else None
+            old_key_file = self.key_path.read_bytes() if self.key_path.exists() else None
+            old_key = self._key
+            try:
+                source.backup(self._anchor)
+                self._key = restored_key
+                stored_key = KEY_MAGIC_DPAPI + _windows_protect(restored_key, decrypt=False) if os.name == "nt" else KEY_MAGIC_DEV + restored_key
+                key_tmp = self.key_path.with_suffix(self.key_path.suffix + ".restore-tmp")
+                key_tmp.write_bytes(stored_key)
+                try:
+                    os.chmod(key_tmp, 0o600)
+                except OSError:
+                    pass
+                key_tmp.replace(self.key_path)
+                for temporary, target, _old_data in staged_assets:
+                    temporary.replace(target)
+                self.initialize()
+                self._persist()
+            except Exception:
+                self._anchor.deserialize(old_clear)
+                self._key = old_key
+                if old_db is not None:
+                    self.path.write_bytes(old_db)
+                if old_key_file is not None:
+                    self.key_path.write_bytes(old_key_file)
+                else:
+                    self.key_path.unlink(missing_ok=True)
+                for temporary, target, old_data in staged_assets:
+                    if old_data is None:
+                        target.unlink(missing_ok=True)
+                    else:
+                        rollback_tmp = target.with_name(target.name + ".rollback-" + secrets.token_hex(6))
+                        rollback_tmp.write_bytes(old_data)
+                        rollback_tmp.replace(target)
+                    temporary.unlink(missing_ok=True)
+                raise
+            finally:
+                source.close()
+                for temporary, _target, _old_data in staged_assets:
+                    temporary.unlink(missing_ok=True)
+
     def initialize(self) -> None:
         with self.connect() as conn:
             conn.executescript(SCHEMA)
@@ -279,10 +581,19 @@ class Database:
             sync_sale_columns = {row[1] for row in conn.execute("PRAGMA table_info(sync_sales)")}
             if "employee_name" not in sync_sale_columns:
                 conn.execute("ALTER TABLE sync_sales ADD COLUMN employee_name TEXT NOT NULL DEFAULT ''")
+            if "cancelled_at" not in sync_sale_columns:
+                conn.execute("ALTER TABLE sync_sales ADD COLUMN cancelled_at INTEGER")
+            if "cancellation_reason" not in sync_sale_columns:
+                conn.execute("ALTER TABLE sync_sales ADD COLUMN cancellation_reason TEXT")
+            if "cancelled_by" not in sync_sale_columns:
+                conn.execute("ALTER TABLE sync_sales ADD COLUMN cancelled_by TEXT")
+            sales_columns = {row[1] for row in conn.execute("PRAGMA table_info(sales)")}
+            if "customer_id" not in sales_columns:
+                conn.execute("ALTER TABLE sales ADD COLUMN customer_id INTEGER REFERENCES customers(id)")
             command_columns = {row[1] for row in conn.execute("PRAGMA table_info(sync_commands)")}
             if "request_hash" not in command_columns:
                 conn.execute("ALTER TABLE sync_commands ADD COLUMN request_hash TEXT NOT NULL DEFAULT ''")
-            conn.execute("UPDATE app_meta SET value='4' WHERE key='schema_version'")
+            conn.execute("UPDATE app_meta SET value='6' WHERE key='schema_version'")
 
     def connect(self) -> sqlite3.Connection:
         self._lock.acquire()
