@@ -45,8 +45,8 @@ Límites aún abiertos: relay no integrado en DShalev (CGNAT puede impedir el ac
 
 ### Fases de implementación
 
-1. **Base local (implementada, Windows aún no verificado):** autenticación, turnos/caja, POS multicesta, catálogo/servicios, stock decimal de insumos, reportes CSV y exportación de inventario/clientes.
-2. **Datos de negocio (implementados parcialmente):** clientes, recetas con descuento de insumos, respaldo/restauración cifrados y migración de clave. Sin PDF/Excel y sin paridad de todos los campos de clientes fijos móviles.
+1. **Base local (implementada, Windows aún no verificado):** autenticación, turnos/caja, POS multicesta, catálogo/servicios, stock decimal de insumos, reportes y exportación CSV/XLSX de ventas, inventario y clientes (sin PDF).
+2. **Datos de negocio (implementados parcialmente):** clientes, recetas con descuento de insumos, respaldo/restauración cifrados y migración de clave; reportes/exportación CSV y XLSX de ventas, inventario y clientes. Aún no hay exportación PDF ni paridad de todos los campos de clientes fijos móviles.
 3. **SPVI (implementado y probado en loopback):** acciones de productos/insumos/servicios/recetas/preajustes, turnos/caja, aprobaciones de cierre/conteo, corrección/anulación limitada, fotos/APK publicadas manualmente. Pendiente Android/iOS físicos, compatibilidad real y revisión de firma APK.
 4. **Acceso entre redes:** relay no integrado en DShalev. Su worker piloto existe en `relay/`; requiere URL desplegada y cableado del cliente Python, además de pruebas con dos móviles en redes reales.
 5. **Licenciamiento y release:** integración de licencia GL/sub-token comercial no implementada; Windows EXE, migración cifrada cruzada y restauración sobre Windows deben verificarse fuera de este entorno.
