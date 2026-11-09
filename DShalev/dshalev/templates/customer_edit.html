@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% block title %}Editar cliente{% endblock %}{% block content %}
+<div class="page-heading"><div><p class="eyebrow">DIRECTORIO</p><h1>Editar cliente</h1><p class="muted">Los cambios no alteran ventas anteriores.</p></div><a class="secondary-button" href="/clientes">Volver</a></div>
+<section class="panel"><form method="post" action="/clientes/{{ customer.id }}/editar" class="form-stack"><input type="hidden" name="csrf" value="{{ csrf }}"><label>Nombre<input name="name" maxlength="100" value="{{ customer.name }}" required></label><div class="form-row"><label>Teléfono<input name="phone" maxlength="40" value="{{ customer.phone }}"></label><label>Correo<input name="email" maxlength="160" type="email" value="{{ customer.email }}"></label></div><label>Notas<textarea name="notes" maxlength="500" rows="3">{{ customer.notes }}</textarea></label><button class="primary-button" type="submit">Guardar cambios</button></form></section>
+{% endblock %}

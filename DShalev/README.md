@@ -1,8 +1,8 @@
 # DShalev — versión web de escritorio
 
-DShalev es un **servidor web local en Python** pensado para ejecutarse en Windows como un único `DShalev.exe` portable. El navegador es la interfaz de escritorio: no necesita instalar un cliente separado. La base cifrada y la configuración se guardan en `DShalevData/` junto al ejecutable. En Windows, la clave local queda protegida por DPAPI y ligada a la cuenta/equipo; respaldar esa carpeta ayuda frente a pérdida del disco, pero copiarla a otro PC requiere que se implemente la migración cifrada.
+DShalev es un **servidor web local en Python** pensado para ejecutarse en Windows como un único `DShalev.exe` portable. El navegador es la interfaz de escritorio: no necesita instalar un cliente separado. La base cifrada y la configuración se guardan en `DShalevData/` junto al ejecutable. En Windows, la clave local queda protegida por DPAPI y ligada a la cuenta/equipo. La sección **Respaldo** exporta e importa base, fotos del catálogo y APK publicado en un archivo protegido por contraseña; al restaurar, se validan hashes y la clave vuelve a protegerse localmente.
 
-> **Estado de esta entrega (0.1):** funciona el escritorio web, plazas de empleados, QR SPVI v1 de un solo uso y un listener TCP para emparejar y sincronizar lotes cifrados. Se guardan recibos de ventas de apps secundarias y se aplican movimientos de stock de productos. El contrato ya tiene pruebas automatizadas en loopback, pero **todavía no se ha validado en dispositivos reales Android ni iOS** y no es paridad completa: relay, licencia GL/sub-token, servicios/recetas/fotos, cierres y varios flujos aún faltan. El `.exe` de Windows tampoco está verificado en esta sesión.
+> **Estado de implementación en curso:** el escritorio incluye POS web de varias líneas, servicios, insumos con precisión de 0.001, recetas con descuento atómico de insumos, clientes, turnos/arqueo/caja, historial, reportes y CSV; respaldo cifrado con restauración, acciones SPVI para productos/insumos/recetas/servicios/preajustes, recibos de venta/caja/turno, autorización de cierres/conteos, corrección/anulación de ventas simples, y transferencia por bloques de fotos y APK provistos por el administrador. El suite DShalev pasa en loopback, pero **no demuestra compatibilidad real en Android/iOS**. Relay externo, licencia GL/sub-token firmado, revisión de firma APK, fotos móviles reales, ejecución Windows y pruebas físicas/redes reales siguen pendientes; no se declara paridad completa ni `.exe` validado.
 
 ## Ejecutar en desarrollo
 
@@ -25,7 +25,7 @@ En un PC Windows con Python instalado:
 .\build_windows.ps1
 ```
 
-El ejecutable se crea en `dist\DShalev.exe`. El workflow `.github/workflows/dshalev-windows.yml` también prueba y publica el EXE como artefacto de Actions en Windows x64. Al ejecutar el EXE no se instala un servicio: se abre el navegador local. Los datos viven en `DShalevData/` al lado del programa. Cierra DShalev antes de respaldar la carpeta; para recuperar en el mismo PC conserva la misma cuenta Windows. La migración a otro equipo requiere la exportación cifrada planificada.
+El ejecutable se crea en `dist\DShalev.exe`. El workflow `.github/workflows/dshalev-windows.yml` también prueba y publica el EXE como artefacto de Actions en Windows x64. Al ejecutar el EXE no se instala un servicio: se abre el navegador local. Los datos viven en `DShalevData/` al lado del programa. La exportación cifrada desde **Respaldo** está diseñada para restaurarse en otro PC; la copia directa de la carpeta sigue ligada al usuario/equipo Windows original. El flujo `.exe` aún debe verificarse en Windows.
 
 ## Acceso de otros equipos
 
@@ -45,10 +45,11 @@ La conexión nativa actual es directa: no hay relay DShalev ni acceso por datos 
 - La base SQLite se mantiene en memoria y se persiste como snapshot cifrado/autenticado AES-256-GCM. En Windows, su clave queda protegida por DPAPI de la cuenta/equipo; el modo de desarrollo no-Windows usa un archivo clave local y no tiene la protección DPAPI.
 - En LAN todavía se usa HTTP: limitarlo a una red de confianza o usar VPN. El modo remoto solo arranca con rutas a un certificado y clave TLS existentes y la cookie va marcada `Secure`.
 - No incluye relay, telemetría, cuenta de servicio, publicación automática de puertos ni integración con el worker remoto del relay. Los empleados nativos se pueden retirar; la app recibirá un rechazo autenticado al reconectarse.
-- La sincronización SPVI persiste los lotes recibidos en la base cifrada y muestra ventas móviles; aplica los movimientos de producto una sola vez. Aún no replica toda la lógica Android/iOS: servicios, recetas, existencias decimales de insumos, aprobación de cierre, correcciones de venta, fotos y APK no están implementados.
-- Los comandos soportados de productos/insumos usan claves persistidas por empleado y resultados cacheados en la misma transacción; las repeticiones devuelven el resultado previo. La caché se limita a las 512 claves recientes por empleado. Los comandos de servicios/recetas/preajustes aún no están implementados.
+- La sincronización SPVI persiste turnos, ventas, caja y cambios en la base cifrada; aplica movimientos idempotentes. Hay acciones remotas idempotentes para productos, insumos decimales, recetas, servicios y preajustes; cierre/conteo requieren aprobación desde Equipo. La anulación y corrección propagadas cubren ventas simples solo de productos, no líneas con recetas, servicios o insumos vendibles.
+- Las fotos JPEG y APK se cargan manualmente por un administrador y se transfieren por bloques autenticados/cifrados SPVI con SHA-256; no existe carga de fotos desde el teléfono a DShalev. DShalev comprueba la estructura ZIP básica del APK, **no valida su firma de desarrollador**; Android verifica la firma al instalar.
+- Los comandos usan claves persistidas por empleado y resultados cacheados en la misma transacción; las repeticiones devuelven el resultado previo. La caché se limita a las 512 claves recientes por empleado.
 - La licencia que DShalev devuelve a las secundarias es una prueba local de siete días; no equivale a una licencia GL activa ni emite sub-tokens firmados. No usar para afirmar habilitación comercial.
-- Los precios se guardan en centavos, el stock actual de la primera UI usa unidades enteras, cada venta requiere turno abierto y una transacción SQLite bloquea el registro para evitar vender stock inexistente concurrentemente.
+- Los precios se guardan en centavos; productos y cantidades POS se venden en unidades enteras; insumos admiten hasta tres decimales. Cada venta requiere turno abierto y descuenta producto/receta dentro de una transacción SQLite para evitar carreras de stock.
 - No se inventa una licencia GL: el plazo local de prueba es provisional; activación comercial y sub-token firmado requieren integrar el contrato GL en el escritorio.
 
 ## Estructura

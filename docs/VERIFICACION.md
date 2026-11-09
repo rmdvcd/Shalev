@@ -1,11 +1,10 @@
 # Shalev — Verificación real
 
-## DShalev web/sync (2026-11-08, branch `arena/6d58a4f3-shalev`)
+## DShalev web/sync (2026-11-08, branch `arena/72534cb4-shalev`)
 
-- `cd DShalev && .venv/bin/pytest -q`: **13 passed**, 1 Starlette/anyio deprecation warning. Incluye pairing TCP SPVI, generación SVG QR, ECDH/HMAC, sesión AES-GCM, límite de descompresión, lote de venta, actualización idempotente del stock, replay idempotente de comandos, permisos, actividad web y revocación autenticada sobre loopback.
-- `python -m compileall -q dshalev`: OK. `git diff --check`: OK.
-- No se ha probado con Android/iOS físicos ni en dos dispositivos/redes reales (este entorno tampoco tiene Java ni Swift/Xcode). No existe EXE Windows verificado; el intento PyInstaller Linux anterior no pudo cargar `libpython3.11.so`. El relay, licencia GL/sub-token y flujos SPVI no implementados siguen bloqueando una afirmación de paridad completa.
-- Preview iniciado en modo LAN: web `0.0.0.0:8000` y SPVI TCP `0.0.0.0:47811`; `/healthz` devolvió 200 y `/` llevó al setup inicial. Proceso de preview activo mientras dure esta sesión.
+- `cd DShalev && .venv/bin/pytest -q`: **23 passed**, 1 aviso deprecado Starlette/anyio. Incluye: inventario y servicios; multi-línea; stock de insumos a 3 decimales; recetas y reversión transaccional; turnos/caja y arqueos; clientes y ventas asociadas; reportes/CSV; respaldo cifrado y restauración de base+fotos+APK con comprobación de hashes; pairing/QR/ECDH/HMAC/AES-GCM; comandos de productos, insumos, recetas, servicios y preajustes; persistencia y aprobación de turno/conteo; corrección/anulación de ventas simples; carga de fotos/APK y descarga por bloques; revocación autenticada, todo en pruebas locales/loopback.
+- `python -m compileall -q dshalev`: pendiente de ejecutar tras la última pasada. `git diff --check`: pendiente de ejecutar tras la última pasada.
+- Límites expresos: no prueba física Android/iOS ni dos equipos/redes; no valida Windows EXE/DPAPI cruzado; no valida la firma de APK cargado; el relay Cloudflare no se integró con DShalev y requiere worker/URL y pruebas externas; licencia GL/sub-token comercial no implementados. Las correcciones remotas cubren solo ventas simples de productos, sin recetas, servicios ni insumos vendibles. No declarar paridad completa.
 
 
 ## Cambios de interfaz en curso (2026-11-01)

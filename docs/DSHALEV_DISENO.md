@@ -23,7 +23,7 @@ DShalevData/                           junto al EXE
 
 En ejecución, SQLite permanece en memoria compartida para todas las peticiones y, después de cada transacción escrita, se serializa, cifra con AES-GCM y se guarda mediante archivo temporal + reemplazo atómico. El nonce es aleatorio y la etiqueta autenticada liga el contenido a esta versión del formato. Un archivo sin clave, con clave incompatible o alterado no se reemplaza silenciosamente por una base vacía.
 
-**Límite de portabilidad de datos:** el `.exe` es portable; la clave de la base se vincula a Windows DPAPI y no se debe prometer que `DShalevData` se abra al copiarlo a otro PC o a otro usuario. La migración segura entre equipos requiere un formato de respaldo con contraseña, previsto para una etapa posterior. En desarrollo no-Windows, la clave local se guarda con permisos restringidos, pero no se beneficia de DPAPI.
+**Portabilidad de datos:** la clave local sigue ligada a Windows DPAPI; copiar `DShalevData` directamente a otro PC no es un método de migración. La sección Respaldo exporta/importa la base y los activos publicados (fotos y APK) en un contenedor cifrado con PBKDF2-HMAC-SHA256 + AES-GCM y contraseña (mínimo 12 caracteres); al restaurar, valida integridad y hashes, ejecuta migraciones y vuelve a proteger la clave con el mecanismo local. El flujo todavía requiere validar restauración cruzada en Windows. En desarrollo no-Windows, la clave local solo usa permisos del archivo.
 
 ## Modos de conexión
 
@@ -39,17 +39,17 @@ El navegador de otra PC/móvil puede abrir la misma interfaz web responsiva. Eso
 
 ## Integración de dispositivos secundarios
 
-Android e IShalev usan SPVI v1 (saludos, QR de un solo uso, ECDH P-256, HKDF, AES-GCM por sentido, secuencias, lotes, instantáneas y comandos). DShalev ya tiene una implementación Python de QR `SPVI-VINC1:`, listener TCP, pairing/clave por empleado, canal cifrado, snapshot, recibos de ventas, movimientos de stock de producto y rechazo autenticado al retirar una plaza. Sus pruebas automatizadas cubren el intercambio en loopback; **no** se ha validado todavía contra un Android ni un iPhone reales. No se debe presentar como paridad nativa completa.
+Android e IShalev usan SPVI v1 (QR de un uso, ECDH P-256, HKDF, AES-GCM, secuencias, lotes, instantáneas y comandos). DShalev implementa el listener TCP, pairing, persistencia de ventas/turnos/caja, stock/recetas, acciones para producto/insumo/servicio/preajuste, autorización de cierre y arqueo, propagación de anulación/corrección de ventas simples, y descarga por bloques de fotos y APK publicadas por el administrador. Los tests de loopback ejercitan estas rutas, pero **no** equivalen a Android/iPhone reales ni a dos redes físicas.
 
-Persisten límites importantes: no está conectado el relay, de modo que CGNAT puede bloquear el acceso directo; el listener ofrece un conjunto limitado de acciones (con deduplicación persistente de comandos soportados), recibos de ventas/caja/turnos no implementan todos los servicios de negocio, no hay aprobación/corrección/fotos/APK, y las licencias GL/sub-tokens firmados todavía no se emiten. El plazo de prueba local no equivale a una licencia válida comercial. La etapa de validación de compatibilidad con dispositivos y la integración restante sigue pendiente.
+Límites aún abiertos: relay no integrado en DShalev (CGNAT puede impedir el acceso); corrección solo para ventas móviles de productos simples (no recetas, servicios ni insumos vendibles); activos multimedia/APK deben ser subidos manualmente; DShalev no valida la firma de APK; no se validó la compatibilidad real de fotos ni APK. La integración de licencia GL y sub-tokens comerciales firmados no está implementada. El período local de prueba no equivale a una licencia comercial.
 
 ### Fases de implementación
 
-1. **Base segura y verificable (0.1, en este branch):** script y workflow preparados para generar el EXE Windows (aún sin build Windows verificado); primer inicio seguro; usuarios; turnos; venta unitaria; stock y panel; plazas y permisos web; archivo cifrado en Windows; acceso local/LAN/HTTPS explícito.
-2. **Paridad funcional:** servicios/insumos con unidades decimales, recetas, clientes fijos, arqueo, corrección/anulación, registros, análisis, exportación PDF/Excel/CSV, respaldo e importación/exportación Android/iOS.
-3. **Cliente nativo (parcial):** QR/listener y sincronización cifrada implementados con pruebas loopback. Pendiente: pruebas Android↔DShalev e IShalev↔DShalev en LAN; GL/sub-token reales; ampliar acciones a servicios/recetas/preajustes, movimientos decimales de insumos, turnos/caja completos, correcciones, fotos y APK.
-4. **Acceso entre redes:** integrar la conexión principal del relay autorizado en Python y probar desde Shalev/IShalev sobre datos móviles; documentar límites del operador, privacidad, cuotas y respuesta cuando el host no esté disponible. El host directo configurado no sustituye al relay.
-5. **Estabilización:** instalador/actualizador verificable opcional, respaldo cifrado con contraseña para cambio de PC, recuperación de clave, migraciones y pruebas de restauración.
+1. **Base local (implementada, Windows aún no verificado):** autenticación, turnos/caja, POS multicesta, catálogo/servicios, stock decimal de insumos, reportes CSV y exportación de inventario/clientes.
+2. **Datos de negocio (implementados parcialmente):** clientes, recetas con descuento de insumos, respaldo/restauración cifrados y migración de clave. Sin PDF/Excel y sin paridad de todos los campos de clientes fijos móviles.
+3. **SPVI (implementado y probado en loopback):** acciones de productos/insumos/servicios/recetas/preajustes, turnos/caja, aprobaciones de cierre/conteo, corrección/anulación limitada, fotos/APK publicadas manualmente. Pendiente Android/iOS físicos, compatibilidad real y revisión de firma APK.
+4. **Acceso entre redes:** relay no integrado en DShalev. Su worker piloto existe en `relay/`; requiere URL desplegada y cableado del cliente Python, además de pruebas con dos móviles en redes reales.
+5. **Licenciamiento y release:** integración de licencia GL/sub-token comercial no implementada; Windows EXE, migración cifrada cruzada y restauración sobre Windows deben verificarse fuera de este entorno.
 
 ## Modelo de seguridad
 
@@ -62,7 +62,6 @@ Persisten límites importantes: no está conectado el relay, de modo que CGNAT p
 
 ## Contratos de la primera entrega
 
-- Dinero: entero en centavos CUP; una venta de v0.1 contiene un artículo/una línea.
-- Stock de productos: unidades enteras; precisión decimal de insumos llegará con paridad.
+- Dinero: entero en centavos CUP; el POS admite hasta 60 líneas por venta. Cantidades vendidas en productos/servicios son enteras; insumos almacenan hasta 3 decimales (milli-unidad).
 - Solo se vende con turno abierto. La transacción de venta, la línea y el descuento de stock son atómicos, con verificación de stock dentro del bloqueo de escritura.
 - Las plazas tienen credenciales SPVI y QR temporal; retirarlas revoca la clave y permite que el cliente borre datos tras un rechazo autenticado. Esto no reemplaza licencia GL ni prueba que apps móviles reales ya sean compatibles.
