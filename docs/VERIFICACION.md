@@ -1,10 +1,19 @@
 # Shalev — Verificación real
 
-## DShalev web/sync (2026-11-08, branch `arena/72534cb4-shalev`)
+## DShalev web/sync (2026-11-08, branch `arena/526d8508-shalev`)
 
-- `cd DShalev && .venv/bin/pytest -q`: **23 passed**, 1 aviso deprecado Starlette/anyio. Incluye: inventario y servicios; multi-línea; stock de insumos a 3 decimales; recetas y reversión transaccional; turnos/caja y arqueos; clientes y ventas asociadas; reportes/CSV; respaldo cifrado y restauración de base+fotos+APK con comprobación de hashes; pairing/QR/ECDH/HMAC/AES-GCM; comandos de productos, insumos, recetas, servicios y preajustes; persistencia y aprobación de turno/conteo; corrección/anulación de ventas simples; carga de fotos/APK y descarga por bloques; revocación autenticada, todo en pruebas locales/loopback.
-- `python -m compileall -q dshalev`: pendiente de ejecutar tras la última pasada. `git diff --check`: pendiente de ejecutar tras la última pasada.
-- Límites expresos: no prueba física Android/iOS ni dos equipos/redes; no valida Windows EXE/DPAPI cruzado; no valida la firma de APK cargado; el relay Cloudflare no se integró con DShalev y requiere worker/URL y pruebas externas; licencia GL/sub-token comercial no implementados. Las correcciones remotas cubren solo ventas simples de productos, sin recetas, servicios ni insumos vendibles. No declarar paridad completa.
+- `cd DShalev && .venv/bin/pytest -q`: **25 passed**, 1 aviso de deprecación Starlette/anyio. Incluye flujos web de inventario/POS, recetas e insumos fraccionarios, turnos/caja, clientes, reportes y exportes, respaldo cifrado de base+fotos+APK, SPVI en loopback, aprobaciones, cancelación/corrección simple y transferencia de medios.
+- Exportaciones: XLSX de ventas (hojas resumen y detalle), inventario y clientes; además CSV. El XLSX nuevo se abrió con OpenPyXL y se confirmó que texto iniciado con `=` sigue siendo texto, no fórmula.
+- `.venv/bin/python -m compileall -q dshalev tests`: OK; `git diff --check`: OK. `WRANGLER_SEND_METRICS=false npm test --prefix relay`: **7/7** OK (incluye Miniflare/workerd local).
+- Límites expresos: ni las pruebas loopback ni las del Worker prueban teléfonos o redes físicas; no se validó Windows EXE/DPAPI entre equipos ni la firma de APK. El relay no está conectado a DShalev ni desplegado en Cloudflare. Licencia GL/sub-token comercial no implementados. Corrección móvil limitada a ventas simples de productos. No declarar paridad completa.
+
+## Android e integración remota — estado de este checkout (2026-11-08)
+
+- El checkout ya contiene Room **v16**, los esquemas versionados hasta `16.json`, migraciones 14→15 y 15→16, pruebas de persistencia/migración y la funcionalidad de locales. Las notas del 2026-11-05 que piden generar `15.json` están desactualizadas; el esquema 16 está versionado.
+- El sembrador de datos demo está implementado solo en debug. Aún falta ejecutarlo en una instalación Android y revisar la base/resultados en dispositivo.
+- Hay cliente relay Android y tests JVM `RelaySyncTest`, además del Worker Cloudflare. En este entorno esos tests/builds Android no se pueden ejecutar: no hay Java/JDK ni Android SDK (`java: command not found`, `ANDROID_HOME` vacío). El Worker sí pasa **7/7** con `npm test` local; el deploy y las pruebas en operadores/redes reales siguen pendientes.
+- Sin pruebas Android↔Android o Android↔iOS actuales de extremo a extremo. Cambios visuales posteriores necesitan compilar, revisar/regenerar Roborazzi y validarse manualmente.
+- Swift/Xcode tampoco está instalado: no hay ejecución local de tests IShalev ni validación en iPhone en esta sesión. Los últimos resultados registrados de CI iOS corresponden a octubre; la sincronización real con Android y GL end-to-end siguen pendientes.
 
 
 ## Cambios de interfaz en curso (2026-11-01)

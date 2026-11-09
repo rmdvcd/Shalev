@@ -31,6 +31,7 @@ from .forms import form_data, format_cup, integer, money_to_cents
 from .security import csrf_token, hash_password, valid_csrf, verify_password
 from .sync_protocol import canonical_json, generate_pairing_code
 from .sync_server import ShalevSyncServer
+from .xlsx import build_xlsx
 
 TEMPLATES = Path(__file__).parent / "templates"
 STATIC = Path(__file__).parent / "static"
@@ -953,7 +954,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         writer = csv.writer(output)
         writer.writerow(["Nombre", "Teléfono", "Correo", "Notas", "Fecha de alta"])
         writer.writerows([tuple(row) for row in rows])
-        return Response("\\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="clientes.csv"'})
+        return Response("\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="clientes.csv"'})
 
     @app.get("/distribucion", response_class=HTMLResponse)
     async def distribution_page(request: Request):
@@ -1168,7 +1169,55 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         writer.writerow(["Fecha", "Origen", "Cliente", "Descripción", "Pago", "Total (CUP)"])
         for row in report_sales(start, end):
             writer.writerow([row.get("fecha", ""), row.get("origen", "Móvil"), row.get("cliente", ""), row.get("descripcion", "Venta"), row["pago"], f"{int(row['total_cents']) / 100:.2f}"])
-        return Response("\\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="ventas-{start}-{end}.csv"'})
+        return Response("\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="ventas-{start}-{end}.csv"'})
+
+    @app.get("/reportes/ventas.xlsx")
+    async def sales_xlsx(request: Request):
+        if not current_user(request):
+            return redirect("/entrar")
+        today = datetime.now(timezone.utc).date().isoformat()
+        try:
+            start = report_date(request.query_params.get("desde"), today)
+            end = report_date(request.query_params.get("hasta"), today)
+            if start > end:
+                raise ValueError("La fecha inicial debe ser anterior o igual a la final.")
+        except ValueError as exc:
+            return Response(str(exc), status_code=422, media_type="text/plain")
+        rows = report_sales(start, end)
+        totals: dict[str, int] = {}
+        for row in rows:
+            totals[row["pago"]] = totals.get(row["pago"], 0) + int(row["total_cents"])
+        summary = [["Campo", "Valor"], ["Desde", start], ["Hasta", end], ["Cantidad de ventas", len(rows)],
+                   ["Total (CUP)", sum(int(row["total_cents"]) for row in rows) / 100], [], ["Método de pago", "Total (CUP)"]]
+        summary.extend([[method, amount / 100] for method, amount in sorted(totals.items())])
+        sales = [["Fecha", "Origen", "Cliente", "Descripción", "Pago", "Total (CUP)"]]
+        sales.extend([[row.get("fecha", ""), row.get("origen", "Móvil"), row.get("cliente", ""), row.get("descripcion", "Venta"), row["pago"], int(row["total_cents"]) / 100] for row in rows])
+        content = build_xlsx([("Resumen", summary), ("Ventas", sales)])
+        return Response(content, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        headers={"Content-Disposition": f'attachment; filename="ventas-{start}-{end}.xlsx"'})
+
+    @app.get("/inventario.xlsx")
+    async def inventory_xlsx(request: Request):
+        if not current_user(request):
+            return redirect("/entrar")
+        with db.connect() as conn:
+            items = conn.execute("SELECT name,category,unit,stock,sale_price_cents,cost_cents,low_stock,critical_stock FROM items WHERE active=1 ORDER BY name").fetchall()
+        rows: list[list[Any]] = [["Nombre", "Categoría", "Unidad", "Existencia", "Precio (CUP)", "Costo (CUP)", "Stock bajo", "Stock crítico"]]
+        rows.extend([[item["name"], item["category"], item["unit"], item["stock"], item["sale_price_cents"] / 100,
+                      item["cost_cents"] / 100, item["low_stock"], item["critical_stock"]] for item in items])
+        return Response(build_xlsx([("Inventario", rows)]), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        headers={"Content-Disposition": 'attachment; filename="inventario.xlsx"'})
+
+    @app.get("/clientes.xlsx")
+    async def customers_xlsx(request: Request):
+        if not current_user(request):
+            return redirect("/entrar")
+        with db.connect() as conn:
+            rows = conn.execute("SELECT name,phone,email,notes,created_at FROM customers WHERE active=1 ORDER BY name").fetchall()
+        table: list[list[Any]] = [["Nombre", "Teléfono", "Correo", "Notas", "Fecha de alta"]]
+        table.extend([list(row) for row in rows])
+        return Response(build_xlsx([("Clientes", table)]), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        headers={"Content-Disposition": 'attachment; filename="clientes.xlsx"'})
 
     @app.get("/inventario.csv")
     async def inventory_csv(request: Request):
@@ -1181,7 +1230,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         writer.writerow(["Nombre", "Categoría", "Unidad", "Existencia", "Precio (CUP)", "Costo (CUP)", "Stock bajo", "Stock crítico"])
         for item in items:
             writer.writerow([item["name"], item["category"], item["unit"], item["stock"], f"{item['sale_price_cents']/100:.2f}", f"{item['cost_cents']/100:.2f}", item["low_stock"], item["critical_stock"]])
-        return Response("\\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="inventario.csv"'})
+        return Response("\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="inventario.csv"'})
 
     @app.get("/equipo", response_class=HTMLResponse)
     async def team_page(request: Request):

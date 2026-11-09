@@ -1,5 +1,5 @@
 {% extends 'base.html' %}{% block title %}Inventario{% endblock %}{% block content %}
-<div class="page-heading"><div><p class="eyebrow">CATÁLOGO DEL NEGOCIO</p><h1>Inventario</h1><p class="muted">Gestiona artículos, precios y existencias.</p></div><a class="quiet-button" href="/inventario.csv">Descargar CSV</a></div>
+<div class="page-heading"><div><p class="eyebrow">CATÁLOGO DEL NEGOCIO</p><h1>Inventario</h1><p class="muted">Gestiona artículos, precios y existencias.</p></div><a class="quiet-button" href="/inventario.csv">CSV</a><a class="quiet-button" href="/inventario.xlsx">Excel</a></div>
 <div class="content-grid inventory-grid"><section class="panel"><div class="panel-heading"><div><p class="eyebrow">ALTA RÁPIDA</p><h2>Nuevo artículo</h2></div><span class="icon-tile">＋</span></div>
   <form method="post" action="/inventario/nuevo" class="form-stack"><input type="hidden" name="csrf" value="{{ csrf }}">
     <label>Nombre<input name="name" required maxlength="80" placeholder="Ej. Café molido"></label>
