@@ -24,6 +24,6 @@ def test_iconos_ios_usan_trazados_android():
 
 def test_iconos_escritorio_usan_trazados_android():
     plantilla = (ROOT / "DShalev/dshalev/templates/base.html").read_text(encoding="utf-8")
-    for nombre in ("Home", "Inventory2", "ShoppingCart", "Storefront", "History", "ListAlt", "Person", "Wifi", "UploadFile", "Backup"):
+    for nombre in ("Home", "Inventory2", "ShoppingCart", "Storefront", "History", "ListAlt", "Person", "Wifi", "Backup", "ManoRecibe", "Build", "Key"):
         for trazado in trazados_android(nombre):
             assert f'<path d="{trazado}"/>' in plantilla

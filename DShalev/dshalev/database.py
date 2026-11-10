@@ -80,6 +80,30 @@ CREATE TABLE IF NOT EXISTS recipes (
     PRIMARY KEY(product_id, ingredient_id),
     CHECK (product_id != ingredient_id)
 );
+CREATE TABLE IF NOT EXISTS cost_sheets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    margin TEXT NOT NULL DEFAULT '',
+    margin_unit TEXT NOT NULL DEFAULT 'PORCENTAJE' CHECK (margin_unit IN ('PORCENTAJE','FACTOR')),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE TABLE IF NOT EXISTS cost_sheet_lines (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sheet_id INTEGER NOT NULL REFERENCES cost_sheets(id) ON DELETE CASCADE,
+    description TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('MATERIAS','TRABAJO','OTROS','INDIRECTOS')),
+    quantity TEXT NOT NULL,
+    unit TEXT NOT NULL,
+    unit_cost TEXT NOT NULL,
+    currency TEXT NOT NULL CHECK (currency IN ('CUP','USD'))
+);
+CREATE INDEX IF NOT EXISTS idx_cost_sheet_lines_sheet ON cost_sheet_lines(sheet_id,id);
+CREATE TABLE IF NOT EXISTS cost_sheet_exports (
+    sheet_id INTEGER NOT NULL REFERENCES cost_sheets(id) ON DELETE CASCADE,
+    category TEXT NOT NULL CHECK (category IN ('Producto','Servicio')),
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    PRIMARY KEY(sheet_id,category)
+);
 CREATE TABLE IF NOT EXISTS shifts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     opened_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -593,7 +617,7 @@ class Database:
             command_columns = {row[1] for row in conn.execute("PRAGMA table_info(sync_commands)")}
             if "request_hash" not in command_columns:
                 conn.execute("ALTER TABLE sync_commands ADD COLUMN request_hash TEXT NOT NULL DEFAULT ''")
-            conn.execute("UPDATE app_meta SET value='6' WHERE key='schema_version'")
+            conn.execute("UPDATE app_meta SET value='8' WHERE key='schema_version'")
 
     def connect(self) -> sqlite3.Connection:
         self._lock.acquire()

@@ -648,3 +648,10 @@ El borrador se recupera en la misma pestaña y sesión si el navegador permite a
 ### Venta móvil: agregar y descartar
 
 En Shalev e IShalev, cuando el carrito contiene artículos puedes volver al selector desde el icono de agregar de la barra inferior, sin desplazarte hasta el final de la lista. Al cancelar una venta con artículos se solicita confirmación; elige seguir vendiendo para conservarla. En IShalev, si las existencias cambian y la venta deja de ser válida, se muestra «No disponible» y debes revisar el carrito antes de continuar.
+
+
+### DShalev: servicios, estadísticas y apariencia
+
+En **Servicios** puedes crear y consultar los servicios del catálogo de escritorio; usa **Recetas** para asociar insumos. En Inicio, el gráfico muestra siete días de ventas de escritorio y móviles sincronizadas; el Top 3 incluye solo ventas de escritorio. El selector **Tema** de la cabecera permite usar el modo del sistema, claro u oscuro.
+
+En **Herramientas** se puede convertir entre CUP y USD o calcular una tasa manual, sin conexión a un servicio de tasas. En Fichas de costo puedes guardar partidas en CUP y USD y calcular un margen; puedes exportarlas a Excel o al catálogo web como producto o servicio con receta. Confirma el destino y proporciona la tasa CUP por USD si hay partidas en USD; los insumos nuevos se crean sin existencias. En escritorio un producto necesita además existencia propia antes de venderse. **Licencia** informa del estado de la integración pendiente; no permite activar una licencia GL. La administración avanzada de fotos y actualización Android está en **Equipo**, no en la navegación principal. DShalev permite iniciar locales independientes mediante `--local`; consulta el README de DShalev para los límites y respaldos. La gestión visual y sincronización por local siguen pendientes.

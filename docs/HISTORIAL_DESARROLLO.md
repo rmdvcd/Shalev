@@ -2497,3 +2497,31 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
 - Shalev e IShalev mantienen accesible la acción de agregar artículos en la barra inferior del carrito y piden confirmación antes de descartarlo desde el comprobante o QR; iOS también confirma al cancelar desde el carrito.
 - IShalev calcula el límite con insumos compartidos también al modificar una línea, valida antes de continuar y evita mostrar un total de cero cuando el carrito ya no se puede cotizar. Las listas de catálogo y carrito se construyen de forma diferida.
 - Android bloquea las acciones de salir o descartar durante el registro y marca la operación como ocupada antes de iniciar la corrutina. Se añadieron pruebas de lógica e interfaz; siguen pendientes compilación, capturas y pruebas en dispositivos en este entorno sin JDK/SDK ni Xcode.
+
+### 2026-11-09 — Navegación y funciones de escritorio
+
+- DShalev agrega sección de servicios del catálogo web, gráfico diario y Top 3 de siete días de ventas de escritorio, y calculadora manual CUP/USD. Las ventas móviles no se incluyen en esos gráficos; sus servicios siguen separados del catálogo web.
+- Se incorpora selector de tema persistido por navegador y un panel informativo que aclara que la licencia GL comercial no está integrada. La gestión de locales y las fichas de costo siguen pendientes.
+- Fotos y APK dejan de ocupar la navegación principal, pero las funciones de sincronización y sus datos se conservan bajo Equipo → opciones avanzadas. Se prueba la funcionalidad existente sin afirmar validación Windows o interoperabilidad física.
+
+### 2026-11-09 — Fichas de costo y gráfico combinado de escritorio
+
+- DShalev guarda fichas con partidas clasificadas, cantidades y costos decimales, monedas CUP/USD separadas y precio orientativo con margen o factor. Cada partida se redondea antes de sumar, como en el dominio Android. Las fichas se conservan en la base cifrada y el respaldo DShalev; no exportan a inventario ni a otros formatos.
+- La migración crea las tablas nuevas sin alterar ventas ni inventario existentes. El gráfico de siete días suma las ventas móviles sincronizadas no anuladas; el Top 3 sigue limitado a ventas de escritorio, expresamente indicado.
+- Pendientes: exportación al catálogo, gestión de locales, GL comercial, compatibilidad móvil real y comprobación del ejecutable en Windows.
+
+### 2026-11-09 — Edición y Excel de fichas de escritorio
+
+- Las partidas se pueden editar y las fichas exportar a XLSX con decimales como texto exacto; los textos se escriben como celdas de texto, nunca como fórmulas. No se modifica el catálogo.
+
+### 2026-11-09 — Exportación de fichas al catálogo de DShalev
+
+- Se permite exportar una ficha al catálogo web como producto o servicio con receta: materias primas se convierten en insumos, costos y margen en CUP, con tasa manual para partidas USD. Se reutilizan insumos por nombre y unidad; los nuevos y los productos comienzan sin existencia. No altera precios de insumos existentes.
+- La operación es transaccional, comprueba límites y unidades y evita repetir exportaciones mientras el artículo creado siga activo. En el escritorio los productos con receta necesitan existencias propias además de insumos; no se afirma paridad completa con los elaborados de Android.
+- La gestión de locales y la activación GL comercial siguen pendientes. El contrato existente usa `SPVI2:`; un código 4×4 requiere especificación de emisión y validación antes de poder activarlo de forma segura.
+
+### 2026-11-09 — Inicio de locales independientes y propuesta GL
+
+- Se añade `--local` para arrancar un espacio aislado por identificador, con su base, claves, configuración y archivos. La instalación original sin parámetros no se migra ni modifica. Cada espacio requiere su propio administrador; los respaldos sustituyen el local abierto y no tienen verificación de procedencia entre locales.
+- Aún faltan selector gráfico, control de concurrencia entre procesos, administración integral y validación de SPVI entre locales. No iniciar dos procesos sobre el mismo local. No se ha probado el EXE de Windows.
+- Se documenta una propuesta para canjear códigos de 16 caracteres mediante un servicio GL futuro; no hay servicio desplegado ni activación comercial implementada.

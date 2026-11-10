@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import sys
 from dataclasses import asdict, dataclass
@@ -28,6 +29,7 @@ class AppConfig:
     tls_cert: str = ""
     tls_key: str = ""
     public_host: str = ""
+    local_id: str | None = None
 
     @property
     def host(self) -> str:
@@ -38,9 +40,14 @@ class AppConfig:
         return self.network_mode == "remote"
 
 
-def load_config(root: Path | None = None) -> AppConfig:
+def load_config(root: Path | None = None, *, local: str | None = None) -> AppConfig:
     root = root or portable_root()
     data_dir = root / "DShalevData"
+    if local is not None:
+        # Identificadores deliberadamente restrictivos: jamás se aceptan rutas.
+        if not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?", local):
+            raise ValueError("El identificador del local debe tener de 1 a 40 caracteres: letras minúsculas, números y guiones interiores.")
+        data_dir = data_dir / "locales" / local
     data_dir.mkdir(parents=True, exist_ok=True)
     path = data_dir / "portable-settings.json"
     try:
@@ -60,6 +67,7 @@ def load_config(root: Path | None = None) -> AppConfig:
         tls_cert=str(raw.get("tls_cert", "")),
         tls_key=str(raw.get("tls_key", "")),
         public_host=str(raw.get("public_host", "")),
+        local_id=local,
     )
     save_config(config, root=root)
     return config
