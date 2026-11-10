@@ -4,6 +4,17 @@ DShalev es un **servidor web local en Python** pensado para ejecutarse en Window
 
 > **Estado de implementación en curso:** el escritorio incluye POS web de varias líneas, servicios, insumos con precisión de 0.001, recetas con descuento atómico de insumos, clientes, turnos/arqueo/caja, historial, reportes y exportación CSV/XLSX de ventas, inventario y clientes (sin PDF); respaldo cifrado con restauración, acciones SPVI para productos/insumos/recetas/servicios/preajustes, recibos de venta/caja/turno, autorización de cierres/conteos, corrección/anulación de ventas simples, y transferencia por bloques de fotos y APK provistos por el administrador. El suite DShalev pasa en loopback, pero **no demuestra compatibilidad real en Android/iOS**. Relay externo, licencia GL/sub-token firmado, revisión de firma APK, fotos móviles reales, ejecución Windows y pruebas físicas/redes reales siguen pendientes; no se declara paridad completa ni `.exe` validado.
 
+## Navegación y herramientas de escritorio
+
+- **Inicio:** gráfico diario de los últimos siete días con ventas de escritorio y móviles sincronizadas no anuladas. El Top 3 por unidades incluye solo ventas de escritorio; las ventas móviles no están incluidas en ese ranking. El indicador de ventas de hoy combina escritorio y móvil. El nombre del Top procede de las líneas de venta guardadas.
+- **Servicios:** alta, búsqueda y edición de servicios del catálogo web; sus insumos se configuran en Recetas. Los servicios sincronizados de apps móviles siguen en un catálogo separado y no se presentan como equivalentes.
+- **Herramientas:** conversión CUP/USD y cálculo de tasa manual sin consulta en línea. Los cálculos del conversor se envían al servidor de la instancia sin modificar las ventas. Las fichas de costo permiten crear y editar partidas con categorías, monedas y margen; calculan cada moneda por separado y se incluyen en el respaldo DShalev. Pueden exportarse a Excel con decimales como texto exacto o al catálogo web como producto/servicio nuevo con receta. Se reutilizan insumos por nombre y unidad; los nuevos comienzan sin existencias. Los productos también requieren existencia propia en escritorio; los servicios no. Si hay partidas en USD, se solicita una tasa positiva en CUP por USD. La ficha no se sincroniza como tal con las apps móviles.
+- **Licencia:** panel informativo sobre la integración pendiente; no activa ni valida GL y no representa una licencia comercial. La prueba local para secundarias sigue siendo provisional.
+- **Tema:** selector Sistema, Claro u Oscuro en la cabecera. La preferencia se guarda en el navegador de cada equipo, no en la base del negocio; si el navegador bloquea almacenamiento, dura solo durante la página.
+- La entrada **Fotos / APK** se retiró de la navegación principal. La transferencia existente se conserva, para administradores, en **Equipo → Opciones avanzadas de sincronización**; no se han eliminado datos ni endpoints.
+
+Los locales independientes por arranque son una función inicial; el selector gráfico, la administración integral y la sincronización por local siguen pendientes. La paridad completa de gráficos, licencias y herramientas con Android también sigue pendiente.
+
 ## Ejecutar en desarrollo
 
 Requiere Python 3.11 o 3.12. Desde esta carpeta:
@@ -73,3 +84,11 @@ Con un turno abierto, **Ventas** ofrece búsqueda incremental y un carrito separ
 El carrito es un borrador de la pestaña y del turno actual: cuando el navegador permite almacenamiento de sesión, se recupera tras recargar o ante un rechazo del servidor y se borra al confirmar la venta. No reserves inventario con el carrito. Si cambia un precio antes de registrar, la venta se rechaza y el carrito recuperado muestra el nuevo precio para revisarlo. El servidor sigue comprobando turno, existencias, recetas y precio; los importes mostrados antes de registrar son estimados. Sin JavaScript se conserva el formulario anterior. Tras una interrupción de conexión durante el registro, comprueba el historial antes de reintentar para evitar una venta duplicada.
 
 Para probar el comportamiento del carrito con Node.js 18 o posterior: `npm ci` y `npm test` desde `DShalev/`. Las pruebas usan un DOM simulado y no sustituyen la revisión visual y de teclado en un navegador real de Windows.
+
+## Locales independientes por arranque (inicial)
+
+La instalación original sigue abriéndose sin parámetros y conserva sus datos. Para iniciar otro local desde la carpeta `DShalev`, ejecuta, por ejemplo, `python DShalev.py --local centro --port 47813` (o `DShalev.exe --local centro --port 47813` en Windows). Solo se admiten identificadores de 1 a 40 caracteres con letras minúsculas ASCII, números y guiones interiores. Al iniciar uno nuevo se crea su propio administrador, configuración, base cifrada, fotos, equipos y respaldos en `DShalevData/locales/<identificador>/`. El encabezado indica qué local está abierto.
+
+Cada local tiene catálogo, existencias, caja, ventas y cuentas independientes; no hay informes consolidados ni selector gráfico. Crea y restaura el respaldo **dentro del local deseado**: restaurar reemplaza todos los datos del local abierto, no comprueba su procedencia. No ejecutes dos procesos sobre el mismo local: aún no existe bloqueo entre procesos y podrían sobrescribirse datos. Si ejecutas locales distintos a la vez, usa puertos web distintos; la coexistencia de sus servidores SPVI y el vínculo móvil por local aún no se han validado y no deben utilizarse simultáneamente. El EXE aún no se ha probado en Windows.
+
+El diseño propuesto para la futura activación por servicio está en [`docs/DSHALEV_GL_SERVICIO_PROPUESTA.md`](../docs/DSHALEV_GL_SERVICIO_PROPUESTA.md); aún no existe servicio ni activación GL comercial.

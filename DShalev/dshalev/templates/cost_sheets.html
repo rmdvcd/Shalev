@@ -1,0 +1,6 @@
+{% extends 'base.html' %}{% block title %}Fichas de costo{% endblock %}{% block content %}
+<div class="page-heading"><div><p class="eyebrow">HERRAMIENTAS</p><h1>Fichas de costo</h1><p class="muted">Calcula costos y precios orientativos en CUP y USD por separado.</p></div><a class="secondary-button" href="/herramientas">Volver a herramientas</a></div>
+<div class="content-grid"><section class="panel"><h2>Nueva ficha</h2><form method="post" action="/herramientas/fichas/nueva" class="form-stack"><input type="hidden" name="csrf" value="{{ csrf }}"><label>Nombre<input name="name" maxlength="80" required></label><button class="primary-button">Crear ficha</button></form></section>
+<section class="panel"><h2>Fichas guardadas</h2>{% if sheets %}<div class="employee-list">{% for sheet in sheets %}<div class="employee-row"><div class="employee-info"><strong>{{ sheet.name }}</strong><small>{{ sheet.line_count }} partidas</small></div><a class="text-link" href="/herramientas/fichas/{{ sheet.id }}">Abrir</a></div>{% endfor %}</div>{% else %}<div class="empty-state"><strong>Aún no hay fichas</strong><p>Crea una para comenzar.</p></div>{% endif %}</section></div>
+<p class="tiny">Las fichas se guardan en la base cifrada y se incluyen en los respaldos DShalev. No modifican el inventario ni los precios de venta.</p>
+{% endblock %}

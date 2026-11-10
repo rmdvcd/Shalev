@@ -20,6 +20,7 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--remote", action="store_true", help="Habilita HTTPS remoto usando un certificado configurado")
     parser.add_argument("--tls-cert", default="", help="Ruta al certificado TLS")
     parser.add_argument("--tls-key", default="", help="Ruta a la clave privada TLS")
+    parser.add_argument("--local", default=None, help="Abre un local independiente por identificador (minúsculas, números y guiones); sin esta opción se abre la instalación original")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--no-browser", action="store_true", help="No abrir el navegador al iniciar")
     return parser.parse_args()
@@ -38,7 +39,11 @@ def _show_error(message: str) -> None:
 
 def main() -> None:
     args = _arguments()
-    config = load_config()
+    try:
+        config = load_config(local=args.local)
+    except ValueError as exc:
+        _show_error(str(exc))
+        raise SystemExit(2) from exc
     if not 1 <= args.port <= 65535:
         _show_error("El puerto debe estar entre 1 y 65535.")
         raise SystemExit(2)

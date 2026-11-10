@@ -13,9 +13,9 @@ import sqlite3
 import time
 import uuid as uuidlib
 import zipfile
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +26,8 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from .config import AppConfig, DEFAULT_PORT, save_config
+from .cost_sheets import CATEGORIES, CURRENCIES, calculate as calculate_sheet, parse_number as parse_cost_number, validate_line as validate_cost_line
+from .cost_export import export_sheet as export_cost_to_catalog
 from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
 from .security import csrf_token, hash_password, valid_csrf, verify_password
@@ -160,7 +162,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             business = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
         return {
             "request": request, "user": user, "csrf": csrf(request), "section": section,
-            "business_name": business["value"] if business else "DShalev", "notice": None,
+            "business_name": business["value"] if business else "DShalev", "local_id": config.local_id, "notice": None,
             **values,
         }
 
@@ -228,14 +230,29 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         with db.connect() as conn:
             shift = conn.execute("SELECT * FROM shifts WHERE closed_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
             item_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1").fetchone()[0]
-            low_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1 AND stock<=low_stock").fetchone()[0]
-            today_row = conn.execute("SELECT COUNT(*) count, COALESCE(SUM(total_cents),0) total FROM sales WHERE date(created_at)=?", (today,)).fetchone()
+            low_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1 AND category!='Servicio' AND stock<=low_stock").fetchone()[0]
+            today_row = conn.execute("SELECT COUNT(*) count, COALESCE(SUM(total_cents),0) total FROM sales WHERE date(created_at,'localtime')=?", (today,)).fetchone()
             native_today = conn.execute("SELECT COUNT(*) count, COALESCE(SUM(total_cents),0) total FROM sync_sales WHERE cancelled_at IS NULL AND date(sale_at_ms/1000,'unixepoch','localtime')=?", (today,)).fetchone()
             today_count = today_row["count"] + native_today["count"]
             today_total = today_row["total"] + native_today["total"]
             sales = conn.execute("""SELECT s.*, COALESCE(group_concat(sl.item_name || ' × ' || sl.quantity, ', '),'Venta') summary
                 FROM sales s LEFT JOIN sale_lines sl ON sl.sale_id=s.id
                 GROUP BY s.id ORDER BY s.id DESC LIMIT 6""").fetchall()
+            today_date = datetime.fromisoformat(today).date()
+            start = (today_date - timedelta(days=6)).isoformat()
+            daily_rows = conn.execute("""SELECT date(created_at,'localtime') day, SUM(total_cents) total
+                FROM sales WHERE date(created_at,'localtime') BETWEEN ? AND ? GROUP BY day""", (start, today)).fetchall()
+            daily_map = {row["day"]: row["total"] for row in daily_rows}
+            mobile_daily = conn.execute("""SELECT date(sale_at_ms/1000,'unixepoch','localtime') day, SUM(total_cents) total
+                FROM sync_sales WHERE cancelled_at IS NULL AND date(sale_at_ms/1000,'unixepoch','localtime') BETWEEN ? AND ? GROUP BY day""", (start, today)).fetchall()
+            for row in mobile_daily:
+                daily_map[row["day"]] = daily_map.get(row["day"], 0) + row["total"]
+            days = [(today_date - timedelta(days=offset)).isoformat() for offset in range(6, -1, -1)]
+            daily = [{"day": day, "total": daily_map.get(day, 0)} for day in days]
+            top_items = conn.execute("""SELECT sl.item_id, MAX(sl.item_name) name, SUM(sl.quantity) quantity,
+                SUM(sl.quantity * sl.unit_price_cents) total FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id
+                WHERE date(s.created_at,'localtime') BETWEEN ? AND ?
+                GROUP BY sl.item_id ORDER BY quantity DESC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
             expected_cash = 0
             cash_movements = []
             if shift:
@@ -251,7 +268,8 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             shift=dict(shift) if shift else None, item_count=item_count, low_count=low_count,
             expected_cash=format_cup(expected_cash), cash_movements=[dict(r) for r in cash_movements],
             today_total=format_cup(today_total), today_count=today_count,
-            sales=[dict(r) for r in sales], network_label=mode_labels[mode],
+            sales=[dict(r) for r in sales], network_label=mode_labels[mode], daily_sales=daily,
+            chart_max=max(1, *(day["total"] for day in daily)), top_items=[dict(row) for row in top_items],
         ))
 
     @app.get("/configurar", response_class=HTMLResponse)
@@ -338,6 +356,242 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         request.session["csrf"] = csrf_token()
         return redirect("/entrar?notice=logged_out")
 
+    @app.get("/servicios", response_class=HTMLResponse)
+    async def services_page(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        query = request.query_params.get("q", "").strip()[:80]
+        pattern = "%" + query.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%"
+        with db.connect() as conn:
+            items = conn.execute("SELECT * FROM items WHERE active=1 AND category='Servicio' AND name LIKE ? ESCAPE '!' ORDER BY name LIMIT 200", (pattern,)).fetchall()
+        return templates.TemplateResponse(request, "services.html", context(request, user=user, section="servicios", items=[dict(row) for row in items], query=query, notice=notice_text(request)))
+
+    @app.api_route("/herramientas", methods=["GET", "POST"], response_class=HTMLResponse)
+    async def tools_page(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        params = await form_data(request) if request.method == "POST" else {}
+        if request.method == "POST" and not valid_csrf(request.session.get("csrf"), params.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        mode, origin = params.get("modo", "convertir"), params.get("origen", "USD")
+        result, error = None, None
+        def number(value: str | None, positive: bool = False) -> Decimal:
+            text = (value or "").strip().replace(",", ".")
+            if not re.fullmatch(r"[0-9]{1,12}(?:\.[0-9]{1,12})?", text):
+                raise ValueError("Introduce importes y tasas válidos, sin signos ni separadores de miles.")
+            value = Decimal(text)
+            if positive and value == 0:
+                raise ValueError("La tasa y los importes para calcularla deben ser mayores que cero.")
+            return value
+        if params.get("calcular"):
+            try:
+                if mode == "convertir" and origin in {"CUP", "USD"}:
+                    amount, rate = number(params.get("importe")), number(params.get("tasa"), positive=True)
+                    with localcontext() as ctx:
+                        ctx.prec = 64
+                        value = (amount * rate if origin == "USD" else amount / rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    result = f"{value:,.2f} {'CUP' if origin == 'USD' else 'USD'}"
+                elif mode == "tasa":
+                    cup, usd = number(params.get("cup"), positive=True), number(params.get("usd"), positive=True)
+                    with localcontext() as ctx:
+                        ctx.prec = 12
+                        ctx.rounding = ROUND_HALF_UP
+                        rate = cup / usd
+                    result = f"{rate:f} CUP por USD"
+                else:
+                    raise ValueError("Selecciona una operación y una moneda válidas.")
+            except (ValueError, InvalidOperation) as exc:
+                error = str(exc) or "No se pudo calcular."
+        return templates.TemplateResponse(request, "tools.html", context(request, user=user, section="herramientas", mode=mode, origin=origin, result=result, error=error, values=params))
+
+    @app.get("/herramientas/fichas", response_class=HTMLResponse)
+    async def cost_sheets_page(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            rows = conn.execute("SELECT s.*, (SELECT COUNT(*) FROM cost_sheet_lines l WHERE l.sheet_id=s.id) line_count FROM cost_sheets s ORDER BY s.id DESC").fetchall()
+        return templates.TemplateResponse(request, "cost_sheets.html", context(request, user=user, section="herramientas", sheets=[dict(row) for row in rows]))
+
+    @app.post("/herramientas/fichas/nueva")
+    async def create_cost_sheet(request: Request):
+        if not current_user(request):
+            return redirect("/entrar")
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        name = data.get("name", "").strip()
+        if not name or len(name) > 80:
+            return flash_redirect(request, "/herramientas/fichas", "Escribe un nombre de hasta 80 caracteres.")
+        with db.transaction() as conn:
+            cursor = conn.execute("INSERT INTO cost_sheets(name) VALUES(?)", (name,))
+            sheet_id = cursor.lastrowid
+        return redirect(f"/herramientas/fichas/{sheet_id}")
+
+    @app.get("/herramientas/fichas/{sheet_id}", response_class=HTMLResponse)
+    async def cost_sheet_page(request: Request, sheet_id: int):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            sheet = conn.execute("SELECT * FROM cost_sheets WHERE id=?", (sheet_id,)).fetchone()
+            lines = conn.execute("SELECT * FROM cost_sheet_lines WHERE sheet_id=? ORDER BY id", (sheet_id,)).fetchall()
+        if not sheet:
+            return flash_redirect(request, "/herramientas/fichas", "La ficha no existe.")
+        try:
+            totals = calculate_sheet([dict(row) for row in lines], parse_cost_number(sheet["margin"], optional=True), sheet["margin_unit"])
+        except (ValueError, KeyError):
+            return HTMLResponse("No se pudo calcular la ficha; revisa sus datos.", status_code=422)
+        return templates.TemplateResponse(request, "cost_sheet.html", context(request, user=user, section="herramientas", sheet=dict(sheet), totals=totals, categories=CATEGORIES, currencies=CURRENCIES))
+
+    @app.post("/herramientas/fichas/{sheet_id}/ajustes")
+    async def update_cost_sheet(request: Request, sheet_id: int):
+        if not current_user(request):
+            return redirect("/entrar")
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        destination = f"/herramientas/fichas/{sheet_id}"
+        try:
+            name = data.get("name", "").strip()
+            if not name or len(name) > 80:
+                raise ValueError("Escribe un nombre de hasta 80 caracteres.")
+            margin = parse_cost_number(data.get("margin", ""), optional=True)
+            margin_unit = data.get("margin_unit", "")
+            if margin_unit not in ("PORCENTAJE", "FACTOR"):
+                raise ValueError("Unidad de margen no válida.")
+        except ValueError as exc:
+            return flash_redirect(request, destination, str(exc))
+        with db.transaction() as conn:
+            updated = conn.execute("UPDATE cost_sheets SET name=?,margin=?,margin_unit=? WHERE id=?", (name, str(margin) if margin is not None else "", margin_unit, sheet_id)).rowcount
+        if not updated:
+            return flash_redirect(request, "/herramientas/fichas", "La ficha no existe.")
+        return redirect(destination)
+
+    @app.post("/herramientas/fichas/{sheet_id}/partidas")
+    async def add_cost_line(request: Request, sheet_id: int):
+        if not current_user(request):
+            return redirect("/entrar")
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        destination = f"/herramientas/fichas/{sheet_id}"
+        try:
+            description, category, quantity, unit, cost, currency = validate_cost_line(data)
+            with db.transaction() as conn:
+                if not conn.execute("SELECT 1 FROM cost_sheets WHERE id=?", (sheet_id,)).fetchone():
+                    raise ValueError("La ficha no existe.")
+                if conn.execute("SELECT COUNT(*) FROM cost_sheet_lines WHERE sheet_id=?", (sheet_id,)).fetchone()[0] >= 100:
+                    raise ValueError("Una ficha admite hasta 100 partidas.")
+                conn.execute("INSERT INTO cost_sheet_lines(sheet_id,description,category,quantity,unit,unit_cost,currency) VALUES(?,?,?,?,?,?,?)", (sheet_id, description, category, quantity, unit, cost, currency))
+        except ValueError as exc:
+            return flash_redirect(request, destination, str(exc))
+        return redirect(destination)
+
+    @app.get("/herramientas/fichas/{sheet_id}/partidas/{line_id}/editar", response_class=HTMLResponse)
+    async def edit_cost_line_page(request: Request, sheet_id: int, line_id: int):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            line = conn.execute("SELECT * FROM cost_sheet_lines WHERE sheet_id=? AND id=?", (sheet_id, line_id)).fetchone()
+        if not line:
+            return flash_redirect(request, f"/herramientas/fichas/{sheet_id}", "La partida no existe.")
+        return templates.TemplateResponse(request, "cost_line_edit.html", context(request, user=user, section="herramientas", line=dict(line), categories=CATEGORIES, currencies=CURRENCIES))
+
+    @app.post("/herramientas/fichas/{sheet_id}/partidas/{line_id}/editar")
+    async def edit_cost_line(request: Request, sheet_id: int, line_id: int):
+        if not current_user(request):
+            return redirect("/entrar")
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        destination = f"/herramientas/fichas/{sheet_id}/partidas/{line_id}/editar"
+        try:
+            description, category, quantity, unit, cost, currency = validate_cost_line(data)
+        except ValueError as exc:
+            return flash_redirect(request, destination, str(exc))
+        with db.transaction() as conn:
+            updated = conn.execute("""UPDATE cost_sheet_lines SET description=?,category=?,quantity=?,unit=?,unit_cost=?,currency=?
+                WHERE sheet_id=? AND id=?""", (description, category, quantity, unit, cost, currency, sheet_id, line_id)).rowcount
+        if not updated:
+            return flash_redirect(request, f"/herramientas/fichas/{sheet_id}", "La partida no existe.")
+        return redirect(f"/herramientas/fichas/{sheet_id}")
+
+    @app.post("/herramientas/fichas/{sheet_id}/exportar-catalogo")
+    async def export_sheet_catalog(request: Request, sheet_id: int):
+        if not current_user(request):
+            return redirect("/entrar")
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        destination = f"/herramientas/fichas/{sheet_id}"
+        category = data.get("category", "")
+        try:
+            with db.transaction() as conn:
+                export_cost_to_catalog(conn, sheet_id, category, data.get("rate", ""))
+        except ValueError as exc:
+            return flash_redirect(request, destination, str(exc))
+        message = ("Ficha exportada como producto con receta. El producto y los insumos nuevos empiezan sin existencias; ajusta el inventario antes de vender."
+                   if category == "Producto" else "Ficha exportada como servicio con receta. Los insumos nuevos empiezan sin existencias; ajústalas antes de vender.")
+        return flash_redirect(request, destination, message, kind="success")
+
+    @app.get("/herramientas/fichas/{sheet_id}/exportar.xlsx")
+    async def export_cost_sheet(request: Request, sheet_id: int):
+        if not current_user(request):
+            return redirect("/entrar")
+        with db.connect() as conn:
+            sheet = conn.execute("SELECT * FROM cost_sheets WHERE id=?", (sheet_id,)).fetchone()
+            lines = conn.execute("SELECT * FROM cost_sheet_lines WHERE sheet_id=? ORDER BY id", (sheet_id,)).fetchall()
+        if not sheet:
+            return Response("La ficha no existe.", status_code=404, media_type="text/plain")
+        try:
+            totals = calculate_sheet([dict(row) for row in lines], parse_cost_number(sheet["margin"], optional=True), sheet["margin_unit"])
+        except (ValueError, KeyError):
+            return Response("No se pudo calcular la ficha.", status_code=422, media_type="text/plain")
+        # Texto decimal exacto y explícito: no se convierten importes a coma flotante ni a fórmulas.
+        table = [["Ficha", sheet["name"]], ["Margen", sheet["margin"], sheet["margin_unit"]], [],
+                 ["Descripción", "Categoría", "Cantidad", "Unidad", "Costo unitario", "Moneda", "Subtotal"]]
+        table.extend([[line["description"], CATEGORIES[line["category"]], line["quantity"], line["unit"], line["unit_cost"], line["currency"], str(line["subtotal"])] for line in totals["lines"]])
+        table.extend([[], ["Categoría", "CUP", "USD"]])
+        table.extend([[label, str(totals["categories"][key]["CUP"]), str(totals["categories"][key]["USD"])] for key, label in CATEGORIES.items()])
+        table.append(["Costo total", str(totals["totals"]["CUP"]), str(totals["totals"]["USD"])])
+        if totals["prices"] is not None:
+            table.append(["Precio estimado", str(totals["prices"]["CUP"]), str(totals["prices"]["USD"])])
+        return Response(build_xlsx([("Ficha de costo", table)]), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        headers={"Content-Disposition": f'attachment; filename="ficha-costo-{sheet_id}.xlsx"', "Cache-Control": "no-store"})
+
+    @app.post("/herramientas/fichas/{sheet_id}/partidas/{line_id}/eliminar")
+    async def remove_cost_line(request: Request, sheet_id: int, line_id: int):
+        if not current_user(request):
+            return redirect("/entrar")
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        with db.transaction() as conn:
+            conn.execute("DELETE FROM cost_sheet_lines WHERE sheet_id=? AND id=?", (sheet_id, line_id))
+        return redirect(f"/herramientas/fichas/{sheet_id}")
+
+    @app.post("/herramientas/fichas/{sheet_id}/eliminar")
+    async def remove_cost_sheet(request: Request, sheet_id: int):
+        if not current_user(request):
+            return redirect("/entrar")
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        with db.transaction() as conn:
+            conn.execute("DELETE FROM cost_sheets WHERE id=?", (sheet_id,))
+        return redirect("/herramientas/fichas")
+
+    @app.get("/licencia", response_class=HTMLResponse)
+    async def license_page(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        return templates.TemplateResponse(request, "license.html", context(request, user=user, section="licencia"))
+
     @app.get("/inventario", response_class=HTMLResponse)
     async def inventory(request: Request):
         user = current_user(request)
@@ -413,6 +667,9 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         data = await form_data(request)
         if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
             return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        destination = "/servicios" if data.get("origen") == "servicios" else "/inventario"
+        if destination == "/servicios" and data.get("category") != "Servicio":
+            return flash_redirect(request, destination, "La categoría debe ser Servicio.")
         try:
             name = data.get("name", "").strip()
             category = data.get("category", "Producto")
@@ -430,13 +687,13 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             if critical > low:
                 raise ValueError("El nivel crítico no puede superar el nivel bajo.")
         except ValueError as exc:
-            return flash_redirect(request, "/inventario", str(exc))
+            return flash_redirect(request, destination, str(exc))
         try:
             with db.transaction() as conn:
                 conn.execute("INSERT INTO items(name,category,unit,stock,sale_price_cents,cost_cents,low_stock,critical_stock) VALUES(?,?,?,?,?,?,?,?)", (name, category, unit, stock, sale_price, cost, low, critical))
         except sqlite3.IntegrityError:
-            return flash_redirect(request, "/inventario", "No se pudo guardar el artículo.")
-        return redirect("/inventario", notice="item_added")
+            return flash_redirect(request, destination, "No se pudo guardar el artículo.")
+        return redirect(destination, notice="item_added")
 
     @app.get("/ventas", response_class=HTMLResponse)
     async def sales_page(request: Request):

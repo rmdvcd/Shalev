@@ -272,3 +272,10 @@ Endpoint fijado en compilación, no añadido al QR ni al respaldo. Salas derivad
 HMAC-SHA256 con etiqueta `shalev-relay-v1`, finalidad, negocio y empleado. El QR mantiene
 su formato; una lista de IPv4 vacía solo se admite en compilaciones con relay habilitado.
 No cambia el esquema Room ni se guardan nuevos secretos. Detalle en relay/README.md.
+
+
+### DShalev: fichas de costo
+
+Las fichas de costo de escritorio se guardan dentro de la base cifrada de DShalev y se incluyen en su respaldo `.dshbackup`. Cada partida conserva cantidad, categoría, costo y moneda; los importes CUP y USD no se suman entre sí. Se pueden exportar a Excel (`.xlsx`), con decimales como texto exacto; se pueden exportar al catálogo web de DShalev como producto o servicio con receta, pero no a PDF ni al respaldo Android `.shalev`.
+
+La exportación al catálogo crea insumos nuevos con existencia cero y reutiliza los insumos existentes con nombre y unidad coincidentes. Las partidas de materias primas alimentan la receta; las demás influyen en el costo. Los productos exportados requieren existencias propias, además de los insumos, antes de venderse en el escritorio. La tasa CUP por USD es obligatoria si hay partidas en USD. El guardado de artículo, insumos y receta se hace en una sola transacción.
