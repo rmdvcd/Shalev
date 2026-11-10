@@ -73,3 +73,43 @@ def test_sales_inventory_customers_xlsx_and_csv_bom(tmp_path):
         values = [node.text for node in rows.findall(".//x:is/x:t", NS)]
         assert any("Peligro" in value for value in values)
         assert rows.find(".//x:f", NS) is None
+
+
+def test_csv_protege_texto_en_las_tres_exportaciones(tmp_path):
+    import csv
+    from io import StringIO
+    from dshalev.app import csv_text
+
+    for value in ("=1+1", "+cmd", "-cmd", "@formula", "  =1+1", "\ttexto", "\r\ntexto"):
+        assert csv_text(value) == "'" + value
+    for value in ("", "  normal", "nombre, con coma", "línea\nnueva"):
+        assert csv_text(value) == value
+
+    client = client_for(tmp_path)
+    setup_and_login(client)
+    add_item(client, name="=Peligro", category="Producto", stock=4, price="12.50")
+    with client.app.state.db.transaction() as conn:
+        conn.execute("INSERT INTO customers(name,phone,email,notes) VALUES(?,?,?,?)",
+                     ("  @cliente", "+5351234567", "a@example.test", "normal, con coma"))
+    home = client.get("/")
+    csrf = re.search(r'name="csrf" value="([^"]+)', home.text).group(1)
+    client.post("/turno/abrir", data={"csrf": csrf, "opening_cash": "0"})
+    csrf = re.search(r'name="csrf" value="([^"]+)', client.get("/ventas").text).group(1)
+    client.post("/ventas/nueva", data={"csrf": csrf, "quantity_1": "1", "payment_method": "EFECTIVO", "customer_id": "1"})
+
+    def filas(url):
+        response = client.get(url)
+        assert response.status_code == 200
+        return list(csv.reader(StringIO(response.content.decode("utf-8-sig"))))
+
+    inventory = filas("/inventario.csv")
+    assert inventory[1][0] == "'=Peligro"
+    assert inventory[1][3:5] == ["3", "12.50"]
+    customers = filas("/clientes.csv")
+    assert customers[1][:4] == ["'  @cliente", "'+5351234567", "a@example.test", "normal, con coma"]
+    sales = filas("/reportes/ventas.csv")
+    assert sales[1][2] == "'  @cliente"
+    assert sales[1][3].startswith("'=Peligro")
+    assert sales[1][-1] == "12.50"
+    with client.app.state.db.connect() as conn:
+        assert conn.execute("SELECT name FROM items WHERE id=1").fetchone()[0] == "=Peligro"

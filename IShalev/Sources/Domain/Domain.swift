@@ -4,6 +4,17 @@ import CryptoKit
 import Security
 import CommonCrypto
 
+// El prefijo se aplica al exportar, nunca a los datos originales.
+// Cubre también fórmulas precedidas de espacios y celdas que comienzan con controles.
+enum CSVSpreadsheetSafety {
+    static func text(_ value: String) -> String {
+        let startsWithControl = value.unicodeScalars.first.map { [9, 10, 13].contains(Int($0.value)) } ?? false
+        let trimmed = value.drop(while: { $0.isWhitespace })
+        let startsWithFormula = trimmed.first.map { "=+-@".contains($0) } ?? false
+        return startsWithControl || startsWithFormula ? "'" + value : value
+    }
+}
+
 // MARK: - Dinero y cantidades
 
 /// Importe exacto en centavos. La app no usa `Double` para cálculos de dinero.

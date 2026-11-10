@@ -224,8 +224,7 @@ enum ShalevExporter {
     }
 
     private static func csvCell(_ value: String) -> String {
-        let normalized = value.trimmingCharacters(in: .newlines)
-        let safe = normalized.first.map { "=+-@".contains($0) ? "'" + normalized : normalized } ?? normalized
+        let safe = CSVSpreadsheetSafety.text(value)
         return "\"" + safe.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }
 

@@ -61,3 +61,7 @@ La conexión nativa actual es directa: no hay relay DShalev ni acceso por datos 
 - `dshalev/config.py`, `dshalev/run.py`: ubicación portable y modos de red/arranque.
 - `dshalev/templates/`, `dshalev/static/`: interfaz HTML accesible y adaptable.
 - `tests/`: pruebas de configuración/autenticación/ventas y de encuadre, QR, ECDH, AES-GCM, pairing, sincronización TCP, movimientos idempotentes y revocación (loopback; no sustituyen pruebas con Android/iPhone físicos).
+
+La navegación usa trazados sólidos del sistema de iconos Android de Shalev. En pantallas estrechas se puede desplazar horizontalmente para acceder a todas las secciones; en pantallas bajas, verticalmente.
+
+Los CSV anteponen un apóstrofo a los campos de texto que podrían interpretarse como fórmulas (también tras espacios o si empiezan con tabulador o salto de línea). Esto modifica únicamente la representación exportada; los importes numéricos y los datos almacenados no cambian. El comportamiento al importar CSV depende de la hoja de cálculo; revisa sus opciones de importación.
