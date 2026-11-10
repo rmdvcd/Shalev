@@ -1,0 +1,83 @@
+{
+  "note": "TEST ONLY: generated keys and signatures are not trusted production keys; no private keys included.",
+  "servicePublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAERS1LOjxsispdYpPzVtDuBiQy/R6UkEqK0yciNCq/xR99KKxQc9iGY/i4UFbtkd6zlCoU7TNO0Nin5baS1tM0iw==",
+  "secondaryPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEeBrersCZyGmgWASjwwrYDM5ulaWNuyGAWiYxjdBrag5fkT/Q5nS/KbPMl4hwlR7iq+mhdKIaZk/QISs+Md9q/Q==",
+  "request": {
+    "v": 1,
+    "appId": "DSHALEV",
+    "code": "4K7N9X2MB8PQ3T5V",
+    "deviceKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsg/+aDd+3cH8ZhZK5n77JMi/+seJn1aVw+l7XmJsOAbQRsvlmYx5suxdvhkhIbte6N8pFn196CH/jv0I9ipxog==",
+    "requestId": "11111111-1111-4111-8111-111111111111",
+    "requestedAt": "2026-11-10T12:00:00.000Z",
+    "nonce": "AAECAwQFBgcICQoLDA0ODw==",
+    "proof": "MEUCIQD4Dnzhy34RQl2KUcVBMY3MMhcz/B9ejbB5I9tEGwkVnwIgPQST6pvux6CWKtbAvpkuJQsy4SEEoNmVSo05TmNf4BI="
+  },
+  "statusRequest": {
+    "v": 1,
+    "appId": "DSHALEV",
+    "licenseId": "22222222-2222-4222-8222-222222222222",
+    "deviceKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsg/+aDd+3cH8ZhZK5n77JMi/+seJn1aVw+l7XmJsOAbQRsvlmYx5suxdvhkhIbte6N8pFn196CH/jv0I9ipxog==",
+    "requestId": "44444444-4444-4444-8444-444444444444",
+    "requestedAt": "2026-11-11T12:00:00.000Z",
+    "nonce": "AAECAwQFBgcICQoLDA0ODw==",
+    "proof": "MEUCIBCK5Ce0UJGtC4Jc5xstxjwZRTjg3JngNI9oEjH3JzWtAiEAmuyt9ZXG8Z5iDBPmI0OYDwdEAp3KV6jNNPcHF3EYPZw="
+  },
+  "license": {
+    "v": 1,
+    "alg": "GL-REDEEM-LICENSE-P256-SHA256-v1",
+    "kid": "gl-redeem-v1",
+    "license": {
+      "v": 1,
+      "licenseId": "22222222-2222-4222-8222-222222222222",
+      "appId": "DSHALEV",
+      "type": "MENSUAL",
+      "status": "ACTIVA",
+      "issuedAt": "2026-11-10T12:00:00.000Z",
+      "expiresAt": "2026-12-10T12:00:00.000Z",
+      "deviceThumbprint": "Nv34fH8qR7j6-f_GKy-CY_KksFBHBRLPN3Gk25Rw6H4",
+      "devicePublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsg/+aDd+3cH8ZhZK5n77JMi/+seJn1aVw+l7XmJsOAbQRsvlmYx5suxdvhkhIbte6N8pFn196CH/jv0I9ipxog==",
+      "redemptionId": "33333333-3333-4333-8333-333333333333",
+      "transferredFrom": null,
+      "secundarias": 2
+    },
+    "sig": "MEUCICiArnG/Di1526DiAyxgPrQvvVyUObkZ/a/CiKsyi5h2AiEAtbnfjm4FgUKyzSJUwupVFswWzIULufxUdlaidX4asuk="
+  },
+  "status": {
+    "v": 1,
+    "alg": "GL-REDEEM-STATUS-P256-SHA256-v1",
+    "kid": "gl-redeem-v1",
+    "status": {
+      "v": 1,
+      "licenseId": "22222222-2222-4222-8222-222222222222",
+      "appId": "DSHALEV",
+      "type": "MENSUAL",
+      "status": "ACTIVA",
+      "issuedAt": "2026-11-10T12:00:00.000Z",
+      "expiresAt": "2026-12-10T12:00:00.000Z",
+      "deviceThumbprint": "Nv34fH8qR7j6-f_GKy-CY_KksFBHBRLPN3Gk25Rw6H4",
+      "devicePublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsg/+aDd+3cH8ZhZK5n77JMi/+seJn1aVw+l7XmJsOAbQRsvlmYx5suxdvhkhIbte6N8pFn196CH/jv0I9ipxog==",
+      "redemptionId": "33333333-3333-4333-8333-333333333333",
+      "transferredFrom": null,
+      "secundarias": 2,
+      "checkedAt": "2026-11-11T12:00:00.000Z"
+    },
+    "sig": "MEQCIHrxdd2BuNYfgpinEhpoGRlRgVY8lp618OrVynJgiOxfAiBgDGxNPbTz75tTr47IJRrTMsSS11WNtoYIjJiPFQyhvQ=="
+  },
+  "subToken": {
+    "v": 1,
+    "alg": "GL-REDEEM-SUB-P256-SHA256-v1",
+    "licenseId": "22222222-2222-4222-8222-222222222222",
+    "deviceThumbprint": "rdxxVnE-gf8ePCbsldGJN438e6o_54kmvxnPMgXkXLg",
+    "slot": 1,
+    "allowed": 2,
+    "expiresAt": "2026-12-10T12:00:00.000Z",
+    "sig": "MEUCIQDkukEDnC5HFrDxMOw14mugo4ZK2S8t7pD1z5p/NYTtXQIgewBxETp1T0JgeYaGlrEOnttEXDfwyrP/cpBhMWsh7xs="
+  },
+  "bytesBase64": {
+    "request": "AAAAEkdMLVJFREVFTS1SRVFVRVNUMQAAAAExAAAAB0RTSEFMRVYAAAAQNEs3TjlYMk1COFBRM1Q1VgAAAHxNRmt3RXdZSEtvWkl6ajBDQVFZSUtvWkl6ajBEQVFjRFFnQUVzZy8rYURkKzNjSDhaaFpLNW43N0pNaS8rc2VKbjFhVncrbDdYbUpzT0FiUVJzdmxtWXg1c3V4ZHZoa2hJYnRlNk44cEZuMTk2Q0gvanYwSTlpcHhvZz09AAAAJDExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMQAAABgyMDI2LTExLTEwVDEyOjAwOjAwLjAwMFoAAAAYQUFFQ0F3UUZCZ2NJQ1FvTERBME9Edz09",
+    "statusRequest": "AAAAGUdMLVJFREVFTS1TVEFUVVMtUkVRVUVTVDEAAAABMQAAAAdEU0hBTEVWAAAAJDIyMjIyMjIyLTIyMjItNDIyMi04MjIyLTIyMjIyMjIyMjIyMgAAAHxNRmt3RXdZSEtvWkl6ajBDQVFZSUtvWkl6ajBEQVFjRFFnQUVzZy8rYURkKzNjSDhaaFpLNW43N0pNaS8rc2VKbjFhVncrbDdYbUpzT0FiUVJzdmxtWXg1c3V4ZHZoa2hJYnRlNk44cEZuMTk2Q0gvanYwSTlpcHhvZz09AAAAJDQ0NDQ0NDQ0LTQ0NDQtNDQ0NC04NDQ0LTQ0NDQ0NDQ0NDQ0NAAAABgyMDI2LTExLTExVDEyOjAwOjAwLjAwMFoAAAAYQUFFQ0F3UUZCZ2NJQ1FvTERBME9Edz09",
+    "license": "AAAAEkdMLVJFREVFTS1MSUNFTlNFMQAAAAExAAAAJDIyMjIyMjIyLTIyMjItNDIyMi04MjIyLTIyMjIyMjIyMjIyMgAAAAdEU0hBTEVWAAAAB01FTlNVQUwAAAAGQUNUSVZBAAAAGDIwMjYtMTEtMTBUMTI6MDA6MDAuMDAwWgAAABgyMDI2LTEyLTEwVDEyOjAwOjAwLjAwMFoAAAArTnYzNGZIOHFSN2o2LWZfR0t5LUNZX0trc0ZCSEJSTFBOM0drMjVSdzZINAAAACQzMzMzMzMzMy0zMzMzLTQzMzMtODMzMy0zMzMzMzMzMzMzMzMAAAAAAAAAATIAAAB8TUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFc2cvK2FEZCszY0g4WmhaSzVuNzdKTWkvK3NlSm4xYVZ3K2w3WG1Kc09BYlFSc3ZsbVl4NXN1eGR2aGtoSWJ0ZTZOOHBGbjE5NkNIL2p2MEk5aXB4b2c9PQ==",
+    "status": "AAAAEUdMLVJFREVFTS1TVEFUVVMxAAAAATEAAAAkMjIyMjIyMjItMjIyMi00MjIyLTgyMjItMjIyMjIyMjIyMjIyAAAAB0RTSEFMRVYAAAAHTUVOU1VBTAAAAAZBQ1RJVkEAAAAYMjAyNi0xMS0xMFQxMjowMDowMC4wMDBaAAAAGDIwMjYtMTItMTBUMTI6MDA6MDAuMDAwWgAAACtOdjM0Zkg4cVI3ajYtZl9HS3ktQ1lfS2tzRkJIQlJMUE4zR2syNVJ3Nkg0AAAAJDMzMzMzMzMzLTMzMzMtNDMzMy04MzMzLTMzMzMzMzMzMzMzMwAAAAAAAAABMgAAAHxNRmt3RXdZSEtvWkl6ajBDQVFZSUtvWkl6ajBEQVFjRFFnQUVzZy8rYURkKzNjSDhaaFpLNW43N0pNaS8rc2VKbjFhVncrbDdYbUpzT0FiUVJzdmxtWXg1c3V4ZHZoa2hJYnRlNk44cEZuMTk2Q0gvanYwSTlpcHhvZz09AAAAGDIwMjYtMTEtMTFUMTI6MDA6MDAuMDAwWg==",
+    "subToken": "R0wtUkVERUVNLVNVQjF8MjIyMjIyMjItMjIyMi00MjIyLTgyMjItMjIyMjIyMjIyMjIyfHJkeHhWbkUtZ2Y4ZVBDYnNsZEdKTjQzOGU2b181NGttdnhuUE1nWGtYTGd8MXwyfDIwMjYtMTItMTBUMTI6MDA6MDAuMDAwWg=="
+  }
+}

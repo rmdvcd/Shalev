@@ -2557,3 +2557,22 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
 - **Causa del fallo:** `build_windows.ps1` prefería el lanzador `py`, que en el runner resolvía **Python 3.15.2**; `pyinstaller==6.13.0` no lo admite y el script no comprobaba los códigos de salida de las herramientas nativas, así que terminaba sin crear el EXE. En `main` el job llevaba rojo desde al menos el 2026-11-08.
 - **Corrección:** el script usa el `python` del PATH, exige 3.11 o 3.12 (también para el `.venv`), y se detiene con mensaje claro si falla pip, PyInstaller o si no aparece `dist\DShalev.exe`.
 - **Verificación:** el workflow de Windows compila el EXE (unos 20,8 MB), lo **arranca** con `--no-browser --port 47999`, espera `/healthz` y comprueba que `/configurar` sirve la interfaz; después lo publica como artefacto. Queda pendiente la revisión manual en un PC Windows real.
+
+### 2026-11-10 — Contrato GL accesible y cliente de canje implementado
+
+- **Acceso:** `rmdvcd/GL` es público; se leyó `services/redeem` completo (commit `ee55cb5`), incluido
+  `README.md`, `src/{protocol,canonical,license,subtoken,code,keys,service,http}.js` y el vector
+  `test/fixtures/dshalev-protocol-v1.json`. Ya no se depende de una exportación incompleta.
+- **Implementado en Python:** `contrato.py` (transcripts uint32 big-endian, normalización del código con 34
+  símbolos sin `I`/`O`, límites y coherencia de campos, sub-token con `|`), `verificador.py` (sobre, `kid`
+  fijado, firma DER P-256/SHA-256, estructura, app, fechas, estado y huella del dispositivo/identidad) y
+  `cliente_gl.py` (canje y estado HTTPS sin redirecciones, TLS con hostname, reintento idempotente en memoria,
+  verificación antes de guardar). El almacén conserva el último estado y una revocación pegajosa que rechaza
+  respuestas antiguas.
+- **Pruebas:** 85 casos nuevos; el total del repo pasa a **197 passed**. El vector oficial se reproduce byte a
+  byte y se verifican firmas, no se comparan firmas nuevas. Se añadió un servidor HTTPS local con certificado
+  propio para probar TLS, hostname y rechazo de `302`.
+- **Sigue pendiente:** enforcement en rutas web y sincronización, UI de activación/estado/transferencia,
+  configuración de producción aprobada, Windows con DPAPI y EXE, y extremo a extremo contra el servicio GL
+  real. **No se declara listo para producción.** Riesgos del servicio (renovaciones simultáneas, reutilización
+  de slots, revocación offline de perpetuas) siguen abiertos.

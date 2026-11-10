@@ -73,41 +73,80 @@ falta y de las decisiones que requieren aprobación.
 
 ### 3.3 `dshalev/licencia/config_licencia.py`
 
-- Valores de compilación `APP_ID`, `ENDPOINT_REDEEM`, `ENDPOINT_ESTADO`, `KIDS_FIRMA` (vacíos en este build).
+- Valores de compilación `APP_ID`, `ENDPOINT_REDEEM`, `ENDPOINT_ESTADO`, `KIDS_FIRMA` (vacíos en este build;
+  el `appId` del contrato es `DSHALEV`, público, y solo se fija junto con el resto en un build aprobado).
 - `definir(...)` valida HTTPS sin credenciales/query/fragmento y exige que cada `kid` sea SPKI DER P-256.
 - `comercial_habilitada` exige las cuatro piezas; si falta algo, `motivo_deshabilitada()` explica qué.
 - `POLITICA_IDENTIDAD = "instalacion"` y `TOLERANCIA_RELOJ = 2 h` como constantes de política.
 
 ### 3.4 `dshalev/licencia/almacen.py`
 
-- `LicenciaLocal` guarda el documento firmado como **texto opaco** (el formato lo definirá GL) y su fecha de
-  guardado. No se interpretan campos que aún no están especificados.
+- `LicenciaLocal` guarda el sobre JSON firmado como **texto opaco**, su fecha de guardado, el último estado
+  verificado y una marca de revocación **pegajosa**. El almacén no interpreta la firma; eso lo hace
+  `verificador.py` antes de llamarlo.
 - `AlmacenLicencia.observar()` devuelve la licencia utilizable y avisos: restauración antigua, licencia de otro
   equipo, recuperación desde el ancla y retroceso de reloj. Nunca borra archivos.
 - `guardar_licencia()` escribe primero el ancla (resguardo) y luego el espejo local; si falla el segundo, la
   licencia se recupera al reiniciar y el error lo dice.
+- `registrar_estado()` aplica un estado ya verificado y **rechaza documentos con `checkedAt` anterior o igual**
+  al último aceptado; una revocación confirmada no se borra con un documento posterior que diga `ACTIVA`.
 - `AnclaInstalacion` usa una huella propia; un ancla de otra instalación falla cerrado y no se borra.
 
-## 4. Lo que **no** está implementado (bloqueado o pendiente)
+### 3.5 `dshalev/licencia/contrato.py`
 
-1. **Cliente `POST /v1/redeem`**: normalización del código, `requestId`, nonce, transcript con longitud
-   `uint32` big-endian, firma ECDSA DER, ventana de `requestedAt`, idempotencia ante respuesta perdida. Requiere
-   `protocol.js`, `canonical.js`, `keys.js`, `license.js` y el vector.
-2. **Validación de la licencia firmada**: versión, `alg`, `kid`, firma DER, estructura, tipos, límites, `appId`,
-   fechas, estado y `deviceThumbprint` contra la SPKI local. Requiere el esquema real.
-3. **`POST /v1/status` autenticado** y persistencia de la revocación verificada. Requiere el contrato.
-4. **Enforcement en el backend**: rutas web, sincronización, comandos y operaciones en curso. Se hará cuando
-   exista un estado de licencia con derechos y fechas que aplicar; dejar activación y recuperación accesibles.
-5. **UI**: panel con huella del equipo, estado, último estado conocido, política offline y mensaje de activación
-   deshabilitada. El panel actual sigue siendo informativo y no filtra secretos.
-6. **Transferencia manual**: mostrar la huella del equipo nuevo y exigir autorización del operador. No se
+- Reproduce `canonical()` de GL: cada campo UTF-8 con longitud **uint32 big-endian**, sin JSON ni delimitadores.
+- Transcripts de canje y estado, bytes firmados de la licencia y del documento de estado, en el orden exacto
+  del contrato.
+- Normalización del código (sin espacios ni guiones, mayúsculas, alfabeto de 34 símbolos sin `I`/`O`, 16
+  caracteres) y formato `XXXX-XXXX-XXXX-XXXX` solo para mostrar.
+- Huella de instalación `Base64url(SHA-256(SPKI))` sin relleno; validación de tipos, límites y coherencia
+  (perpetua sin vencimiento, vencimiento posterior a la emisión, cupo 0–10, fechas ISO en `Z`).
+- Sub-token `GL-REDEEM-SUB1` con separadores `|`, implementado y probado, **sin activación comercial**.
+
+### 3.6 `dshalev/licencia/verificador.py`
+
+- Valida sobre, versión, `alg`, `kid` contra el mapa fijado y firma ECDSA P-256/SHA-256 en DER antes de leer
+  los campos.
+- `verificar_licencia()` exige `appId`, fechas y estado coherentes; comprueba que
+  `SHA-256(devicePublicKey) == deviceThumbprint == huella local`.
+- `verificar_estado()` exige que la licencia, la app, el equipo y los campos inmutables coincidan con la
+  licencia guardada, y rechaza `checkedAt` más de 5 minutos en el futuro.
+- `verificar_subtoken()` comprueba cupo, plazo, estado de la primaria, huella secundaria y firma con la clave
+  de la instalación primaria. No se expone en ninguna ruta.
+
+### 3.7 `dshalev/licencia/cliente_gl.py`
+
+- `canjear()` normaliza el código, genera `requestId` (UUID) y `nonce` (16 bytes), firma el transcript y envía
+  `POST /v1/redeem` al endpoint fijado. El código no se escribe en disco ni se registra.
+- Si se pierde la respuesta, conserva **en memoria** `requestId`, instante y nonce junto a una huella del
+  código; al reintentar con el mismo código reutiliza la solicitud exacta. Si el proceso termina, el usuario
+  debe volver a escribir el código (se explica en la UI).
+- Verifica la respuesta completa antes de guardar; una licencia vencida o revocada no sustituye a la anterior.
+- `consultar_estado()` firma `POST /v1/status` con la licencia guardada, verifica el documento y persiste la
+  revocación. Un fallo de red no borra ni habilita nada; una respuesta antigua no reactiva.
+- HTTPS obligatorio, contexto TLS por defecto con certificado y nombre verificados, sin redirecciones
+  (`3xx` se rechaza), tiempo de espera de 15 s y límites de 16 KiB de petición y 64 KiB de respuesta.
+- Nunca se registran códigos, pruebas, firmas, tokens, IP ni datos personales.
+
+## 4. Lo que **no** está implementado (pendiente)
+
+1. **Enforcement en el backend**: rutas web, sincronización, comandos y operaciones en curso. El cliente ya
+   produce un estado verificable, pero todavía no hay una compuerta que lo exija; debe dejar accesibles
+   activación y recuperación y no bloquear operaciones en curso a medias.
+2. **UI**: panel con huella del equipo, estado, último estado conocido, política offline, mensaje de activación
+   deshabilitada y campo de código. El panel actual sigue siendo informativo y no filtra secretos.
+3. **Transferencia manual**: mostrar la huella del equipo nuevo y exigir autorización del operador. No se
    presenta restaurar una carpeta o un respaldo como migración.
-7. **Sub-token / apps secundarias**: **no** se activa comercialmente, **no** se emite el sub-token `GL-REDEEM-SUB1`
-   ni se pide subir `MAX_SECUNDARIAS`. La verificación en las apps reales, la distribución y la convivencia con
-   `SPVI2:` no están demostradas; el slot no impide por sí solo reutilizarlo en varios dispositivos y no hay
-   revocación instantánea sin conexión. Cualquier cambio en clientes secundarios va por separado.
-8. **Pruebas de extremo a extremo**: vector GL reproducido byte a byte, servicio de prueba HTTPS, Windows con
-   DPAPI y EXE portable verificado. Nada de eso se ejecutó aquí.
+4. **Sub-token / apps secundarias**: se implementó y probó la verificación, pero **no** se activa
+   comercialmente, no se emite en ninguna ruta ni se pide subir `MAX_SECUNDARIAS`. La verificación en las apps
+   reales, la distribución y la convivencia con `SPVI2:` no están demostradas; el slot no impide por sí solo
+   reutilizarlo en varios dispositivos y no hay revocación instantánea sin conexión. Cualquier cambio en
+   clientes secundarios va por separado.
+5. **Configuración de producción**: no hay endpoint ni claves aprobadas; `comercial_habilitada` sigue en
+   `False` y la activación comercial está deshabilitada con mensaje explícito.
+6. **Windows/DPAPI, EXE y extremo a extremo real**: las pruebas se ejecutaron en Linux. La carpeta de pruebas
+   incluye un servidor HTTPS local con certificado propio para verificar TLS, hostname y rechazo de
+   redirecciones, pero **no** se probó contra el servicio GL real ni en Windows.
 
 ## 5. Pruebas añadidas (Linux, `pytest`)
 
@@ -117,12 +156,23 @@ falta y de las decisiones que requieren aprobación.
 | `tests/test_licencia_config.py` | Build sin endpoint ni claves ⇒ activación deshabilitada y motivo; build válido habilita; HTTPS obligatorio; rechazo de credenciales/query/fragmento/puerto/host inválidos; `kid` inválido, Base64 inválido, clave no P-256; ajustes y respaldos no cambian la configuración; el código no contiene claves privadas ni endpoints de prueba. |
 | `tests/test_app.py` (nuevo caso) | El panel `/licencia` muestra el motivo de activación deshabilitada y no pide ni filtra códigos, claves ni URLs. |
 | `tests/test_licencia_almacen.py` | Guardado sellado (sin documento en claro), restauración antigua conserva la licencia más reciente y la reescribe, licencia de otro equipo no se activa y no destruye la propia, archivo dañado con/sin resguardo, reloj retrocedido falla cerrado sin bajar la marca, ancla de otra instalación, fallo al escribir el espejo no pierde la licencia, concurrencia, documentos inválidos, ancla fuera de `DShalevData`. |
+| `tests/test_licencia_contrato.py` | Bytes exactos del vector GL (canje, estado, licencia, estado firmado, sub-token), firmas DER, huellas SPKI, normalización y códigos malformados, caducidad/perpetuidad/revocación, mutaciones de campos, firmas, `kid`, app, dispositivo, estructura y fechas, sub-token propio y mutado. |
+| `tests/test_licencia_cliente.py` | Canje completo con prueba verificable, código inválido sin red, respuesta perdida y reintento con la misma solicitud, error del servicio sin guardar, respuestas mutadas (firma/app/equipo/`kid`), caducidad y revocación, redirección y cuerpo excesivo, estado con revocación persistente, fallo de red con licencia previa, respuesta antigua, reloj retrocedido, concurrencia local, configuración deshabilitada/HTTP y servidor HTTPS real con certificado de prueba (hostname verificado y `302` rechazado). |
 
-Ejecución: `python -m pytest -q` → **107 passed** (54 previas + 53 nuevas). Node: **5 passed**. Sin red.
+Ejecución: `python -m pytest -q` → **197 passed** (112 previas + 85 nuevas). Node: **6 passed**. Sin red
+externa; el servidor HTTPS de las pruebas escucha solo en `127.0.0.1`.
 
 ## 6. Riesgos abiertos
 
-- **Contrato GL**: sin los archivos no hay interoperabilidad demostrable. No se declara listo para producción.
+- **Contrato GL**: resuelto; `rmdvcd/GL` es accesible y el vector `dshalev-protocol-v1.json` se reproduce byte
+  a byte. Aun así, el servicio tiene riesgos propios que no se corrigen desde el cliente:
+  - dos renovaciones simultáneas sobre la misma instalación no están serializadas;
+  - el `slot` del sub-token no impide reutilizarlo en varios dispositivos y no hay revocación instantánea
+    offline;
+  - una licencia perpetua desconectada puede no enterarse nunca de una revocación.
+- **Sin configuración de producción** aprobada no hay activación real; no se declara listo para producción.
+- **Windows/DPAPI y EXE** siguen sin probarse en este entorno; las pruebas de identidad no Windows se omiten
+  en Windows y las de permisos POSIX se omiten allí.
 - **Renovaciones simultáneas** sobre la misma instalación y **reutilización de slots** de secundarias siguen
   siendo riesgos abiertos del servicio GL; este cambio no los resuelve ni supone cambios en el servidor.
 - **DPAPI**: protege contra copia a otro usuario/equipo, no contra un administrador del mismo equipo ni contra
@@ -150,10 +200,12 @@ Ejecución: `python -m pytest -q` → **107 passed** (54 previas + 53 nuevas). N
 
 ## 8. Criterios para declarar la activación comercial lista
 
-1. Contrato GL disponible y vector `test/fixtures/dshalev-protocol-v1.json` reproducido byte a byte en Python.
-2. Endpoint y claves de **producción** aprobados, fijados en el build, con TLS y hostname verificados.
-3. Pruebas de respuesta perdida/reintento idempotente, concurrencia, red caída con licencia previa, reinicio,
-   reloj, revocación verificada seguida de desconexión, estado antiguo, restauraciones y aislamiento de locales.
-4. Enforcement probado en rutas web y sincronización; UI sin secretos.
-5. Ejecución real en Windows con DPAPI y EXE portable verificado, más extremo a extremo contra el servicio GL.
-6. Decisión comercial confirmada sobre instalación frente a locales y sobre apps secundarias.
+1. ✅ Contrato GL disponible y vector `test/fixtures/dshalev-protocol-v1.json` reproducido byte a byte en
+   Python, con verificación de firmas y mutaciones.
+2. ⬜ Endpoint y claves de **producción** aprobados, fijados en el build, con TLS y hostname verificados.
+3. ✅ Pruebas de respuesta perdida/reintento idempotente, concurrencia, red caída con licencia previa,
+   reloj, revocación verificada seguida de desconexión, estado antiguo, restauraciones y aislamiento de locales
+   (las de reinicio se cubren al releer el almacén desde disco).
+4. ⬜ Enforcement probado en rutas web y sincronización; UI sin secretos.
+5. ⬜ Ejecución real en Windows con DPAPI y EXE portable verificado, más extremo a extremo contra el servicio GL.
+6. ⬜ Decisión comercial confirmada sobre apps secundarias (la de instalación ya está tomada).

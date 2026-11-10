@@ -100,8 +100,12 @@ def test_spki_invalida_se_rechaza(valor: str):
 
 
 def test_app_id_invalido_se_rechaza():
+    # El contrato admite mayúsculas y minúsculas; lo que no admite son espacios,
+    # guiones iniciales ni una sola letra.
     with pytest.raises(ConfiguracionLicenciaError):
-        definir(app_id="Dshalev")
+        definir(app_id="con espacio")
+    with pytest.raises(ConfiguracionLicenciaError):
+        definir(app_id="-empieza")
     with pytest.raises(ConfiguracionLicenciaError):
         definir(app_id="a")
 

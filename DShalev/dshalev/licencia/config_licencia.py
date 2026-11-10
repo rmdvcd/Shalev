@@ -26,7 +26,10 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 # ── Valores de compilación ─────────────────────────────────────────────────────
 # Se dejan vacíos a propósito: no hay endpoint ni claves de producción aprobadas.
-# Cambiarlos exige un build nuevo, revisión y pruebas; nunca se reciben del usuario.
+# El ``appId`` del contrato GL es ``DSHALEV`` (público, no es un secreto), pero se
+# configura junto con el endpoint y las claves en el build aprobado: por sí solo
+# no habilita nada. Cambiar cualquiera de estos valores exige un build nuevo,
+# revisión y pruebas; nunca se reciben del usuario.
 APP_ID = ""
 ENDPOINT_REDEEM = ""
 ENDPOINT_ESTADO = ""
@@ -48,7 +51,7 @@ MOTIVO_SIN_CONFIGURACION = (
 )
 
 _KID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
-_APP_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{1,63}$")
+_APP_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$")
 
 
 class ConfiguracionLicenciaError(ValueError):
@@ -141,7 +144,7 @@ def definir(
     """Construye y valida la configuración. Los valores por defecto son los del build."""
     app = APP_ID if app_id is None else app_id
     if app and not _APP_ID_RE.fullmatch(app):
-        raise ConfiguracionLicenciaError("El appId debe ser minúsculas ASCII, números, punto, guion o guion bajo.")
+        raise ConfiguracionLicenciaError("El appId debe ser ASCII alfanumérico, punto, guion o guion bajo.")
     return ConfiguracionLicencia(
         app_id=app,
         endpoint_redeem=_validar_endpoint(ENDPOINT_REDEEM if endpoint_redeem is None else endpoint_redeem, "endpoint de canje"),
