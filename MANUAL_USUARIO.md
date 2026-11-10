@@ -636,3 +636,15 @@ remoto no está disponible, se mantiene el comportamiento offline anterior; no s
 abrir un turno sin sincronizar ni elimina las restricciones existentes. Reintenta cuando
 la principal vuelva a estar disponible. Sin una versión habilitada para conexión remota,
 encender datos móviles en ambos teléfonos no garantiza que puedan comunicarse.
+
+
+## DShalev: venta desde una PC
+
+Con un turno abierto, entra en **Ventas**. Busca cada artículo por nombre (F2 vuelve a la búsqueda), agrégalo al carrito y ajusta sus cantidades. Elige cliente opcional y forma de pago, revisa el total y pulsa **Registrar venta**. Puedes buscar otros artículos sin perder los ya agregados; **Vaciar** solicita confirmación. El carrito no reserva inventario y los precios y existencias se comprueban al registrar. Si un precio cambió, revisa el total actualizado antes de volver a registrar.
+
+El borrador se recupera en la misma pestaña y sesión si el navegador permite almacenamiento de sesión. Si se interrumpe la conexión durante el registro, consulta el historial de ventas antes de reintentar para evitar duplicados. Para requisitos y límites de la versión de escritorio, consulta [DShalev/README.md](DShalev/README.md).
+
+
+### Venta móvil: agregar y descartar
+
+En Shalev e IShalev, cuando el carrito contiene artículos puedes volver al selector desde el icono de agregar de la barra inferior, sin desplazarte hasta el final de la lista. Al cancelar una venta con artículos se solicita confirmación; elige seguir vendiendo para conservarla. En IShalev, si las existencias cambian y la venta deja de ser válida, se muestra «No disponible» y debes revisar el carrito antes de continuar.

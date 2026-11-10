@@ -65,3 +65,11 @@ La conexión nativa actual es directa: no hay relay DShalev ni acceso por datos 
 La navegación usa trazados sólidos del sistema de iconos Android de Shalev. En pantallas estrechas se puede desplazar horizontalmente para acceder a todas las secciones; en pantallas bajas, verticalmente.
 
 Los CSV anteponen un apóstrofo a los campos de texto que podrían interpretarse como fórmulas (también tras espacios o si empiezan con tabulador o salto de línea). Esto modifica únicamente la representación exportada; los importes numéricos y los datos almacenados no cambian. El comportamiento al importar CSV depende de la hoja de cálculo; revisa sus opciones de importación.
+
+## Punto de venta en PC
+
+Con un turno abierto, **Ventas** ofrece búsqueda incremental y un carrito separado: agrega artículos de diferentes búsquedas, cambia cantidades y revisa el total y el método de pago. La tecla **F2** lleva el foco a la búsqueda. El catálogo muestra hasta 30 coincidencias; escribe más para encontrar artículos adicionales. Se admiten hasta 60 artículos distintos por venta.
+
+El carrito es un borrador de la pestaña y del turno actual: cuando el navegador permite almacenamiento de sesión, se recupera tras recargar o ante un rechazo del servidor y se borra al confirmar la venta. No reserves inventario con el carrito. Si cambia un precio antes de registrar, la venta se rechaza y el carrito recuperado muestra el nuevo precio para revisarlo. El servidor sigue comprobando turno, existencias, recetas y precio; los importes mostrados antes de registrar son estimados. Sin JavaScript se conserva el formulario anterior. Tras una interrupción de conexión durante el registro, comprueba el historial antes de reintentar para evitar una venta duplicada.
+
+Para probar el comportamiento del carrito con Node.js 18 o posterior: `npm ci` y `npm test` desde `DShalev/`. Las pruebas usan un DOM simulado y no sustituyen la revisión visual y de teclado en un navegador real de Windows.

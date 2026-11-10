@@ -77,6 +77,14 @@ class VentaUiTest {
         rule.onNodeWithText("500 CUP").assertExists()
     }
 
+    @Test fun agregarArticuloPermaneceEnLaBarraDelCarrito() {
+        var elegir = 0
+        val s = VentaUiState(abierto, lineas = listOf(LineaCarrito(refresco, 2)))
+        rule.setContent { ShalevTheme { VentaContent(TipoVenta.VENTA, s, AccionesVenta(onElegir = { elegir++ }), zona = zona) } }
+        rule.onNodeWithContentDescription(TextosVenta.AGREGAR).assertIsDisplayed().performClick()
+        assertEquals(1, elegir)
+    }
+
     @Test fun comprobanteConConfirmarYCancelar() {
         var confirmar = 0; var cancelar = 0
         val s = VentaUiState(
@@ -84,7 +92,7 @@ class VentaUiTest {
             cotizacion = Cotizacion(MetodoPago.EFECTIVO, listOf(detalle), emptyMap()),
         )
         rule.setContent {
-            ShalevTheme { VentaContent(TipoVenta.VENTA, s, AccionesVenta(onConfirmarEfectivo = { confirmar++ }, onDescartar = { cancelar++ }), zona = zona) }
+            ShalevTheme { VentaContent(TipoVenta.VENTA, s, AccionesVenta(onConfirmarEfectivo = { confirmar++ }, onSolicitarDescartar = { cancelar++ }), zona = zona) }
         }
         rule.onNodeWithText(TextosVenta.linea(2, Cup.ofPesos(100))).assertIsDisplayed()
         rule.onNodeWithTag(VentaTags.CONFIRMAR).performClick()

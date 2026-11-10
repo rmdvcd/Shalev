@@ -270,9 +270,10 @@ class VentaViewModel @Inject constructor(
     /** CARRITO → COMPROBANTE (efectivo) o QR (transferencia), con los precios definitivos. */
     fun continuar() {
         val s = state.value
-        if (!s.puedeContinuar) return
+        if (!s.puedeContinuar || local.value.trabajando) return
+        // Bloquear antes de lanzar la corrutina para impedir dos pulsaciones en el mismo frame.
+        local.update { it.copy(trabajando = true, error = null) }
         viewModelScope.launch {
-            local.update { it.copy(trabajando = true, error = null) }
             val r = seguro { cotizar(Carrito.solicitud(s.lineas), s.metodo) }
             when (r) {
                 is AppResult.Ok -> local.update {
@@ -291,6 +292,7 @@ class VentaViewModel @Inject constructor(
     /** Atrás del sistema o de la barra: retrocede un paso; en el carrito pregunta antes de descartar. */
     fun atras() {
         val s = local.value
+        if (s.trabajando) return
         when (s.paso) {
             PasoVenta.CLIENTE -> local.update { it.copy(paso = PasoVenta.QR, avisoSms = null) }
             PasoVenta.QR, PasoVenta.COMPROBANTE -> local.update { it.copy(paso = PasoVenta.CARRITO, cotizacion = null, error = null) }
@@ -298,10 +300,16 @@ class VentaViewModel @Inject constructor(
         }
     }
 
+    /** Confirmación común para cancelar desde carrito, comprobante o QR. */
+    fun solicitarDescartar() {
+        if (!local.value.trabajando) local.update { it.copy(confirmarSalir = true) }
+    }
+
     fun cancelarSalir() = local.update { it.copy(confirmarSalir = false) }
 
     /** Cancelar la venta (botón del comprobante o «Descartar»): no se registra nada. */
     fun descartar() {
+        if (local.value.trabajando) return
         soltarVenta()
         guardar(linkedMapOf())
         local.update { VentaUiState(tipo = tipo) }
@@ -355,10 +363,10 @@ class VentaViewModel @Inject constructor(
 
     private fun registrarVenta(t: DatosTransferencia?) {
         val s = state.value
-        if (s.trabajando || s.lineas.isEmpty()) return
+        if (local.value.trabajando || s.lineas.isEmpty()) return
         if (s.bloqueada) { emitir(EventoVenta.Mensaje(TextosVenta.mensaje(AppError.TurnoCerrado))); return }
+        local.update { it.copy(trabajando = true, error = null) }
         viewModelScope.launch {
-            local.update { it.copy(trabajando = true, error = null) }
             val r = seguro { registrar(Carrito.solicitud(s.lineas), s.metodo, t) }
             when (r) {
                 is AppResult.Ok -> {

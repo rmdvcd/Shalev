@@ -338,6 +338,18 @@ final class DomainParityTests: XCTestCase {
         }
     }
 
+    func testPreviewRechazaCarritoCuandoLaExistenciaCambio() throws {
+        let item = product(stock: 2_000)
+        let store = makeStore(products: [item])
+        try store.openShift(openingCashCents: 0)
+        let cart = [CartDraft(sourceID: item.id, kind: .product, quantity: 2)]
+        XCTAssertEqual(try store.previewSale(cart, payment: .cash).totalCents, 20_000)
+        try store.adjustStock(productID: item.id, newStockMilli: 1_000, reason: "Ajuste de inventario")
+        XCTAssertThrowsError(try store.previewSale(cart, payment: .cash))
+        XCTAssertTrue(store.data.sales.isEmpty)
+        XCTAssertEqual(store.data.products[0].stockMilli, 1_000)
+    }
+
     func testSharedIngredientCapacityAndCashOutflowGuards() throws {
         let store = ShalevStore(storage: MemoryStorage())
         try store.openShift(openingCashCents: 20_000) // 200 CUP

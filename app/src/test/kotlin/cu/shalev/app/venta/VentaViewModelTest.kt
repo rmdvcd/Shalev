@@ -354,6 +354,34 @@ class VentaViewModelTest {
         assertTrue(ventas.ventas.isEmpty())
     }
 
+    @Test fun cancelarDesdeComprobanteOQrPideConfirmacionYConservaCarrito() = runTest {
+        abrirTurno()
+        val vm = vm()
+        vm.recibirSeleccion(listOf(1))
+        vm.continuar()
+        assertEquals(PasoVenta.COMPROBANTE, vm.state.value.paso)
+        vm.solicitarDescartar()
+        assertTrue(vm.state.value.confirmarSalir)
+        vm.cancelarSalir()
+        assertEquals(PasoVenta.COMPROBANTE, vm.state.value.paso)
+        assertEquals(1, vm.state.value.lineas.size)
+        assertTrue(ventas.ventas.isEmpty())
+        vm.atras()
+        vm.elegirMetodo(MetodoPago.TRANSFERENCIA)
+        vm.continuar()
+        assertEquals(PasoVenta.QR, vm.state.value.paso)
+        vm.solicitarDescartar()
+        assertTrue(vm.state.value.confirmarSalir)
+        vm.cancelarSalir()
+        assertEquals(PasoVenta.QR, vm.state.value.paso)
+        assertEquals(1, vm.state.value.lineas.size)
+        vm.solicitarDescartar()
+        vm.descartar()
+        assertTrue(vm.state.value.lineas.isEmpty())
+        assertTrue(ventas.ventas.isEmpty())
+        assertEquals(EventoVenta.Salir, eventos.last())
+    }
+
     @Test fun carritoSobreviveALaMuerteDelProceso() = runTest {
         abrirTurno()
         val vm = vm(mapOf(VentaViewModel.KEY_TIPO to "VENTA", VentaViewModel.KEY_AUTO to true, VentaViewModel.KEY_CARRITO to longArrayOf(2, 2, 1, 1)))

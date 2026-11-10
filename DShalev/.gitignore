@@ -12,3 +12,6 @@ DShalevData/
 *.db-wal
 portable-settings.json
 *.log
+
+# Dependencias solo para pruebas de interfaz
+node_modules/
