@@ -215,7 +215,12 @@ def test_guardados_concurrentes_dejan_un_archivo_valido(tmp_path: Path):
     assert resultado.licencia.documento.startswith("GL-REDEEM-LICENSE-v1|")
 
 
-@pytest.mark.parametrize("documento", ["", "   ", "x" * (MAXIMO_DOCUMENTO_LICENCIA + 1), "a\x00b"])
+@pytest.mark.parametrize("documento", [
+    pytest.param("", id="vacio"),
+    pytest.param("   ", id="solo_espacios"),
+    pytest.param("x" * (MAXIMO_DOCUMENTO_LICENCIA + 1), id="demasiado_largo"),
+    pytest.param("a\x00b", id="con_control"),
+])
 def test_documentos_invalidos_no_se_guardan(tmp_path: Path, documento: str):
     almacen, _ = crear_almacen(tmp_path)
     with pytest.raises(AlmacenError):
