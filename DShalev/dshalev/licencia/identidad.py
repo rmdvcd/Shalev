@@ -19,6 +19,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+import secrets
 import time
 from pathlib import Path
 from cryptography.hazmat.primitives import hashes, serialization
@@ -32,7 +33,7 @@ NOMBRE_ARCHIVO = "identidad.bin"
 DESCRIPCION = "DShalev license identity (P-256)"
 _CURVA = "secp256r1"
 _INTENTOS_LECTURA = 40
-_ESPERA_LECTURA = 0.05
+_ESPERA_LECTURA = 0.025
 
 
 class IdentidadError(RuntimeError):
@@ -115,6 +116,24 @@ def cargar_identidad(ruta: Path) -> Identidad | None:
     return _cargar_clave(contenido, ruta)
 
 
+def _escribir_temporal(ruta: Path, datos: bytes) -> Path:
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    temporal = ruta.with_name(f".{ruta.name}.{secrets.token_hex(8)}.tmp")
+    descriptor = os.open(temporal, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    try:
+        with os.fdopen(descriptor, "wb") as salida:
+            salida.write(datos)
+            salida.flush()
+            os.fsync(salida.fileno())
+    except OSError:
+        try:
+            temporal.unlink()
+        except OSError:
+            pass
+        raise
+    return temporal
+
+
 def _crear(ruta: Path) -> Identidad:
     clave = ec.generate_private_key(ec.SECP256R1())
     privada = clave.private_bytes(
@@ -127,7 +146,29 @@ def _crear(ruta: Path) -> Identidad:
         sello = proteccion.sellar(contenido, descripcion=DESCRIPCION, ruta=ruta)
     except proteccion.ProteccionError as exc:
         raise IdentidadError(f"No se pudo proteger la nueva identidad y no se guardó. {exc}") from None
-    ruta.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        temporal = _escribir_temporal(ruta, sello)
+    except OSError:
+        raise IdentidadError("No se pudo preparar el archivo de identidad de la instalación.") from None
+    try:
+        try:
+            # Publica el archivo ya completo: nunca se observa una identidad a medias.
+            os.link(temporal, ruta)
+            proteccion.sincronizar_directorio(ruta.parent)
+        except FileExistsError:
+            return _cargar_con_espera(ruta)
+        except OSError:
+            # Sistemas de archivos sin enlaces duros (por ejemplo, FAT32 en un USB).
+            return _publicar_con_exclusiva(ruta, temporal, clave)
+        return Identidad(ruta, clave)
+    finally:
+        try:
+            temporal.unlink()
+        except OSError:
+            pass
+
+
+def _publicar_con_exclusiva(ruta: Path, temporal: Path, clave: ec.EllipticCurvePrivateKey) -> Identidad:
     try:
         descriptor = os.open(ruta, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     except FileExistsError:
@@ -135,8 +176,9 @@ def _crear(ruta: Path) -> Identidad:
     except OSError:
         raise IdentidadError("No se pudo crear el archivo de identidad de la instalación.") from None
     try:
+        datos = temporal.read_bytes()
         with os.fdopen(descriptor, "wb") as salida:
-            salida.write(sello)
+            salida.write(datos)
             salida.flush()
             os.fsync(salida.fileno())
         try:
@@ -178,10 +220,8 @@ def cargar_o_crear_identidad(ruta: Path) -> Identidad:
     """
     ruta = Path(ruta)
     if ruta.exists():
-        identidad = cargar_identidad(ruta)
-        if identidad is None:  # carrera: desapareció entre las dos comprobaciones
-            return _crear(ruta)
-        return identidad
+        # Otra ejecución pudo publicarlo y estar escribiéndolo (FAT32 sin enlaces).
+        return _cargar_con_espera(ruta)
     return _crear(ruta)
 
 
