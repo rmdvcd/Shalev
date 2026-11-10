@@ -112,3 +112,7 @@ Apple incluye 25 horas de cómputo al mes de Xcode Cloud **dentro de la membres�
 - El comprobador de actualizaciones consulta solo publicaciones GitHub `ios-v*`; no descarga ni instala. iOS distribuye nuevas versiones por TestFlight, App Store o gestión autorizada. Appetize recibe una build de simulador desde Actions.
 - El SMS se pega manualmente y se analiza; iOS no permite capturar SMS/notificaciones de otra app. La exportación de tablas ofrece XLSX y CSV.
 - El proyecto no contiene claves de firma ni certificados de distribución.
+
+La barra de navegación usa los trazados sólidos originales de `ShalevIcons` de Android (incluida la mano de Servicios); otras pantallas aún pueden usar símbolos nativos de iOS.
+
+En CSV, los textos que podrían interpretarse como fórmulas se exportan con un apóstrofo inicial, incluso si la fórmula aparece tras espacios o el texto empieza con tabulador o salto de línea. Los datos guardados no cambian; el comportamiento al importar depende de la hoja de cálculo.

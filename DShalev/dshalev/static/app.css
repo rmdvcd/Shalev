@@ -5,3 +5,11 @@
 .employee-pairing{align-items:flex-start}.employee-pairing .employee-info{gap:5px}.pairing-actions{display:flex;flex-direction:column;align-items:flex-start;gap:7px;margin-top:10px}.pairing-qr{display:block;width:min(220px,100%);height:auto;border:1px solid var(--line);border-radius:12px;background:#fff;padding:8px}.pairing-actions .tiny{max-width:360px;margin:0}.pairing-actions form{margin-top:4px}
 .permission-editor{margin-top:8px}.permission-editor summary{font-size:12px;font-weight:750;color:var(--blue);cursor:pointer}.permission-editor form{display:grid;gap:8px;margin-top:10px}.permission-editor .check-row{font-size:12px}.permission-editor .secondary-button{justify-self:start;min-height:36px;font-size:12px}
 .cart-quantity{width:82px;height:38px;border:1px solid var(--line);border-radius:8px;padding:0 8px;background:var(--surface);color:var(--ink)}.space-bottom{margin-bottom:14px}.cart-table{min-width:520px}
+
+/* Iconos sólidos de Shalev y navegación desplazable cuando no caben todas las secciones. */
+.nav-link svg{display:block;width:22px;height:22px;fill:currentColor}
+.rail{overflow-y:auto}
+@media(max-width:760px){
+  .rail{overflow-x:auto;overflow-y:hidden;justify-content:flex-start;overscroll-behavior-x:contain}
+  .nav-link{flex:0 0 auto}
+}

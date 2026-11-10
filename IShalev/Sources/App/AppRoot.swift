@@ -49,14 +49,15 @@ enum MainSection: String, CaseIterable, Identifiable, Equatable {
     case settings = "Ajustes"
 
     var id: String { rawValue }
-    var symbol: String {
+    // Los trazados proceden de ShalevIcons de Android, no de símbolos equivalentes.
+    var iconAsset: String {
         switch self {
-        case .home: "house.fill"
-        case .inventory: "archivebox.fill"
-        case .services: "storefront.fill"
-        case .records: "clock.arrow.circlepath"
-        case .tools: "wrench.and.screwdriver.fill"
-        case .settings: "gearshape.fill"
+        case .home: "ShalevHome"
+        case .inventory: "ShalevInventory2"
+        case .services: "ShalevManoRecibe"
+        case .records: "ShalevHistory"
+        case .tools: "ShalevBuild"
+        case .settings: "ShalevSettings"
         }
     }
 }
@@ -375,8 +376,11 @@ private struct ShalevTabBar: View {
                 Button {
                     withAnimation(ShalevMotion.cambio(reducirMovimiento)) { selection = section }
                 } label: {
-                    Image(systemName: section.symbol)
-                        .font(.shalevIcono(19, weight: .semibold))
+                    Image(section.iconAsset)
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: ShalevDynamicType.escaladoIcono(19), height: ShalevDynamicType.escaladoIcono(19))
                         .foregroundStyle(selected ? Color.shalevOnPrimary : Color.shalevSecondaryText)
                         .frame(width: selected ? 56 : 46, height: 40)
                         .background(selected ? Color.shalevPrimary : .clear, in: Capsule())

@@ -146,3 +146,14 @@ def test_health_is_minimal_and_app_sets_security_headers(tmp_path):
     assert response.json() == {"ok": True, "app": "DShalev", "version": "0.1.0"}
     assert response.headers["x-frame-options"] == "DENY"
     assert "default-src 'self'" in response.headers["content-security-policy"]
+
+
+def test_navegacion_accesible_y_seccion_actual(tmp_path):
+    client = make_client(tmp_path)
+    create_admin(client)
+    login(client)
+    page = client.get('/inventario').text
+    assert '<nav class="rail" aria-label="Navegación principal">' in page
+    assert 'href="/inventario" class="nav-link active" aria-current="page"' in page
+    assert 'href="/ventas" class="nav-link " aria-current' not in page
+    assert 'aria-hidden="true"><svg' in page

@@ -50,6 +50,18 @@ PERMISSION_PROTOCOL = {
 PUBLIC_HOST_RE = re.compile(r"^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\.(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?))*$")
 
 
+def csv_text(value: Any) -> str:
+    """Neutraliza texto que una hoja de cálculo podría evaluar como fórmula.
+
+    Se aplica solo a campos textuales, no a cantidades ni importes numéricos.
+    El apóstrofo es parte del CSV y no modifica los datos guardados.
+    """
+    text = "" if value is None else str(value)
+    if text and (text[0] in "\t\r\n" or text.lstrip().startswith(("=", "+", "-", "@"))):
+        return "'" + text
+    return text
+
+
 def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
@@ -953,7 +965,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         output = io.StringIO(newline="")
         writer = csv.writer(output)
         writer.writerow(["Nombre", "Teléfono", "Correo", "Notas", "Fecha de alta"])
-        writer.writerows([tuple(row) for row in rows])
+        writer.writerows([[csv_text(value) for value in row] for row in rows])
         return Response("\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="clientes.csv"'})
 
     @app.get("/distribucion", response_class=HTMLResponse)
@@ -1168,7 +1180,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         writer = csv.writer(output)
         writer.writerow(["Fecha", "Origen", "Cliente", "Descripción", "Pago", "Total (CUP)"])
         for row in report_sales(start, end):
-            writer.writerow([row.get("fecha", ""), row.get("origen", "Móvil"), row.get("cliente", ""), row.get("descripcion", "Venta"), row["pago"], f"{int(row['total_cents']) / 100:.2f}"])
+            writer.writerow([csv_text(row.get("fecha", "")), csv_text(row.get("origen", "Móvil")), csv_text(row.get("cliente", "")), csv_text(row.get("descripcion", "Venta")), csv_text(row["pago"]), f"{int(row['total_cents']) / 100:.2f}"])
         return Response("\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="ventas-{start}-{end}.csv"'})
 
     @app.get("/reportes/ventas.xlsx")
@@ -1229,7 +1241,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         writer = csv.writer(output)
         writer.writerow(["Nombre", "Categoría", "Unidad", "Existencia", "Precio (CUP)", "Costo (CUP)", "Stock bajo", "Stock crítico"])
         for item in items:
-            writer.writerow([item["name"], item["category"], item["unit"], item["stock"], f"{item['sale_price_cents']/100:.2f}", f"{item['cost_cents']/100:.2f}", item["low_stock"], item["critical_stock"]])
+            writer.writerow([csv_text(item["name"]), csv_text(item["category"]), csv_text(item["unit"]), item["stock"], f"{item['sale_price_cents']/100:.2f}", f"{item['cost_cents']/100:.2f}", item["low_stock"], item["critical_stock"]])
         return Response("\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="inventario.csv"'})
 
     @app.get("/equipo", response_class=HTMLResponse)

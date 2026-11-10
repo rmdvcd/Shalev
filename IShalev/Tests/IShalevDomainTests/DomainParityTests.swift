@@ -371,3 +371,14 @@ final class DomainParityTests: XCTestCase {
         ], payment: .cash))
     }
 }
+
+final class CSVSpreadsheetSafetyTests: XCTestCase {
+    func testNeutralizaFormulasYConservaElTextoOriginal() {
+        for value in ["=1+1", "+cmd", "-1", "@SUMA", "  =1+1", "\ttexto", "\rtexto", "\ntexto", "\r\ntexto"] {
+            XCTAssertEqual(CSVSpreadsheetSafety.text(value), "'" + value)
+        }
+        for value in ["", "Venta normal", "  texto", "Peña, María", "Línea\nnueva"] {
+            XCTAssertEqual(CSVSpreadsheetSafety.text(value), value)
+        }
+    }
+}

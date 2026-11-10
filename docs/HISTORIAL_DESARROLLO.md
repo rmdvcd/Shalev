@@ -2473,3 +2473,15 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
 - Los fallos de upgrade muestran ahora también el cuerpo de la respuesta.
 - CI del relay ampliado a Linux y Windows; pendiente ejecutar ese CI.
 - Verificación local Linux: `npm test --prefix relay` 7/7 correctos. Windows no ejecutado aquí.
+
+### 2026-11-09 — Iconografía de navegación iOS y escritorio
+
+- IShalev utiliza en la barra inferior los vectores sólidos originales de Android, con tintado y etiquetas accesibles de iOS.
+- DShalev usa trazados de Shalev en su navegación, identifica la página actual para lectores de pantalla y permite desplazar la barra cuando las secciones no caben.
+- Las pruebas comparan los trazados compartidos con `ShalevIcons`; esto no implica paridad funcional ni sustituye la compilación y las pruebas visuales en iPhone y Windows.
+
+### 2026-11-09 — Protección de exportaciones CSV de iOS y escritorio
+
+- DShalev neutraliza texto con posibles fórmulas en los CSV de inventario, clientes y ventas, sin modificar los datos originales ni los campos numéricos.
+- IShalev amplía la protección existente para detectar fórmulas tras espacios y controles iniciales, conservando los saltos de línea del texto.
+- Se añadieron pruebas de dominio iOS y de exportación de escritorio; la interpretación del apóstrofo depende de la aplicación que importe el CSV.
