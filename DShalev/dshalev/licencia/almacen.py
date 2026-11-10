@@ -19,9 +19,12 @@ Tres piezas relacionadas:
     la marca. Esto detecta un ajuste burdo del reloj; **no** es un reloj
     confiable antimanipulación ni sustituye a la hora del servidor.
 
-Nada de esto conoce todavía el formato de la licencia GL: ``documento`` es el
-texto firmado exacto que entregue el servicio, guardado como opaco. La
-validación de firma, campos y derechos se añadirá con el contrato.
+``documento`` sigue siendo el sobre JSON firmado exacto que entregó el
+servicio, guardado como texto opaco: el almacén no lo interpreta, pero
+conserva junto a él el último estado verificado y la marca de revocación, de
+modo que una revocación confirmada no se pierde al quedarse sin red ni al
+recibir un documento de estado antiguo. La verificación de firma, campos y
+derechos vive en ``verificador.py``.
 """
 
 from __future__ import annotations
@@ -37,6 +40,7 @@ from typing import Any, Callable, Mapping
 
 from . import proteccion
 from .config_licencia import MAXIMO_DOCUMENTO_LICENCIA, TOLERANCIA_RELOJ
+from .contrato import ESTADOS_LICENCIA
 
 DESCRIPCION_LICENCIA = "DShalev license state"
 DESCRIPCION_ANCLA = "DShalev license anchor"
@@ -44,7 +48,8 @@ VERSION_ALMACEN = 1
 NOMBRE_LICENCIA = "licencia.bin"
 
 _HUELLA_RE = re.compile(r"^[A-Za-z0-9_-]{43}$")
-_APP_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{1,63}$")
+_ORDEN_MIN = datetime.min.replace(tzinfo=timezone.utc)
+_APP_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$")
 
 
 class AlmacenError(RuntimeError):
@@ -78,6 +83,15 @@ def _de_iso(texto: Any) -> datetime:
     return momento.astimezone(timezone.utc)
 
 
+def _reciente(licencia: "LicenciaLocal") -> tuple[datetime, datetime, bool]:
+    """Ordena licencias por guardado, último estado verificado y revocación."""
+    return (
+        licencia.guardada_en,
+        licencia.estado_comprobado_en or _ORDEN_MIN,
+        licencia.revocada,
+    )
+
+
 def _validar_documento(documento: str) -> str:
     if not isinstance(documento, str):
         raise AlmacenError("La licencia recibida no es texto.")
@@ -92,23 +106,54 @@ def _validar_documento(documento: str) -> str:
 
 @dataclass(frozen=True)
 class LicenciaLocal:
-    """Licencia guardada: el documento firmado y cuándo se guardó."""
+    """Licencia guardada, su último estado verificado y la revocación local.
+
+    ``revocada`` es pegajosa: una vez confirmada por un documento de estado
+    firmado, ningún otro documento la borra. Solo una licencia nueva (otro
+    canje) empieza de cero.
+    """
 
     documento: str
     guardada_en: datetime
+    revocada: bool = False
+    ultimo_estado: str | None = None
+    estado_comprobado_en: datetime | None = None
 
     def __post_init__(self) -> None:
         _validar_documento(self.documento)
         object.__setattr__(self, "guardada_en", _normalizar(self.guardada_en))
+        if not isinstance(self.revocada, bool):
+            raise AlmacenError("El estado de revocación no es booleano.")
+        if self.ultimo_estado is not None and self.ultimo_estado not in ESTADOS_LICENCIA:
+            raise AlmacenError("El último estado guardado no es conocido.")
+        if self.estado_comprobado_en is not None:
+            object.__setattr__(self, "estado_comprobado_en", _normalizar(self.estado_comprobado_en))
+        if self.revocada and self.ultimo_estado not in (None, "REVOCADA"):
+            raise AlmacenError("Una licencia revocada no puede tener otro estado.")
 
-    def a_json(self) -> dict[str, str]:
-        return {"documento": self.documento, "guardada_en": _a_iso(self.guardada_en)}
+    def a_json(self) -> dict[str, Any]:
+        return {
+            "documento": self.documento,
+            "guardada_en": _a_iso(self.guardada_en),
+            "revocada": self.revocada,
+            "ultimo_estado": self.ultimo_estado,
+            "estado_comprobado_en": (
+                None if self.estado_comprobado_en is None else _a_iso(self.estado_comprobado_en)
+            ),
+        }
 
     @classmethod
     def desde_json(cls, datos: Any) -> "LicenciaLocal":
         if not isinstance(datos, dict):
             raise ValueError("licencia no es un objeto")
-        return cls(documento=datos.get("documento"), guardada_en=_de_iso(datos.get("guardada_en")))
+        comprobado = datos.get("estado_comprobado_en")
+        return cls(
+            documento=datos.get("documento"),
+            guardada_en=_de_iso(datos.get("guardada_en")),
+            revocada=datos.get("revocada", False),
+            ultimo_estado=datos.get("ultimo_estado"),
+            estado_comprobado_en=None if comprobado in (None, "") else _de_iso(comprobado),
+        )
 
 
 @dataclass(frozen=True)
@@ -328,15 +373,19 @@ class AlmacenLicencia:
             elegida = local
             restauracion = recuperada = False
 
-            if guarda is not None and (local is None or guarda.guardada_en > local.guardada_en):
+            if guarda is not None and (local is None or _reciente(guarda) > _reciente(local)):
                 elegida = guarda
-                if local is not None:
+                if local is None:
+                    recuperada = True
+                elif guarda.guardada_en > local.guardada_en:
                     restauracion = True
                     advertencias.append(
                         "Se restauró una copia anterior de los datos: se conservó la licencia más reciente."
                     )
-                else:
-                    recuperada = True
+                elif guarda.revocada and not local.revocada:
+                    advertencias.append(
+                        "Se recuperó del resguardo una revocación ya confirmada; la licencia sigue revocada."
+                    )
                 self._escribir_licencia(guarda)
             elif local is not None and guarda is None:
                 # Primer arranque con licencia ya guardada (o ancla perdido): se resguarda.
@@ -368,9 +417,30 @@ class AlmacenLicencia:
                 advertencias=tuple(advertencias),
             )
 
-    def guardar_licencia(self, documento: str, *, ahora: datetime | None = None) -> LicenciaLocal:
-        """Guarda la licencia ya validada. El resguardo se escribe antes que el espejo."""
-        licencia = LicenciaLocal(documento=_validar_documento(documento), guardada_en=_normalizar(ahora or self._ahora()))
+    def guardar_licencia(
+        self,
+        documento: str,
+        *,
+        ahora: datetime | None = None,
+        estado: str | None = None,
+    ) -> LicenciaLocal:
+        """Guarda la licencia ya validada. El resguardo se escribe antes que el espejo.
+
+        Sustituir el documento solo es legítimo tras verificar la firma del
+        servicio; por eso el estado de comprobación remota empieza vacío y solo
+        lo llena ``registrar_estado`` con el ``checkedAt`` firmado. Así un
+        estado del servidor no se descarta por compararlo con la hora local.
+        """
+        if estado is not None and estado not in ESTADOS_LICENCIA:
+            raise AlmacenError("Estado de licencia desconocido.")
+        momento = _normalizar(ahora or self._ahora())
+        licencia = LicenciaLocal(
+            documento=_validar_documento(documento),
+            guardada_en=momento,
+            revocada=estado == "REVOCADA",
+            ultimo_estado=estado,
+            estado_comprobado_en=None,
+        )
         with self._cerrojo:
             self.ancla.registrar_licencia(licencia)
             try:
@@ -381,3 +451,47 @@ class AlmacenLicencia:
                     f"se recuperará al reiniciar. {exc}"
                 ) from None
         return licencia
+
+    # ── estado remoto ────────────────────────────────────────────────────────
+    def registrar_estado(
+        self,
+        estado: str,
+        *,
+        comprobado_en: datetime,
+        ahora: datetime | None = None,
+    ) -> bool:
+        """Aplica un estado ya verificado; devuelve ``True`` si avanzó.
+
+        Reglas deliberadamente conservadoras:
+
+        * un documento con ``checkedAt`` anterior o igual al último aceptado se
+          ignora (respuesta antigua o repetida);
+        * ``REVOCADA`` es pegajoso: un documento posterior que diga ``ACTIVA``
+          no reactiva la licencia;
+        * la falta de red nunca llega aquí, así que no puede borrar nada.
+        """
+        if estado not in ESTADOS_LICENCIA:
+            raise AlmacenError("Estado de licencia desconocido.")
+        momento = _normalizar(comprobado_en)
+        with self._cerrojo:
+            resultado = self.observar(ahora)
+            actual = resultado.licencia
+            if actual is None:
+                raise AlmacenError("No hay licencia guardada a la que aplicar el estado.")
+            if actual.estado_comprobado_en is not None and momento <= actual.estado_comprobado_en:
+                return False
+            nuevo_estado = "REVOCADA" if actual.revocada else estado
+            licencia = LicenciaLocal(
+                documento=actual.documento,
+                guardada_en=actual.guardada_en,
+                revocada=actual.revocada or estado == "REVOCADA",
+                ultimo_estado=nuevo_estado,
+                estado_comprobado_en=momento,
+            )
+            self.ancla.registrar_licencia(licencia)
+            self._escribir_licencia(licencia)
+            return True
+
+    def marcar_revocada(self, *, comprobado_en: datetime, ahora: datetime | None = None) -> bool:
+        """Atajo para persistir una revocación confirmada por el servicio."""
+        return self.registrar_estado("REVOCADA", comprobado_en=comprobado_en, ahora=ahora)

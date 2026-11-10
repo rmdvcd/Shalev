@@ -39,6 +39,31 @@ jobs:
         shell: pwsh
         working-directory: DShalev
         run: .\build_windows.ps1
+      - name: Probar el ejecutable portable
+        shell: pwsh
+        working-directory: DShalev
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path .\dist\DShalev.exe).Path
+          $proceso = Start-Process -FilePath $exe -ArgumentList '--no-browser', '--port', '47999' -PassThru
+          try {
+            $listo = $false
+            for ($intento = 0; $intento -lt 120; $intento++) {
+              Start-Sleep -Milliseconds 500
+              try {
+                $salud = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:47999/healthz' -TimeoutSec 2
+                if ($salud.StatusCode -eq 200) { $listo = $true; break }
+              } catch { }
+            }
+            if (-not $listo) { throw 'El ejecutable no respondió en /healthz en 60 s.' }
+            $inicio = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:47999/configurar' -TimeoutSec 5
+            if ($inicio.StatusCode -ne 200 -or $inicio.Content -notmatch 'DShalev') {
+              throw 'El ejecutable no sirvió la configuración inicial.'
+            }
+            Write-Host 'El ejecutable portable arranca y sirve la interfaz.' -ForegroundColor Green
+          } finally {
+            taskkill /PID $proceso.Id /T /F | Out-Null
+          }
       - name: Publicar DShalev.exe
         uses: actions/upload-artifact@v4
         with:
