@@ -1,5 +1,16 @@
 # Shalev — Verificación real
 
+## Auditoría IPV/POS: trazabilidad DShalev (2026-11-10, branch `arena/ddc0bb64-shalev`)
+
+- `cd DShalev && .venv/bin/python -m py_compile dshalev/app.py dshalev/sync_server.py dshalev/database.py dshalev/inventory.py`: OK.
+- `cd DShalev && .venv/bin/pytest -q`: **112 passed**, 1 aviso de deprecación Starlette/anyio. Incluye el contrato aditivo de `/api/v1/catalog` (alias `stock` heredado + milésimas enteras), migración 8→9, ledger append-only y CSV, POS con replay de idempotencia tras recrear la app/base, anulación, comandos después de 520 claves y ledger de ventas/correcciones/anulaciones móviles.
+- `cd DShalev && npm test`: **6/6 passed** (carrito, restauración de borrador, cambio de precios, conflicto que rota/limpia clave y tema).
+- **Room (validación estática complementaria):** se recalcularon y coincidieron los `identityHash` de v16 (`60860bf80b0491be9b7e65e74bbeb425`) y v17 (`6d91036960030585952d618266030876`). Aplicar `MIGRACION_16_17` con SQLite de Python deja el mismo esquema que `17.json` según `PRAGMA` (21 entidades); esto no reemplaza la validación de Room/KSP.
+- **Android/iOS no compilados:** `./gradlew :data:testDebugUnitTest` se intentó y no pudo iniciar: falta `java`/JDK; tampoco están definidos `ANDROID_HOME` ni `ANDROID_SDK_ROOT`. Android añade recibos idempotentes Room v17 y pruebas instrumentadas de migración/reinicio/contenido/concurrencia, aún sin ejecutar. Se confirmó estáticamente que el filtro Android compara nombre, categoría y descripción; se amplió su test JVM, también pendiente de ejecución. iOS solo tuvo corrección del texto de búsqueda; `swift` y `xcodebuild` tampoco están instalados. No se declara compilación móvil verificada.
+- `git diff --check`: **OK** en el diff final; también se comprobó que los cinco archivos nuevos no contienen espacios finales.
+- Pruebas locales/loopback no validan Windows, navegador real, teléfonos ni redes físicas. Sin afirmar cumplimiento PCI. Las compras/recepción, SKU/barcode, roles/ubicaciones y conteo ciego siguen fuera de esta implementación.
+- Pruebas locales/loopback no validan Windows, navegador real, teléfonos ni redes físicas. Sin afirmar cumplimiento PCI. Las compras/recepción, SKU/barcode, roles/ubicaciones y conteo ciego siguen fuera de esta implementación.
+
 ## DShalev web/sync (2026-11-08, branch `arena/526d8508-shalev`)
 
 - `cd DShalev && .venv/bin/pytest -q`: **25 passed**, 1 aviso de deprecación Starlette/anyio. Incluye flujos web de inventario/POS, recetas e insumos fraccionarios, turnos/caja, clientes, reportes y exportes, respaldo cifrado de base+fotos+APK, SPVI en loopback, aprobaciones, cancelación/corrección simple y transferencia de medios.

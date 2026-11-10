@@ -1,16 +1,16 @@
 # Auditoría comparativa IPV/POS: Shalev Android, IShalev y DShalev
 
 - **Fecha:** 2026-11-10
-- **Revisión:** `5af8ca6` (`main` como base; rama de trabajo `arena/acaaabda-shalev`)
+- **Revisión inicial:** `main` en `e602ba4` (base de este checkout); remediación en la rama `arena/ddc0bb64-shalev`
 - **Referencia:** skill IPV/POS adjunta a la solicitud.
 - **Objeto:** contrastar operación offline, movimientos e idempotencia, SKU/códigos de barras, compras y recepción, checkout, caja, informes, locales, roles, seguridad y PCI.
 
-> **Conclusión ejecutiva.** Android e iOS muestran una base móvil offline-first con almacenamiento local, operaciones de venta ligadas al inventario y colas/identificadores para sincronizar. DShalev tiene validaciones y transacciones de venta en servidor, pero no convierte el navegador en un POS offline: conserva un borrador de carrito, no una venta pendiente de envío. Los riesgos de mayor prioridad están en la precisión y trazabilidad del inventario fraccionario de DShalev, la repetición de una venta web tras un resultado de red ambiguo y la falta de atribución/anulación auditable de ventas web. Las tres apps carecen de un flujo funcional de SKU/código de barras, y no se encontró un flujo de órdenes de compra/recepción de mercancía. **Este informe no declara cumplimiento PCI DSS ni evalúa una certificación.**
+> **Conclusión ejecutiva (hallazgos en la revisión inicial).** Android e iOS muestran una base móvil offline-first con almacenamiento local, operaciones de venta ligadas al inventario y colas/identificadores para sincronizar. DShalev tiene validaciones y transacciones de venta en servidor, pero no convierte el navegador en un POS offline: conserva un borrador de carrito, no una venta pendiente de envío. La revisión inicial identificó riesgos en la precisión y trazabilidad del inventario fraccionario de DShalev, la repetición de una venta web tras un resultado de red ambiguo y la falta de atribución/anulación auditable de ventas web. **Actualización de remediación (2026-11-10, esta rama):** esos tres hallazgos se corrigieron en DShalev; Android añade recibos persistentes de comandos. Falta ejecutar la suite instrumentada Android. Siguen sin SKU/barcode, flujo de compra/recepción ni estado de sincronización visible completo; estos puntos no se inventan sin decisiones de negocio. **Este informe no declara cumplimiento PCI DSS ni evalúa una certificación.**
 
 ## Alcance y método
 
 - Revisión estática de los modelos, repositorios, rutas y pantallas relevantes de las tres aplicaciones, contrastada con la skill IPV/POS. Se incluyen referencias `ruta:línea` para facilitar la comprobación.
-- Se ejecutaron las suites disponibles de DShalev. No se modificó lógica de aplicación durante la auditoría; el único cambio de esta tarea es este informe.
+- En la pasada inicial se ejecutaron las suites disponibles de DShalev y no se modificó lógica de aplicación. Después, a solicitud del usuario, esta rama implementó remediaciones concretas; su estado y verificaciones se anotan al pie de cada hallazgo.
 - **Comprobado** significa visible en código o reproducido en una prueba puntual. **Brecha/no encontrado** significa que no se encontró implementación en el código revisado; no prueba que no exista un proceso externo del comercio. **Pendiente de validar** indica que requiere toolchain, dispositivo, red o proceso real.
 - No se hicieron pruebas en teléfonos físicos, terminales de pago, redes de tienda/Internet, Windows empaquetado, restauración de respaldos en otros equipos ni integración real Android↔iOS↔DShalev. La revisión no es una prueba de penetración ni una auditoría formal de controles.
 
@@ -19,64 +19,71 @@
 | Dominio de la skill | Shalev Android | IShalev (iOS) | DShalev (escritorio) |
 |---|---|---|---|
 | Operación offline | Venta local durante el turno; sincronización diferida de secundarias | Venta y datos locales; sincronización LAN diferida | El POS del navegador requiere servidor alcanzable; `sessionStorage` restaura el borrador, no una venta offline |
-| Inventario e idempotencia | Movimientos y ventas transaccionales; UUID en sincronización. Una venta secundaria puede dejar una existencia negativa en la principal si compite con otras ventas | Existencias enteras en milésimas, movimientos y registros UUID/sync | Venta web validada y transaccional, pero sin clave idempotente web; edición de existencias sin libro general de movimientos y riesgo con fracciones |
-| SKU / código de barras | Campo no encontrado; el buscador anuncia código | Campo no encontrado; el buscador anuncia código | Campo/columna no encontrado; búsqueda por nombre |
+| Inventario e idempotencia | Movimientos y ventas transaccionales; recibos persistentes para comandos con clave. Una venta secundaria puede dejar una existencia negativa en la principal si compite con otras ventas | Existencias enteras en milésimas, movimientos y registros UUID/sync | Existencias canónicas en milésimas, libro de movimientos append-only, POS idempotente y atribuido; siguen pendientes las ventas offline |
+| SKU / código de barras | Campo no encontrado; buscador por nombre, categoría y descripción | Campo no encontrado; buscador por nombre, categoría y descripción | Campo/columna no encontrado; búsqueda por nombre |
 | Compras y recepción | No se encontró orden de compra, proveedor ni recepción de artículos | No se encontró flujo de recepción de inventario/proveedores | No se encontró orden/recepción; hay fichas de costo y movimientos de efectivo, que no equivalen a recibir mercancía |
-| Checkout | Venta exige turno y aplica reglas de stock; operación secundaria puede quedar pendiente de sincronización | Venta local, comprobación de stock y cambios/anulaciones con motivo en los casos previstos | Validaciones de precio, turno, stock e insumos en el servidor; un reintento de un POST de resultado incierto puede duplicar |
+| Checkout | Venta exige turno y aplica reglas de stock; operación secundaria puede quedar pendiente de sincronización | Venta local, comprobación de stock y cambios/anulaciones con motivo en los casos previstos | Validaciones de precio, turno, stock e insumos; clave idempotente evita duplicados tras reintento, pero el navegador sigue requiriendo conexión |
 | Caja / arqueo | Apertura, entradas/salidas, conteo y diferencia | Apertura, entradas/salidas, conteo y diferencia | Apertura, movimientos, contado/diferencia; no se encontró conteo de inventario en el cierre web |
 | Informes | Más vendidos, lento movimiento, rentabilidad, servicios, empleados/clientes | Ventas, ganancia y rankings | Ventas por período y CSV/XLSX; Top 3 solo de ventas web, no se encontró informe de exactitud/rotación de inventario |
 | Locales | Datos etiquetados por local | Productos, ventas y movimientos asociados a local | Locales separados por arranque/base; sin selector ni consolidación, con advertencia de no ejecutar dos procesos sobre el mismo local |
-| Roles | Cinco permisos base de secundaria y verificación de comandos en principal | Permisos locales más granulares y PIN protegido; no se sincronizan con Android | Esquema `admin/staff`, pero el alta web inspeccionada crea admin; muchas rutas usan sesión genérica y las ventas web no guardan actor |
+| Roles | Cinco permisos base de secundaria y verificación de comandos en principal | Permisos locales más granulares y PIN protegido; no se sincronizan con Android | Esquema `admin/staff`, pero el alta web crea admin y no se encontró flujo de altas de `staff`; ventas web ya registran actor |
 | PCI / pagos | Efectivo y transferencia manual | Efectivo y transferencia manual; datos de destino de transferencia congelados en venta | Efectivo y transferencia; no se encontró adquirencia/terminal ni liquidación de lotes |
 
 La matriz refleja código inspeccionado, no paridad certificada ni resultado de pruebas end-to-end.
 
 ## Hallazgos priorizados
 
-### P1 — Integridad del inventario fraccionario y ausencia de libro de movimientos en DShalev
+### Hallazgo P1 (remediado en DShalev) — Integridad del inventario fraccionario y ausencia de libro de movimientos
 
-**Hechos comprobados**
+**Hechos de la revisión inicial (antes de la remediación)**
 
 - En Android, los productos se almacenan en unidades enteras y los insumos en milésimas. Las altas, ediciones y ajustes de existencias se guardan junto con movimientos; al editar una cantidad, el motivo se guarda como el texto genérico `Edición` (`domain/src/main/kotlin/cu/shalev/domain/model/Producto.kt:8-27`, `data/src/main/kotlin/cu/shalev/data/repository/ProductoRepositoryImpl.kt:49-80`, `data/src/main/kotlin/cu/shalev/data/repository/InsumoRepositoryImpl.kt:45-78`). La venta agrupa líneas y descuenta producto/insumo dentro de una transacción; si falta stock, revierte la operación (`data/src/main/kotlin/cu/shalev/data/repository/VentaRepositoryImpl.kt:36-46, 72-110`).
 - IShalev usa `Int64` en milésimas y conserva movimientos con fecha, razón, turno, actor y local (`IShalev/Sources/Domain/Domain.swift:207-238, 314-327`). El cierre y los movimientos por venta actualizan el estado y escriben el movimiento correspondiente antes de persistir (`IShalev/Sources/Domain/Domain.swift:1450-1498, 1930-1985`). Al editar stock desde la ficha, el motivo puede ser el genérico `Ajuste manual` (`IShalev/Sources/Domain/Domain.swift:1225-1238`); el flujo de ajuste dedicado sí exige motivo (`IShalev/Sources/Domain/Domain.swift:1254-1267`).
 - En DShalev, el esquema declara `items.stock INTEGER` sin escala fija ni restricción entera estricta (`DShalev/dshalev/database.py:31-43`). Para insumos, el validador Decimal devuelve `float` (`DShalev/dshalev/app.py:181-188`) y los movimientos de recetas descuentan fracciones (`DShalev/dshalev/app.py:869-889`). La edición web sobrescribe `stock` en una transacción, pero no crea un evento de inventario ni solicita motivo (`DShalev/dshalev/app.py:624-653`); el esquema inspeccionado no contiene una tabla general de movimientos de stock.
 - Se reprodujo en SQLite el caso equivalente `0.3 - 0.1`: el tipo `INTEGER` con afinidad SQLite conserva `0.19999999999999998` como `REAL`; al convertir ese valor a milésimas con truncamiento da `199`, no `200`. El código convierte de esa forma el saldo de insumo al revisar receta (`DShalev/dshalev/app.py:871-875`). Es una reproducción aislada del riesgo de representación/truncamiento, no evidencia de pérdida histórica en datos de producción.
 
-**Prioridad:** alta para DShalev por posible deriva de existencias y falta de evidencia para explicar/reconstruir ajustes. Android e iOS conservan movimientos, aunque deben mejorar los motivos genéricos.
+**Prioridad original:** alta para DShalev por posible deriva de existencias y falta de evidencia para explicar/reconstruir ajustes. **Estado actual:** remediado y cubierto por la suite Python de DShalev; permanecen los riesgos distintos enumerados en el estado de remediación y en los hallazgos P2.
 
-**Recomendación:** migrar cantidades fraccionarias a enteros en escala fija (por ejemplo, milésimas), usar aritmética decimal/entera de extremo a extremo, añadir restricciones y migración con conciliación de saldos; registrar cada alta, ajuste, recepción, venta, devolución y anulación como evento append-only con actor, motivo, origen, referencia y saldo resultante. Añadir pruebas de propiedades alrededor de 0.001, recetas compartidas, concurrencia, cancelación y migración de datos existentes.
+**Recomendación inicial:** migrar cantidades fraccionarias a enteros en escala fija (por ejemplo, milésimas), usar aritmética decimal/entera de extremo a extremo, añadir restricciones y migración con conciliación de saldos; registrar cambios de inventario como eventos append-only con actor, motivo, origen, referencia y saldo resultante.
 
-### P1 — La venta web no tiene idempotencia de reintento
+**Estado tras remediación (2026-11-10):** implementado en DShalev con `stock_milli`, `low_stock_milli` y `critical_stock_milli` enteros, migración desde los campos heredados, restricciones de rango, aritmética decimal de milésimas y tabla `inventory_movements` con triggers que impiden UPDATE/DELETE. El saldo anterior se registra como `MIGRACION` sin inventar historia. El API conserva `stock`/`low_stock` y añade los valores enteros canónicos. El ajuste inicial, los formularios, POS, recetas, correcciones, anulaciones y sincronización registran eventos; pruebas cubren migración, fracciones, límites, libro append-only y exportación CSV (**112 pruebas Python pasan**). Se mantiene la advertencia de que productos vendidos en secundarias pueden quedar negativos en la principal por concurrencia offline; esa conciliación no se cambió.
 
-**Hechos comprobados**
+### Hallazgo P1 (remediado en DShalev) — La venta web no tenía idempotencia de reintento
+
+**Hechos de la revisión inicial (antes de la remediación)**
 
 - La venta web de DShalev se crea con `POST /ventas/nueva`; valida sesión/CSRF y ejecuta cabecera, líneas y descuentos dentro de una transacción (`DShalev/dshalev/app.py:807-814, 843-889`). Sin embargo, la inserción no incluye UUID ni clave idempotente (`DShalev/dshalev/app.py:876-879`), y la tabla `sales` no define esa clave (`DShalev/dshalev/database.py:148-165`). El carrito guardado por `pos.js` en `sessionStorage` contiene solo artículos, cliente y método de pago, y se borra al confirmarse el guardado (`DShalev/dshalev/static/pos.js:23-45`). El README advierte que, tras una interrupción al registrar, se consulte el historial antes de volver a intentar (`DShalev/README.md:85-89`).
 - En Android, la venta tiene UUID y estado de sincronización; la principal omite UUID ya recibidos al aplicar el lote (`data/src/main/kotlin/cu/shalev/data/repository/VentaRepositoryImpl.kt:55-64`, `data/src/main/kotlin/cu/shalev/data/sync/AlmacenSync.kt:168-174`). IShalev mantiene ID UUID y bandera `synced` en la venta (`IShalev/Sources/Domain/Domain.swift:280-305`), con sincronización diferida descrita en `IShalev/README.md:32`.
 - **Controles de checkout observados:** Android exige turno abierto y aplica el descuento en la transacción de la venta (`data/src/main/kotlin/cu/shalev/data/repository/VentaRepositoryImpl.kt:50-53, 72-110`); IShalev exige turno, calcula una vista previa y aplica stock antes de confirmar la nueva venta (`IShalev/Sources/Domain/Domain.swift:1640-1684, 1930-1985`). DShalev valida método de pago, turno, precio, stock e insumos antes de confirmar (`DShalev/dshalev/app.py:840-889`). Son controles contra ventas inválidas o descuentos parciales, pero no sustituyen idempotencia ante reintento.
 
-**Riesgo:** si el servidor persiste una venta pero se pierde la respuesta, el cajero puede reintentar y crear otra venta. La transacción evita descuentos parciales, pero no evita que se procese dos veces una solicitud repetida.
+**Riesgo original:** si el servidor persistía una venta pero se perdía la respuesta, el cajero podía reintentar y crear otra venta. Ese riesgo se mitiga en DShalev con la clave persistente descrita a continuación; las pruebas ejecutadas no sustituyen fallos de red en producción.
 
-**Recomendación:** asignar un UUID a cada intento lógico de venta en el cliente; persistirlo con restricción única y respuesta en el servidor dentro de la misma transacción. Repetir la misma clave y el mismo contenido debe devolver el resultado original; reutilizarla con contenido distinto debe rechazarse. Probar timeout antes/después del commit, doble clic, recarga y reintento.
+**Recomendación inicial:** asignar un UUID a cada intento lógico de venta en el cliente; persistirlo con restricción única y respuesta en el servidor dentro de la misma transacción. Repetir la misma clave y el mismo contenido debe devolver el resultado original; reutilizarla con contenido distinto debe rechazarse.
 
-### P1 — Atribución y reversión de ventas web insuficientes para una pista de auditoría
+**Estado tras remediación (2026-11-10):** el formulario POS guarda la clave de intento en el borrador y el servidor persiste la respuesta y valida la huella dentro de la transacción de venta. Un replay idéntico no descuenta dos veces; una clave con otro contenido se rechaza. Pruebas cubren replay al recrear app/base, conflicto de contenido, rutas con JavaScript/no JavaScript y el ciclo de checkout. DShalev pasa las 112 pruebas Python y 6 pruebas Node.
 
-**Hechos comprobados**
+### Hallazgo P1 (remediado para nuevas ventas web) — Atribución y reversión insuficientes
+
+**Hechos de la revisión inicial (antes de la remediación)**
 
 - La tabla web de ventas no tiene un campo dedicado a `user_id`/actor ni campos de anulación web (`DShalev/dshalev/database.py:148-157`). El manejador web crea la venta sin guardar el usuario autenticado (`DShalev/dshalev/app.py:807-814, 876-879`). Aunque existe una columna `employee_id`, el formulario web no la establece; el campo corresponde también al esquema móvil.
 - En el historial de DShalev, `sales.html` ofrece anulación/corrección solo para ventas móviles elegibles; las ventas web muestran `—` (`DShalev/dshalev/templates/sales.html:30`). No se encontró una acción equivalente de reversión auditable para venta web.
 - Android registra actor, UUID y anulaciones en la venta; IShalev conserva vendedor, estado y motivo de anulación/corrección (`data/src/main/kotlin/cu/shalev/data/repository/VentaRepositoryImpl.kt:59-64`; `IShalev/Sources/Domain/Domain.swift:280-305, 1687-1706`).
 
-**Recomendación:** guardar actor de la sesión en cada venta y movimiento; implementar reversión/corrección mediante eventos compensatorios con motivo, usuario, hora y vínculo a la operación original. Evitar borrar/modificar silenciosamente registros de venta. Incluir permisos y exportes de historial de auditoría.
+**Recomendación inicial:** guardar actor de la sesión en cada venta y movimiento; implementar reversión/corrección mediante eventos compensatorios con motivo, usuario, hora y vínculo a la operación original. Evitar borrar/modificar silenciosamente registros de venta. Incluir permisos y exportes de historial de auditoría.
 
-### P2 — SKU/código de barras ausente y búsqueda con texto engañoso
+**Estado tras remediación (2026-11-10):** las ventas web guardan `actor_id` y el registro de venta/stock queda atribuido; la anulación conserva la venta, agrega movimientos compensatorios con motivo, actor, hora y referencia, y los agregados de informes/efectivo excluyen anuladas. El historial mantiene su estado para mostrar anuladas. El suite incluye atribución y anulación/corrección; continúan pendientes las decisiones de permisos/roles web señaladas en P2.
+
+### P2 — SKU/código de barras ausente (texto de búsqueda ya corregido)
 
 **Hechos comprobados**
 
-- El modelo Android `Producto` no incluye SKU ni barcode (`domain/src/main/kotlin/cu/shalev/domain/model/Producto.kt:13-28`), pero el buscador anuncia «código» (`app/src/main/kotlin/cu/shalev/app/inventario/InventarioLogic.kt:16-19`). El filtro compara nombre, categoría y descripción, no un código (`domain/src/main/kotlin/cu/shalev/domain/service/InventarioFiltro.kt:83-87`). Una prueba también verifica que la ficha/PDF no muestran campo «Código» (`domain/src/test/kotlin/cu/shalev/domain/EscanerInventarioTest.kt:85-91`).
-- IShalev presenta placeholder «Buscar por nombre, categoría o código», pero el filtro examinado solo compara nombre, categoría y descripción (`IShalev/Sources/Features/InventoryView.swift:88-119`); `Product` tampoco tiene propiedad barcode/SKU (`IShalev/Sources/Domain/Domain.swift:207-238`).
-- El catálogo web DShalev no tiene columna de código en el esquema de artículos (`DShalev/dshalev/database.py:31-43`) y la búsqueda de artículos del POS aplica `LIKE` al nombre (`DShalev/dshalev/app.py:797-805`).
+- El modelo Android `Producto` no incluye SKU ni barcode (`domain/src/main/kotlin/cu/shalev/domain/model/Producto.kt`); el filtro sí compara nombre, categoría y descripción (`domain/src/main/kotlin/cu/shalev/domain/service/InventarioFiltro.kt`) y el texto actual ya no promete buscar por código. Se amplió una prueba para comprobar búsqueda por los tres campos.
+- IShalev tampoco tiene propiedad barcode/SKU; el placeholder se corrigió para coincidir con sus filtros de nombre, categoría y descripción (`IShalev/Sources/Features/InventoryView.swift`).
+- El catálogo web DShalev no tiene columna de código en el esquema de artículos (`DShalev/dshalev/database.py`) y la búsqueda de artículos del POS aplica `LIKE` al nombre (`DShalev/dshalev/app.py`).
+- **Estado:** corregidas las etiquetas engañosas en Android/iOS y verificada por inspección la implementación del filtro Android; el test JVM ampliado no se pudo ejecutar por falta de JDK. SKU/barcode sigue fuera del alcance implementado y requiere una definición de unicidad/local/variantes.
 
-**Recomendación:** hasta implementar la función, cambiar los textos de búsqueda para no prometerla. Después, agregar SKU y uno o varios códigos normalizados, unicidad con alcance definido por local/variante, índices, captura por escáner/cámara, alta manual y pruebas de códigos duplicados, GTIN/EAN/UPC, búsqueda con/sin dígitos de control y productos con variantes.
+**Recomendación:** el texto engañoso ya se corrigió. Antes de implementar SKU/barcode, definir si el dato es SKU, GTIN/EAN/UPC u otro, cuántos códigos puede tener cada artículo y el alcance de unicidad entre locales/variantes; después añadir almacenamiento, índice, captura por escáner/cámara, alta manual y pruebas de duplicados y dígitos de control.
 
 ### P2 — Conflictos de sincronización móvil pueden producir saldo negativo en la principal
 
@@ -89,13 +96,18 @@ La matriz refleja código inspeccionado, no paridad certificada ni resultado de 
 
 **Recomendación:** mostrar en checkout y recibo el estado local/pendiente/confirmado, número de pendientes y última sincronización; alertar y abrir tarea de conciliación cuando haya saldo negativo o catálogo obsoleto. No tratar un movimiento como aplicado/confirmado hasta registrar su recibo de forma durable en ambos lados. Probar varios equipos vendiendo el último artículo y la recuperación tras cierre/reinicio.
 
-### P2 — Idempotencia de comandos remotos limitada por cachés acotadas
+### P2 — Idempotencia de comandos remotos y alcance de retención
 
-- Android evita repetir comandos remotos con una clave y devuelve la respuesta anterior, pero `MemoriaComandos` es una caché en memoria con capacidad de 200; el propio comentario advierte que un reinicio de la principal pierde los resultados (`data/src/main/kotlin/cu/shalev/data/sync/EjecutorComandos.kt:35-37`; `data/src/main/kotlin/cu/shalev/data/sync/MemoriaComandos.kt:7-34`). Un comando de ajuste reenviado tras reinicio o expulsión de la caché podría aplicarse otra vez.
-- DShalev guarda recibos de comando en `sync_commands`, valida la huella y el permiso, pero elimina las claves más antiguas y conserva solo las 512 recientes por empleado; los comandos sin clave no se deduplican (`DShalev/dshalev/database.py:239-246`; `DShalev/dshalev/sync_server.py:601-652`).
-- Esto no contradice la idempotencia persistente de ventas móviles por UUID descrita arriba: el límite corresponde a comandos remotos de catálogo/ajuste, no al UUID de la venta.
+**Hallazgo original:** las claves de comandos remotos podían perder su recibo por reinicio o poda; una misma clave con otro contenido debía rechazarse sin mutar el catálogo. Esto no afecta a la idempotencia de ventas móviles por UUID descrita arriba.
 
-**Recomendación:** hacer durable el recibo de cada comando en la misma transacción que su mutación, exigir clave a clientes vigentes y definir una retención que cubra reintentos posibles durante la vida de la credencial. Probar reenvío después de reiniciar la principal, superar el límite de caché y reenviar la misma clave con contenido diferente.
+**Estado de implementación en esta rama (2026-11-10):**
+
+- **Android:** eliminado el LRU `MemoriaComandos`. Room v17 guarda `(empleadoId, clave, huella SHA-256 de la acción, resultado)` y aplica la acción y el recibo dentro de una transacción SQLite. Un replay tras reiniciar la principal reproduce la respuesta; otra acción bajo la misma clave devuelve `clave_reutilizada` sin tocar el recibo original. La migración 16→17 es aditiva. Hay pruebas instrumentadas de reapertura de la base, conflicto de contenido, respuestas con error y reintentos concurrentes; no se pudieron ejecutar aquí por falta de JDK/Android SDK.
+- **DShalev:** los recibos de `sync_commands` son persistentes, verifican la huella, se escriben junto con la mutación y ya no se podan a las 512 claves. La suite cubre 520 claves, replay tras cerrar/reabrir la base y conflicto de contenido sin repetir el ajuste.
+- **Compatibilidad:** los clientes que ya envían UUID conservan la clave a través de los reintentos; los clientes SPVI antiguos que no mandan clave siguen ejecutando como antes y no obtienen deduplicación.
+- **Retención:** los recibos no se podan, para no fijar una ventana de reintento arbitraria; las tablas crecerán con el uso. La importación de respaldo Android limpia los recibos porque reemplaza el estado de negocio, por lo que un respaldo no incluye el historial transitorio de comandos.
+
+**Verificación pendiente:** ejecutar las pruebas instrumentadas Android en un entorno con JDK y SDK. Antes de definir una retención finita habría que acordar un límite de reintento compatible con las credenciales y el funcionamiento offline.
 
 ### P2 — No se encontró flujo de compra, proveedor ni recepción de mercancía
 
@@ -105,7 +117,7 @@ En el código revisado no se encontró un modelo/flujo de órdenes de compra, pr
 
 ### P2 — Permisos no equivalentes entre aplicaciones; riesgo latente en cuentas web `staff`
 
-- Android define cinco permisos base de secundaria y la app principal comprueba autorización antes de ejecutar comandos (`domain/src/main/kotlin/cu/shalev/domain/model/Vinculacion.kt:22-40`; `data/src/main/kotlin/cu/shalev/data/sync/EjecutorComandos.kt:22-45,101-105`). DShalev también valida permisos de comandos SPVI en el servidor (`DShalev/dshalev/sync_server.py:594-652`); la retención de idempotencia de esos comandos es limitada, como se detalla en el hallazgo P2 correspondiente.
+- Android define cinco permisos base de secundaria y la app principal comprueba autorización antes de ejecutar comandos (`domain/src/main/kotlin/cu/shalev/domain/model/Vinculacion.kt:22-40`; `data/src/main/kotlin/cu/shalev/data/sync/EjecutorComandos.kt:22-45,101-105`). DShalev también valida permisos de comandos SPVI en el servidor (`DShalev/dshalev/sync_server.py:594-652`); la idempotencia de esos comandos se conserva en `sync_commands`, como se detalla en el hallazgo P2 correspondiente.
 - IShalev tiene permisos locales más granulares, PIN de 6–12 dígitos, verificador PBKDF2 y bloqueo tras cinco fallos por 15 minutos; estos perfiles/permisos no se sincronizan con Android (`IShalev/Sources/Features/EmployeeSettingsView.swift:73-78`; `IShalev/Sources/Domain/Domain.swift:1102-1120`; `IShalev/README.md:110`). El mapeo iOS concede, por ejemplo, caja y registros al permiso base de venta (`IShalev/Sources/Domain/SyncManager.swift:115-122`). Debe confirmarse que esos derechos implícitos son una decisión intencional.
 - DShalev declara roles `admin` y `staff` (`DShalev/dshalev/database.py:23-29`), pero el flujo de configuración crea solo el admin (`DShalev/dshalev/app.py:276-314`) y «Equipo» administra plazas móviles, no cuentas de personal del navegador (`DShalev/dshalev/templates/employees.html:1-10`). Varias rutas web comprobadas solo requieren sesión autenticada; `require_admin` existe y se usa en rutas seleccionadas (`DShalev/dshalev/app.py:146-152, 215-217`). No se encontró flujo para crear/configurar usuarios web `staff`.
 
@@ -147,16 +159,16 @@ Por tanto, este repositorio y esta auditoría **no permiten concluir cumplimient
 
 ## Verificación ejecutada y límites
 
-- **DShalev:** `npm test` — **5/5**; `pytest -q` — **107/107**, con un warning. También se reprodujo de forma aislada el caso SQLite de fracciones descrito en `P1`.
-- **Android:** no se pudo compilar ni ejecutar pruebas aquí: falta Java/JDK y Android SDK (`java: command not found`; `ANDROID_HOME` vacío en la comprobación previa).
+- **DShalev:** `python -m py_compile` — OK; `pytest -q` — **112 passed**, 1 warning; `npm test` — **6/6**. Incluye movimientos de stock, aritmética en milésimas, POS idempotente, actor/anulación, comandos después de 520 claves y compatibilidad de los alias del API.
+- **Android:** no se pudo compilar ni ejecutar pruebas aquí: `./gradlew :data:testDebugUnitTest` no inicia porque falta Java/JDK; `ANDROID_HOME` y `ANDROID_SDK_ROOT` están vacíos. El `identityHash` v16/v17 y el SQL 16→17 se contrastaron estáticamente contra los JSON versionados, y SQLite/Python confirmó que la migración produce el esquema de v17 para 21 entidades; esto no es una ejecución de Room/KSP. Se añadieron pruebas instrumentadas de Room v17, reapertura, conflicto de contenido y concurrencia, pero permanecen **pendientes de ejecución**.
 - **iOS:** no se pudo compilar ni ejecutar pruebas aquí: Swift/Xcode no está instalado (`swift: command not found`).
-- Los resultados de DShalev no sustituyen pruebas visuales/teclado en navegador Windows, y el código fuente no sustituye pruebas en dispositivos, redes reales, base existente migrada o terminal de pago. No se afirma sincronización iOS↔Android comprobada en hardware.
-- La auditoría no modificó código de producto; no se repitieron las suites después de redactar este documento.
+- Los resultados locales no sustituyen pruebas visuales/teclado en navegador Windows ni pruebas en dispositivos, redes reales, base existente migrada o terminal de pago. No se afirma sincronización iOS↔Android comprobada en hardware.
+- `git diff --check` se repite al terminar las ediciones de esta rama.
 
-## Plan recomendado
+## Plan recomendado tras las remediaciones
 
-1. **Antes de ampliar uso de DShalev:** corregir escala/aritmética de stock fraccionario, añadir movimientos auditables, atribución de actor y reversión de ventas web; hacer el POST idempotente.
-2. **Siguiente incremento funcional:** resolver SKU/barcode de punta a punta; hacer durable la idempotencia de comandos remotos; formalizar conflicto/estado visible de sincronización y políticas para saldo negativo; decidir si compras/recepción son parte del alcance.
-3. **Gobierno operativo:** aprobar matriz de roles compartida, definir locales y transferencias, habilitar conteo ciego y conteo físico completo/cíclico, acordar métricas de informes por rol.
-4. **Antes de producción:** validar Android/iOS en dispositivos reales y DShalev en Windows/LAN; probar recuperación tras pérdida de red y migración de datos; revisar TLS, respaldos, permisos y cualquier dispositivo de pago externo con sus responsables.
+1. **Verificación de plataforma:** ejecutar Room migration/instrumented tests con JDK/Android SDK; validar DShalev en Windows/LAN y probar cambios de respaldo, reinicio y recuperación de red en dispositivos.
+2. **SKU/barcode:** solo tras definir formato, cantidad por artículo y unicidad entre local/variante; el texto de búsqueda engañoso ya fue corregido.
+3. **Sincronización offline:** formalizar y mostrar estado local/pendiente/confirmado, última sincronización y procedimiento de conciliación cuando ventas concurrentes dejan saldo negativo.
+4. **Decisiones de negocio:** confirmar si compras/recepción, roles web `staff`, múltiples locales consolidados y conteo ciego/inventario completo están dentro del alcance antes de implementarlos.
 5. **PCI:** confirmar por escrito si se almacena algún PAN o dato de autenticación sensible y obtener del adquirente/asesor la determinación de alcance. No hacer afirmaciones de cumplimiento hasta completar una evaluación formal aplicable.

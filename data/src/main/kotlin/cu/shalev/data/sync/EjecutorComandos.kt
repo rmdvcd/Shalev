@@ -4,7 +4,10 @@ import cu.shalev.core.money.Cup
 import cu.shalev.core.quantity.Cantidad
 import cu.shalev.core.result.AppError
 import cu.shalev.core.result.AppResult
+import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.entity.EmpleadoEntity
+import cu.shalev.data.db.entity.ReciboComandoEntity
+import cu.shalev.data.db.tx
 import cu.shalev.data.dto.toDomain
 import cu.shalev.data.repository.InsumoRepositoryImpl
 import cu.shalev.data.repository.OrigenMovimiento
@@ -25,16 +28,42 @@ import kotlinx.coroutines.withContext
  */
 @Singleton
 class EjecutorComandos @Inject constructor(
+    private val db: ShalevDatabase,
     private val productos: ProductoRepositoryImpl,
     private val insumos: InsumoRepositoryImpl,
     private val servicios: ServicioRepositoryImpl,
     private val precios: PreciosRepositoryImpl,
 ) {
-    private val memoria = MemoriaComandos()
-
-    /** 0.21.7 (P-e): un comando reenviado con la misma clave no se aplica dos veces ([MemoriaComandos]). */
-    suspend fun resultado(c: Comando, empleado: EmpleadoEntity): ResultadoComando =
-        memoria.unaVez(empleado.id, c.id, c.clave) { resultado(c.id, empleado, c.accion) }
+    /**
+     * Aplica y registra en una única transacción un comando con clave. El recibo vive en Room, sin poda, así que un
+     * reintento tras reiniciar la principal devuelve la respuesta original. Reutilizar la clave para otra acción se
+     * rechaza sin alterar el recibo ni aplicar la segunda acción.
+     */
+    suspend fun resultado(c: Comando, empleado: EmpleadoEntity): ResultadoComando {
+        val clave = c.clave
+        if (clave.isNullOrBlank() || clave.length > MAX_CLAVE) return resultado(c.id, empleado, c.accion)
+        val huella = try {
+            HuellaComando.calcular(c.accion)
+        } catch (_: Exception) {
+            return ResultadoComando(c.id, error = ErroresRemotos.OTRO)
+        }
+        return when (val guardado = db.tx {
+            val anterior = db.syncDao().reciboComando(empleado.id, clave)
+            when {
+                anterior != null && anterior.huella != huella ->
+                    ResultadoComando(c.id, error = ErroresRemotos.CLAVE_REUTILIZADA)
+                anterior != null -> ResultadoComando(c.id, valor = anterior.valor, error = anterior.error)
+                else -> resultado(c.id, empleado, c.accion).also { r ->
+                    db.syncDao().guardarReciboComando(
+                        ReciboComandoEntity(empleado.id, clave, huella, r.valor, r.error),
+                    )
+                }
+            }
+        }) {
+            is AppResult.Ok -> guardado.value
+            is AppResult.Err -> ResultadoComando(c.id, error = codigo(guardado.error))
+        }
+    }
 
     suspend fun resultado(id: Long, empleado: EmpleadoEntity, accion: Accion): ResultadoComando {
         val permisos = PermisoEmpleado.deNombres(empleado.permisos.split(','))
@@ -99,6 +128,8 @@ class EjecutorComandos @Inject constructor(
     }
 
     companion object {
+        const val MAX_CLAVE = 64
+
         fun permisoDe(a: Accion): PermisoEmpleado = when (a) {
             is CambiarPrecios, is GuardarPreajuste, is EliminarPreajuste -> PermisoEmpleado.CAMBIAR_PRECIOS
             else -> PermisoEmpleado.EDITAR_INVENTARIO
@@ -116,6 +147,7 @@ class EjecutorComandos @Inject constructor(
 
         /** Inverso de [codigo] en la secundaria (los formularios muestran el mismo mensaje que en la principal). */
         fun error(codigo: String): AppError = when {
+            codigo == ErroresRemotos.CLAVE_REUTILIZADA -> AppError.Duplicado("clave")
             codigo == ErroresRemotos.PERMISO -> AppError.SinPermiso
             codigo == ErroresRemotos.NO_ENCONTRADO -> AppError.NoEncontrado
             codigo == ErroresRemotos.STOCK -> AppError.StockInsuficiente()

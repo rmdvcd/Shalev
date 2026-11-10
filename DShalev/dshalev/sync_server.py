@@ -10,7 +10,6 @@ import socketserver
 import sqlite3
 import time
 import uuid as uuidlib
-from decimal import Decimal
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,6 +18,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from .database import Database
+from .inventory import MAX_QUANTITY_MILLI, record_movement
 from .sync_protocol import (
     EncryptedChannel,
     MAX_GREETING,
@@ -70,8 +70,9 @@ def _trial_license(conn, now_ms: int) -> dict[str, Any]:
 def _product_snapshot(row) -> dict[str, Any]:
     return {
         "id": row["id"], "categoria": row["category"], "nombre": row["name"], "precioCostoCent": row["cost_cents"],
-        "precioVentaCent": row["sale_price_cents"], "cantidad": row["stock"], "nivelBajo": row["low_stock"],
-        "nivelCritico": row["critical_stock"], "creadoEn": _epoch_ms(row["created_at"]),
+        "precioVentaCent": row["sale_price_cents"], "cantidad": int(row["stock_milli"]) // 1000,
+        "nivelBajo": int(row["low_stock_milli"]) // 1000, "nivelCritico": int(row["critical_stock_milli"]) // 1000,
+        "creadoEn": _epoch_ms(row["created_at"]),
         "actualizadoEn": _epoch_ms(row["created_at"]), "eliminado": False, "local": "Local",
     }
 
@@ -140,8 +141,8 @@ def snapshot(db: Database, employee_id: int) -> dict[str, Any]:
             "recetas": recipes,
             "insumos": [
                 {"id": row["id"], "nombre": row["name"], "unidad": row["unit"], "precioCent": row["cost_cents"],
-                 "cantidadMil": int(Decimal(str(row["stock"])) * 1000), "nivelBajoMil": int(Decimal(str(row["low_stock"])) * 1000),
-                 "nivelCriticoMil": int(Decimal(str(row["critical_stock"])) * 1000), "creadoEn": _epoch_ms(row["created_at"]),
+                 "cantidadMil": int(row["stock_milli"]), "nivelBajoMil": int(row["low_stock_milli"]),
+                 "nivelCriticoMil": int(row["critical_stock_milli"]), "creadoEn": _epoch_ms(row["created_at"]),
                  "actualizadoEn": _epoch_ms(row["created_at"]), "precioVentaCent": row["sale_price_cents"], "local": "Local"}
                 for row in ingredients
             ],
@@ -422,8 +423,10 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
         shift_uuid = str(wrapper.get("turnoUuid", ""))[:64]
         employee = conn.execute("SELECT name FROM employees WHERE id=?", (employee_id,)).fetchone()
         employee_name = employee["name"] if employee else "Empleado"
-        conn.execute("INSERT OR IGNORE INTO sync_sales(uuid,employee_id,employee_name,shift_uuid,sale_at_ms,payment_method,total_cents,payload_json) VALUES(?,?,?,?,?,?,?,?)",
-                     (uuid, employee_id, employee_name, shift_uuid, sale_at_ms, method, total, canonical_json(wrapper).decode("utf-8")))
+        inserted = conn.execute("INSERT OR IGNORE INTO sync_sales(uuid,employee_id,employee_name,shift_uuid,sale_at_ms,payment_method,total_cents,payload_json) VALUES(?,?,?,?,?,?,?,?)",
+                     (uuid, employee_id, employee_name, shift_uuid, sale_at_ms, method, total, canonical_json(wrapper).decode("utf-8"))).rowcount
+        if inserted != 1:
+            return
         for movement in wrapper.get("movimientos", [])[:5000] if isinstance(wrapper.get("movimientos"), list) else []:
             if not isinstance(movement, dict):
                 continue
@@ -436,9 +439,21 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
             if not 1 <= item_id <= 2**63 - 1 or abs(delta) > 10**12:
                 continue
             if entity == "INSUMO":
-                conn.execute("UPDATE items SET stock=stock+? WHERE id=? AND category='Insumo' AND active=1", (delta / 1000, item_id))
+                delta_milli = delta
+                category_clause = "category='Insumo'"
             elif entity == "PRODUCTO":
-                conn.execute("UPDATE items SET stock=stock+? WHERE id=? AND category!='Insumo' AND active=1", (delta, item_id))
+                delta_milli = delta * 1000
+                category_clause = "category!='Insumo'"
+            else:
+                continue
+            if abs(delta_milli) > MAX_QUANTITY_MILLI:
+                continue
+            updated = conn.execute(f"UPDATE items SET stock_milli=stock_milli+? WHERE id=? AND {category_clause} AND active=1",
+                                   (delta_milli, item_id)).rowcount
+            if updated == 1:
+                record_movement(conn, item_id, delta_milli, movement_type="VENTA_MOVIL",
+                                actor=employee_name, actor_type="empleado", actor_id=employee_id,
+                                reason=f"Venta móvil {uuid}", source="sincronizacion", reference=f"mobile-sale:{uuid}")
 
     @staticmethod
     def _store_shift(conn, employee_id: int, uuid: str, wrapper: dict[str, Any]) -> None:
@@ -604,7 +619,7 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
         response: dict[str, Any] = {"t": "cmd_ok", "id": command_id}
         request_hash = hashlib.sha256(canonical_json(action)).hexdigest()
         with self.database.transaction() as conn:
-            employee = conn.execute("SELECT permissions_json FROM employees WHERE id=? AND active=1", (employee_id,)).fetchone()
+            employee = conn.execute("SELECT name,permissions_json FROM employees WHERE id=? AND active=1", (employee_id,)).fetchone()
             if not employee:
                 response["error"] = "permiso"
                 return response
@@ -635,7 +650,10 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
                     raise RemoteCommandError("no_encontrado")
                 if required not in permissions:
                     raise RemoteCommandError("permiso")
-                value = self._apply_command(conn, action)
+                value = self._apply_command(
+                    conn, action, actor=employee["name"], actor_id=employee_id,
+                    reference=f"sync-command:{employee_id}:{command_key or command_id}",
+                )
                 if value is not None:
                     response["valor"] = value
             except RemoteCommandError as exc:
@@ -646,13 +664,10 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
                 result = {key: value for key, value in response.items() if key not in {"t", "id"}}
                 conn.execute("INSERT INTO sync_commands(employee_id,command_key,request_hash,result_json) VALUES(?,?,?,?)",
                              (employee_id, command_key, request_hash, canonical_json(result).decode("utf-8")))
-                conn.execute("""DELETE FROM sync_commands WHERE employee_id=? AND command_key NOT IN
-                    (SELECT command_key FROM sync_commands WHERE employee_id=? ORDER BY rowid DESC LIMIT 512)""",
-                             (employee_id, employee_id))
         return response
 
     @staticmethod
-    def _apply_command(conn, action: dict[str, Any]) -> int | None:
+    def _apply_command(conn, action: dict[str, Any], *, actor: str = "Sincronización", actor_id: int | None = None, reference: str = "") -> int | None:
         kind = action.get("t")
         if kind == "producto_guardar":
             item = action.get("producto")
@@ -661,10 +676,13 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
             item_id = int(item["id"])
             name = str(item["nombre"]).strip()
             stock = int(item.get("cantidad", 0))
+            stock_milli = stock * 1000
             sale_price = int(item.get("precioVentaCent", 0))
             cost = int(item.get("precioCostoCent", 0))
             low = int(item.get("nivelBajo", 5) or 0)
+            low_milli = low * 1000
             critical = int(item.get("nivelCritico", 1) or 0)
+            critical_milli = critical * 1000
             raw_recipe = action.get("receta")
             recipe_rows: list[tuple[int, int]] = []
             if raw_recipe is not None:
@@ -690,12 +708,24 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
                 raise ValueError("producto")
             if not 0 <= sale_price <= 2**63 - 1 or not 0 <= cost <= 2**63 - 1 or not 0 <= critical <= low <= 10**12:
                 raise ValueError("precio o niveles")
-            conn.execute("""INSERT INTO items(id,name,category,unit,stock,sale_price_cents,cost_cents,low_stock,critical_stock,active)
-                VALUES(?,?,?,?,?,?,?,?,?,1) ON CONFLICT(id) DO UPDATE SET name=excluded.name,category=excluded.category,
-                stock=excluded.stock,sale_price_cents=excluded.sale_price_cents,cost_cents=excluded.cost_cents,
-                low_stock=excluded.low_stock,critical_stock=excluded.critical_stock,active=1""",
-                (item_id, name, str(item.get("categoria", "Producto"))[:40], "unidad", stock,
-                 sale_price, cost, low, critical))
+            previous = conn.execute("SELECT stock_milli FROM items WHERE id=?", (item_id,)).fetchone()
+            conn.execute("""INSERT INTO items(
+                    id,name,category,unit,stock,stock_milli,sale_price_cents,cost_cents,
+                    low_stock,low_stock_milli,critical_stock,critical_stock_milli,active
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1)
+                ON CONFLICT(id) DO UPDATE SET name=excluded.name,category=excluded.category,
+                    stock=excluded.stock,stock_milli=excluded.stock_milli,sale_price_cents=excluded.sale_price_cents,
+                    cost_cents=excluded.cost_cents,low_stock=excluded.low_stock,low_stock_milli=excluded.low_stock_milli,
+                    critical_stock=excluded.critical_stock,critical_stock_milli=excluded.critical_stock_milli,active=1""",
+                (item_id, name, str(item.get("categoria", "Producto"))[:40], "unidad", stock_milli / 1000,
+                 stock_milli, sale_price, cost, low_milli / 1000, low_milli, critical_milli / 1000, critical_milli))
+            old_stock_milli = int(previous["stock_milli"]) if previous else 0
+            delta_milli = stock_milli - old_stock_milli
+            if delta_milli:
+                record_movement(conn, item_id, delta_milli, movement_type="COMANDO_SYNC", actor=actor,
+                                actor_type="empleado", actor_id=actor_id,
+                                reason=str(action.get("motivo") or "Actualización remota de existencia"),
+                                source="sincronizacion", reference=reference or None)
             if raw_recipe is not None:
                 conn.execute("DELETE FROM recipes WHERE product_id=?", (item_id,))
                 conn.executemany("INSERT INTO recipes(product_id,ingredient_id,quantity_milli) VALUES(?,?,?)",
@@ -709,10 +739,21 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
             return None
         if kind == "producto_stock":
             item_id, delta = int(action["id"]), int(action["delta"])
-            updated = conn.execute("UPDATE items SET stock=stock+? WHERE id=? AND category!='Insumo' AND active=1", (delta, item_id)).rowcount
-            if updated != 1:
+            if abs(delta) > 10**12:
+                raise ValueError("movimiento de producto")
+            current = conn.execute("SELECT stock_milli FROM items WHERE id=? AND category!='Insumo' AND active=1", (item_id,)).fetchone()
+            if not current:
                 raise RemoteCommandError("no_encontrado")
-            return int(conn.execute("SELECT stock FROM items WHERE id=?", (item_id,)).fetchone()[0])
+            delta_milli = delta * 1000
+            if abs(int(current["stock_milli"]) + delta_milli) > 9_000_000_000_000_000_000:
+                raise ValueError("existencia fuera de límite")
+            conn.execute("UPDATE items SET stock_milli=stock_milli+? WHERE id=?", (delta_milli, item_id))
+            if delta_milli:
+                record_movement(conn, item_id, delta_milli, movement_type="COMANDO_SYNC", actor=actor,
+                                actor_type="empleado", actor_id=actor_id,
+                                reason=str(action.get("motivo") or "Ajuste remoto de existencia"),
+                                source="sincronizacion", reference=reference or None)
+            return (int(current["stock_milli"]) + delta_milli) // 1000
         if kind == "producto_precios":
             prices = action.get("precios")
             if not isinstance(prices, dict) or len(prices) > 5000:
@@ -817,11 +858,24 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
                 raise ValueError("insumo")
             if not 0 <= quantity_milli <= 10**12 or not 0 <= cost <= 2**63 - 1 or not 0 <= sale <= 2**63 - 1 or not 0 <= critical_milli <= low_milli <= 10**12:
                 raise ValueError("insumo")
-            conn.execute("""INSERT INTO items(id,name,category,unit,stock,sale_price_cents,cost_cents,low_stock,critical_stock,active)
-                VALUES(?,?,'Insumo',?,?,?,?,?,?,1) ON CONFLICT(id) DO UPDATE SET name=excluded.name,category='Insumo',
-                unit=excluded.unit,stock=excluded.stock,sale_price_cents=excluded.sale_price_cents,cost_cents=excluded.cost_cents,
-                low_stock=excluded.low_stock,critical_stock=excluded.critical_stock,active=1""",
-                (item_id, name, unit, quantity_milli / 1000, sale, cost, low_milli / 1000, critical_milli / 1000))
+            previous = conn.execute("SELECT stock_milli FROM items WHERE id=?", (item_id,)).fetchone()
+            conn.execute("""INSERT INTO items(
+                    id,name,category,unit,stock,stock_milli,sale_price_cents,cost_cents,
+                    low_stock,low_stock_milli,critical_stock,critical_stock_milli,active
+                ) VALUES(?,?,'Insumo',?,?,?,?,?,?,?,?,?,1)
+                ON CONFLICT(id) DO UPDATE SET name=excluded.name,category='Insumo',unit=excluded.unit,
+                    stock=excluded.stock,stock_milli=excluded.stock_milli,sale_price_cents=excluded.sale_price_cents,
+                    cost_cents=excluded.cost_cents,low_stock=excluded.low_stock,low_stock_milli=excluded.low_stock_milli,
+                    critical_stock=excluded.critical_stock,critical_stock_milli=excluded.critical_stock_milli,active=1""",
+                (item_id, name, unit, quantity_milli / 1000, quantity_milli, sale, cost,
+                 low_milli / 1000, low_milli, critical_milli / 1000, critical_milli))
+            old_stock_milli = int(previous["stock_milli"]) if previous else 0
+            delta_milli = quantity_milli - old_stock_milli
+            if delta_milli:
+                record_movement(conn, item_id, delta_milli, movement_type="COMANDO_SYNC", actor=actor,
+                                actor_type="empleado", actor_id=actor_id,
+                                reason=str(item.get("motivo") or "Actualización remota de existencia"),
+                                source="sincronizacion", reference=reference or None)
             return item_id
         if kind == "insumo_eliminar":
             updated = conn.execute("UPDATE items SET active=0 WHERE id=? AND category='Insumo' AND active=1", (int(action["id"]),)).rowcount
@@ -829,13 +883,21 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
                 raise RemoteCommandError("no_encontrado")
             return None
         if kind == "insumo_stock":
-            delta = int(action["deltaMil"])
-            if abs(delta) > 10**12:
+            delta_milli = int(action["deltaMil"])
+            if abs(delta_milli) > 10**12:
                 raise ValueError("movimiento de insumo")
             item_id = int(action["id"])
-            updated = conn.execute("UPDATE items SET stock=stock+? WHERE id=? AND category='Insumo' AND active=1", (delta / 1000, item_id)).rowcount
-            if updated != 1:
+            current = conn.execute("SELECT stock_milli FROM items WHERE id=? AND category='Insumo' AND active=1", (item_id,)).fetchone()
+            if not current:
                 raise RemoteCommandError("no_encontrado")
-            row = conn.execute("SELECT stock FROM items WHERE id=?", (item_id,)).fetchone()
-            return int(Decimal(str(row[0])) * 1000)
+            new_stock_milli = int(current["stock_milli"]) + delta_milli
+            if abs(new_stock_milli) > 9_000_000_000_000_000_000:
+                raise ValueError("existencia fuera de límite")
+            conn.execute("UPDATE items SET stock_milli=stock_milli+? WHERE id=?", (delta_milli, item_id))
+            if delta_milli:
+                record_movement(conn, item_id, delta_milli, movement_type="COMANDO_SYNC", actor=actor,
+                                actor_type="empleado", actor_id=actor_id,
+                                reason=str(action.get("motivo") or "Ajuste remoto de insumo"),
+                                source="sincronizacion", reference=reference or None)
+            return new_stock_milli
         raise RemoteCommandError("no_encontrado")

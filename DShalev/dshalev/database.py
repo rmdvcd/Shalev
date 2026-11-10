@@ -33,11 +33,14 @@ CREATE TABLE IF NOT EXISTS items (
     name TEXT NOT NULL,
     category TEXT NOT NULL DEFAULT 'Producto',
     unit TEXT NOT NULL DEFAULT 'unidad',
-    stock INTEGER NOT NULL DEFAULT 0,
+    stock REAL NOT NULL DEFAULT 0,
+    stock_milli INTEGER NOT NULL DEFAULT 0 CHECK (stock_milli BETWEEN -9000000000000000000 AND 9000000000000000000),
     sale_price_cents INTEGER NOT NULL DEFAULT 0 CHECK (sale_price_cents >= 0),
     cost_cents INTEGER NOT NULL DEFAULT 0 CHECK (cost_cents >= 0),
-    low_stock INTEGER NOT NULL DEFAULT 5,
-    critical_stock INTEGER NOT NULL DEFAULT 1,
+    low_stock REAL NOT NULL DEFAULT 5,
+    low_stock_milli INTEGER NOT NULL DEFAULT 5000 CHECK (low_stock_milli >= 0),
+    critical_stock REAL NOT NULL DEFAULT 1,
+    critical_stock_milli INTEGER NOT NULL DEFAULT 1000 CHECK (critical_stock_milli >= 0),
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
@@ -50,6 +53,26 @@ CREATE TABLE IF NOT EXISTS catalog_photos (
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     PRIMARY KEY(entity,entity_id)
 );
+CREATE TABLE IF NOT EXISTS inventory_movements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    item_name TEXT NOT NULL,
+    item_category TEXT NOT NULL,
+    item_unit TEXT NOT NULL,
+    movement_type TEXT NOT NULL CHECK (movement_type IN ('MIGRACION','ALTA','AJUSTE','VENTA','ANULACION_VENTA','VENTA_MOVIL','ANULACION_MOVIL','CORRECCION_MOVIL','COMANDO_SYNC','SINCRONIZACION')),
+    delta_milli INTEGER NOT NULL CHECK (delta_milli BETWEEN -9000000000000000000 AND 9000000000000000000),
+    stock_after_milli INTEGER NOT NULL CHECK (stock_after_milli BETWEEN -9000000000000000000 AND 9000000000000000000),
+    actor_type TEXT NOT NULL CHECK (actor_type IN ('usuario','empleado','sistema')),
+    actor_id INTEGER,
+    actor TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    source TEXT NOT NULL,
+    reference TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_item ON inventory_movements(item_id,id);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_created ON inventory_movements(created_at,id);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_reference ON inventory_movements(reference);
 CREATE TABLE IF NOT EXISTS sync_services (
     service_id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
@@ -152,8 +175,16 @@ CREATE TABLE IF NOT EXISTS sales (
     payment_method TEXT NOT NULL CHECK (payment_method IN ('EFECTIVO','TRANSFERENCIA')),
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     employee_id INTEGER REFERENCES employees(id),
+    user_id INTEGER REFERENCES users(id),
     customer_id INTEGER REFERENCES customers(id),
-    note TEXT NOT NULL DEFAULT ''
+    note TEXT NOT NULL DEFAULT '',
+    request_key TEXT,
+    request_hash TEXT NOT NULL DEFAULT '',
+    inventory_logged INTEGER NOT NULL DEFAULT 0 CHECK (inventory_logged IN (0,1)),
+    cancelled_at TEXT,
+    cancellation_reason TEXT,
+    cancelled_by INTEGER REFERENCES users(id),
+    correction_of_id INTEGER REFERENCES sales(id)
 );
 CREATE TABLE IF NOT EXISTS sale_lines (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -587,37 +618,115 @@ class Database:
     def initialize(self) -> None:
         with self.connect() as conn:
             conn.executescript(SCHEMA)
-            conn.execute("INSERT OR IGNORE INTO app_meta(key,value) VALUES ('schema_version','1')")
-            conn.execute("INSERT OR IGNORE INTO app_meta(key,value) VALUES ('business_name','Mi negocio')")
-            conn.execute("INSERT OR IGNORE INTO app_meta(key,value) VALUES ('secondary_limit','5')")
-            conn.execute("INSERT OR IGNORE INTO app_meta(key,value) VALUES ('business_id',?)", (secrets.token_hex(12),))
-            conn.execute("INSERT OR IGNORE INTO app_meta(key,value) VALUES ('trial_started_ms',?)", (str(int(time.time() * 1000)),))
-            employee_columns = {row[1] for row in conn.execute("PRAGMA table_info(employees)")}
-            for name, definition in {
-                "pairing_token": "TEXT", "pairing_expires": "INTEGER", "employee_key": "TEXT",
-                "device_id": "TEXT", "phone": "TEXT",
-            }.items():
-                if name not in employee_columns:
-                    conn.execute(f"ALTER TABLE employees ADD COLUMN {name} {definition}")
-            receipt_columns = {row[1] for row in conn.execute("PRAGMA table_info(sync_receipts)")}
-            if "payload_json" not in receipt_columns:
-                conn.execute("ALTER TABLE sync_receipts ADD COLUMN payload_json TEXT NOT NULL DEFAULT '{}'")
-            sync_sale_columns = {row[1] for row in conn.execute("PRAGMA table_info(sync_sales)")}
-            if "employee_name" not in sync_sale_columns:
-                conn.execute("ALTER TABLE sync_sales ADD COLUMN employee_name TEXT NOT NULL DEFAULT ''")
-            if "cancelled_at" not in sync_sale_columns:
-                conn.execute("ALTER TABLE sync_sales ADD COLUMN cancelled_at INTEGER")
-            if "cancellation_reason" not in sync_sale_columns:
-                conn.execute("ALTER TABLE sync_sales ADD COLUMN cancellation_reason TEXT")
-            if "cancelled_by" not in sync_sale_columns:
-                conn.execute("ALTER TABLE sync_sales ADD COLUMN cancelled_by TEXT")
-            sales_columns = {row[1] for row in conn.execute("PRAGMA table_info(sales)")}
-            if "customer_id" not in sales_columns:
-                conn.execute("ALTER TABLE sales ADD COLUMN customer_id INTEGER REFERENCES customers(id)")
-            command_columns = {row[1] for row in conn.execute("PRAGMA table_info(sync_commands)")}
-            if "request_hash" not in command_columns:
-                conn.execute("ALTER TABLE sync_commands ADD COLUMN request_hash TEXT NOT NULL DEFAULT ''")
-            conn.execute("UPDATE app_meta SET value='8' WHERE key='schema_version'")
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                conn.execute("INSERT OR IGNORE INTO app_meta(key,value) VALUES ('schema_version','1')")
+                conn.execute("INSERT OR IGNORE INTO app_meta(key,value) VALUES ('business_name','Mi negocio')")
+                conn.execute("INSERT OR IGNORE INTO app_meta(key,value) VALUES ('secondary_limit','5')")
+                conn.execute("INSERT OR IGNORE INTO app_meta(key,value) VALUES ('business_id',?)", (secrets.token_hex(12),))
+                conn.execute("INSERT OR IGNORE INTO app_meta(key,value) VALUES ('trial_started_ms',?)", (str(int(time.time() * 1000)),))
+                employee_columns = {row[1] for row in conn.execute("PRAGMA table_info(employees)")}
+                for name, definition in {
+                    "pairing_token": "TEXT", "pairing_expires": "INTEGER", "employee_key": "TEXT",
+                    "device_id": "TEXT", "phone": "TEXT",
+                }.items():
+                    if name not in employee_columns:
+                        conn.execute(f"ALTER TABLE employees ADD COLUMN {name} {definition}")
+                receipt_columns = {row[1] for row in conn.execute("PRAGMA table_info(sync_receipts)")}
+                if "payload_json" not in receipt_columns:
+                    conn.execute("ALTER TABLE sync_receipts ADD COLUMN payload_json TEXT NOT NULL DEFAULT '{}'")
+                sync_sale_columns = {row[1] for row in conn.execute("PRAGMA table_info(sync_sales)")}
+                for name, definition in {
+                    "employee_name": "TEXT NOT NULL DEFAULT ''", "cancelled_at": "INTEGER",
+                    "cancellation_reason": "TEXT", "cancelled_by": "TEXT",
+                }.items():
+                    if name not in sync_sale_columns:
+                        conn.execute(f"ALTER TABLE sync_sales ADD COLUMN {name} {definition}")
+                sales_columns = {row[1] for row in conn.execute("PRAGMA table_info(sales)")}
+                for name, definition in {
+                    "customer_id": "INTEGER REFERENCES customers(id)",
+                    "user_id": "INTEGER REFERENCES users(id)",
+                    "request_key": "TEXT", "request_hash": "TEXT NOT NULL DEFAULT ''",
+                    "inventory_logged": "INTEGER NOT NULL DEFAULT 0",
+                    "cancelled_at": "TEXT", "cancellation_reason": "TEXT",
+                    "cancelled_by": "INTEGER REFERENCES users(id)",
+                    "correction_of_id": "INTEGER REFERENCES sales(id)",
+                }.items():
+                    if name not in sales_columns:
+                        conn.execute(f"ALTER TABLE sales ADD COLUMN {name} {definition}")
+                command_columns = {row[1] for row in conn.execute("PRAGMA table_info(sync_commands)")}
+                if "request_hash" not in command_columns:
+                    conn.execute("ALTER TABLE sync_commands ADD COLUMN request_hash TEXT NOT NULL DEFAULT ''")
+
+                item_columns = {row[1] for row in conn.execute("PRAGMA table_info(items)")}
+                added_fixed_point = "stock_milli" not in item_columns
+                for name, definition in {
+                    "stock_milli": "INTEGER NOT NULL DEFAULT 0 CHECK (stock_milli BETWEEN -9000000000000000000 AND 9000000000000000000)",
+                    "low_stock_milli": "INTEGER NOT NULL DEFAULT 5000 CHECK (low_stock_milli >= 0)",
+                    "critical_stock_milli": "INTEGER NOT NULL DEFAULT 1000 CHECK (critical_stock_milli >= 0)",
+                }.items():
+                    if name not in item_columns:
+                        conn.execute(f"ALTER TABLE items ADD COLUMN {name} {definition}")
+                if added_fixed_point:
+                    from .inventory import format_milli, migrate_legacy_quantity
+
+                    for item in conn.execute("SELECT id,name,category,unit,stock,low_stock,critical_stock FROM items ORDER BY id").fetchall():
+                        try:
+                            stock_milli = migrate_legacy_quantity(item["stock"])
+                            low_milli = migrate_legacy_quantity(item["low_stock"])
+                            critical_milli = migrate_legacy_quantity(item["critical_stock"])
+                        except ValueError as exc:
+                            raise RuntimeError(f"No se pudo migrar el stock de {item['name']!r}; conserva el respaldo original.") from exc
+                        if low_milli < 0 or critical_milli < 0:
+                            raise RuntimeError(f"Los niveles de stock de {item['name']!r} son negativos; corrígelos antes de migrar.")
+                        conn.execute("UPDATE items SET stock_milli=?,low_stock_milli=?,critical_stock_milli=? WHERE id=?",
+                                     (stock_milli, low_milli, critical_milli, item["id"]))
+                        conn.execute("""INSERT INTO inventory_movements(
+                            item_id,item_name,item_category,item_unit,movement_type,delta_milli,stock_after_milli,
+                            actor_type,actor_id,actor,reason,source,reference
+                        ) VALUES(?,?,?,?, 'MIGRACION',?,?, 'sistema',NULL,'Sistema',?,?,?)""",
+                                     (item["id"], item["name"], item["category"], item["unit"], stock_milli,
+                                      stock_milli, f"Saldo heredado de SQLite ({item['stock']!r}) normalizado a {format_milli(stock_milli)}; el libro no contiene movimientos anteriores.",
+                                      "migracion", f"migracion-stock-v9:{item['id']}"))
+
+                conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sales_request_key ON sales(request_key) WHERE request_key IS NOT NULL")
+                for trigger_sql in (
+                    """CREATE TRIGGER IF NOT EXISTS items_legacy_quantity_insert
+                        AFTER INSERT ON items BEGIN
+                            UPDATE items SET stock_milli=CAST(ROUND(NEW.stock*1000) AS INTEGER),
+                                low_stock_milli=CAST(ROUND(NEW.low_stock*1000) AS INTEGER),
+                                critical_stock_milli=CAST(ROUND(NEW.critical_stock*1000) AS INTEGER)
+                            WHERE id=NEW.id;
+                        END""",
+                    """CREATE TRIGGER IF NOT EXISTS items_legacy_quantity_update
+                        AFTER UPDATE OF stock,low_stock,critical_stock ON items BEGIN
+                            UPDATE items SET stock_milli=CAST(ROUND(NEW.stock*1000) AS INTEGER),
+                                low_stock_milli=CAST(ROUND(NEW.low_stock*1000) AS INTEGER),
+                                critical_stock_milli=CAST(ROUND(NEW.critical_stock*1000) AS INTEGER)
+                            WHERE id=NEW.id;
+                        END""",
+                    """CREATE TRIGGER IF NOT EXISTS items_fixed_quantity_update
+                        AFTER UPDATE OF stock_milli,low_stock_milli,critical_stock_milli ON items BEGIN
+                            UPDATE items SET stock=NEW.stock_milli/1000.0,
+                                low_stock=NEW.low_stock_milli/1000.0,
+                                critical_stock=NEW.critical_stock_milli/1000.0
+                            WHERE id=NEW.id;
+                        END""",
+                    """CREATE TRIGGER IF NOT EXISTS inventory_movements_no_update
+                        BEFORE UPDATE ON inventory_movements BEGIN
+                            SELECT RAISE(ABORT,'inventory movements are append-only');
+                        END""",
+                    """CREATE TRIGGER IF NOT EXISTS inventory_movements_no_delete
+                        BEFORE DELETE ON inventory_movements BEGIN
+                            SELECT RAISE(ABORT,'inventory movements are append-only');
+                        END""",
+                ):
+                    conn.execute(trigger_sql)
+                conn.execute("UPDATE app_meta SET value='9' WHERE key='schema_version'")
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
     def connect(self) -> sqlite3.Connection:
         self._lock.acquire()

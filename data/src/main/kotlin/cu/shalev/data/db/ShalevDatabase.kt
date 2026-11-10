@@ -47,6 +47,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         PerfilEntity::class, TarjetaEntity::class, TelefonoEntity::class, PreajusteEntity::class,
         PreajusteProductoEntity::class, PreajusteServicioEntity::class, ServicioEntity::class, ServicioInsumoEntity::class, EmpleadoEntity::class,
         MovimientoCajaEntity::class, ClienteFijoEntity::class, cu.shalev.data.db.entity.AlmacenLocalEntity::class,
+        cu.shalev.data.db.entity.ReciboComandoEntity::class,
     ],
     version = ShalevDatabase.VERSION,
     exportSchema = true,
@@ -73,7 +74,17 @@ abstract class ShalevDatabase : RoomDatabase() {
          * v3 (P17): esquema consolidado, sin `tasa_cambio` ni `caducidad_codigo`. Es la base de las migraciones
          * futuras: cada versión nueva añade una `Migration(3, 4)`… explícita (regla: nunca borrar datos de usuarios).
          */
-        const val VERSION = 16
+        const val VERSION = 17
+        /**
+         * v17: recibos persistentes de comandos idempotentes de las secundarias. No se podan: se conservan para que
+         * un reintento tardío nunca vuelva a aplicar una acción ya confirmada.
+         */
+        val MIGRACION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) { SQL_16_17.forEach(db::execSQL) }
+        }
+        internal val SQL_16_17 = listOf(
+            "CREATE TABLE IF NOT EXISTS `comando_recibo` (`empleadoId` INTEGER NOT NULL, `clave` TEXT NOT NULL, `huella` TEXT NOT NULL, `valor` INTEGER, `error` TEXT, PRIMARY KEY(`empleadoId`, `clave`))",
+        )
         /**
          * v16: cada local tiene su propio catálogo y su propio historial. Los datos existentes se asignan al local
          * activo; si no hay ninguno, se crea «Local».
@@ -320,7 +331,7 @@ abstract class ShalevDatabase : RoomDatabase() {
             System.loadLibrary("sqlcipher")
             return Room.databaseBuilder(context, ShalevDatabase::class.java, NOMBRE)
                 .openHelperFactory(SupportOpenHelperFactory(passphrase))
-                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14, MIGRACION_14_15, MIGRACION_15_16)
+                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14, MIGRACION_14_15, MIGRACION_15_16, MIGRACION_16_17)
                 .fallbackToDestructiveMigrationFrom(*DESARROLLO)
                 .build()
         }

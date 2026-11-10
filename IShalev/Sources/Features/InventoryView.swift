@@ -116,7 +116,7 @@ struct InventoryView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            ShalevSearchField(text: $search, placeholder: "Buscar por nombre, categoría o código")
+            ShalevSearchField(text: $search, placeholder: "Buscar por nombre, categoría o descripción")
                 .padding(.horizontal, 16)
             counterRow
             if canEdit && selection.isEmpty && !filteredProducts.isEmpty {

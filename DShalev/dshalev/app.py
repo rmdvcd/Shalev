@@ -30,6 +30,7 @@ from .cost_sheets import CATEGORIES, CURRENCIES, calculate as calculate_sheet, p
 from .cost_export import export_sheet as export_cost_to_catalog
 from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
+from .inventory import format_milli, record_movement
 from .licencia import motivo_activacion_deshabilitada
 from .security import csrf_token, hash_password, valid_csrf, verify_password
 from .sync_protocol import canonical_json, generate_pairing_code
@@ -178,14 +179,14 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         request.session["flash_kind"] = kind
         return RedirectResponse(path, status_code=303)
 
-    def decimal_quantity(raw: Any, *, maximum: Decimal = Decimal("1000000000")) -> float:
+    def decimal_quantity_milli(raw: Any, *, maximum: Decimal = Decimal("1000000000")) -> int:
         try:
             value = Decimal(str(raw).strip())
         except (InvalidOperation, ValueError, AttributeError) as exc:
             raise ValueError("La existencia debe ser un número no negativo con hasta tres decimales.") from exc
-        if not value.is_finite() or value < 0 or value > maximum or value != value.quantize(Decimal("0.001")):
+        if not value.is_finite() or value < 0 or value > maximum or value * 1000 != (value * 1000).to_integral_value():
             raise ValueError("La existencia debe ser un número no negativo con hasta tres decimales.")
-        return float(value)
+        return int(value * 1000)
 
     def notice_text(request: Request) -> str | None:
         allowed = {
@@ -197,6 +198,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             "customer_added": "Cliente agregado.", "customer_saved": "Datos del cliente actualizados.", "customer_retired": "Cliente retirado; sus ventas históricas se conservan.",
             "mobile_close_approved": "Se aprobó el cierre; se ordenará en la próxima sincronización.", "mobile_close_rejected": "Se rechazó la solicitud; la app recibirá el aviso al sincronizar.",
             "mobile_count_approved": "Arqueo móvil aprobado y listo para recibir confirmación en la app.",
+            "web_sale_cancelled": "Venta de escritorio anulada; se registró la reversión de inventario.",
             "mobile_sale_cancelled": "Venta móvil anulada; se repuso el stock y se enviará el cambio a la app.",
             "mobile_sale_corrected": "Venta móvil corregida; se ajustó el stock y la app recibirá la anulación y el reemplazo.",
             "employee_removed": "Plaza retirada y credenciales revocadas. La app recibirá el aviso al reconectarse.",
@@ -231,8 +233,8 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         with db.connect() as conn:
             shift = conn.execute("SELECT * FROM shifts WHERE closed_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
             item_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1").fetchone()[0]
-            low_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1 AND category!='Servicio' AND stock<=low_stock").fetchone()[0]
-            today_row = conn.execute("SELECT COUNT(*) count, COALESCE(SUM(total_cents),0) total FROM sales WHERE date(created_at,'localtime')=?", (today,)).fetchone()
+            low_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1 AND category!='Servicio' AND stock_milli<=low_stock_milli").fetchone()[0]
+            today_row = conn.execute("SELECT COUNT(*) count, COALESCE(SUM(total_cents),0) total FROM sales WHERE cancelled_at IS NULL AND date(created_at,'localtime')=?", (today,)).fetchone()
             native_today = conn.execute("SELECT COUNT(*) count, COALESCE(SUM(total_cents),0) total FROM sync_sales WHERE cancelled_at IS NULL AND date(sale_at_ms/1000,'unixepoch','localtime')=?", (today,)).fetchone()
             today_count = today_row["count"] + native_today["count"]
             today_total = today_row["total"] + native_today["total"]
@@ -242,7 +244,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             today_date = datetime.fromisoformat(today).date()
             start = (today_date - timedelta(days=6)).isoformat()
             daily_rows = conn.execute("""SELECT date(created_at,'localtime') day, SUM(total_cents) total
-                FROM sales WHERE date(created_at,'localtime') BETWEEN ? AND ? GROUP BY day""", (start, today)).fetchall()
+                FROM sales WHERE cancelled_at IS NULL AND date(created_at,'localtime') BETWEEN ? AND ? GROUP BY day""", (start, today)).fetchall()
             daily_map = {row["day"]: row["total"] for row in daily_rows}
             mobile_daily = conn.execute("""SELECT date(sale_at_ms/1000,'unixepoch','localtime') day, SUM(total_cents) total
                 FROM sync_sales WHERE cancelled_at IS NULL AND date(sale_at_ms/1000,'unixepoch','localtime') BETWEEN ? AND ? GROUP BY day""", (start, today)).fetchall()
@@ -252,12 +254,12 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             daily = [{"day": day, "total": daily_map.get(day, 0)} for day in days]
             top_items = conn.execute("""SELECT sl.item_id, MAX(sl.item_name) name, SUM(sl.quantity) quantity,
                 SUM(sl.quantity * sl.unit_price_cents) total FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id
-                WHERE date(s.created_at,'localtime') BETWEEN ? AND ?
+                WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
                 GROUP BY sl.item_id ORDER BY quantity DESC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
             expected_cash = 0
             cash_movements = []
             if shift:
-                cash_sales = conn.execute("SELECT COALESCE(SUM(total_cents),0) FROM sales WHERE shift_id=? AND payment_method='EFECTIVO'", (shift["id"],)).fetchone()[0]
+                cash_sales = conn.execute("SELECT COALESCE(SUM(total_cents),0) FROM sales WHERE cancelled_at IS NULL AND shift_id=? AND payment_method='EFECTIVO'", (shift["id"],)).fetchone()[0]
                 cash_totals = conn.execute("SELECT COALESCE(SUM(CASE WHEN movement_type='ENTRADA' THEN amount_cents ELSE -amount_cents END),0) FROM cash_movements WHERE shift_id=?", (shift["id"],)).fetchone()[0]
                 expected_cash = shift["opening_cash_cents"] + cash_sales + cash_totals
                 cash_movements = conn.execute("SELECT * FROM cash_movements WHERE shift_id=? ORDER BY id DESC LIMIT 10", (shift["id"],)).fetchall()
@@ -610,6 +612,43 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 items = conn.execute("SELECT * FROM items WHERE active=1 ORDER BY name LIMIT 200").fetchall()
         return templates.TemplateResponse(request, "inventory.html", context(request, user=user, section="inventario", items=[dict(r) for r in items], query=query, notice=notice_text(request), notice_kind="success"))
 
+    @app.get("/inventario/movimientos", response_class=HTMLResponse)
+    async def inventory_movements_page(request: Request):
+        user = require_admin(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            rows = conn.execute("SELECT * FROM inventory_movements ORDER BY id DESC LIMIT 500").fetchall()
+        movements = []
+        for row in rows:
+            movement = dict(row)
+            movement["delta_text"] = format_milli(movement["delta_milli"])
+            movement["before_text"] = format_milli(movement["stock_after_milli"] - movement["delta_milli"])
+            movement["after_text"] = format_milli(movement["stock_after_milli"])
+            movements.append(movement)
+        return templates.TemplateResponse(request, "inventory_movements.html", context(
+            request, user=user, section="inventario", movements=movements,
+        ))
+
+    @app.get("/inventario/movimientos.csv")
+    async def export_inventory_movements(request: Request):
+        if not require_admin(request):
+            return redirect("/entrar")
+        output = io.StringIO(newline="")
+        writer = csv.writer(output, lineterminator="\r\n")
+        writer.writerow(["Fecha UTC", "Artículo", "Categoría", "Unidad", "Tipo", "Cambio", "Existencia anterior", "Existencia posterior", "Actor", "Motivo", "Origen", "Referencia"])
+        with db.connect() as conn:
+            rows = conn.execute("SELECT * FROM inventory_movements ORDER BY id LIMIT 50000").fetchall()
+        for row in rows:
+            writer.writerow([
+                row["created_at"], csv_text(row["item_name"]), csv_text(row["item_category"]), csv_text(row["item_unit"]),
+                row["movement_type"], format_milli(row["delta_milli"]),
+                format_milli(row["stock_after_milli"] - row["delta_milli"]), format_milli(row["stock_after_milli"]),
+                csv_text(row["actor"]), csv_text(row["reason"]), csv_text(row["source"]), csv_text(row["reference"]),
+            ])
+        return Response(output.getvalue().encode("utf-8-sig"), media_type="text/csv; charset=utf-8",
+                        headers={"Content-Disposition": 'attachment; filename="DShalev_movimientos_inventario.csv"'})
+
     @app.get("/inventario/{item_id}/editar", response_class=HTMLResponse)
     async def edit_item_page(request: Request, item_id: int):
         user = current_user(request)
@@ -623,7 +662,8 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
 
     @app.post("/inventario/{item_id}/editar")
     async def edit_item(request: Request, item_id: int):
-        if not current_user(request):
+        user = current_user(request)
+        if not user:
             return redirect("/entrar")
         data = await form_data(request)
         if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
@@ -635,20 +675,40 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             if not name or len(name) > 80 or not unit or len(unit) > 20 or category not in {"Producto", "Insumo", "Servicio"}:
                 raise ValueError("Revisa el nombre, la categoría y la unidad.")
             sale_price, cost = money_to_cents(data.get("sale_price")), money_to_cents(data.get("cost"))
-            quantity_parser = decimal_quantity if category == "Insumo" else lambda value: integer(value, maximum=10**9)
-            stock = quantity_parser(data.get("stock"))
-            low = quantity_parser(data.get("low_stock"))
-            critical = quantity_parser(data.get("critical_stock"))
+            if category == "Insumo":
+                stock_milli = decimal_quantity_milli(data.get("stock"))
+                low_milli = decimal_quantity_milli(data.get("low_stock"))
+                critical_milli = decimal_quantity_milli(data.get("critical_stock"))
+            else:
+                stock_milli = integer(data.get("stock"), maximum=10**9) * 1000
+                low_milli = integer(data.get("low_stock"), maximum=10**9) * 1000
+                critical_milli = integer(data.get("critical_stock"), maximum=10**9) * 1000
             if category == "Servicio":
-                stock = low = critical = 0
-            if critical > low:
+                stock_milli = low_milli = critical_milli = 0
+            if critical_milli > low_milli:
                 raise ValueError("El nivel crítico no puede superar el nivel bajo.")
+            reason = data.get("reason", "").strip()
+            if len(reason) > 160:
+                raise ValueError("El motivo del ajuste no puede superar 160 caracteres.")
         except ValueError as exc:
             return flash_redirect(request, f"/inventario/{item_id}/editar", str(exc))
-        with db.transaction() as conn:
-            updated = conn.execute("""UPDATE items SET name=?,category=?,unit=?,stock=?,sale_price_cents=?,cost_cents=?,low_stock=?,critical_stock=?
-                WHERE id=? AND active=1""", (name, category, unit, stock, sale_price, cost, low, critical, item_id)).rowcount
-        if updated != 1:
+        try:
+            with db.transaction() as conn:
+                current = conn.execute("SELECT stock_milli FROM items WHERE id=? AND active=1", (item_id,)).fetchone()
+                if current:
+                    delta_milli = stock_milli - int(current["stock_milli"])
+                    if delta_milli and not 3 <= len(reason) <= 160:
+                        raise ValueError("Escribe el motivo del ajuste de existencia (3 a 160 caracteres).")
+                    conn.execute("""UPDATE items SET name=?,category=?,unit=?,stock_milli=?,sale_price_cents=?,cost_cents=?,
+                        low_stock_milli=?,critical_stock_milli=? WHERE id=? AND active=1""",
+                        (name, category, unit, stock_milli, sale_price, cost, low_milli, critical_milli, item_id))
+                    if delta_milli:
+                        record_movement(conn, item_id, delta_milli, movement_type="AJUSTE", actor=user["username"],
+                                        actor_type="usuario", actor_id=user["id"], reason=reason, source="web")
+                updated = current is not None
+        except ValueError as exc:
+            return flash_redirect(request, f"/inventario/{item_id}/editar", str(exc))
+        if not updated:
             return flash_redirect(request, "/inventario", "El artículo ya no existe.")
         return redirect("/inventario", notice="item_saved")
 
@@ -667,7 +727,8 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
 
     @app.post("/inventario/nuevo")
     async def add_item(request: Request):
-        if not current_user(request):
+        user = current_user(request)
+        if not user:
             return redirect("/entrar")
         data = await form_data(request)
         if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
@@ -683,19 +744,37 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 raise ValueError("Revisa el nombre, la categoría y la unidad del artículo.")
             sale_price = money_to_cents(data.get("sale_price"))
             cost = money_to_cents(data.get("cost"))
-            quantity_parser = decimal_quantity if category == "Insumo" else lambda value: integer(value, maximum=10**9)
-            stock = quantity_parser(data.get("stock"))
-            low = quantity_parser(data.get("low_stock"))
-            critical = quantity_parser(data.get("critical_stock", "1"))
+            if category == "Insumo":
+                stock_milli = decimal_quantity_milli(data.get("stock"))
+                low_milli = decimal_quantity_milli(data.get("low_stock"))
+                critical_milli = decimal_quantity_milli(data.get("critical_stock", "1"))
+            else:
+                stock_milli = integer(data.get("stock"), maximum=10**9) * 1000
+                low_milli = integer(data.get("low_stock"), maximum=10**9) * 1000
+                critical_milli = integer(data.get("critical_stock", "1"), maximum=10**9) * 1000
             if category == "Servicio":
-                stock = low = critical = 0
-            if critical > low:
+                stock_milli = low_milli = critical_milli = 0
+            if critical_milli > low_milli:
                 raise ValueError("El nivel crítico no puede superar el nivel bajo.")
+            reason = data.get("reason", "").strip()
+            if stock_milli and not 3 <= len(reason) <= 160:
+                raise ValueError("Escribe el motivo de la existencia inicial (3 a 160 caracteres).")
+            if len(reason) > 160:
+                raise ValueError("El motivo no puede superar 160 caracteres.")
         except ValueError as exc:
             return flash_redirect(request, destination, str(exc))
         try:
             with db.transaction() as conn:
-                conn.execute("INSERT INTO items(name,category,unit,stock,sale_price_cents,cost_cents,low_stock,critical_stock) VALUES(?,?,?,?,?,?,?,?)", (name, category, unit, stock, sale_price, cost, low, critical))
+                cursor = conn.execute("""INSERT INTO items(
+                    name,category,unit,stock,stock_milli,sale_price_cents,cost_cents,low_stock,low_stock_milli,
+                    critical_stock,critical_stock_milli
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                    (name, category, unit, stock_milli / 1000, stock_milli, sale_price, cost,
+                     low_milli / 1000, low_milli, critical_milli / 1000, critical_milli))
+                if stock_milli:
+                    record_movement(conn, cursor.lastrowid, stock_milli, movement_type="ALTA", actor=user["username"],
+                                    actor_type="usuario", actor_id=user["id"],
+                                    reason=reason, source="web", reference=f"alta:{cursor.lastrowid}")
         except sqlite3.IntegrityError:
             return flash_redirect(request, destination, "No se pudo guardar el artículo.")
         return redirect(destination, notice="item_added")
@@ -706,14 +785,24 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         if not user:
             return redirect("/entrar")
         query = request.query_params.get("q", "").strip()[:80]
+        sale_key = request.session.get("web_sale_key")
+        try:
+            sale_key = str(uuidlib.UUID(str(sale_key)))
+        except (ValueError, AttributeError):
+            sale_key = str(uuidlib.uuid4())
+            request.session["web_sale_key"] = sale_key
+        completed_sale_key = request.session.get("last_completed_sale_key", "")
+        reset_pos_key = bool(request.session.pop("pos_key_reset", False))
         with db.connect() as conn:
             shift = conn.execute("SELECT * FROM shifts WHERE closed_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
             if query:
-                items = conn.execute("SELECT id,name,category,stock,unit,sale_price_cents FROM items WHERE active=1 AND category!='Insumo' AND (category='Servicio' OR stock>0) AND name LIKE ? ORDER BY name LIMIT 60", (f"%{query}%",)).fetchall()
+                items = conn.execute("SELECT id,name,category,stock,unit,sale_price_cents FROM items WHERE active=1 AND category!='Insumo' AND (category='Servicio' OR stock_milli>0) AND name LIKE ? ORDER BY name LIMIT 60", (f"%{query}%",)).fetchall()
             else:
-                items = conn.execute("SELECT id,name,category,stock,unit,sale_price_cents FROM items WHERE active=1 AND category!='Insumo' AND (category='Servicio' OR stock>0) ORDER BY name LIMIT 60").fetchall()
-            sales = conn.execute("""SELECT s.*, COALESCE(group_concat(sl.item_name || ' × ' || sl.quantity, ', '),'Venta') summary,c.name customer_name
+                items = conn.execute("SELECT id,name,category,stock,unit,sale_price_cents FROM items WHERE active=1 AND category!='Insumo' AND (category='Servicio' OR stock_milli>0) ORDER BY name LIMIT 60").fetchall()
+            sales = conn.execute("""SELECT s.*, COALESCE(group_concat(sl.item_name || ' × ' || sl.quantity, ', '),'Venta') summary,
+                c.name customer_name, COALESCE(u.username,'') actor_name, COALESCE(cu.username,'') cancelled_by_name
                 FROM sales s LEFT JOIN sale_lines sl ON sl.sale_id=s.id LEFT JOIN customers c ON c.id=s.customer_id
+                LEFT JOIN users u ON u.id=s.user_id LEFT JOIN users cu ON cu.id=s.cancelled_by
                 GROUP BY s.id ORDER BY s.id DESC LIMIT 50""").fetchall()
             customers = conn.execute("SELECT id,name FROM customers WHERE active=1 ORDER BY name LIMIT 500").fetchall()
             native_sales = conn.execute("SELECT * FROM sync_sales ORDER BY sale_at_ms DESC LIMIT 50").fetchall()
@@ -725,6 +814,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             except (TypeError, ValueError):
                 sale["_sort"] = 0
             sale["origin"] = "Escritorio"
+            sale["cancelled"] = sale.get("cancelled_at") is not None
             recent.append(sale)
         for row in native_sales:
             native = dict(row)
@@ -769,11 +859,12 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             native["_sort"] = native["sale_at_ms"] / 1000
             native["origin"] = f"App secundaria · {native['employee_name'] or 'Empleado'}"
             native["cancelled"] = native.get("cancelled_at") is not None
+            native["cancelled_by_name"] = native.get("cancelled_by") or ""
             recent.append(native)
         recent.sort(key=lambda sale: sale["_sort"], reverse=True)
         for sale in recent:
             sale.pop("_sort", None)
-        return templates.TemplateResponse(request, "sales.html", context(request, user=user, section="ventas", shift=dict(shift) if shift else None, items=[dict(r) for r in items], customers=[dict(r) for r in customers], query=query, sales=recent[:50], notice=notice_text(request), notice_kind="success"))
+        return templates.TemplateResponse(request, "sales.html", context(request, user=user, section="ventas", shift=dict(shift) if shift else None, items=[dict(r) for r in items], customers=[dict(r) for r in customers], query=query, sales=recent[:50], sale_key=sale_key, completed_sale_key=completed_sale_key, reset_pos_key=reset_pos_key, notice=notice_text(request), notice_kind="success"))
 
     @app.get("/api/v1/pos/catalogo")
     async def pos_catalog(request: Request):
@@ -791,7 +882,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             placeholders = ",".join("?" for _ in ids)
             with db.connect() as conn:
                 rows = conn.execute(f"""SELECT id,name,category,unit,stock,sale_price_cents FROM items
-                    WHERE active=1 AND category!='Insumo' AND (category='Servicio' OR stock>0)
+                    WHERE active=1 AND category!='Insumo' AND (category='Servicio' OR stock_milli>0)
                     AND id IN ({placeholders})""", ids).fetchall()
             return JSONResponse({"items": [dict(row) for row in rows]}, headers={"Cache-Control": "no-store"})
         query = request.query_params.get("q", "").strip()[:80]
@@ -799,7 +890,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         pattern = "%" + query.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%"
         with db.connect() as conn:
             rows = conn.execute("""SELECT id,name,category,unit,stock,sale_price_cents FROM items
-                WHERE active=1 AND category!='Insumo' AND (category='Servicio' OR stock>0)
+                WHERE active=1 AND category!='Insumo' AND (category='Servicio' OR stock_milli>0)
                 AND name LIKE ? ESCAPE '!' ORDER BY name, id LIMIT 31""", (pattern,)).fetchall()
         return JSONResponse({"items": [dict(row) for row in rows[:30]], "has_more": len(rows) > 30},
                             headers={"Cache-Control": "no-store"})
@@ -820,7 +911,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                     quantity = integer(raw, maximum=100_000)
                     if quantity:
                         selected.append((item_id, quantity))
-            # Backward compatibility for old clients/forms with one item.
+            # Compatibilidad con formularios anteriores de un solo artículo.
             if not selected and data.get("item_id"):
                 selected.append((integer(data.get("item_id"), minimum=1, maximum=2**31 - 1),
                                  integer(data.get("quantity"), minimum=1, maximum=100_000)))
@@ -835,61 +926,135 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                     raise ValueError("No se pudieron comprobar los precios del carrito.") from exc
                 if not isinstance(expected_prices, dict) or set(expected_prices) != {str(item_id) for item_id, _ in selected} or any(type(price) is not int or price < 0 for price in expected_prices.values()):
                     raise ValueError("No se pudieron comprobar los precios del carrito.")
+            raw_key = data.get("sale_key") or request.session.get("web_sale_key")
+            if not raw_key:
+                raw_key = str(uuidlib.uuid4())
+                request.session["web_sale_key"] = raw_key
+            try:
+                sale_key = str(uuidlib.UUID(str(raw_key)))
+            except (ValueError, AttributeError) as exc:
+                raise ValueError("No se pudo identificar esta venta. Recarga el formulario antes de volver a intentar.") from exc
         except ValueError as exc:
             return flash_redirect(request, "/ventas", str(exc))
         payment = data.get("payment_method", "")
         if payment not in {"EFECTIVO", "TRANSFERENCIA"}:
             return flash_redirect(request, "/ventas", "Forma de pago no válida.")
+        intent_hash = hashlib.sha256(canonical_json({
+            "lineas": sorted(selected), "cliente": customer_id, "pago": payment,
+            "preciosEsperados": expected_prices,
+        })).hexdigest()
         try:
             with db.transaction() as conn:
-                shift = conn.execute("SELECT id FROM shifts WHERE closed_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
-                if not shift:
-                    raise ValueError("Abre un turno antes de registrar ventas.")
-                if customer_id and not conn.execute("SELECT 1 FROM customers WHERE id=? AND active=1", (customer_id,)).fetchone():
-                    raise ValueError("El cliente ya no está disponible.")
-                prepared = []
-                total = 0
-                for item_id, quantity in selected:
-                    item = conn.execute("SELECT * FROM items WHERE id=? AND active=1", (item_id,)).fetchone()
-                    if not item or item["category"] == "Insumo":
-                        raise ValueError("Uno de los artículos ya no está disponible para la venta.")
-                    if expected_prices is not None and expected_prices[str(item_id)] != item["sale_price_cents"]:
-                        raise ValueError("Un precio cambió; revisa el carrito antes de registrar la venta.")
-                    if item["category"] != "Servicio" and item["stock"] < quantity:
-                        raise ValueError(f"No hay existencia suficiente de {item['name']}.")
-                    line_total = item["sale_price_cents"] * quantity
-                    total += line_total
-                    if total > 10**14:
-                        raise ValueError("El total de la venta supera el límite permitido.")
-                    prepared.append((item, quantity))
-                ingredient_requirements: dict[int, int] = {}
-                for item, quantity in prepared:
-                    if item["category"] not in {"Producto", "Servicio"}:
-                        continue
-                    for recipe in conn.execute("SELECT ingredient_id,quantity_milli FROM recipes WHERE product_id=?", (item["id"],)):
-                        ingredient_requirements[recipe["ingredient_id"]] = ingredient_requirements.get(recipe["ingredient_id"], 0) + recipe["quantity_milli"] * quantity
-                for ingredient_id, required_milli in ingredient_requirements.items():
-                    ingredient = conn.execute("SELECT name,stock FROM items WHERE id=? AND category='Insumo' AND active=1", (ingredient_id,)).fetchone()
-                    available_milli = int(Decimal(str(ingredient["stock"])) * 1000) if ingredient else 0
-                    if not ingredient or available_milli < required_milli:
-                        raise ValueError(f"No hay suficiente {ingredient['name'] if ingredient else 'insumo'} para preparar la venta.")
-                cursor = conn.execute("INSERT INTO sales(shift_id,total_cents,payment_method,customer_id) VALUES(?,?,?,?)", (shift["id"], total, payment, customer_id))
-                for item, quantity in prepared:
-                    conn.execute("INSERT INTO sale_lines(sale_id,item_id,item_name,quantity,unit_price_cents) VALUES(?,?,?,?,?)",
-                                 (cursor.lastrowid, item["id"], item["name"], quantity, item["sale_price_cents"]))
-                    if item["category"] != "Servicio":
-                        updated = conn.execute("UPDATE items SET stock=stock-? WHERE id=? AND active=1 AND stock>=?",
-                                               (quantity, item["id"], quantity)).rowcount
+                previous = conn.execute("SELECT request_hash FROM sales WHERE request_key=?", (sale_key,)).fetchone()
+                if previous:
+                    if previous["request_hash"] != intent_hash:
+                        request.session["web_sale_key"] = str(uuidlib.uuid4())
+                        request.session["pos_key_reset"] = True
+                        raise ValueError("Esta clave ya registró otra operación. Revisa el historial; se inició una clave nueva para la siguiente venta.")
+                else:
+                    shift = conn.execute("SELECT id FROM shifts WHERE closed_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
+                    if not shift:
+                        raise ValueError("Abre un turno antes de registrar ventas.")
+                    if customer_id and not conn.execute("SELECT 1 FROM customers WHERE id=? AND active=1", (customer_id,)).fetchone():
+                        raise ValueError("El cliente ya no está disponible.")
+                    prepared = []
+                    total = 0
+                    for item_id, quantity in selected:
+                        item = conn.execute("SELECT * FROM items WHERE id=? AND active=1", (item_id,)).fetchone()
+                        if not item or item["category"] == "Insumo":
+                            raise ValueError("Uno de los artículos ya no está disponible para la venta.")
+                        if expected_prices is not None and expected_prices[str(item_id)] != item["sale_price_cents"]:
+                            raise ValueError("Un precio cambió; revisa el carrito antes de registrar la venta.")
+                        quantity_milli = quantity * 1000
+                        if item["category"] != "Servicio" and int(item["stock_milli"]) < quantity_milli:
+                            raise ValueError(f"No hay existencia suficiente de {item['name']}.")
+                        line_total = item["sale_price_cents"] * quantity
+                        total += line_total
+                        if total > 10**14:
+                            raise ValueError("El total de la venta supera el límite permitido.")
+                        prepared.append((item, quantity))
+                    ingredient_requirements: dict[int, int] = {}
+                    for item, quantity in prepared:
+                        for recipe in conn.execute("SELECT ingredient_id,quantity_milli FROM recipes WHERE product_id=?", (item["id"],)):
+                            ingredient_id = int(recipe["ingredient_id"])
+                            ingredient_requirements[ingredient_id] = ingredient_requirements.get(ingredient_id, 0) + int(recipe["quantity_milli"]) * quantity
+                    for ingredient_id, required_milli in ingredient_requirements.items():
+                        ingredient = conn.execute("SELECT name,stock_milli FROM items WHERE id=? AND category='Insumo' AND active=1", (ingredient_id,)).fetchone()
+                        available_milli = int(ingredient["stock_milli"]) if ingredient else 0
+                        if not ingredient or available_milli < required_milli:
+                            raise ValueError(f"No hay suficiente {ingredient['name'] if ingredient else 'insumo'} para preparar la venta.")
+                    cursor = conn.execute("""INSERT INTO sales(
+                        shift_id,total_cents,payment_method,customer_id,user_id,request_key,request_hash,inventory_logged
+                    ) VALUES(?,?,?,?,?,?,?,1)""",
+                        (shift["id"], total, payment, customer_id, user["id"], sale_key, intent_hash))
+                    sale_id = int(cursor.lastrowid)
+                    movement_reference = f"web-sale:{sale_id}"
+                    for item, quantity in prepared:
+                        conn.execute("INSERT INTO sale_lines(sale_id,item_id,item_name,quantity,unit_price_cents) VALUES(?,?,?,?,?)",
+                                     (sale_id, item["id"], item["name"], quantity, item["sale_price_cents"]))
+                        if item["category"] != "Servicio":
+                            delta_milli = -quantity * 1000
+                            updated = conn.execute("""UPDATE items SET stock_milli=stock_milli+?
+                                WHERE id=? AND active=1 AND stock_milli>=?""",
+                                (delta_milli, item["id"], -delta_milli)).rowcount
+                            if updated != 1:
+                                raise ValueError(f"La existencia de {item['name']} cambió; revisa el inventario.")
+                            record_movement(conn, item["id"], delta_milli, movement_type="VENTA", actor=user["username"],
+                                            actor_type="usuario", actor_id=user["id"], reason=f"Venta web #{sale_id}",
+                                            source="web", reference=movement_reference)
+                    for ingredient_id, required_milli in ingredient_requirements.items():
+                        delta_milli = -required_milli
+                        updated = conn.execute("""UPDATE items SET stock_milli=stock_milli+?
+                            WHERE id=? AND active=1 AND category='Insumo' AND stock_milli>=?""",
+                            (delta_milli, ingredient_id, required_milli)).rowcount
                         if updated != 1:
-                            raise ValueError(f"La existencia de {item['name']} cambió; revisa el inventario.")
-                for ingredient_id, required_milli in ingredient_requirements.items():
-                    required = required_milli / 1000
-                    updated = conn.execute("UPDATE items SET stock=stock-? WHERE id=? AND active=1 AND category='Insumo' AND stock>=?", (required, ingredient_id, required)).rowcount
-                    if updated != 1:
-                        raise ValueError("La existencia de un insumo cambió; revisa las recetas.")
+                            raise ValueError("La existencia de un insumo cambió; revisa las recetas.")
+                        record_movement(conn, ingredient_id, delta_milli, movement_type="VENTA", actor=user["username"],
+                                        actor_type="usuario", actor_id=user["id"],
+                                        reason=f"Consumo por venta web #{sale_id}", source="web", reference=movement_reference)
         except ValueError as exc:
             return flash_redirect(request, "/ventas", str(exc))
+        except sqlite3.IntegrityError:
+            return flash_redirect(request, "/ventas", "La venta no se pudo guardar. Revisa el historial antes de volver a intentarlo.")
+        request.session["last_completed_sale_key"] = sale_key
+        request.session["web_sale_key"] = str(uuidlib.uuid4())
         return redirect("/ventas", notice="sale_saved")
+
+    @app.post("/ventas/{sale_id}/anular")
+    async def cancel_web_sale(request: Request, sale_id: int):
+        user = require_admin(request)
+        if not user:
+            return redirect("/entrar")
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        reason = data.get("reason", "").strip()
+        if not 3 <= len(reason) <= 160:
+            return flash_redirect(request, "/ventas", "Escribe un motivo de anulación de 3 a 160 caracteres.")
+        try:
+            with db.transaction() as conn:
+                sale = conn.execute("SELECT * FROM sales WHERE id=?", (sale_id,)).fetchone()
+                if not sale:
+                    raise ValueError("La venta no existe.")
+                if sale["cancelled_at"] is not None:
+                    raise ValueError("La venta ya está anulada.")
+                if not sale["inventory_logged"]:
+                    raise ValueError("Esta venta es anterior al libro de movimientos; no se puede anular automáticamente sin arriesgar el saldo.")
+                reference = f"web-sale:{sale_id}"
+                movements = conn.execute("SELECT * FROM inventory_movements WHERE reference=? ORDER BY id", (reference,)).fetchall()
+                for movement in movements:
+                    delta_milli = -int(movement["delta_milli"])
+                    conn.execute("UPDATE items SET stock_milli=stock_milli+? WHERE id=?",
+                                 (delta_milli, movement["item_id"]))
+                    record_movement(conn, movement["item_id"], delta_milli, movement_type="ANULACION_VENTA",
+                                    actor=user["username"], actor_type="usuario", actor_id=user["id"],
+                                    reason=f"Anulación de venta web #{sale_id}: {reason}", source="web",
+                                    reference=f"web-sale-cancel:{sale_id}")
+                conn.execute("UPDATE sales SET cancelled_at=?,cancellation_reason=?,cancelled_by=? WHERE id=? AND cancelled_at IS NULL",
+                             (now_utc(), reason, user["id"], sale_id))
+        except ValueError as exc:
+            return flash_redirect(request, "/ventas", str(exc))
+        return redirect("/ventas", notice="web_sale_cancelled")
 
     @app.post("/ventas/movil/{sale_uuid}/anular")
     async def cancel_mobile_sale(request: Request, sale_uuid: str):
@@ -924,20 +1089,15 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                         entity = str(movement["entidad"]).upper()
                     except (KeyError, TypeError, ValueError):
                         continue
-                    if entity == "INSUMO":
-                        restore = -delta / 1000
-                        current = conn.execute("SELECT stock FROM items WHERE id=? AND category='Insumo' AND active=1", (item_id,)).fetchone()
-                        if current and float(current["stock"]) + restore < -0.000001:
-                            raise ValueError("No se puede anular: la reversión dejaría un insumo con existencia negativa.")
+                    if entity in {"INSUMO", "PRODUCTO"}:
+                        restore_milli = -delta if entity == "INSUMO" else -delta * 1000
+                        current = conn.execute("SELECT stock_milli FROM items WHERE id=?", (item_id,)).fetchone()
                         if current:
-                            conn.execute("UPDATE items SET stock=stock+? WHERE id=? AND category='Insumo'", (restore, item_id))
-                    elif entity == "PRODUCTO":
-                        restore = -delta
-                        current = conn.execute("SELECT stock FROM items WHERE id=? AND category!='Insumo' AND active=1", (item_id,)).fetchone()
-                        if current and int(current["stock"]) + restore < 0:
-                            raise ValueError("No se puede anular: la reversión dejaría un producto con existencia negativa.")
-                        if current:
-                            conn.execute("UPDATE items SET stock=stock+? WHERE id=? AND category!='Insumo'", (restore, item_id))
+                            conn.execute("UPDATE items SET stock_milli=stock_milli+? WHERE id=?", (restore_milli, item_id))
+                            record_movement(conn, item_id, restore_milli, movement_type="ANULACION_MOVIL",
+                                            actor=user["username"], actor_type="usuario", actor_id=user["id"],
+                                            reason=f"Anulación móvil {sale_uuid}: {reason}", source="web",
+                                            reference=f"mobile-sale-cancel:{sale_uuid}")
                 conn.execute("UPDATE sync_sales SET cancelled_at=?,cancellation_reason=?,cancelled_by=? WHERE uuid=? AND cancelled_at IS NULL",
                              (cancelled_at, reason, user["username"], sale_uuid))
                 change = {"uuid": sale_uuid, "turnoUuid": sale["shift_uuid"], "anuladaEn": cancelled_at,
@@ -1027,18 +1187,24 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                     new_deltas[item_id] = new_deltas.get(item_id, 0) - quantity
                 new_movements = []
                 for item_id in set(old_deltas) | set(new_deltas):
-                    item = conn.execute("SELECT name,stock FROM items WHERE id=? AND active=1 AND category!='Insumo'", (item_id,)).fetchone()
+                    item = conn.execute("SELECT name,stock_milli FROM items WHERE id=? AND active=1 AND category!='Insumo'", (item_id,)).fetchone()
                     if not item:
                         raise ValueError("No se puede corregir una venta con un producto retirado del catálogo.")
                     change_delta = new_deltas.get(item_id, 0) - old_deltas.get(item_id, 0)
-                    new_stock = int(item["stock"]) + change_delta
-                    if new_stock < 0:
+                    change_milli = change_delta * 1000
+                    new_stock_milli = int(item["stock_milli"]) + change_milli
+                    if new_stock_milli < 0:
                         raise ValueError(f"La corrección dejaría sin existencia a {item['name']}.")
-                    conn.execute("UPDATE items SET stock=? WHERE id=?", (new_stock, item_id))
+                    conn.execute("UPDATE items SET stock_milli=? WHERE id=?", (new_stock_milli, item_id))
+                    if change_milli:
+                        record_movement(conn, item_id, change_milli, movement_type="CORRECCION_MOVIL",
+                                        actor=user["username"], actor_type="usuario", actor_id=user["id"],
+                                        reason=f"Corrección móvil {sale_uuid}: {reason}", source="web",
+                                        reference=f"mobile-sale-correction:{sale_uuid}")
                     if item_id in new_deltas:
                         new_movements.append({"id": 0, "fecha": corrected_at, "tipo": "VENTA", "entidad": "PRODUCTO",
                                               "entidadId": item_id, "nombre": item["name"], "delta": new_deltas[item_id],
-                                              "existencia": new_stock, "turnoId": old_sale.get("turnoId"), "nota": "Corrección de venta"})
+                                              "existencia": new_stock_milli // 1000, "turnoId": old_sale.get("turnoId"), "nota": "Corrección de venta"})
                 transaction = old_sale.get("transaccion")
                 if payment == "EFECTIVO":
                     transaction = None
@@ -1136,8 +1302,8 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             return redirect("/entrar")
         with db.connect() as conn:
             shifts = conn.execute("""SELECT sh.*,
-                (SELECT COALESCE(SUM(total_cents),0) FROM sales s WHERE s.shift_id=sh.id) sales_total,
-                (SELECT COALESCE(SUM(total_cents),0) FROM sales s WHERE s.shift_id=sh.id AND s.payment_method='EFECTIVO') cash_sales,
+                (SELECT COALESCE(SUM(total_cents),0) FROM sales s WHERE s.shift_id=sh.id AND s.cancelled_at IS NULL) sales_total,
+                (SELECT COALESCE(SUM(total_cents),0) FROM sales s WHERE s.shift_id=sh.id AND s.payment_method='EFECTIVO' AND s.cancelled_at IS NULL) cash_sales,
                 (SELECT COALESCE(SUM(CASE WHEN movement_type='ENTRADA' THEN amount_cents ELSE -amount_cents END),0) FROM cash_movements cm WHERE cm.shift_id=sh.id) cash_adjustments
                 FROM shifts sh ORDER BY sh.id DESC LIMIT 100""").fetchall()
         result = []
@@ -1171,8 +1337,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         try:
             product_id = integer(data.get("product_id"), minimum=1, maximum=2**31 - 1)
             ingredient_id = integer(data.get("ingredient_id"), minimum=1, maximum=2**31 - 1)
-            quantity = decimal_quantity(data.get("quantity"))
-            quantity_milli = int(Decimal(str(quantity)) * 1000)
+            quantity_milli = decimal_quantity_milli(data.get("quantity"))
             if not quantity_milli:
                 raise ValueError("La cantidad debe ser al menos 0.001 por producto.")
             with db.transaction() as conn:
@@ -1427,7 +1592,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 COALESCE(GROUP_CONCAT(sl.item_name || ' × ' || sl.quantity, '; '),'Venta') descripcion,
                 s.payment_method pago,s.total_cents total_cents,c.name cliente
                 FROM sales s LEFT JOIN sale_lines sl ON sl.sale_id=s.id LEFT JOIN customers c ON c.id=s.customer_id
-                WHERE date(s.created_at) BETWEEN ? AND ? GROUP BY s.id ORDER BY s.created_at""", (start, end)).fetchall()
+                WHERE s.cancelled_at IS NULL AND date(s.created_at) BETWEEN ? AND ? GROUP BY s.id ORDER BY s.created_at""", (start, end)).fetchall()
             mobile_rows = conn.execute("""SELECT datetime(s.sale_at_ms/1000,'unixepoch','localtime') fecha,
                 'Móvil · ' || s.employee_name origen,s.payment_method pago,s.total_cents total_cents,'' cliente,s.payload_json
                 FROM sync_sales s WHERE s.cancelled_at IS NULL AND date(s.sale_at_ms/1000,'unixepoch','localtime') BETWEEN ? AND ? ORDER BY s.sale_at_ms""", (start, end)).fetchall()
@@ -1514,10 +1679,13 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         if not current_user(request):
             return redirect("/entrar")
         with db.connect() as conn:
-            items = conn.execute("SELECT name,category,unit,stock,sale_price_cents,cost_cents,low_stock,critical_stock FROM items WHERE active=1 ORDER BY name").fetchall()
+            items = conn.execute("SELECT name,category,unit,stock_milli,sale_price_cents,cost_cents,low_stock_milli,critical_stock_milli FROM items WHERE active=1 ORDER BY name").fetchall()
+        def quantity_number(value: int) -> int | float:
+            milli = int(value)
+            return milli // 1000 if milli % 1000 == 0 else milli / 1000.0
         rows: list[list[Any]] = [["Nombre", "Categoría", "Unidad", "Existencia", "Precio (CUP)", "Costo (CUP)", "Stock bajo", "Stock crítico"]]
-        rows.extend([[item["name"], item["category"], item["unit"], item["stock"], item["sale_price_cents"] / 100,
-                      item["cost_cents"] / 100, item["low_stock"], item["critical_stock"]] for item in items])
+        rows.extend([[item["name"], item["category"], item["unit"], quantity_number(item["stock_milli"]), item["sale_price_cents"] / 100,
+                      item["cost_cents"] / 100, quantity_number(item["low_stock_milli"]), quantity_number(item["critical_stock_milli"])] for item in items])
         return Response(build_xlsx([("Inventario", rows)]), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         headers={"Content-Disposition": 'attachment; filename="inventario.xlsx"'})
 
@@ -1537,12 +1705,12 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         if not current_user(request):
             return redirect("/entrar")
         with db.connect() as conn:
-            items = conn.execute("SELECT name,category,unit,stock,sale_price_cents,cost_cents,low_stock,critical_stock FROM items WHERE active=1 ORDER BY name").fetchall()
+            items = conn.execute("SELECT name,category,unit,stock_milli,sale_price_cents,cost_cents,low_stock_milli,critical_stock_milli FROM items WHERE active=1 ORDER BY name").fetchall()
         output = io.StringIO(newline="")
         writer = csv.writer(output)
         writer.writerow(["Nombre", "Categoría", "Unidad", "Existencia", "Precio (CUP)", "Costo (CUP)", "Stock bajo", "Stock crítico"])
         for item in items:
-            writer.writerow([csv_text(item["name"]), csv_text(item["category"]), csv_text(item["unit"]), item["stock"], f"{item['sale_price_cents']/100:.2f}", f"{item['cost_cents']/100:.2f}", item["low_stock"], item["critical_stock"]])
+            writer.writerow([csv_text(item["name"]), csv_text(item["category"]), csv_text(item["unit"]), format_milli(item["stock_milli"]), f"{item['sale_price_cents']/100:.2f}", f"{item['cost_cents']/100:.2f}", format_milli(item["low_stock_milli"]), format_milli(item["critical_stock_milli"])])
         return Response("\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="inventario.csv"'})
 
     @app.get("/equipo", response_class=HTMLResponse)
@@ -1824,7 +1992,11 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         if not current_user(request):
             return JSONResponse({"detail": "Autenticación requerida"}, status_code=401)
         with db.connect() as conn:
-            rows = conn.execute("SELECT id,name,category,unit,stock,sale_price_cents,cost_cents,low_stock FROM items WHERE active=1 ORDER BY name").fetchall()
+            rows = conn.execute("""
+                SELECT id,name,category,unit,stock,sale_price_cents,cost_cents,low_stock,
+                       stock_milli,low_stock_milli,critical_stock,critical_stock_milli
+                FROM items WHERE active=1 ORDER BY name
+            """).fetchall()
         return JSONResponse({"items": [dict(row) for row in rows]})
 
     return app

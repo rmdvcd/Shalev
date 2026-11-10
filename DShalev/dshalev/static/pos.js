@@ -12,6 +12,7 @@
   const error = document.getElementById('pos-error');
   const submit = document.getElementById('pos-submit');
   const clear = document.getElementById('pos-clear');
+  const saleKey = form.elements.sale_key;
   const key = `dshalev-pos-${app.dataset.user}-${app.dataset.shift}-${form.elements.csrf.value}`;
   const cart = new Map();
   let timer, searchVersion = 0, checkingCart = false;
@@ -22,19 +23,40 @@
   }
   function save() {
     try {
-      sessionStorage.setItem(key, JSON.stringify({items: [...cart.values()], customer: form.elements.customer_id.value, payment: form.elements.payment_method.value}));
+      sessionStorage.setItem(key, JSON.stringify({saleKey: saleKey.value, items: [...cart.values()], customer: form.elements.customer_id.value, payment: form.elements.payment_method.value}));
     } catch (_) { /* El carrito sigue disponible en esta página aunque el navegador bloquee almacenamiento. */ }
+  }
+  function freshSaleKey() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+      const bytes = new Uint8Array(16); window.crypto.getRandomValues(bytes);
+      bytes[6] = (bytes[6] & 0x0f) | 0x40; bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+      return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+    }
+    return saleKey.value;
   }
   function restore() {
     try {
-      if (app.dataset.saleSaved === '1') {
+      if (app.dataset.posKeyReset === '1') {
         sessionStorage.removeItem(key);
-        // No borrar una venta nueva si se recarga la URL de confirmación anterior.
-        const url = new URL(window.location.href); url.searchParams.delete('notice');
-        window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+        saleKey.value = freshSaleKey();
         return;
       }
       const saved = JSON.parse(sessionStorage.getItem(key) || '{}');
+      if (app.dataset.saleSaved === '1') {
+        // Una URL de confirmación antigua solo elimina el borrador de esa misma venta.
+        if (saved.saleKey && saved.saleKey === app.dataset.completedSaleKey) {
+          sessionStorage.removeItem(key);
+          const url = new URL(window.location.href); url.searchParams.delete('notice');
+          window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+          return;
+        }
+        const url = new URL(window.location.href); url.searchParams.delete('notice');
+        window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+      }
+      if (typeof saved.saleKey === 'string' && /^[0-9a-f-]{36}$/i.test(saved.saleKey)) saleKey.value = saved.saleKey;
+      else saleKey.value = freshSaleKey();
       for (const item of (Array.isArray(saved.items) ? saved.items : []).slice(0, 60)) {
         if (Number.isSafeInteger(item.id) && item.id > 0 && typeof item.name === 'string' &&
             Number.isSafeInteger(item.price) && item.price >= 0 && Number.isSafeInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 100000) cart.set(item.id, item);

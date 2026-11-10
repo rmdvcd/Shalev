@@ -279,3 +279,13 @@ No cambia el esquema Room ni se guardan nuevos secretos. Detalle en relay/README
 Las fichas de costo de escritorio se guardan dentro de la base cifrada de DShalev y se incluyen en su respaldo `.dshbackup`. Cada partida conserva cantidad, categoría, costo y moneda; los importes CUP y USD no se suman entre sí. Se pueden exportar a Excel (`.xlsx`), con decimales como texto exacto; se pueden exportar al catálogo web de DShalev como producto o servicio con receta, pero no a PDF ni al respaldo Android `.shalev`.
 
 La exportación al catálogo crea insumos nuevos con existencia cero y reutiliza los insumos existentes con nombre y unidad coincidentes. Las partidas de materias primas alimentan la receta; las demás influyen en el costo. Los productos exportados requieren existencias propias, además de los insumos, antes de venderse en el escritorio. La tasa CUP por USD es obligatoria si hay partidas en USD. El guardado de artículo, insumos y receta se hace en una sola transacción.
+
+### DShalev: historial de movimientos de inventario (`.csv`)
+
+`GET /inventario/movimientos.csv` (cuenta administradora) descarga hasta 50 000 eventos, del más antiguo al más reciente, en UTF-8 con BOM, separador CSV estándar y terminadores CRLF. Encabezados exactos:
+
+`Fecha UTC, Artículo, Categoría, Unidad, Tipo, Cambio, Existencia anterior, Existencia posterior, Actor, Motivo, Origen, Referencia`.
+
+Las cantidades se expresan en la unidad indicada, con hasta tres decimales y sin ceros decimales finales. Los tres valores de cantidad se derivan del entero `*_milli`; los importes no aplican. Los campos de texto con posible fórmula se neutralizan en la exportación anteponiendo apóstrofo, sin alterar el libro ni sus valores numéricos. `MIGRACION` es el saldo de apertura normalizado a milésimas: el valor heredado se incluye en el motivo, y no representa una reconstrucción de movimientos previos.
+
+El libro está protegido contra UPDATE y DELETE por triggers SQLite. Los eventos registran instante, artículo/unidad como instantánea, delta, saldo resultante, actor, motivo, origen y referencia; las ventas y sus anulaciones se enlazan con dicha referencia. El CSV es un informe de auditoría, no un formato de importación ni de restauración.

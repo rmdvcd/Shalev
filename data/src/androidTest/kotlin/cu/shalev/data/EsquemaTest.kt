@@ -59,6 +59,21 @@ class EsquemaTest {
     }
 
     @Test
+    fun migracion16a17CreaLaTablaDeRecibosConElEsquemaActual() {
+        helper.createDatabase(BD, 16).close()
+        val db = Room.databaseBuilder(contexto, ShalevDatabase::class.java, BD)
+            .addMigrations(ShalevDatabase.MIGRACION_16_17)
+            .allowMainThreadQueries().build()
+        try {
+            db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM comando_recibo").use {
+                assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0))
+            }
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
     fun migracion12a13ConservaCajaYAnadeConteoNulo() {
         helper.createDatabase(BD, 12).apply {
             execSQL("INSERT INTO turno (abiertoEn, abiertoPor, fondoCent, contadoCent) VALUES (1000, 'Ana', 10000, 12000)")
@@ -93,7 +108,7 @@ class EsquemaTest {
             db.version = 4
         }
         val room = Room.databaseBuilder(contexto, ShalevDatabase::class.java, BD)
-            .addMigrations(ShalevDatabase.MIGRACION_3_4, ShalevDatabase.MIGRACION_4_5, ShalevDatabase.MIGRACION_5_6, ShalevDatabase.MIGRACION_6_7, ShalevDatabase.MIGRACION_7_8, ShalevDatabase.MIGRACION_8_9, ShalevDatabase.MIGRACION_9_10, ShalevDatabase.MIGRACION_10_11, ShalevDatabase.MIGRACION_11_12, ShalevDatabase.MIGRACION_12_13)
+            .addMigrations(ShalevDatabase.MIGRACION_3_4, ShalevDatabase.MIGRACION_4_5, ShalevDatabase.MIGRACION_5_6, ShalevDatabase.MIGRACION_6_7, ShalevDatabase.MIGRACION_7_8, ShalevDatabase.MIGRACION_8_9, ShalevDatabase.MIGRACION_9_10, ShalevDatabase.MIGRACION_10_11, ShalevDatabase.MIGRACION_11_12, ShalevDatabase.MIGRACION_12_13, ShalevDatabase.MIGRACION_13_14, ShalevDatabase.MIGRACION_14_15, ShalevDatabase.MIGRACION_15_16, ShalevDatabase.MIGRACION_16_17)
             .allowMainThreadQueries().build()
         try {
             // Abrir dispara la migración y la validación de Room (lanza si alguna tabla no coincide con las entidades).
@@ -120,7 +135,7 @@ class EsquemaTest {
             db.version = 5
         }
         val room = Room.databaseBuilder(contexto, ShalevDatabase::class.java, BD)
-            .addMigrations(ShalevDatabase.MIGRACION_3_4, ShalevDatabase.MIGRACION_4_5, ShalevDatabase.MIGRACION_5_6, ShalevDatabase.MIGRACION_6_7, ShalevDatabase.MIGRACION_7_8, ShalevDatabase.MIGRACION_8_9, ShalevDatabase.MIGRACION_9_10, ShalevDatabase.MIGRACION_10_11, ShalevDatabase.MIGRACION_11_12, ShalevDatabase.MIGRACION_12_13)
+            .addMigrations(ShalevDatabase.MIGRACION_3_4, ShalevDatabase.MIGRACION_4_5, ShalevDatabase.MIGRACION_5_6, ShalevDatabase.MIGRACION_6_7, ShalevDatabase.MIGRACION_7_8, ShalevDatabase.MIGRACION_8_9, ShalevDatabase.MIGRACION_9_10, ShalevDatabase.MIGRACION_10_11, ShalevDatabase.MIGRACION_11_12, ShalevDatabase.MIGRACION_12_13, ShalevDatabase.MIGRACION_13_14, ShalevDatabase.MIGRACION_14_15, ShalevDatabase.MIGRACION_15_16, ShalevDatabase.MIGRACION_16_17)
             .allowMainThreadQueries().build()
         try {
             room.openHelper.readableDatabase.query("SELECT nombre, tarjetaId, telefonoId, cierreSolicitadoEn FROM empleado").use {
@@ -218,7 +233,7 @@ class EsquemaTest {
             db.version = 6
         }
         val room = Room.databaseBuilder(contexto, ShalevDatabase::class.java, BD)
-            .addMigrations(ShalevDatabase.MIGRACION_5_6, ShalevDatabase.MIGRACION_6_7, ShalevDatabase.MIGRACION_7_8, ShalevDatabase.MIGRACION_8_9, ShalevDatabase.MIGRACION_9_10, ShalevDatabase.MIGRACION_10_11, ShalevDatabase.MIGRACION_11_12, ShalevDatabase.MIGRACION_12_13)
+            .addMigrations(ShalevDatabase.MIGRACION_5_6, ShalevDatabase.MIGRACION_6_7, ShalevDatabase.MIGRACION_7_8, ShalevDatabase.MIGRACION_8_9, ShalevDatabase.MIGRACION_9_10, ShalevDatabase.MIGRACION_10_11, ShalevDatabase.MIGRACION_11_12, ShalevDatabase.MIGRACION_12_13, ShalevDatabase.MIGRACION_13_14, ShalevDatabase.MIGRACION_14_15, ShalevDatabase.MIGRACION_15_16, ShalevDatabase.MIGRACION_16_17)
             .allowMainThreadQueries().build()
         try {
             room.openHelper.readableDatabase.query("SELECT telefono, cierrePedidoPorEmpleadoEn FROM empleado").use {
@@ -242,7 +257,7 @@ class EsquemaTest {
             db.version = 11
         }
         val room = Room.databaseBuilder(contexto, ShalevDatabase::class.java, BD)
-            .addMigrations(ShalevDatabase.MIGRACION_11_12, ShalevDatabase.MIGRACION_12_13)
+            .addMigrations(ShalevDatabase.MIGRACION_11_12, ShalevDatabase.MIGRACION_12_13, ShalevDatabase.MIGRACION_13_14, ShalevDatabase.MIGRACION_14_15, ShalevDatabase.MIGRACION_15_16, ShalevDatabase.MIGRACION_16_17)
             .allowMainThreadQueries().build()
         try {
             room.openHelper.readableDatabase.query("SELECT nombre, device FROM empleado").use {

@@ -188,7 +188,7 @@ class TurnoRepositoryInstrumentedTest {
         ok(ventas.registrar(venta(t.id, p, 2, MetodoPago.EFECTIVO)))
         ok(productos.ajustarStock(p, 5, "compra"))
 
-        val ejecutor = EjecutorComandos(productos, insumos, ServicioRepositoryImpl(db, clock), PreciosRepositoryImpl(db))
+        val ejecutor = EjecutorComandos(db, productos, insumos, ServicioRepositoryImpl(db, clock), PreciosRepositoryImpl(db))
         val r = ejecutor.resultado(1, sync.empleado(luis)!!, AjustarStockProducto(p, -1, "rotura"))
         assertNull(r.error)
 

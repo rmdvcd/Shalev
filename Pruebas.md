@@ -10,6 +10,8 @@
 8. Para una publicación, seguir [RELEASE.md](RELEASE.md): firmar con el keystore de release, verificar el APK/AAB y completar la prueba de humo.
 9. Anotar en `docs/VERIFICACION.md` el SHA, comandos ejecutados y resultados observados. Diferenciar explícitamente pruebas que pasaron, fallaron, no se pudieron ejecutar o están pendientes.
 
-## En este entorno
+## En este entorno (checkout Arena, 2026-11-10)
 
-Hay JDK 17 y Android SDK 35 instalados: `./gradlew shalevTests` (891 tests JVM) y `./gradlew shalevCheck` terminan en verde (2026-10-17), y hay un teléfono 4bc9f8f3 (Android 15) para instrumentados y prueba manual (2026-10-18). Lo pendiente es la corrida de CI de la rama; el último CI observado está descrito en `docs/VERIFICACION.md`.
+Este contenedor no tiene `java` ni `swift`, `ANDROID_HOME`/`ANDROID_SDK_ROOT` están vacíos y no expone Android SDK ni Xcode; por tanto, `shalevTests`, `shalevCheck`, compilación Android, `swift test` y compilación iOS no se ejecutaron aquí. Las verificaciones de toolchain registradas en otras fechas/equipos no aplican a este contenedor.
+
+Para esta rama se ejecutaron desde `DShalev/` `python -m py_compile dshalev/app.py dshalev/sync_server.py dshalev/database.py dshalev/inventory.py`, `pytest -q` y `npm test`; resultados y limitaciones actuales están en [docs/VERIFICACION.md](docs/VERIFICACION.md). Las carpetas `.venv/` y `node_modules/` se excluyen del snapshot: recrea el entorno con `python3 -m venv .venv`, `pip install -r requirements.txt`, instala `pytest` y `httpx`, y ejecuta `npm ci` antes de repetir las pruebas DShalev. La suite local/loopback no sustituye dispositivos ni redes reales.
