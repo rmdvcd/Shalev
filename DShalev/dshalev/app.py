@@ -30,6 +30,7 @@ from .cost_sheets import CATEGORIES, CURRENCIES, calculate as calculate_sheet, p
 from .cost_export import export_sheet as export_cost_to_catalog
 from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
+from .licencia import motivo_activacion_deshabilitada
 from .security import csrf_token, hash_password, valid_csrf, verify_password
 from .sync_protocol import canonical_json, generate_pairing_code
 from .sync_server import ShalevSyncServer
@@ -590,7 +591,11 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         user = current_user(request)
         if not user:
             return redirect("/entrar")
-        return templates.TemplateResponse(request, "license.html", context(request, user=user, section="licencia"))
+        return templates.TemplateResponse(
+            request,
+            "license.html",
+            context(request, user=user, section="licencia", motivo_licencia=motivo_activacion_deshabilitada()),
+        )
 
     @app.get("/inventario", response_class=HTMLResponse)
     async def inventory(request: Request):

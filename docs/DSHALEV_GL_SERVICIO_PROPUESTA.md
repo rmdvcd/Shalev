@@ -1,5 +1,8 @@
 # Propuesta: canje comercial GL para DShalev (no implementada)
 
+> **2026-11-10:** la base local (identidad P-256, configuración fijada y almacén protegido) ya está implementada; el
+> canje y el estado siguen bloqueados por el contrato GL. Ver [`DSHALEV_LICENCIA_GL.md`](DSHALEV_LICENCIA_GL.md).
+
 **Estado:** diseño inicial, no es un contrato vigente ni habilita ventas comerciales. El usuario ha indicado que GL deberá canjear un código de 16 caracteres mediante un servicio aún por construir. El contrato existente de Android activa con `SPVI2:` (ver `LICENSE_CLIENT.md`); el código 4×4 por sí solo no sustituye su firma ni su vínculo a dispositivo. No introducir claves privadas de GL en DShalev.
 
 ## Principios propuestos

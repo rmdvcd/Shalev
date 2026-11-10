@@ -157,3 +157,19 @@ def test_navegacion_accesible_y_seccion_actual(tmp_path):
     assert 'href="/inventario" class="nav-link active" aria-current="page"' in page
     assert 'href="/ventas" class="nav-link " aria-current' not in page
     assert 'aria-hidden="true"><svg' in page
+
+
+def test_el_panel_de_licencia_explica_que_la_activacion_esta_deshabilitada(tmp_path):
+    client = make_client(tmp_path)
+    create_admin(client)
+    login(client)
+    page = client.get("/licencia")
+    assert page.status_code == 200
+    assert "deshabilitada" in page.text
+    assert "endpoint HTTPS" in page.text
+    # El panel no pide ni muestra secretos, claves ni códigos de activación.
+    assert "name=\"codigo\"" not in page.text
+    assert "SPVI2" not in page.text
+    assert "PRIVATE KEY" not in page.text
+    assert "BEGIN" not in page.text
+    assert "https://" not in page.text
