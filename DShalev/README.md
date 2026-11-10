@@ -9,7 +9,7 @@ DShalev es un **servidor web local en Python** pensado para ejecutarse en Window
 - **Inicio:** gráfico diario de los últimos siete días con ventas de escritorio y móviles sincronizadas no anuladas. El Top 3 por unidades incluye solo ventas de escritorio; las ventas móviles no están incluidas en ese ranking. El indicador de ventas de hoy combina escritorio y móvil. El nombre del Top procede de las líneas de venta guardadas.
 - **Servicios:** alta, búsqueda y edición de servicios del catálogo web; sus insumos se configuran en Recetas. Los servicios sincronizados de apps móviles siguen en un catálogo separado y no se presentan como equivalentes.
 - **Herramientas:** conversión CUP/USD y cálculo de tasa manual sin consulta en línea. Los cálculos del conversor se envían al servidor de la instancia sin modificar las ventas. Las fichas de costo permiten crear y editar partidas con categorías, monedas y margen; calculan cada moneda por separado y se incluyen en el respaldo DShalev. Pueden exportarse a Excel con decimales como texto exacto o al catálogo web como producto/servicio nuevo con receta. Se reutilizan insumos por nombre y unidad; los nuevos comienzan sin existencias. Los productos también requieren existencia propia en escritorio; los servicios no. Si hay partidas en USD, se solicita una tasa positiva en CUP por USD. La ficha no se sincroniza como tal con las apps móviles.
-- **Licencia:** panel informativo sobre la integración pendiente; no activa ni valida GL y no representa una licencia comercial. La prueba local para secundarias sigue siendo provisional.
+- **Licencia:** panel informativo. La base local ya existe (identidad P-256 por instalación, almacén protegido y defensas ante restauraciones), pero el canje y la verificación GL siguen sin implementarse porque el contrato del servicio no forma parte de este repositorio. Sin endpoint ni claves de producción, la activación comercial está deshabilitada; la prueba local de siete días de las secundarias no es una licencia comercial.
 - **Tema:** selector Sistema, Claro u Oscuro en la cabecera. La preferencia se guarda en el navegador de cada equipo, no en la base del negocio; si el navegador bloquea almacenamiento, dura solo durante la página.
 - La entrada **Fotos / APK** se retiró de la navegación principal. La transferencia existente se conserva, para administradores, en **Equipo → Opciones avanzadas de sincronización**; no se han eliminado datos ni endpoints.
 
@@ -62,6 +62,8 @@ La conexión nativa actual es directa: no hay relay DShalev ni acceso por datos 
 - La licencia que DShalev devuelve a las secundarias es una prueba local de siete días; no equivale a una licencia GL activa ni emite sub-tokens firmados. No usar para afirmar habilitación comercial.
 - Los precios se guardan en centavos; productos y cantidades POS se venden en unidades enteras; insumos admiten hasta tres decimales. Cada venta requiere turno abierto y descuenta producto/receta dentro de una transacción SQLite para evitar carreras de stock.
 - No se inventa una licencia GL: el plazo local de prueba es provisional; activación comercial y sub-token firmado requieren integrar el contrato GL en el escritorio.
+- Identidad de licencia: un par P-256 por instalación en `DShalevData/licencia/identidad.bin`, con la privada protegida por DPAPI del usuario en Windows. Se rechaza la variante de prueba fuera de Windows si falta `DSHALEV_ALLOW_DEV_IDENTITY=1`, y esa variante nunca se acepta en Windows. Si el archivo existe y no se puede abrir, DShalev no genera otra identidad.
+- La licencia local se sella y se liga a la huella del equipo y al `appId`; se escribe de forma atómica. Un resguardo en `%LOCALAPPDATA%\DShalev` guarda la licencia más reciente y la marca de agua del reloj (tolerancia de 2 h), de modo que restaurar datos anteriores no destruye la licencia y una copia de otro equipo no se activa. DPAPI no es atestación de hardware ni hay revocación instantánea sin conexión. Detalle en `../docs/DSHALEV_LICENCIA_GL.md`.
 
 ## Estructura
 
@@ -69,6 +71,7 @@ La conexión nativa actual es directa: no hay relay DShalev ni acceso por datos 
 - `dshalev/sync_protocol.py`, `dshalev/sync_server.py`: encuadre, vinculación ECDH, canal cifrado, lotes/recibos y listener TCP.
 - `dshalev/database.py`: SQLite, snapshots cifrados, migraciones y persistencia.
 - `dshalev/security.py`: hash de contraseña y validación CSRF.
+- `dshalev/licencia/`: identidad P-256 de la instalación, configuración de licencias fijada en compilación y almacén local con ancla y marca de reloj (canje GL todavía pendiente).
 - `dshalev/config.py`, `dshalev/run.py`: ubicación portable y modos de red/arranque.
 - `dshalev/templates/`, `dshalev/static/`: interfaz HTML accesible y adaptable.
 - `tests/`: pruebas de configuración/autenticación/ventas y de encuadre, QR, ECDH, AES-GCM, pairing, sincronización TCP, movimientos idempotentes y revocación (loopback; no sustituyen pruebas con Android/iPhone físicos).
