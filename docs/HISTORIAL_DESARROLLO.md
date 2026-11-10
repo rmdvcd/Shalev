@@ -2551,3 +2551,9 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
 - La revisión confirmó que el buscador Android sí filtra por nombre, categoría y descripción (`InventarioFiltro`), de modo que se conserva su etiqueta actual.
 - `/api/v1/catalog` mantiene sin cambios sus campos heredados (`stock`, `low_stock`, precios) y añade columnas enteras canónicas `stock_milli`, `low_stock_milli` y `critical_stock_milli`, además de `critical_stock`. Una prueba API comprueba las milésimas y los alias heredados.
 - Python/Node se reejecutan tras estos cambios; los resultados medidos se registran en `docs/VERIFICACION.md`. La auditoría IPV/POS se actualiza con los límites de retención y verificaciones pendientes.
+
+### 2026-11-10 — El EXE portable vuelve a compilarse y se arranca en el CI
+
+- **Causa del fallo:** `build_windows.ps1` prefería el lanzador `py`, que en el runner resolvía **Python 3.15.2**; `pyinstaller==6.13.0` no lo admite y el script no comprobaba los códigos de salida de las herramientas nativas, así que terminaba sin crear el EXE. En `main` el job llevaba rojo desde al menos el 2026-11-08.
+- **Corrección:** el script usa el `python` del PATH, exige 3.11 o 3.12 (también para el `.venv`), y se detiene con mensaje claro si falla pip, PyInstaller o si no aparece `dist\DShalev.exe`.
+- **Verificación:** el workflow de Windows compila el EXE (unos 20,8 MB), lo **arranca** con `--no-browser --port 47999`, espera `/healthz` y comprueba que `/configurar` sirve la interfaz; después lo publica como artefacto. Queda pendiente la revisión manual en un PC Windows real.

@@ -44,7 +44,7 @@ En un PC Windows con Python instalado:
 .\build_windows.ps1
 ```
 
-El ejecutable se crea en `dist\DShalev.exe`. El workflow `.github/workflows/dshalev-windows.yml` también prueba y publica el EXE como artefacto de Actions en Windows x64. Al ejecutar el EXE no se instala un servicio: se abre el navegador local. Los datos viven en `DShalevData/` al lado del programa. La exportación cifrada desde **Respaldo** está diseñada para restaurarse en otro PC; la copia directa de la carpeta sigue ligada al usuario/equipo Windows original. El flujo `.exe` aún debe verificarse en Windows.
+El ejecutable se crea en `dist\DShalev.exe`. El script exige **Python 3.11 o 3.12** (lo comprueba antes de crear el entorno) y se detiene si un paso falla; el lanzador `py` puede apuntar a otra versión no soportada. El workflow `.github/workflows/dshalev-windows.yml` compila el EXE, lo **arranca** y comprueba `/healthz` y la configuración inicial, y lo publica como artefacto de Actions en Windows x64. Al ejecutar el EXE no se instala un servicio: se abre el navegador local. Los datos viven en `DShalevData/` al lado del programa. La exportación cifrada desde **Respaldo** está diseñada para restaurarse en otro PC; la copia directa de la carpeta sigue ligada al usuario/equipo Windows original. Falta la revisión manual en un PC Windows real (instalación, firewall y uso diario); el CI no sustituye esa prueba.
 
 ## Acceso de otros equipos
 
