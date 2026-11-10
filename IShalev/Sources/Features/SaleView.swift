@@ -29,6 +29,7 @@ struct SaleComposerView: View {
     @State private var customerPhone = ""
     @State private var customerIsFixed = false
     @State private var errorMessage: String?
+    @State private var confirmDiscard = false
 
     private var itemKind: SaleItemKind { mode == .products ? .product : .service }
     private var drafts: [CartDraft] {
@@ -36,6 +37,7 @@ struct SaleComposerView: View {
     }
     private var preview: SalePreview? { try? store.previewSale(drafts, payment: payment) }
     private var totalCents: Int64 { preview?.totalCents ?? 0 }
+    private var totalDisplay: String { preview.map { Cup(cents: $0.totalCents).formatted } ?? "No disponible" }
     private var customer: Customer? {
         guard !customerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         return Customer(name: customerName.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -85,7 +87,7 @@ struct SaleComposerView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     if step == .cart {
-                        Button("Cancelar") { dismiss() }.foregroundStyle(Color.shalevSecondaryText)
+                        Button("Cancelar") { requestDiscard() }.foregroundStyle(Color.shalevSecondaryText)
                     } else {
                         Button {
                             switch step {
@@ -116,6 +118,12 @@ struct SaleComposerView: View {
             .alert("No se pudo registrar", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("Entendido", role: .cancel) { errorMessage = nil }
             } message: { Text(errorMessage ?? "") }
+            .alert("¿Descartar la venta?", isPresented: $confirmDiscard) {
+                Button("Descartar", role: .destructive) { dismiss() }
+                Button("Seguir vendiendo", role: .cancel) { }
+            } message: {
+                Text("Se perderán los artículos elegidos y no se registrará la venta.")
+            }
             .sheet(isPresented: $showCatalog) {
                 SaleCatalogSheet(store: store, mode: mode, cart: $cart)
                     .presentationDetents([.large])
@@ -189,7 +197,7 @@ struct SaleComposerView: View {
             Text(totalLabel)
                 .font(.shalev(13, weight: .medium))
                 .foregroundStyle(Color.shalevSecondaryText)
-            Text(Cup(cents: totalCents).formatted)
+            Text(totalDisplay)
                 .font(.shalev(24, weight: .bold))
                 .foregroundStyle(Color.shalevText)
                 .lineLimit(1).minimumScaleFactor(0.7)
@@ -222,7 +230,7 @@ struct SaleComposerView: View {
     // MARK: - Carrito
 
     private var cartStep: some View {
-        VStack(spacing: 12) {
+        LazyVStack(spacing: 12) {
             if let shift = store.openShift {
                 let who = store.actorName
                 Text("Turno abierto · Desde las \(shift.openedAt.shalevTime)\(who.isEmpty ? "" : " · \(who)")")
@@ -237,10 +245,6 @@ struct SaleComposerView: View {
                                  actionTitle: "Elegir artículos") { showCatalog = true }
             } else {
                 ForEach(drafts) { draft in cartLine(draft) }
-                Button { showCatalog = true } label: {
-                    Label("Agregar artículos", systemImage: "plus")
-                }
-                .buttonStyle(ShalevTonalButtonStyle())
                 paymentSelector
                 if let warnings = preview?.warnings, !warnings.isEmpty {
                     Label("Revisa el precio de \(warnings.joined(separator: ", ")): queda al costo o por debajo después de los ajustes.",
@@ -401,7 +405,7 @@ struct SaleComposerView: View {
                 ShalevQRCode(contents: qrPayload)
                 ShalevCard {
                     VStack(spacing: 10) {
-                        HStack { Text("Importe a transferir"); Spacer(); Text(Cup(cents: totalCents).formatted).fontWeight(.bold) }
+                        HStack { Text("Importe a transferir"); Spacer(); Text(totalDisplay).fontWeight(.bold) }
                         Divider()
                         HStack { Text("Tarjeta"); Spacer(); Text(maskedCard).fontWeight(.semibold) }
                         if let phone = store.data.settings.profile.paymentPhone?.number {
@@ -414,7 +418,9 @@ struct SaleComposerView: View {
                     VStack(alignment: .leading, spacing: 7) {
                         Label("El QR no incluye el importe", systemImage: "info.circle.fill")
                             .font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevPrimary)
-                        Text("Comprueba que el cliente complete la transferencia por \(Cup(cents: totalCents).formatted). La app no verifica el pago con el banco.")
+                        Text(preview == nil
+                             ? "No se puede calcular el importe. Vuelve al carrito y revisa los artículos."
+                             : "Comprueba que el cliente complete la transferencia por \(totalDisplay). La app no verifica el pago con el banco.")
                             .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                     }
                 }
@@ -529,6 +535,7 @@ struct SaleComposerView: View {
             HStack(spacing: 14) {
                 switch step {
                 case .cart:
+                    roundAction("cart.badge.plus", label: "Agregar artículos", filled: false) { showCatalog = true }
                     Button(action: continueFromCart) {
                         Label("Continuar", systemImage: "arrow.right")
                             .font(.shalev(15, weight: .semibold))
@@ -540,13 +547,13 @@ struct SaleComposerView: View {
                     .disabled(cart.isEmpty)
                     .opacity(cart.isEmpty ? 0.45 : 1)
                 case .receipt:
-                    roundAction("xmark", label: "Cancelar la venta", filled: false) { dismiss() }
+                    roundAction("xmark", label: "Cancelar la venta", filled: false) { requestDiscard() }
                     Spacer(minLength: 0)
                     roundAction("checkmark", label: "Confirmar la venta", filled: true) { completeSale() }
                 case .qr:
-                    roundAction("xmark", label: "Cancelar la venta", filled: false) { dismiss() }
+                    roundAction("xmark", label: "Cancelar la venta", filled: false) { requestDiscard() }
                     Spacer(minLength: 0)
-                    roundAction("checkmark", label: "Pago recibido", filled: true) { step = .customer }
+                    roundAction("checkmark", label: "Pago recibido", filled: true) { proceedToCustomer() }
                 case .customer:
                     roundAction("chevron.left", label: "Volver al código QR", filled: false) { step = .qr }
                     Spacer(minLength: 0)
@@ -571,13 +578,33 @@ struct SaleComposerView: View {
         .accessibilityLabel(label)
     }
 
+    private func requestDiscard() {
+        if cart.isEmpty { dismiss() } else { confirmDiscard = true }
+    }
+
     private func continueFromCart() {
         guard !cart.isEmpty else { return }
+        do {
+            _ = try store.previewSale(drafts, payment: payment)
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
         if payment == .transfer && qrPayload == nil {
             errorMessage = BusinessError.invalidPaymentDetails.localizedDescription
             return
         }
         step = payment == .cash ? .receipt : .qr
+    }
+
+    private func proceedToCustomer() {
+        do {
+            _ = try store.previewSale(drafts, payment: payment)
+            step = .customer
+        } catch {
+            step = .cart
+            errorMessage = error.localizedDescription
+        }
     }
 
     // MARK: - Datos de las líneas
@@ -586,7 +613,7 @@ struct SaleComposerView: View {
         let next = max(0, cart[id, default: 0] + delta)
         if next == 0 { cart.removeValue(forKey: id) }
         else {
-            let available = store.availableQuantity(kind: itemKind, sourceID: id) ?? 0
+            let available = store.maxAllowedQuantity(kind: itemKind, sourceID: id, in: cart)
             guard next <= available else { return }
             cart[id] = next
         }
@@ -675,7 +702,7 @@ private struct SaleCatalogSheet: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 10)
                 ScrollView {
-                    VStack(spacing: 1) {
+                    LazyVStack(spacing: 1) {
                         if mode == .products {
                             if products.isEmpty {
                                 ShalevEmptyState(symbol: "shippingbox", title: "No hay artículos vendibles",

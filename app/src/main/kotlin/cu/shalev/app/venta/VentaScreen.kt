@@ -124,6 +124,7 @@ class AccionesVenta(
     val onContinuar: () -> Unit = {},
     val onConfirmarEfectivo: () -> Unit = {},
     val onDescartar: () -> Unit = {},
+    val onSolicitarDescartar: () -> Unit = {},
     val onCancelarSalir: () -> Unit = {},
     val onPagoRecibido: () -> Unit = {},
     val onConfigurarPago: () -> Unit = {},
@@ -191,7 +192,8 @@ fun VentaScreen(
             onAtras = viewModel::atras, onAbrirTurno = { cajaVm.cargarSugerido(); pedirFondo = true }, onElegir = viewModel::elegirProductos,
             onCantidad = viewModel::cambiarCantidad, onQuitar = viewModel::quitar, onMetodo = viewModel::elegirMetodo,
             onContinuar = viewModel::continuar, onConfirmarEfectivo = viewModel::confirmarEfectivo,
-            onDescartar = viewModel::descartar, onCancelarSalir = viewModel::cancelarSalir,
+            onDescartar = viewModel::descartar, onSolicitarDescartar = viewModel::solicitarDescartar,
+            onCancelarSalir = viewModel::cancelarSalir,
             onPagoRecibido = viewModel::pagoRecibido,
             onConfigurarPago = viewModel::configurarPago,
             onCampo = viewModel::editarCliente,
@@ -303,11 +305,6 @@ private fun PasoCarrito(state: VentaUiState, acciones: AccionesVenta) {
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
     ) {
         items(state.lineas, key = { it.producto.id }) { l -> Box(shalevAnimateItem()) { LineaEditable(l, acciones.onCantidad, acciones.onQuitar) } } // P18 (A18)
-        item {
-            ShalevButtonRow(Modifier.padding(top = ShalevSpacing.xs)) {
-                ShalevSecondaryButton(TextosVenta.AGREGAR, onClick = acciones.onElegir, icon = ShalevIcons.AgregarCarrito)
-            }
-        }
         item {
             SelectorMetodo(state.metodo, acciones.onMetodo)
         }
@@ -605,23 +602,26 @@ private fun BarraAcciones(state: VentaUiState, acciones: AccionesVenta) {
     val habilitado = !state.trabajando && !state.bloqueada
     ShalevBarraAcciones {
         when (state.paso) {
-            PasoVenta.CARRITO -> ShalevPrimaryButton(
-                // 0.32.0 (A12): el icono dice la acción (continuar), no el método de pago: el de «Efectivo» a 24dp
-                // se confundía con una cámara. El método elegido ya se ve en los chips de arriba.
-                "Continuar", onClick = acciones.onContinuar, enabled = state.puedeContinuar, loading = state.trabajando,
-                icon = ShalevIcons.Siguiente,
-                modifier = Modifier.testTag(VentaTags.CONTINUAR),
-            )
+            PasoVenta.CARRITO -> {
+                ShalevIconAction(ShalevIcons.AgregarCarrito, TextosVenta.AGREGAR, onClick = acciones.onElegir,
+                    enabled = habilitado, style = IconActionStyle.Tonal)
+                ShalevPrimaryButton(
+                    // El icono representa continuar; el método elegido se ve en los chips.
+                    "Continuar", onClick = acciones.onContinuar, enabled = state.puedeContinuar, loading = state.trabajando,
+                    icon = ShalevIcons.Siguiente,
+                    modifier = Modifier.testTag(VentaTags.CONTINUAR),
+                )
+            }
             PasoVenta.COMPROBANTE -> {
-                ShalevIconAction(ShalevIcons.Cancelar, "Cancelar la venta", onClick = acciones.onDescartar, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
+                ShalevIconAction(ShalevIcons.Cancelar, "Cancelar la venta", onClick = acciones.onSolicitarDescartar, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
                 ShalevIconAction(ShalevIcons.Confirmar, "Confirmar la venta", onClick = acciones.onConfirmarEfectivo, enabled = habilitado, style = IconActionStyle.Filled, modifier = Modifier.testTag(VentaTags.CONFIRMAR))
             }
             PasoVenta.QR -> {
-                ShalevIconAction(ShalevIcons.Cancelar, "Cancelar la venta", onClick = acciones.onDescartar, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
+                ShalevIconAction(ShalevIcons.Cancelar, "Cancelar la venta", onClick = acciones.onSolicitarDescartar, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
                 ShalevIconAction(ShalevIcons.Confirmar, TextosVenta.PAGO_RECIBIDO, onClick = acciones.onPagoRecibido, enabled = habilitado, style = IconActionStyle.Filled, modifier = Modifier.testTag(VentaTags.PAGO_RECIBIDO))
             }
             PasoVenta.CLIENTE -> {
-                ShalevIconAction(ShalevIcons.Cancelar, "Volver al código QR", onClick = acciones.onAtras, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
+                ShalevIconAction(ShalevIcons.Cancelar, "Volver al código QR", onClick = acciones.onAtras, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
                 ShalevIconAction(ShalevIcons.Confirmar, "Registrar la venta", onClick = acciones.onConfirmarTransferencia, enabled = habilitado, style = IconActionStyle.Filled, modifier = Modifier.testTag(VentaTags.CONFIRMAR))
             }
         }

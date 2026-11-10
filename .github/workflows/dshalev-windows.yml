@@ -30,6 +30,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r DShalev/requirements-dev.txt
           python -m pytest DShalev/tests -q
+      - name: Probar interacción del punto de venta
+        working-directory: DShalev
+        run: |
+          npm ci
+          npm test
       - name: Crear ejecutable portable
         shell: pwsh
         working-directory: DShalev

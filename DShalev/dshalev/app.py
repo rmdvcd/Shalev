@@ -513,6 +513,35 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             sale.pop("_sort", None)
         return templates.TemplateResponse(request, "sales.html", context(request, user=user, section="ventas", shift=dict(shift) if shift else None, items=[dict(r) for r in items], customers=[dict(r) for r in customers], query=query, sales=recent[:50], notice=notice_text(request), notice_kind="success"))
 
+    @app.get("/api/v1/pos/catalogo")
+    async def pos_catalog(request: Request):
+        if not current_user(request):
+            return JSONResponse({"detail": "Autenticación requerida"}, status_code=401)
+        ids_param = request.query_params.get("ids")
+        if ids_param is not None:
+            try:
+                raw_ids = ids_param.split(",")
+                if not 1 <= len(raw_ids) <= 60:
+                    raise ValueError()
+                ids = [integer(value, minimum=1, maximum=2**31 - 1) for value in raw_ids]
+            except ValueError:
+                return JSONResponse({"detail": "Lista de artículos no válida"}, status_code=422)
+            placeholders = ",".join("?" for _ in ids)
+            with db.connect() as conn:
+                rows = conn.execute(f"""SELECT id,name,category,unit,stock,sale_price_cents FROM items
+                    WHERE active=1 AND category!='Insumo' AND (category='Servicio' OR stock>0)
+                    AND id IN ({placeholders})""", ids).fetchall()
+            return JSONResponse({"items": [dict(row) for row in rows]}, headers={"Cache-Control": "no-store"})
+        query = request.query_params.get("q", "").strip()[:80]
+        # Tratar los comodines como texto, no como patrones elegidos por el usuario.
+        pattern = "%" + query.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%"
+        with db.connect() as conn:
+            rows = conn.execute("""SELECT id,name,category,unit,stock,sale_price_cents FROM items
+                WHERE active=1 AND category!='Insumo' AND (category='Servicio' OR stock>0)
+                AND name LIKE ? ESCAPE '!' ORDER BY name, id LIMIT 31""", (pattern,)).fetchall()
+        return JSONResponse({"items": [dict(row) for row in rows[:30]], "has_more": len(rows) > 30},
+                            headers={"Cache-Control": "no-store"})
+
     @app.post("/ventas/nueva")
     async def create_sale(request: Request):
         user = current_user(request)
@@ -536,6 +565,14 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             if not selected or len(selected) > 60:
                 raise ValueError("Selecciona al menos un artículo.")
             customer_id = integer(data.get("customer_id"), minimum=1, maximum=2**31 - 1) if data.get("customer_id") else None
+            expected_prices = None
+            if "pos_prices" in data:
+                try:
+                    expected_prices = json.loads(data["pos_prices"])
+                except (ValueError, TypeError) as exc:
+                    raise ValueError("No se pudieron comprobar los precios del carrito.") from exc
+                if not isinstance(expected_prices, dict) or set(expected_prices) != {str(item_id) for item_id, _ in selected} or any(type(price) is not int or price < 0 for price in expected_prices.values()):
+                    raise ValueError("No se pudieron comprobar los precios del carrito.")
         except ValueError as exc:
             return flash_redirect(request, "/ventas", str(exc))
         payment = data.get("payment_method", "")
@@ -554,6 +591,8 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                     item = conn.execute("SELECT * FROM items WHERE id=? AND active=1", (item_id,)).fetchone()
                     if not item or item["category"] == "Insumo":
                         raise ValueError("Uno de los artículos ya no está disponible para la venta.")
+                    if expected_prices is not None and expected_prices[str(item_id)] != item["sale_price_cents"]:
+                        raise ValueError("Un precio cambió; revisa el carrito antes de registrar la venta.")
                     if item["category"] != "Servicio" and item["stock"] < quantity:
                         raise ValueError(f"No hay existencia suficiente de {item['name']}.")
                     line_total = item["sale_price_cents"] * quantity

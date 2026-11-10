@@ -2485,3 +2485,15 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
 - DShalev neutraliza texto con posibles fórmulas en los CSV de inventario, clientes y ventas, sin modificar los datos originales ni los campos numéricos.
 - IShalev amplía la protección existente para detectar fórmulas tras espacios y controles iniciales, conservando los saltos de línea del texto.
 - Se añadieron pruebas de dominio iOS y de exportación de escritorio; la interpretación del apóstrofo depende de la aplicación que importe el CSV.
+
+### 2026-11-09 — Flujo de venta de escritorio
+
+- DShalev incorpora búsqueda incremental, carrito de varias búsquedas, cantidades editables, total estimado, acceso F2 y borrador de pestaña por usuario y turno. Se mantiene el formulario sin JavaScript.
+- El servidor comprueba el precio mostrado antes de registrar la venta mejorada; un cambio devuelve el carrito para revisar. Las validaciones de turno, existencia y receta siguen siendo transaccionales.
+- Se añadieron pruebas de API y DOM simulado al CI de Windows. Quedan pendientes la comprobación visual y de teclado en un navegador real y la prueba del ejecutable en Windows. Una interrupción durante el registro requiere comprobar el historial antes de reintentar.
+
+### 2026-11-09 — Flujo de carrito móvil
+
+- Shalev e IShalev mantienen accesible la acción de agregar artículos en la barra inferior del carrito y piden confirmación antes de descartarlo desde el comprobante o QR; iOS también confirma al cancelar desde el carrito.
+- IShalev calcula el límite con insumos compartidos también al modificar una línea, valida antes de continuar y evita mostrar un total de cero cuando el carrito ya no se puede cotizar. Las listas de catálogo y carrito se construyen de forma diferida.
+- Android bloquea las acciones de salir o descartar durante el registro y marca la operación como ocupada antes de iniciar la corrutina. Se añadieron pruebas de lógica e interfaz; siguen pendientes compilación, capturas y pruebas en dispositivos en este entorno sin JDK/SDK ni Xcode.
