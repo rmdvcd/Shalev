@@ -15,7 +15,7 @@ import cu.shalev.domain.model.TipoArticulo
 
 object TextosInventario {
     const val TITULO = "Inventario"
-    const val BUSCAR = "Buscar por nombre, categoría o código"
+    const val BUSCAR = "Buscar por nombre, categoría o descripción"
     const val VACIO_TITULO = "Tu inventario está vacío"
     const val VACIO_DETALLE = "Toca + para agregar tu primer producto."
     const val SIN_RESULTADOS_TITULO = "Sin resultados"
@@ -116,7 +116,7 @@ fun tonoDe(i: ItemInventario): TonoFila = when {
 /** "Bebidas · 12 u · vence 03/10/2026". La caducidad solo se muestra si está próxima o vencida. */
 /**
  * P24 (fila = solo el dato principal): el subtítulo aparece únicamente si hay una alerta, para que el color
- * nunca sea la única señal. Categoría, precio, costo, código… están en la ficha.
+ * nunca sea la única señal. Categoría, descripción, precio y costo están en la ficha.
  */
 fun subtituloFila(i: ItemInventario): String? = buildList {
     when (i.nivel) {

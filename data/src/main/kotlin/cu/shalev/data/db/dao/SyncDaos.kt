@@ -2,10 +2,12 @@ package cu.shalev.data.db.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import cu.shalev.data.db.entity.EmpleadoEntity
+import cu.shalev.data.db.entity.ReciboComandoEntity
 import cu.shalev.data.db.entity.MovimientoEntity
 import cu.shalev.data.db.entity.TurnoEntity
 import cu.shalev.data.db.entity.VentaCompleta
@@ -152,4 +154,11 @@ interface SyncDao {
         """,
     )
     suspend fun marcarTurnoRecibido(uuid: String, cerrado: Boolean)
+
+    // ------------------------------------------------------------------ principal: recibos idempotentes de comandos
+    @Query("SELECT * FROM comando_recibo WHERE empleadoId = :empleadoId AND clave = :clave LIMIT 1")
+    suspend fun reciboComando(empleadoId: Long, clave: String): ReciboComandoEntity?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun guardarReciboComando(recibo: ReciboComandoEntity)
 }

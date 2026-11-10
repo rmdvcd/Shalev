@@ -379,3 +379,16 @@ data class EmpleadoEntity(
      */
     val device: String? = null,
 )
+
+/**
+ * Recibo permanente de un comando remoto con clave: la acción y su respuesta se guardan bajo la misma transacción.
+ * El hash cubre el contenido completo de la acción; la clave queda acotada al empleado que la envió.
+ */
+@Entity(tableName = "comando_recibo", primaryKeys = ["empleadoId", "clave"])
+data class ReciboComandoEntity(
+    val empleadoId: Long,
+    val clave: String,
+    val huella: String,
+    val valor: Long?,
+    val error: String?,
+)

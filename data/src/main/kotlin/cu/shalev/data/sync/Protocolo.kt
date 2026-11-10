@@ -67,8 +67,8 @@ data class Hola(
 data class HolaOk(
     val nonce: String,
     /**
-     * 0.21.7 (P-e): la principal recuerda los comandos por [Comando.clave] y no repite uno ya aplicado. Solo entonces la
-     * secundaria reenvía un comando cuya respuesta se perdió. Una principal anterior no lo manda (false: no se reenvía).
+     * 0.21.7 (P-e): la principal conserva recibos por [Comando.clave] y no repite uno ya aplicado, incluso tras reiniciar.
+     * Solo entonces la secundaria reenvía un comando cuya respuesta se perdió. Una principal anterior no lo manda (false: no se reenvía).
      */
     val comandosUnicos: Boolean = false,
 ) : Saludo
@@ -388,6 +388,7 @@ object CodigoQr {
 /** Traducción de errores entre apps (texto estable, sin datos). */
 object ErroresRemotos {
     const val PERMISO = "permiso"
+    const val CLAVE_REUTILIZADA = "clave_reutilizada"
     const val NO_ENCONTRADO = "no_encontrado"
     const val STOCK = "stock"
     const val EN_USO = "en_uso"

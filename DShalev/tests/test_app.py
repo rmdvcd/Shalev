@@ -82,6 +82,30 @@ def test_login_requires_csrf_and_authentication(tmp_path):
     assert client.get("/static/app.css").status_code == 200
 
 
+def test_catalog_api_preserves_legacy_stock_and_exposes_exact_milli_units(tmp_path):
+    client = make_client(tmp_path)
+    create_admin(client)
+    login(client)
+    page = client.get("/inventario")
+    added = client.post("/inventario/nuevo", data={
+        "csrf": token(page), "name": "Harina", "category": "Insumo", "unit": "kg",
+        "sale_price": "0", "cost": "250", "stock": "2.125", "low_stock": "1.250",
+        "critical_stock": "0.500", "reason": "Existencia de prueba",
+    }, follow_redirects=True)
+    assert added.status_code == 200
+
+    response = client.get("/api/v1/catalog")
+    assert response.status_code == 200
+    item = response.json()["items"][0]
+    # Los campos antiguos se mantienen, y los milésimos enteros nuevos evitan perder precisión.
+    assert item["stock"] == 2.125
+    assert item["low_stock"] == 1.25
+    assert item["stock_milli"] == 2125
+    assert item["low_stock_milli"] == 1250
+    assert item["critical_stock"] == 0.5
+    assert item["critical_stock_milli"] == 500
+
+
 def test_inventory_shift_and_sale_are_transactional(tmp_path):
     client = make_client(tmp_path)
     create_admin(client)
@@ -92,6 +116,7 @@ def test_inventory_shift_and_sale_are_transactional(tmp_path):
     added = client.post("/inventario/nuevo", data={
         "csrf": token(page), "name": "Café", "category": "Producto", "unit": "paquete",
         "sale_price": "125.50", "cost": "60", "stock": "3", "low_stock": "2", "critical_stock": "1",
+        "reason": "Existencia inicial de prueba",
     }, follow_redirects=True)
     assert added.status_code == 200
     assert "Café" in added.text

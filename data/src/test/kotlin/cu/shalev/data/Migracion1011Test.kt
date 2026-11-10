@@ -13,14 +13,18 @@ import org.junit.Test
 class Migracion1011Test {
 
     @Test fun migracion10_11RecreaProductoSinCodigoConservandoDatos() {
-        // Versión actual del esquema (v16: `local` en catálogo e historial) y cadena de migraciones sin huecos.
-        assertEquals(16, ShalevDatabase.VERSION)
+        // Versión actual del esquema (v17: recibos de comandos; v16: `local` en catálogo e historial).
+        assertEquals(17, ShalevDatabase.VERSION)
         assertEquals(10, ShalevDatabase.MIGRACION_10_11.startVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_10_11.endVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_11_12.startVersion)
         assertEquals(12, ShalevDatabase.MIGRACION_11_12.endVersion)
         assertEquals(15, ShalevDatabase.MIGRACION_15_16.startVersion)
         assertEquals(16, ShalevDatabase.MIGRACION_15_16.endVersion)
+        assertEquals(16, ShalevDatabase.MIGRACION_16_17.startVersion)
+        assertEquals(17, ShalevDatabase.MIGRACION_16_17.endVersion)
+        assertEquals(1, ShalevDatabase.SQL_16_17.size)
+        assertTrue(ShalevDatabase.SQL_16_17.single().startsWith("CREATE TABLE IF NOT EXISTS `comando_recibo`"))
         val sql = ShalevDatabase.SQL_10_11
         assertTrue(sql.any { it.startsWith("CREATE TABLE IF NOT EXISTS `producto_nuevo`") && "codigo" !in it })
         assertTrue(sql.any { it.startsWith("INSERT INTO `producto_nuevo`") && "FROM `producto`" in it })

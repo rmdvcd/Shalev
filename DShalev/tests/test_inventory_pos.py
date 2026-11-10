@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import base64
+import csv
 import io
 import re
 import zipfile
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from dshalev.app import create_app
@@ -44,6 +46,7 @@ def add_item(client: TestClient, *, name: str, category: str, stock: int, price:
     response = client.post("/inventario/nuevo", data={
         "csrf": token(page), "name": name, "category": category, "unit": "unidad",
         "sale_price": price, "cost": "1", "stock": str(stock), "low_stock": "2", "critical_stock": "1",
+        "reason": "Existencia inicial para pruebas" if stock else "",
     }, follow_redirects=True)
     assert response.status_code == 200 and name in response.text
 
@@ -195,6 +198,7 @@ def test_ingredient_stock_supports_three_decimal_places(tmp_path: Path):
     saved = client.post("/inventario/nuevo", data={
         "csrf": token(page), "name": "Leche", "category": "Insumo", "unit": "litro",
         "sale_price": "0", "cost": "2.50", "stock": "1.275", "low_stock": "0.500", "critical_stock": "0.125",
+        "reason": "Recepción inicial de leche",
     }, follow_redirects=True)
     assert saved.status_code == 200 and "1.275" in saved.text
     with client.app.state.db.connect() as conn:
@@ -219,6 +223,7 @@ def test_recipe_consumes_fractional_ingredients_and_rejects_insufficient_stock(t
     client.post("/inventario/nuevo", data={
         "csrf": token(page), "name": "Harina", "category": "Insumo", "unit": "kg",
         "sale_price": "0", "cost": "1", "stock": "1.275", "low_stock": "0.5", "critical_stock": "0.1",
+        "reason": "Recepción inicial de harina",
     }, follow_redirects=True)
     recipes = client.get("/recetas")
     saved = client.post("/recetas/guardar", data={
@@ -234,6 +239,10 @@ def test_recipe_consumes_fractional_ingredients_and_rejects_insufficient_stock(t
         stock = conn.execute("SELECT stock FROM items WHERE id=2").fetchone()[0]
         product_stock = conn.execute("SELECT stock FROM items WHERE id=1").fetchone()[0]
     assert abs(stock - 0.9) < 1e-9 and product_stock == 17
+    with client.app.state.db.connect() as conn:
+        assert conn.execute("SELECT stock_milli FROM items WHERE id=2").fetchone()[0] == 900
+        sale_movements = conn.execute("SELECT COUNT(*) FROM inventory_movements WHERE reference='web-sale:1'").fetchone()[0]
+    assert sale_movements == 2
     page = client.get("/ventas")
     rejected = client.post("/ventas/nueva", data={"csrf": token(page), "quantity_1": "8", "payment_method": "EFECTIVO"}, follow_redirects=True)
     assert "No hay suficiente Harina" in rejected.text
@@ -268,3 +277,110 @@ def test_sales_report_and_inventory_csv_exports(tmp_path: Path):
     assert customer_export.status_code == 200 and "maria@example.test" in customer_export.text
     inventory = client.get("/inventario.csv")
     assert inventory.status_code == 200 and "Café" in inventory.text and "Inventario" not in inventory.text
+
+
+def test_adjustments_require_reason_and_inventory_ledger_is_append_only(tmp_path: Path):
+    client = client_for(tmp_path)
+    setup_and_login(client)
+    add_item(client, name="Café", category="Producto", stock=5, price="10")
+    with client.app.state.db.connect() as conn:
+        initial = conn.execute("SELECT * FROM inventory_movements ORDER BY id").fetchall()
+    assert len(initial) == 1 and initial[0]["movement_type"] == "ALTA"
+    assert initial[0]["actor"] == "dueno" and initial[0]["reason"] == "Existencia inicial para pruebas"
+
+    edit = client.get("/inventario/1/editar")
+    fields = {
+        "csrf": token(edit), "name": "Café", "category": "Producto", "unit": "unidad",
+        "sale_price": "10", "cost": "1", "stock": "4", "low_stock": "2", "critical_stock": "1",
+    }
+    missing_reason = client.post("/inventario/1/editar", data=fields, follow_redirects=True)
+    assert "motivo del ajuste" in missing_reason.text.lower()
+    with client.app.state.db.connect() as conn:
+        assert conn.execute("SELECT stock_milli FROM items WHERE id=1").fetchone()[0] == 5000
+        assert conn.execute("SELECT COUNT(*) FROM inventory_movements").fetchone()[0] == 1
+
+    fields["reason"] = "Conteo físico de cierre"
+    adjusted = client.post("/inventario/1/editar", data=fields, follow_redirects=True)
+    assert "Artículo actualizado" in adjusted.text
+    with client.app.state.db.connect() as conn:
+        row = conn.execute("SELECT stock_milli FROM items WHERE id=1").fetchone()
+        movement = conn.execute("SELECT * FROM inventory_movements ORDER BY id DESC LIMIT 1").fetchone()
+    assert row["stock_milli"] == 4000
+    assert movement["movement_type"] == "AJUSTE" and movement["delta_milli"] == -1000
+    assert movement["stock_after_milli"] == 4000 and movement["reason"] == "Conteo físico de cierre"
+
+    history = client.get("/inventario/movimientos")
+    assert history.status_code == 200 and "Conteo físico de cierre" in history.text
+    export = client.get("/inventario/movimientos.csv")
+    assert export.status_code == 200 and "Existencia posterior" in export.text and "dueno" in export.text
+    assert b"\r\n" in export.content and b"\\r\\n" not in export.content
+    csv_rows = list(csv.reader(io.StringIO(export.content.decode("utf-8-sig"))))
+    assert csv_rows[0] == ["Fecha UTC", "Artículo", "Categoría", "Unidad", "Tipo", "Cambio", "Existencia anterior", "Existencia posterior", "Actor", "Motivo", "Origen", "Referencia"]
+    assert csv_rows[1][5:8] == ["5", "0", "5"] and csv_rows[2][5:8] == ["-1", "5", "4"]
+    with client.app.state.db.connect() as conn:
+        import sqlite3
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("UPDATE inventory_movements SET reason='editado' WHERE id=1")
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("DELETE FROM inventory_movements WHERE id=1")
+
+
+def test_web_sale_idempotence_actor_and_auditable_cancellation(tmp_path: Path):
+    import re
+
+    client = client_for(tmp_path)
+    setup_and_login(client)
+    add_item(client, name="Café", category="Producto", stock=5, price="10")
+    client.post("/turno/abrir", data={"csrf": token(client.get("/")), "opening_cash": "0"}, follow_redirects=True)
+    page = client.get("/ventas")
+    sale_key_match = re.search(r'name="sale_key" value="([^"]+)"', page.text)
+    assert sale_key_match
+    sale_key = sale_key_match.group(1)
+    form = {"csrf": token(page), "sale_key": sale_key, "quantity_1": "2", "payment_method": "EFECTIVO"}
+    first = client.post("/ventas/nueva", data=form, follow_redirects=True)
+    assert first.status_code == 200 and "Venta registrada" in first.text
+    replay = client.post("/ventas/nueva", data=form, follow_redirects=True)
+    assert replay.status_code == 200 and "Venta registrada" in replay.text
+    with client.app.state.db.connect() as conn:
+        sale = conn.execute("SELECT * FROM sales").fetchone()
+        item = conn.execute("SELECT stock_milli FROM items WHERE id=1").fetchone()
+        count = conn.execute("SELECT COUNT(*) FROM sales").fetchone()[0]
+    assert count == 1 and item["stock_milli"] == 3000
+    assert sale["user_id"] == 1 and sale["request_key"] == sale_key and sale["inventory_logged"] == 1
+
+    # Una nueva instancia de la aplicación debe recordar la clave y su resultado.
+    old_config = client.app.state.config
+    client.app.state.db.close()
+    restarted_db = Database(old_config.database_path)
+    restarted = TestClient(create_app(old_config, restarted_db))
+    setup_and_login(restarted)
+    restarted_page = restarted.get("/ventas")
+    restarted_form = dict(form, csrf=token(restarted_page))
+    replay_after_restart = restarted.post("/ventas/nueva", data=restarted_form, follow_redirects=True)
+    assert replay_after_restart.status_code == 200 and "Venta registrada" in replay_after_restart.text
+    with restarted_db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM sales").fetchone()[0] == 1
+        assert conn.execute("SELECT stock_milli FROM items WHERE id=1").fetchone()[0] == 3000
+
+    changed_intent = dict(restarted_form, quantity_1="1")
+    rejected = restarted.post("/ventas/nueva", data=changed_intent, follow_redirects=True)
+    assert "ya registró otra operación" in rejected.text
+    with restarted_db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM sales").fetchone()[0] == 1
+        assert conn.execute("SELECT stock_milli FROM items WHERE id=1").fetchone()[0] == 3000
+
+    page = restarted.get("/ventas")
+    cancelled = restarted.post("/ventas/1/anular", data={
+        "csrf": token(page), "reason": "Error de cantidad; anulo para volver a registrar",
+    }, follow_redirects=True)
+    assert cancelled.status_code == 200 and "Venta de escritorio anulada" in cancelled.text
+    with restarted_db.connect() as conn:
+        sale = conn.execute("SELECT cancelled_at,cancellation_reason,cancelled_by FROM sales WHERE id=1").fetchone()
+        item = conn.execute("SELECT stock_milli FROM items WHERE id=1").fetchone()
+        movements = conn.execute("SELECT movement_type,delta_milli,actor,reason FROM inventory_movements WHERE reference='web-sale-cancel:1'").fetchall()
+        active_total = conn.execute("SELECT COALESCE(SUM(total_cents),0) FROM sales WHERE cancelled_at IS NULL").fetchone()[0]
+    assert sale["cancelled_at"] and sale["cancellation_reason"].startswith("Error de cantidad") and sale["cancelled_by"] == 1
+    assert item["stock_milli"] == 5000
+    assert len(movements) == 1 and movements[0]["movement_type"] == "ANULACION_VENTA"
+    assert movements[0]["delta_milli"] == 2000 and movements[0]["actor"] == "dueno"
+    assert "Error de cantidad" in movements[0]["reason"] and active_total == 0

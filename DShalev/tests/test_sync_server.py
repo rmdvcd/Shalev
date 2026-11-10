@@ -213,6 +213,10 @@ def test_lan_pairing_qr_and_encrypted_spvi_sync(tmp_path: Path, monkeypatch):
         assert "Venta móvil corregida" in corrected.text and "Corregida" not in corrected.text
         with db.connect() as conn:
             assert conn.execute("SELECT stock FROM items WHERE id=3").fetchone()[0] == 8
+            initial_movement = conn.execute("SELECT delta_milli,actor FROM inventory_movements WHERE reference=?", (f"mobile-sale:{sale_uuid}",)).fetchone()
+            correction_movement = conn.execute("SELECT delta_milli,reason FROM inventory_movements WHERE reference=?", (f"mobile-sale-correction:{sale_uuid}",)).fetchone()
+            assert initial_movement["delta_milli"] == -2000 and initial_movement["actor"] == "Ana"
+            assert correction_movement["delta_milli"] == 1000 and "Cantidad incorrecta" in correction_movement["reason"]
             corrected_uuid = conn.execute("SELECT uuid FROM sync_sales WHERE uuid!=? ORDER BY sale_at_ms DESC LIMIT 1", (sale_uuid,)).fetchone()[0]
             assert conn.execute("SELECT total_cents FROM sync_sales WHERE uuid=?", (corrected_uuid,)).fetchone()[0] == 500
             assert conn.execute("SELECT cancelled_at FROM sync_sales WHERE uuid=?", (sale_uuid,)).fetchone()[0] is not None
@@ -237,6 +241,8 @@ def test_lan_pairing_qr_and_encrypted_spvi_sync(tmp_path: Path, monkeypatch):
         assert "Venta móvil anulada" in cancelled.text and "Anulada" in cancelled.text
         with db.connect() as conn:
             assert conn.execute("SELECT stock FROM items WHERE id=3").fetchone()[0] == 9
+            reversed_movement = conn.execute("SELECT delta_milli,reason FROM inventory_movements WHERE reference=?", (f"mobile-sale-cancel:{corrected_uuid}",)).fetchone()
+            assert reversed_movement["delta_milli"] == 1000 and "Error de caja" in reversed_movement["reason"]
         secondary.send(stream, {
             "t": "sync", "id": 56, "lote": {}, "telefono": None,
             "solicitaCierre": False, "cambiosAplicados": [], "versionCode": None,
@@ -303,3 +309,32 @@ def test_sync_recipe_commands_and_milli_ingredient_stock(tmp_path: Path):
     assert remaining_milli == 1150
     with db.connect() as conn:
         assert conn.execute("SELECT stock FROM items WHERE id=12").fetchone()[0] == 1.15
+
+def test_sync_command_receipts_remain_durable_beyond_old_512_limit(tmp_path: Path):
+    db = Database(tmp_path / "commands.sqlite3")
+    db.initialize()
+    with db.transaction() as conn:
+        conn.execute("INSERT INTO employees(slot,name,permissions_json,active) VALUES(1,'Ana','[\"EDITAR_INVENTARIO\"]',1)")
+        conn.execute("INSERT INTO items(id,name,category,stock) VALUES(1,'Café','Producto',0)")
+    sync = ShalevSyncServer.__new__(ShalevSyncServer)
+    sync.database = db
+    for index in range(520):
+        result = sync.handle_command(1, {
+            "id": index + 1, "clave": f"retained-command-{index:04}",
+            "accion": {"t": "producto_stock", "id": 1, "delta": 1},
+        })
+        assert result["valor"] == index + 1 and "error" not in result
+    db.close()
+    db = Database(tmp_path / "commands.sqlite3")
+    db.initialize()
+    sync.database = db
+    replay = sync.handle_command(1, {
+        "id": 900, "clave": "retained-command-0000",
+        "accion": {"t": "producto_stock", "id": 1, "delta": 1},
+    })
+    assert replay["valor"] == 1 and replay["id"] == 900
+    with db.connect() as conn:
+        assert conn.execute("SELECT stock_milli FROM items WHERE id=1").fetchone()[0] == 520000
+        assert conn.execute("SELECT COUNT(*) FROM sync_commands WHERE employee_id=1").fetchone()[0] == 520
+        assert conn.execute("SELECT COUNT(*) FROM inventory_movements WHERE movement_type='COMANDO_SYNC'").fetchone()[0] == 520
+        assert conn.execute("SELECT COUNT(*) FROM inventory_movements WHERE actor_id=1").fetchone()[0] == 520

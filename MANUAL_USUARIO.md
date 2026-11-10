@@ -642,8 +642,13 @@ encender datos móviles en ambos teléfonos no garantiza que puedan comunicarse.
 
 Con un turno abierto, entra en **Ventas**. Busca cada artículo por nombre (F2 vuelve a la búsqueda), agrégalo al carrito y ajusta sus cantidades. Elige cliente opcional y forma de pago, revisa el total y pulsa **Registrar venta**. Puedes buscar otros artículos sin perder los ya agregados; **Vaciar** solicita confirmación. El carrito no reserva inventario y los precios y existencias se comprueban al registrar. Si un precio cambió, revisa el total actualizado antes de volver a registrar.
 
-El borrador se recupera en la misma pestaña y sesión si el navegador permite almacenamiento de sesión. Si se interrumpe la conexión durante el registro, consulta el historial de ventas antes de reintentar para evitar duplicados. Para requisitos y límites de la versión de escritorio, consulta [DShalev/README.md](DShalev/README.md).
+El borrador se recupera en la misma pestaña y sesión si el navegador permite almacenamiento de sesión. Cada intento de venta conserva una clave idempotente: reenviar la misma operación no crea otra venta; si cambias el contenido después de que el servidor ya la guardó, revisa el historial y empieza una operación nueva. Esto no hace que el POS funcione sin conexión. Para requisitos y límites de la versión de escritorio, consulta [DShalev/README.md](DShalev/README.md).
 
+### DShalev: ajustes y anulación auditables
+
+En **Inventario**, cambia la existencia al editar un artículo y escribe un motivo de 3 a 160 caracteres; el alta con existencia inicial mayor que cero también requiere motivo. La cuenta administradora tiene los enlaces **Movimientos**, que abre el historial de solo lectura, y **Historial CSV**, que lo descarga. Si aparece **Saldo negativo · revisar sincronización**, revisa las ventas recibidas de apps secundarias y concilia antes de hacer un ajuste.
+
+En **Ventas**, una cuenta administradora puede anular una venta de escritorio reciente, con motivo obligatorio. DShalev conserva la operación, registra los movimientos compensatorios y excluye la venta anulada de los totales/reportes; no procesa devoluciones de efectivo ni de transferencias. Las ventas anteriores a la habilitación del libro no se anulan automáticamente. Para corregir una venta de escritorio, anúlala con motivo y registra una operación nueva; ambas quedan separadas en el historial. La corrección móvil está disponible solo para ventas de productos simples sin recetas; las demás se pueden anular, pero no editar parcialmente. DShalev enviará la anulación y el reemplazo móvil en la próxima sincronización.
 
 ### Venta móvil: agregar y descartar
 

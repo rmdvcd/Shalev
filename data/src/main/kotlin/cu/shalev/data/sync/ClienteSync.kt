@@ -329,9 +329,9 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
 
     /**
      * 0.21.7 (P-e, punto 2): cada acción lleva una clave única. Si su respuesta se pierde (conexión caída o sin respuesta)
-     * y la principal recuerda los comandos ([HolaOk.comandosUnicos]), se reenvía UNA vez con la misma clave por una
-     * sesión nueva: si ya se había aplicado, la principal devuelve el resultado guardado sin repetirlo. Con una principal
-     * anterior no se reenvía (podría aplicarse dos veces) y se informa del fallo, como antes. null = sin principal.
+     * y la principal admite recibos idempotentes ([HolaOk.comandosUnicos]), se reenvía UNA vez con la misma clave por una
+     * sesión nueva: si ya se había aplicado, la principal devuelve el recibo persistente sin repetir la acción. Con una
+     * principal anterior no se reenvía (podría aplicarse dos veces) y se informa del fallo, como antes. null = sin principal.
      */
     private suspend fun enviarComando(d: DatosSecundaria, accion: Accion): ResultadoComando? {
         val clave = UUID.randomUUID().toString()
@@ -525,7 +525,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
     companion object {
         const val CONECTAR_MS = 3_000
         const val RESPUESTA_MS = 60_000L
-        /** 0.21.7 (P-e): reenvíos de un comando sin respuesta (solo con una principal que recuerda los comandos). */
+        /** 0.21.7 (P-e): reenvíos sin respuesta (solo si la principal anuncia recibos idempotentes). */
         const val REENVIOS_COMANDO = 1
         const val LATIDO_MS = 30_000L
         /** 0.32.0: espera del reintento de conexión (crece hasta [ESPERA_MAX_MS]). */

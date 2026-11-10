@@ -57,8 +57,13 @@ class EscanerInventarioTest {
         assertEquals(listOf(1L, 2L, 3L, 4L), v.elementosCompletos.map { it.producto.id })
     }
 
-    @Test fun buscadorIgnoraTildes() {
-        assertEquals(listOf(1L), InventarioFiltro.aplicar(ps, FiltroInventario(texto = " CAFE "), n, hoy, 7).items.map { it.producto.id })
+    @Test fun buscadorIgnoraTildesYBuscaNombreCategoriaYDescripcion() {
+        val conDescripcion = ps.map { if (it.id == 1L) it.copy(descripcion = "Grano tostado de montaña") else it }
+        fun ids(texto: String) = InventarioFiltro.aplicar(conDescripcion, FiltroInventario(texto = texto), n, hoy, 7).items.map { it.producto.id }
+
+        assertEquals(listOf(1L), ids(" CAFE "))
+        assertEquals(listOf(2L, 4L), ids("bebidas"))
+        assertEquals(listOf(1L), ids("tostado"))
     }
 
     @Test fun filtrosDeCategoriaTipoYAlerta() {

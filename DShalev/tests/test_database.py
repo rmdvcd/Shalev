@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sqlite3
 
 import pytest
 
@@ -52,3 +53,39 @@ def test_database_does_not_silently_create_new_key_if_key_is_missing(tmp_path: P
     path.with_name("database.key").unlink()
     with pytest.raises(RuntimeError, match="Falta la clave de cifrado"):
         Database(path)
+
+
+def test_legacy_fractional_stock_migrates_to_integer_milli_and_records_opening_balance(tmp_path: Path):
+    path = tmp_path / "legacy" / "business.sqlite3"
+    db = Database(path)
+    with db.connect() as conn:
+        conn.executescript("""
+            CREATE TABLE items (
+                id INTEGER PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL, unit TEXT NOT NULL,
+                stock INTEGER NOT NULL DEFAULT 0, sale_price_cents INTEGER NOT NULL DEFAULT 0,
+                cost_cents INTEGER NOT NULL DEFAULT 0, low_stock INTEGER NOT NULL DEFAULT 5,
+                critical_stock INTEGER NOT NULL DEFAULT 1, active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+            );
+            INSERT INTO items(name,category,unit,stock,low_stock,critical_stock)
+            VALUES('Harina','Insumo','kg',0.3-0.1,0.5,0.1);
+        """)
+    db.initialize()
+    with db.connect() as conn:
+        row = conn.execute("SELECT stock,stock_milli,low_stock_milli,critical_stock_milli,typeof(stock_milli) FROM items WHERE id=1").fetchone()
+        movement = conn.execute("SELECT * FROM inventory_movements WHERE item_id=1").fetchone()
+        assert conn.execute("SELECT value FROM app_meta WHERE key='schema_version'").fetchone()[0] == "9"
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("UPDATE items SET stock_milli=9000000000000000001 WHERE id=1")
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("UPDATE items SET low_stock_milli=-1 WHERE id=1")
+    assert row["stock_milli"] == 200 and row["typeof(stock_milli)"] == "integer"
+    assert row["low_stock_milli"] == 500 and row["critical_stock_milli"] == 100
+    assert movement["movement_type"] == "MIGRACION" and movement["delta_milli"] == 200
+    assert "0.19999999999999998" in movement["reason"] and "0.2" in movement["reason"]
+
+    db.initialize()
+    with db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM inventory_movements").fetchone()[0] == 1
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("UPDATE inventory_movements SET reason='alterado' WHERE id=1")

@@ -241,3 +241,13 @@ Detalle en `docs/HISTORIAL_DESARROLLO.md` (Prompts 55–57, 0.21.6–0.21.8).
 - **Una principal nunca pasa a secundaria** (T9): la opción no aparece y `VinculacionViewModel` la rechaza (`PRINCIPAL_NO_SECUNDARIA`). El tipo se elige en el recorrido inicial; cambiarlo exige exportar el respaldo y borrar los datos de la app.
 - **Acceso con clave** en una secundaria: solo desde Ajustes (su recorrido termina al vincularse).
 - **Clientes fijos:** la transferencia de cada venta lleva `clienteFijo` (opcional, `false` por defecto; protocolo sigue en v1). Al recibir una venta con la marca, la principal registra o actualiza el cliente por carné en la misma transacción. La lista de la principal **no** se envía a las secundarias.
+
+## 2026-11-10 — Recibos persistentes de comandos remotos
+
+La §0.21.8 conserva la descripción histórica de la caché RAM original; este cambio la sustituye en la implementación actual.
+
+- **Base de datos Room v17:** tabla `comando_recibo` con clave primaria `(empleadoId, clave)`, huella SHA-256 de la acción y respuesta original. La migración 16→17 solo crea la tabla.
+- En la principal, la consulta del recibo, la aplicación del comando mediante los repositorios existentes y el guardado de su respuesta se ejecutan dentro de una transacción de Room. No se podan recibos; una respuesta perdida puede reintentarse incluso después de reiniciar la principal. Los errores del comando también se recuerdan.
+- La misma clave con contenido diferente se rechaza (`clave_reutilizada`) y deja intactos tanto el recibo original como el catálogo. La huella canoniza el orden del mapa en `CambiarPrecios`; el id de transporte no forma parte del contenido.
+- La clave se limita al empleado y conserva el límite de 64 caracteres. Comandos antiguos sin clave o con una clave vacía/no válida siguen ejecutándose sin deduplicación. El protocolo SPVI permanece en versión 1.
+- Importar un respaldo reemplaza el estado de negocio y borra los recibos locales; los recibos no forman parte del archivo de respaldo. Las pruebas instrumentadas cubren persistencia tras reabrir la base, conflicto, errores y concurrencia; falta ejecutarlas con JDK y Android SDK.
