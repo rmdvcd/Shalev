@@ -6,6 +6,17 @@ html[data-theme="oscuro"]{color-scheme:dark;--bg:#0f1318;--surface:#1a1f26;--sur
 .permission-editor{margin-top:8px}.permission-editor summary{font-size:12px;font-weight:750;color:var(--blue);cursor:pointer}.permission-editor form{display:grid;gap:8px;margin-top:10px}.permission-editor .check-row{font-size:12px}.permission-editor .secondary-button{justify-self:start;min-height:36px;font-size:12px}
 .cart-quantity{width:82px;height:38px;border:1px solid var(--line);border-radius:8px;padding:0 8px;background:var(--surface);color:var(--ink)}.space-bottom{margin-bottom:14px}.cart-table{min-width:520px}
 
+.inventory-heading{align-items:flex-start;gap:16px}
+.inventory-heading-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;min-width:0}
+.inventory-row-actions{display:flex;align-items:center;gap:12px}
+.retire-action summary{color:var(--red);cursor:pointer;font-weight:700}
+.retire-form{width:min(320px,calc(100vw - 40px));display:grid;gap:10px;margin-top:8px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 14px 36px rgba(25,36,52,.16);white-space:normal}
+.retire-form label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--muted)}
+.retire-form input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:0 11px}
+.retire-form .tiny{white-space:normal}
+.retire-form .quiet-button{justify-self:start;color:var(--red);font-weight:800}
+@media(max-width:760px){.inventory-heading{flex-direction:column;align-items:stretch}.inventory-heading-actions{justify-content:flex-start}.inventory-heading-actions .quiet-button{flex:1 1 40%;white-space:nowrap;padding:0 7px;font-size:12px}.inventory-table-wrap{margin:0 -8px}.inventory-table{min-width:620px}.retire-form{position:fixed;top:auto;left:50%;right:auto;bottom:calc(78px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(360px,calc(100vw - 30px));max-height:60vh;overflow-y:auto}.inventory-row-actions{gap:10px}}
+
 /* Iconos sólidos de Shalev y navegación desplazable cuando no caben todas las secciones. */
 .nav-link svg{display:block;width:22px;height:22px;fill:currentColor}
 .rail{overflow-y:auto}

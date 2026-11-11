@@ -1,3 +1,13 @@
+## Correcciones de pruebas de ventanas Android y DShalev (2026-11-11)
+
+- **Android — Perfil:** el error de Nombre/Apellidos ahora se muestra en línea desde que el valor es inválido, sin esperar a perder el foco; el mensaje aclara las letras, espacios, apóstrofos y guiones permitidos. Se añadieron pruebas de lógica y de UI Compose.
+- **Android — Carrito:** al introducir una cantidad mayor que la disponible, se conserva el límite existente y se avisa con un snackbar; se añadió una prueba de ViewModel.
+- **DShalev — inventario móvil:** las acciones de encabezado se ajustan en filas en pantallas estrechas y la tabla mantiene desplazamiento dentro de su contenedor. El formulario de retiro queda visible al abrirlo.
+- **DShalev — nombres:** alta/edición, formulario de Servicios, exportación de fichas y comandos SPVI de producto/insumo requieren de 3 a 80 caracteres. Se conserva el acceso a datos previos.
+- **DShalev — retiro:** se requiere un motivo de 3–160 caracteres; el retiro sigue ocultando el artículo sin borrar ventas y añade el evento inmutable `RETIRO`, incluido en historial y CSV. Se conserva también en respaldos; la base pasa al esquema 10.
+- **DShalev — respaldo:** la frase de restauración deja de ofrecerse como contraseña de inicio de sesión del sitio; los campos para crear una frase conservan `new-password`.
+- **Verificación:** 201 pruebas Python DShalev pasaron y `compileall` / `git diff --check` terminaron correctamente. Las pruebas Android y el viewport real de 375 px no se pudieron ejecutar en este entorno (sin JDK/SDK Android ni navegador instalado).
+
 ## Auditoría IPV/POS: trazabilidad de DShalev (2026-11-10)
 
 - **Inventario en escala fija:** migración de DShalev a esquema 9; existencias y umbrales quedan canónicos en milésimas enteras. Se conserva compatibilidad con las columnas heredadas y se crea una apertura `MIGRACION` que informa el saldo previo normalizado, sin inventar el historial anterior.

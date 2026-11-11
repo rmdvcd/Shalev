@@ -1,6 +1,8 @@
 # Pruebas de ventanas y componentes — Shalev Android
 
-Fecha: 2026-11-10 · Build: debug `versionCode 54` (package `cu.shalev.app.debug`) · Teléfono físico Redmi Note 12 (`4bc9f8f3`, Android 15) · Herramienta: adb + inspección de jerarquía UI + capturas de pantalla.
+Fecha: 2026-11-10 · Build: debug `versionCode 54` (package `cu.shalev.app.debug`) · Teléfono físico Redmi Note 12 (Android 15; identificador del dispositivo omitido) · Herramienta: adb + inspección de jerarquía UI + capturas de pantalla.
+
+> **Informe histórico, no certifica la rama actual.** Se tomó antes de las correcciones del 2026-11-11. Para repetir AND-1/AND-2 en un teléfono o emulador de pruebas usa [PRUEBAS_IA_SHALEV_DSHALEV.md](PRUEBAS_IA_SHALEV_DSHALEV.md), casos S-12/S-13 y comandos de la sección 3. No uses una instalación con datos personales ni guardes el perfil de prueba.
 
 Alcance de pruebas por pantalla: tema claro/oscuro, orientación, responsive, FontWeight y Error Input.
 
@@ -51,7 +53,7 @@ Barra inferior probada: Inicio · Inventario · Servicios · Registros · Herram
 
 - Turno **cerrado** con arqueo cuadrado (fondo 123 = contado 123, sin ventas ni ajustes de inventario; el cierre registra un movimiento de arqueo en los Registros).
 - Tema del sistema en claro, rotación automática activada.
-- Datos de Perfil intactos: `Ronnie / Montero / 91040922502`; el botón Guardar quedó en `disabled` (sin cambios pendientes).
+- Datos del Perfil intactos; los valores personales se omiten por privacidad. El botón Guardar quedó deshabilitado (sin cambios pendientes).
 - La venta de prueba se **descartó** (no se registró ninguna venta).
 - Capturas de pantalla en `%TEMP%\opencode\an_*.png` (no se suben a git).
 
@@ -59,6 +61,6 @@ Barra inferior probada: Inicio · Inventario · Servicios · Registros · Herram
 
 | ID | Severidad | Hallazgo | Sugerencia |
 |---|---|---|---|
-| AND-1 | Baja | Nombre del perfil acepta dígitos/símbolos sin aviso en tiempo de escritura | Decidir si se valida (solo letras y espacios) y mostrar error en línea |
-| AND-2 | Informativa | Cantidad del carrito se autocorrige al stock sin mensaje explicativo | Añadir un aviso breve ("ajustado a lo disponible") para claridad |
+| AND-1 | Baja · histórico/pre-corrección | En la build probada, Nombre aceptaba dígitos/símbolos sin aviso en tiempo de escritura | La rama actual añade error en línea; falta repetir S-12 en app debug aislada y confirmar que Guardar no persiste el dato inválido |
+| AND-2 | Informativa · histórico/pre-corrección | En la build probada, la cantidad se ajustaba al stock sin mensaje explicativo | La rama actual añade aviso; falta repetir S-13 y confirmar texto, subtotal y total en dispositivo/emulador |
 | AND-3 | Externa | Gboard perdió dígitos al escribir rápido | No es defecto de la app |

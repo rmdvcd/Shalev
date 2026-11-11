@@ -79,7 +79,7 @@ def test_migracion_conserva_los_datos_de_base_anterior(tmp_path):
     with upgraded.connect() as conn:
         assert conn.execute('SELECT stock FROM items WHERE name=?', ('Datos previos',)).fetchone()[0] == 7
         assert conn.execute('SELECT COUNT(*) FROM cost_sheets').fetchone()[0] == 0
-        assert conn.execute("SELECT value FROM app_meta WHERE key='schema_version'").fetchone()[0] == '9'
+        assert conn.execute("SELECT value FROM app_meta WHERE key='schema_version'").fetchone()[0] == '10'
     upgraded.close()
 
 

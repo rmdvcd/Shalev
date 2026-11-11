@@ -101,6 +101,8 @@ def test_admin_can_download_and_restore_password_protected_backup(tmp_path: Path
     with client.app.state.db.transaction() as conn:
         conn.execute("UPDATE app_meta SET value='Negocio en respaldo' WHERE key='business_name'")
     page = client.get("/respaldo")
+    assert 'autocomplete="new-password"' in page.text
+    assert page.text.count('autocomplete="off"') == 1
     backup_response = client.post("/respaldo/descargar", data={
         "csrf": token(page), "passphrase": "Contraseña de respaldo 2026!", "confirm_passphrase": "Contraseña de respaldo 2026!",
     })
@@ -120,25 +122,97 @@ def test_inventory_edit_and_retire_keep_existing_sales_history(tmp_path: Path):
     client = client_for(tmp_path)
     setup_and_login(client)
     add_item(client, name="Café", category="Producto", stock=5, price="10")
+    home = client.get("/")
+    client.post("/turno/abrir", data={"csrf": token(home), "opening_cash": "0"}, follow_redirects=True)
+    sales_page = client.get("/ventas")
+    sale = client.post("/ventas/nueva", data={
+        "csrf": token(sales_page), "quantity_1": "1", "payment_method": "EFECTIVO",
+    }, follow_redirects=True)
+    assert "Café × 1" in sale.text
+
     edit = client.get("/inventario/1/editar")
     saved = client.post("/inventario/1/editar", data={
         "csrf": token(edit), "name": "Café molido", "category": "Producto", "unit": "paquete",
-        "sale_price": "12.50", "cost": "6", "stock": "5", "low_stock": "2", "critical_stock": "1",
+        "sale_price": "12.50", "cost": "6", "stock": "4", "low_stock": "2", "critical_stock": "1",
     }, follow_redirects=True)
     assert "Artículo actualizado" in saved.text and "Café molido" in saved.text
+
     page = client.get("/inventario")
-    removed = client.post("/inventario/1/eliminar", data={"csrf": token(page)}, follow_redirects=True)
-    assert "Artículo retirado" in removed.text
+    assert 'minlength="3"' in page.text and "Motivo del retiro" in page.text
+    without_reason = client.post("/inventario/1/eliminar", data={"csrf": token(page)}, follow_redirects=True)
+    assert "motivo del retiro" in without_reason.text.lower()
     with client.app.state.db.connect() as conn:
-        row = conn.execute("SELECT active,name FROM items WHERE id=1").fetchone()
-    assert row["active"] == 0 and row["name"] == "Café molido"
+        assert conn.execute("SELECT active FROM items WHERE id=1").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM item_retirements").fetchone()[0] == 0
+
+    page = client.get("/inventario")
+    removed = client.post("/inventario/1/eliminar", data={
+        "csrf": token(page), "reason": "Artículo fuera de temporada",
+    }, follow_redirects=True)
+    assert "Artículo retirado" in removed.text and "motivo quedó en el historial" in removed.text
+    history = client.get("/inventario/movimientos")
+    export = client.get("/inventario/movimientos.csv")
+    assert history.status_code == 200 and "Artículo fuera de temporada" in history.text and "Retiro" in history.text
+    assert export.status_code == 200 and "RETIRO" in export.text and "Artículo fuera de temporada" in export.text
+    with client.app.state.db.connect() as conn:
+        row = conn.execute("SELECT active,name,stock_milli FROM items WHERE id=1").fetchone()
+        retirement = conn.execute("SELECT * FROM item_retirements WHERE item_id=1").fetchone()
+        assert conn.execute("SELECT COUNT(*) FROM sales").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM sale_lines").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM inventory_movements WHERE movement_type='VENTA'").fetchone()[0] == 1
+        import sqlite3
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("UPDATE item_retirements SET reason='modificado' WHERE id=?", (retirement["id"],))
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("DELETE FROM item_retirements WHERE id=?", (retirement["id"],))
+    assert row["active"] == 0 and row["name"] == "Café molido" and row["stock_milli"] == 4000
+    assert retirement["actor"] == "dueno" and retirement["reason"] == "Artículo fuera de temporada"
+    assert retirement["item_name"] == "Café molido" and retirement["stock_milli"] == 4000
+
+    phrase = "Respaldo de retiros seguro 2026!"
+    backup = client.app.state.db.export_backup(phrase)
+    restored = Database(tmp_path / "restored-retirements" / "business.sqlite3")
+    restored.initialize()
+    restored.restore_backup(backup, phrase)
+    with restored.connect() as conn:
+        saved = conn.execute("SELECT item_name,reason FROM item_retirements WHERE item_id=1").fetchone()
+        assert tuple(saved) == ("Café molido", "Artículo fuera de temporada")
+    restored.close()
+
+
+def test_inventory_name_requires_three_characters_in_forms_and_server(tmp_path: Path):
+    client = client_for(tmp_path)
+    setup_and_login(client)
+    page = client.get("/inventario")
+    assert 'name="name" required minlength="3" maxlength="80"' in page.text
+    data = {
+        "csrf": token(page), "name": "AB", "category": "Producto", "unit": "unidad",
+        "sale_price": "0", "cost": "0", "stock": "0", "low_stock": "2", "critical_stock": "1",
+    }
+    rejected = client.post("/inventario/nuevo", data=data, follow_redirects=True)
+    assert "El nombre del artículo debe tener entre 3 y 80 caracteres." in rejected.text
+    with client.app.state.db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 0
+
+    add_item(client, name="Café", category="Producto", stock=0, price="10")
+    edit = client.get("/inventario/1/editar")
+    assert 'name="name" required minlength="3" maxlength="80"' in edit.text
+    bad_edit = client.post("/inventario/1/editar", data={
+        "csrf": token(edit), "name": "AB", "category": "Producto", "unit": "unidad",
+        "sale_price": "10", "cost": "1", "stock": "0", "low_stock": "2", "critical_stock": "1",
+    }, follow_redirects=True)
+    assert "El nombre del artículo debe tener entre 3 y 80 caracteres." in bad_edit.text
+    with client.app.state.db.connect() as conn:
+        assert conn.execute("SELECT name FROM items WHERE id=1").fetchone()[0] == "Café"
+    services = client.get("/servicios")
+    assert 'name="name" minlength="3" maxlength="80" required' in services.text
 
 
 def test_web_sale_supports_multiple_lines_and_services_without_stock(tmp_path: Path):
     client = client_for(tmp_path)
     setup_and_login(client)
     add_item(client, name="Café", category="Producto", stock=5, price="10")
-    add_item(client, name="Té", category="Producto", stock=4, price="20")
+    add_item(client, name="Té negro", category="Producto", stock=4, price="20")
     add_item(client, name="Corte", category="Servicio", stock=0, price="7.50")
 
     home = client.get("/")
@@ -150,7 +224,7 @@ def test_web_sale_supports_multiple_lines_and_services_without_stock(tmp_path: P
         "csrf": token(page), "quantity_1": "2", "quantity_2": "1", "quantity_3": "1",
         "payment_method": "EFECTIVO",
     }, follow_redirects=True)
-    assert sale.status_code == 200 and "Café × 2" in sale.text and "Té × 1" in sale.text and "Corte × 1" in sale.text
+    assert sale.status_code == 200 and "Café × 2" in sale.text and "Té negro × 1" in sale.text and "Corte × 1" in sale.text
     with client.app.state.db.connect() as conn:
         rows = conn.execute("SELECT id,stock FROM items ORDER BY id").fetchall()
         total = conn.execute("SELECT total_cents FROM sales").fetchone()[0]

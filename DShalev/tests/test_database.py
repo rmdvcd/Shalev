@@ -46,6 +46,27 @@ def test_passphrase_backup_restores_database_and_rejects_wrong_password(tmp_path
         assert conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()[0] == "Respaldo original"
 
 
+def test_esquema_9_migra_a_10_con_registro_append_only_de_retiros(tmp_path: Path):
+    path = tmp_path / "v9" / "business.sqlite3"
+    db = Database(path)
+    db.initialize()
+    with db.transaction() as conn:
+        conn.execute("DROP TRIGGER item_retirements_no_update")
+        conn.execute("DROP TRIGGER item_retirements_no_delete")
+        conn.execute("DROP TABLE item_retirements")
+        conn.execute("UPDATE app_meta SET value='9' WHERE key='schema_version'")
+    db.close()
+
+    upgraded = Database(path)
+    upgraded.initialize()
+    with upgraded.connect() as conn:
+        assert conn.execute("SELECT value FROM app_meta WHERE key='schema_version'").fetchone()[0] == "10"
+        assert conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='item_retirements'").fetchone()
+        triggers = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'")}
+        assert {"item_retirements_no_update", "item_retirements_no_delete"}.issubset(triggers)
+    upgraded.close()
+
+
 def test_database_does_not_silently_create_new_key_if_key_is_missing(tmp_path: Path):
     path = tmp_path / "DShalevData" / "business.sqlite3"
     db = Database(path)
@@ -74,7 +95,8 @@ def test_legacy_fractional_stock_migrates_to_integer_milli_and_records_opening_b
     with db.connect() as conn:
         row = conn.execute("SELECT stock,stock_milli,low_stock_milli,critical_stock_milli,typeof(stock_milli) FROM items WHERE id=1").fetchone()
         movement = conn.execute("SELECT * FROM inventory_movements WHERE item_id=1").fetchone()
-        assert conn.execute("SELECT value FROM app_meta WHERE key='schema_version'").fetchone()[0] == "9"
+        assert conn.execute("SELECT value FROM app_meta WHERE key='schema_version'").fetchone()[0] == "10"
+        assert conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='item_retirements'").fetchone()[0] == "item_retirements"
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute("UPDATE items SET stock_milli=9000000000000000001 WHERE id=1")
         with pytest.raises(sqlite3.IntegrityError):

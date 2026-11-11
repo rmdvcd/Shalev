@@ -170,6 +170,16 @@ class VentaViewModelTest {
         assertTrue(vm.state.value.lineas.isEmpty())
     }
 
+    @Test fun cantidadSuperiorAlStockSeAjustaYSeExplica() = runTest {
+        abrirTurno()
+        val vm = vm()
+        vm.recibirSeleccion(listOf(1)) // Refresco: 5 unidades disponibles.
+        vm.cambiarCantidad(1, 999)
+
+        assertEquals(5L, vm.state.value.lineas.single().cantidad)
+        assertTrue(eventos.contains(EventoVenta.Mensaje(TextosVenta.CANTIDAD_AJUSTADA)))
+    }
+
     /** 0.20.0 (H5, P43): la venta abierta retiene el cierre pedido por el encargado hasta registrarse. */
     @Test fun cierrePedidoEsperaAQueTermineLaVenta() = runTest {
         abrirTurno()

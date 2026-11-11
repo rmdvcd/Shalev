@@ -82,3 +82,33 @@ def record_movement(
         ),
     )
     return int(cursor.lastrowid)
+
+
+def record_retirement(
+    conn: sqlite3.Connection,
+    item_id: int,
+    *,
+    actor: str,
+    reason: str,
+    source: str,
+    reference: str | None = None,
+    actor_type: str = "usuario",
+    actor_id: int | None = None,
+) -> int:
+    """Agrega el evento inmutable de retiro sin alterar el saldo ni las ventas históricas."""
+    item = conn.execute(
+        "SELECT name,category,unit,stock_milli FROM items WHERE id=?", (item_id,)
+    ).fetchone()
+    if item is None:
+        raise ValueError("El artículo del retiro ya no existe.")
+    cursor = conn.execute(
+        """INSERT INTO item_retirements(
+            item_id,item_name,item_category,item_unit,stock_milli,actor_type,actor_id,actor,reason,source,reference
+        ) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+        (
+            item_id, item["name"], item["category"], item["unit"], int(item["stock_milli"]), actor_type,
+            int(actor_id) if actor_id is not None else None, str(actor)[:80] or "Desconocido",
+            str(reason)[:500], str(source)[:40], str(reference)[:160] if reference else None,
+        ),
+    )
+    return int(cursor.lastrowid)

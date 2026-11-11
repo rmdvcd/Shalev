@@ -5,6 +5,7 @@ import socket
 import time
 from pathlib import Path
 
+import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
@@ -309,6 +310,36 @@ def test_sync_recipe_commands_and_milli_ingredient_stock(tmp_path: Path):
     assert remaining_milli == 1150
     with db.connect() as conn:
         assert conn.execute("SELECT stock FROM items WHERE id=12").fetchone()[0] == 1.15
+
+def test_sync_rechaza_articulos_cortos_y_audita_retiros_remotos(tmp_path: Path):
+    db = Database(tmp_path / "retiros.sqlite3")
+    db.initialize()
+    with db.transaction() as conn:
+        with pytest.raises(ValueError, match="producto"):
+            ShalevSyncServer._apply_command(conn, {"t": "producto_guardar", "producto": {
+                "id": 1, "nombre": "AB", "cantidad": 0, "precioVentaCent": 0, "precioCostoCent": 0,
+            }})
+        with pytest.raises(ValueError, match="insumo"):
+            ShalevSyncServer._apply_command(conn, {"t": "insumo_guardar", "insumo": {
+                "id": 2, "nombre": "XY", "unidad": "kg", "cantidadMil": 0, "precioCent": 0,
+            }})
+        assert conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 0
+        conn.execute("INSERT INTO items(id,name,category,stock) VALUES(1,'Café','Producto',3)")
+        conn.execute("INSERT INTO items(id,name,category,stock) VALUES(2,'Harina','Insumo',2500)")
+        ShalevSyncServer._apply_command(conn, {"t": "producto_eliminar", "id": 1},
+                                        actor="Ana", actor_id=7, reference="sync-command:7:producto")
+        ShalevSyncServer._apply_command(conn, {"t": "insumo_eliminar", "id": 2},
+                                        actor="Ana", actor_id=7, reference="sync-command:7:insumo")
+    with db.connect() as conn:
+        rows = conn.execute("SELECT item_id,item_name,stock_milli,actor,actor_type,actor_id,reason,source,reference FROM item_retirements ORDER BY item_id").fetchall()
+        assert [row["item_id"] for row in rows] == [1, 2]
+        assert [row["item_name"] for row in rows] == ["Café", "Harina"]
+        assert all(row["actor"] == "Ana" and row["actor_type"] == "empleado" and row["actor_id"] == 7 for row in rows)
+        assert all("Retirado desde Shalev" in row["reason"] and row["source"] == "sincronizacion" for row in rows)
+        assert [row["reference"] for row in rows] == ["sync-command:7:producto", "sync-command:7:insumo"]
+        assert conn.execute("SELECT COUNT(*) FROM items WHERE active=0").fetchone()[0] == 2
+    db.close()
+
 
 def test_sync_command_receipts_remain_durable_beyond_old_512_limit(tmp_path: Path):
     db = Database(tmp_path / "commands.sqlite3")

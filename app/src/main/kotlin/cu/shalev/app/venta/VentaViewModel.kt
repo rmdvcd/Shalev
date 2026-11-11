@@ -258,6 +258,9 @@ class VentaViewModel @Inject constructor(
         val max = topes[id] ?: cat.articulos[id]?.let { if (esServicio) Carrito.MAX_CANTIDAD else it.cantidad } ?: state.value.lineas.firstOrNull { it.producto.id == id }?.maximo
         guardar(Carrito.recortarACapacidad(Carrito.cambiar(base, id, cantidad, max), cat))
         local.update { it.copy(error = null) }
+        if (max != null && max > 0 && cantidad > max) {
+            emitir(EventoVenta.Mensaje(TextosVenta.CANTIDAD_AJUSTADA))
+        }
     }
 
     fun quitar(id: Long) {
