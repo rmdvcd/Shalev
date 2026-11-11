@@ -1,5 +1,6 @@
 package cu.shalev.designsystem.component
 
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -55,6 +56,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import cu.shalev.designsystem.R
 import cu.shalev.designsystem.icon.ShalevIcons
@@ -454,3 +456,47 @@ fun LazyItemScope.shalevAnimateItem(): Modifier =
  */
 fun Modifier.shalevContentWidth(): Modifier =
     this.wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = ShalevSize.contentMaxWidth).fillMaxWidth()
+
+// -----------------------------------------------------------------------------------------------------------
+// Plan UI/UX/IX 2026-11 (SK-2): previews PRIVADAS Light/Dark solo en :designsystem; Roborazzi sigue siendo la
+// fuente de verdad de la regresión visual (ver CAPTURAS.md).
+
+@Preview(name = "Cards — claro")
+@Composable
+private fun CardsPreviewClaro() = CardsPreview()
+
+@Preview(name = "Cards — oscuro", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun CardsPreviewOscuro() = CardsPreview()
+
+@Composable
+private fun CardsPreview() {
+    ShalevTheme {
+        Surface {
+            Column(Modifier.padding(ShalevSpacing.md)) {
+                ShalevCard(title = "Ventas de hoy") {
+                    Text("1,250 CUP")
+                    ShalevSecondaryText("12 ventas en el turno")
+                }
+            }
+        }
+    }
+}
+
+@Preview(name = "Vacío — claro", showBackground = true)
+@Composable
+private fun VacioPreviewClaro() = VacioPreview()
+
+@Preview(name = "Vacío — oscuro", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
+@Composable
+private fun VacioPreviewOscuro() = VacioPreview()
+
+@Composable
+private fun VacioPreview() {
+    ShalevTheme {
+        ShalevEmptyState(
+            title = "Sin productos todavía",
+            detail = "Agrega el primero para empezar a vender.",
+        )
+    }
+}

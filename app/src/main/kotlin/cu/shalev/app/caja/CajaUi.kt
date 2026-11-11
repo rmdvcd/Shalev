@@ -38,7 +38,6 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import cu.shalev.core.money.Cup
 import cu.shalev.core.money.Money
 import cu.shalev.designsystem.component.FiltroEntrada
@@ -49,6 +48,8 @@ import cu.shalev.designsystem.component.ShalevTabs
 import cu.shalev.designsystem.component.ShalevTextButton
 import cu.shalev.designsystem.component.ShalevTextField
 import cu.shalev.designsystem.icon.ShalevIcons
+import cu.shalev.designsystem.token.ShalevRadius
+import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.domain.model.Arqueo
 import cu.shalev.domain.model.EstadoArqueo
@@ -153,15 +154,15 @@ fun iconoBilleteCup(denominacion: Int): Int = when (denominacion) {
 /** Miniatura enmarcada del billete CUP que sustituye a la etiqueta textual de la denominación. */
 @Composable
 fun MiniaturaBilleteCup(denominacion: Int, modifier: Modifier = Modifier) {
-    val forma = RoundedCornerShape(6.dp)
+    val forma = RoundedCornerShape(ShalevRadius.billeteCup)
     Image(
         painter = painterResource(iconoBilleteCup(denominacion)),
         contentDescription = "Billetes de $denominacion CUP",
         contentScale = ContentScale.Crop,
         modifier = modifier
-            .size(width = 88.dp, height = 40.dp)
+            .size(width = ShalevSize.billeteCupAncho, height = ShalevSize.billeteCupAlto)
             .clip(forma)
-            .border(BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant), forma),
+            .border(BorderStroke(ShalevSize.billeteCupBorde, MaterialTheme.colorScheme.outlineVariant), forma),
     )
 }
 

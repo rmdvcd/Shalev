@@ -1,0 +1,32 @@
+{% extends 'base.html' %}{% block title %}Ayuda{% endblock %}{% block content %}
+<div class="page-heading"><div><p class="eyebrow">GUÍA RÁPIDA</p><h1>Ayuda</h1><p class="muted">Atajos, accesibilidad y respuestas a lo más preguntado.</p></div></div>
+<div class="content-grid">
+  <section class="panel" aria-labelledby="h-atajos"><div class="panel-heading"><div><p class="eyebrow">TECLADO</p><h2 id="h-atajos">Atajos y navegación</h2></div><span class="icon-tile">⌨</span></div>
+    <ul class="address-list">
+      <li><code>Tab</code> / <code>Mayús+Tab</code> — avanza y retrocede por los controles; el elemento enfocado se marca con un anillo azul. El primer <code>Tab</code> muestra «Saltar al contenido».</li>
+      <li><code>F2</code> — en Ventas, lleva el cursor directo al buscador de artículos.</li>
+      <li><code>Enter</code> en un formulario — envía como si pulsaras su botón principal.</li>
+    </ul>
+    <p class="tiny">Si en tu sistema activaste «reducir movimiento», DShalev no anima las transiciones. El tema claro/oscuro se elige arriba a la derecha y se recuerda en este navegador.</p>
+  </section>
+  <section class="panel" aria-labelledby="h-ventas"><div class="panel-heading"><div><p class="eyebrow">VENTA</p><h2 id="h-ventas">Punto de venta</h2></div><span class="icon-tile">＄</span></div>
+    <ul class="address-list">
+      <li>El carrito se <strong>guarda solo</strong> en este navegador mientras no se registra: si se cierra la página, se recupera al volver y se avisa si cambió algún precio.</li>
+      <li>Al registrar, el botón se bloquea hasta que el servidor responde: la venta no se duplica aunque pulses dos veces.</li>
+      <li>Límites de una venta: 60 líneas y 100 000 unidades por artículo.</li>
+      <li>Abre siempre un turno antes de vender (sección Turnos).</li>
+    </ul>
+  </section>
+  <section class="panel" aria-labelledby="h-datos"><div class="panel-heading"><div><p class="eyebrow">DATOS</p><h2 id="h-datos">Respaldo y restauración</h2></div><span class="icon-tile">⛨</span></div>
+    <ul class="address-list">
+      <li>Todo queda en la carpeta <code>DShalevData</code>, junto a la aplicación. Respaldar: sección Respaldo (solo administradores).</li>
+      <li>El respaldo va cifrado con tu contraseña (mínimo 12 caracteres). <strong>Sin ella no se puede restaurar.</strong></li>
+      <li>Restaurar reemplaza por completo los datos actuales.</li>
+    </ul>
+  </section>
+  <section class="panel" aria-labelledby="h-licencia"><div class="panel-heading"><div><p class="eyebrow">ESTADO</p><h2 id="h-licencia">Licencia y soporte</h2></div><span class="icon-tile">ⓘ</span></div>
+    <p>La activación comercial GL de la versión de escritorio sigue pendiente: el panel Licencia solo informa del estado y no pide claves. Las plazas secundarias se crean y vinculan en Equipo.</p>
+    <p class="tiny">Soporte del desarrollador: <code>+5351815604</code> (mismo contacto que la app móvil Shalev).</p>
+  </section>
+</div>
+{% endblock %}

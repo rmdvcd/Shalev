@@ -1,11 +1,14 @@
 package cu.shalev.designsystem.component
 
+import android.content.res.Configuration
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -38,8 +41,11 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cu.shalev.designsystem.icon.ShalevIcons
+import cu.shalev.designsystem.theme.ShalevTheme
 import cu.shalev.designsystem.token.ShalevFontScale
 import cu.shalev.designsystem.token.ShalevMotion
 import cu.shalev.designsystem.token.ShalevRadius
@@ -300,6 +306,34 @@ fun ShalevBarraAcciones(modifier: Modifier = Modifier, content: @Composable RowS
         Column {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             ShalevButtonRow(Modifier.navigationBarsPadding().padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs), content = content)
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------
+// Plan UI/UX/IX 2026-11 (SK-2): previews PRIVADAS Light/Dark solo en este módulo (:designsystem), para feedback
+// rápido en el IDE. En :app no se escriben @Preview: la regresión visual la cubre Roborazzi (ver CAPTURAS.md),
+// que sigue siendo la fuente de verdad de píxeles.
+
+@Preview(name = "Botones — claro")
+@Composable
+private fun BotonesPreviewClaro() = BotonesPreview()
+
+@Preview(name = "Botones — oscuro", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun BotonesPreviewOscuro() = BotonesPreview()
+
+@Composable
+private fun BotonesPreview() {
+    ShalevTheme {
+        Surface {
+            Column(Modifier.padding(ShalevSpacing.md)) {
+                ShalevPrimaryButton("Guardar", onClick = {}, icon = ShalevIcons.Guardar, mostrarTexto = true)
+                Spacer(Modifier.height(ShalevSpacing.xs))
+                ShalevSecondaryButton("Cancelar", onClick = {}, icon = ShalevIcons.Cancelar, mostrarTexto = true)
+                Spacer(Modifier.height(ShalevSpacing.xs))
+                ShalevTextButton("Volver", onClick = {}, icon = ShalevIcons.Atras, mostrarTexto = true)
+            }
         }
     }
 }

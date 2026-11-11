@@ -30,6 +30,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r DShalev/requirements-dev.txt
           python -m pytest DShalev/tests -q
+      - name: Accesibilidad de las plantillas (ramplint)
+        shell: pwsh
+        run: ramplint --no-django DShalev/dshalev/templates
       - name: Probar interacción del punto de venta
         working-directory: DShalev
         run: |

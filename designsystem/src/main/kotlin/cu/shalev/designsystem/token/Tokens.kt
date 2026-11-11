@@ -30,6 +30,8 @@ object ShalevRadius {
     val md = 12.dp
     val lg = 16.dp   // Cards
     val xl = 24.dp   // Sheets y diálogos
+    /** Esquinas de la miniatura del billete CUP (arqueo de caja). */
+    val billeteCup = 6.dp
 }
 
 /** Solo afecta a sombras en modo claro; en oscuro la elevación es tonal (superficies más claras). */
@@ -87,6 +89,10 @@ object ShalevSize {
     val medalla = 30.dp
     /** 0.27.0 (T13): foto del artículo arriba del formulario. */
     val fotoFormulario = 112.dp
+    /** Plan UI/UX/IX 2026-11 (SK-6): miniatura del billete CUP en el arqueo, antes 88×40 y borde 0.8 escritos a mano. */
+    val billeteCupAncho = 88.dp
+    val billeteCupAlto = 40.dp
+    val billeteCupBorde = 0.8.dp
 
     // P19: trazos internos de componentes (antes literales en Charts y Buttons).
     /** Línea base de los gráficos. */
