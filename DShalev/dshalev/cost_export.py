@@ -29,6 +29,8 @@ def export_sheet(conn: sqlite3.Connection, sheet_id: int, category: str, rate_te
         raise ValueError("Esta ficha ya se exportó a un artículo activo de ese tipo; edítalo en el catálogo.")
     items = conn.execute("SELECT id,name,category,unit FROM items WHERE active=1").fetchall()
     name = sheet["name"].strip()
+    if not 3 <= len(name) <= 80:
+        raise ValueError("El nombre del artículo exportado debe tener entre 3 y 80 caracteres; renombra la ficha antes de exportar.")
     if any(item["category"] == category and item["name"].strip().casefold() == name.casefold() for item in items):
         raise ValueError("Ya existe un artículo activo con ese nombre y tipo; revisa el catálogo antes de exportar.")
     totals = calculate(lines, parse_number(sheet["margin"], optional=True), sheet["margin_unit"])
@@ -57,6 +59,8 @@ def export_sheet(conn: sqlite3.Connection, sheet_id: int, category: str, rate_te
             matches = [item for item in items if item["category"] == "Insumo" and item["name"].strip().casefold() == key]
             if len(matches) > 1:
                 raise ValueError("Hay varios insumos activos con el mismo nombre; corrige el catálogo antes de exportar.")
+            if not matches and not 3 <= len(line["description"].strip()) <= 80:
+                raise ValueError("El nombre de cada insumo creado debe tener entre 3 y 80 caracteres.")
             if matches and matches[0]["unit"].strip().casefold() != unit.casefold():
                 raise ValueError("La unidad de una materia prima no coincide con la del insumo existente.")
             if key in ingredients:

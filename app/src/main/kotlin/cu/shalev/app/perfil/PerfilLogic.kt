@@ -9,7 +9,7 @@ object TextosPerfil {
     const val MODULOS_TITULO = "Tu negocio"
     const val MODULOS_EXPLICACION = "Lo que no marques desaparece de la barra inferior, de Inicio y de Registros. No se borra nada."
     const val EXPLICACION = "Tus datos se usan para pedir la licencia. Solo se guardan en este teléfono, protegidos."
-    const val ERROR_NOMBRE = "Solo letras, de 2 a 80"
+    const val ERROR_NOMBRE = "Solo letras y espacios; se admiten apóstrofos y guiones (2 a 80)."
     const val ERROR_CI = "Entre 5 y 20 letras o números"
     const val GUARDADO = "Datos guardados"
     const val ERROR_GENERICO = "No se pudo guardar. Inténtalo de nuevo."

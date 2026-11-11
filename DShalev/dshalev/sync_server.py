@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from .database import Database
-from .inventory import MAX_QUANTITY_MILLI, record_movement
+from .inventory import MAX_QUANTITY_MILLI, record_movement, record_retirement
 from .sync_protocol import (
     EncryptedChannel,
     MAX_GREETING,
@@ -704,7 +704,7 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
                         raise ValueError("receta")
                     seen_ingredients.add(ingredient_id)
                     recipe_rows.append((ingredient_id, quantity_milli))
-            if not 1 <= item_id <= 2**63 - 1 or not name or len(name) > 80 or not 0 <= stock <= 10**12:
+            if not 1 <= item_id <= 2**63 - 1 or not 3 <= len(name) <= 80 or not 0 <= stock <= 10**12:
                 raise ValueError("producto")
             if not 0 <= sale_price <= 2**63 - 1 or not 0 <= cost <= 2**63 - 1 or not 0 <= critical <= low <= 10**12:
                 raise ValueError("precio o niveles")
@@ -736,6 +736,11 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
             updated = conn.execute("UPDATE items SET active=0 WHERE id=? AND category!='Insumo' AND active=1", (item_id,)).rowcount
             if updated != 1:
                 raise RemoteCommandError("no_encontrado")
+            record_retirement(
+                conn, item_id, actor=actor, actor_type="empleado", actor_id=actor_id,
+                reason=str(action.get("motivo") or "Retirado desde Shalev mediante sincronización."),
+                source="sincronizacion", reference=reference or None,
+            )
             return None
         if kind == "producto_stock":
             item_id, delta = int(action["id"]), int(action["delta"])
@@ -854,7 +859,7 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
             sale = int(item.get("precioVentaCent") or 0)
             low_milli = int(item.get("nivelBajoMil", 5000) or 0)
             critical_milli = int(item.get("nivelCriticoMil", 1000) or 0)
-            if not 1 <= item_id <= 2**63 - 1 or not name or len(name) > 80 or not unit or len(unit) > 20:
+            if not 1 <= item_id <= 2**63 - 1 or not 3 <= len(name) <= 80 or not unit or len(unit) > 20:
                 raise ValueError("insumo")
             if not 0 <= quantity_milli <= 10**12 or not 0 <= cost <= 2**63 - 1 or not 0 <= sale <= 2**63 - 1 or not 0 <= critical_milli <= low_milli <= 10**12:
                 raise ValueError("insumo")
@@ -878,9 +883,15 @@ class ShalevSyncServer(socketserver.ThreadingTCPServer):
                                 source="sincronizacion", reference=reference or None)
             return item_id
         if kind == "insumo_eliminar":
-            updated = conn.execute("UPDATE items SET active=0 WHERE id=? AND category='Insumo' AND active=1", (int(action["id"]),)).rowcount
+            item_id = int(action["id"])
+            updated = conn.execute("UPDATE items SET active=0 WHERE id=? AND category='Insumo' AND active=1", (item_id,)).rowcount
             if updated != 1:
                 raise RemoteCommandError("no_encontrado")
+            record_retirement(
+                conn, item_id, actor=actor, actor_type="empleado", actor_id=actor_id,
+                reason=str(action.get("motivo") or "Retirado desde Shalev mediante sincronización."),
+                source="sincronizacion", reference=reference or None,
+            )
             return None
         if kind == "insumo_stock":
             delta_milli = int(action["deltaMil"])

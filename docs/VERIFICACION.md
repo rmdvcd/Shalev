@@ -1,5 +1,13 @@
 # Shalev — Verificación real
 
+## Correcciones de los informes de ventanas (2026-11-11, branch `arena/31f6e7e8-shalev`)
+
+- `cd DShalev && .venv/bin/python -m pytest -q`: **201 passed**, un aviso de deprecación de `starlette.testclient`/AnyIO. Incluye validaciones de nombres en formularios, exportación y comandos SPVI; retiro web/remoto auditable, historial CSV e integridad del respaldo; migración de esquema 9 a 10.
+- `cd DShalev && .venv/bin/python -m compileall -q dshalev tests`: OK. `git diff --check`: OK.
+- Android: se añadieron pruebas de lógica y Compose para el error de Perfil, y de ViewModel para el ajuste del carrito. **No se ejecutaron**: no hay Java/JDK ni Android SDK configurados en este entorno.
+- DShalev responsive: se ajustaron el encabezado y las acciones de Inventario, pero no fue posible ejecutar una comprobación automatizada del diseño a 375×667. El Chromium portátil probado no pudo iniciar porque el entorno carece de `libnspr4.so` y `libnss3.so`; no hay un navegador operativo. La ausencia de desbordamiento horizontal debe confirmarse en navegador antes de darla por verificada.
+- **Siguiente paso en un equipo real:** otra IA debe seguir [PRUEBAS_IA_SHALEV_DSHALEV.md](../PRUEBAS_IA_SHALEV_DSHALEV.md), en particular S-12/S-13 (Android), D-23/D-24/D-25 (DShalev en navegador real) y D-26 si existe un Android secundario de prueba. Los informes de ventanas fechados 2026-11-10 quedaron etiquetados como históricos y enlazan estas repruebas; no se debe presentar el resultado automatizado de Arena como validación de interfaz física.
+
 ## Auditoría IPV/POS: trazabilidad DShalev (2026-11-10, branch `arena/ddc0bb64-shalev`)
 
 - `cd DShalev && .venv/bin/python -m py_compile dshalev/app.py dshalev/sync_server.py dshalev/database.py dshalev/inventory.py`: OK.

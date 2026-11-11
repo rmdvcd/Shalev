@@ -1,6 +1,8 @@
 # Pruebas de ventanas y componentes — DShalev (Web-Escritorio)
 
-Fecha: 2026-11-10 · Servidor local: `DShalev.py` en `http://127.0.0.1:47812` (FastAPI/uvicorn, `/healthz` OK) · Sesión: usuario administrador `Manuel` · Herramienta: Playwright (Chromium), viewports 1280×800, 768×1024 y 375×667.
+Fecha: 2026-11-10 · Servidor local: `DShalev.py` en `http://127.0.0.1:47812` (FastAPI/uvicorn, `/healthz` OK) · Sesión: administrador de pruebas (nombre omitido) · Herramienta: Playwright (Chromium), viewports 1280×800, 768×1024 y 375×667.
+
+> **Informe histórico, no certifica la rama actual.** Se tomó antes de las correcciones del 2026-11-11. El overflow móvil, el límite de nombres y la retirada auditable requieren repetición real en navegador/PC: sigue [PRUEBAS_IA_SHALEV_DSHALEV.md](PRUEBAS_IA_SHALEV_DSHALEV.md), casos D-23/D-24/D-25 y, si hay Android secundario de prueba, D-26. Usa una raíz temporal nueva; no vuelvas a usar la sesión ni el artículo de prueba que quedaron en el entorno del informe anterior.
 
 Alcance de pruebas por página: tema claro/oscuro, FontWeight, responsive, y Error Input en los formularios de cada ventana.
 
@@ -53,7 +55,7 @@ Sin errores de consola ni errores de página en las 13 navegaciones ×2 (claro y
 ## Estado final restaurado
 
 - Tema en **oscuro** (el estado original de la sesión).
-- Queda 1 artículo identificado como `Articulo de prueba QA` en el inventario web (creado durante las pruebas; la UI no ofrece botón de borrar/anular de artículo — ver WEB-3). Su motivo es "Prueba automatizada de calidad".
+- En la instancia de aquella corrida quedó 1 artículo ficticio identificado como `Articulo de prueba QA`, con motivo "Prueba automatizada de calidad". No se limpió esa instalación; no la reutilices para la campaña nueva. En esa versión no había retiro visible (hallazgo histórico WEB-3); la rama actual sí incorpora **Retirar**, que debe probarse en raíz temporal independiente.
 - El nombre `AB` fue renombrado; ningún servicio ni cliente de prueba quedó creado.
 - Capturas en `%TEMP%\opencode\ds_*.png` (no se suben a git). Nota menor de accesibilidad del DOM en `/respaldo`: el formulario de contraseña no incluye campo de usuario (aviso de Chromium, no bloqueante).
 
@@ -61,7 +63,7 @@ Sin errores de consola ni errores de página en las 13 navegaciones ×2 (claro y
 
 | ID | Severidad | Hallazgo | Sugerencia |
 |---|---|---|---|
-| WEB-1 | Media | Desbordamiento horizontal en `/inventario` a 375 px | Revisar anchos mínimos de la tabla/acciones CSV-Excel; envolver o comprimir columnas en móvil |
-| WEB-2 | Media | El nombre del artículo acepta 2 caracteres aunque la guía indica 3–160 | Añadir `minlength`/validación de servidor coherente con el texto de ayuda |
-| WEB-3 | Baja | No hay forma visible de borrar o anular un artículo del inventario web | Ofrecer anulación con motivo (como la anulación de ventas) o aclarar en el manual |
-| WEB-4 | Informativa | Aviso de Chromium sobre formulario de contraseña sin campo de usuario en `/respaldo` | Añadir username (oculto) o `autocomplete` adecuado |
+| WEB-1 | Media · histórico/pre-corrección | Desbordamiento horizontal en `/inventario` a 375 px en la versión probada | CSS del inventario actualizado en la rama actual; repetir D-25 en navegador real y medir overflow del documento frente al scroll interno de la tabla |
+| WEB-2 | Media · histórico/pre-corrección | La versión probada aceptaba nombre de 2 caracteres | La rama actual requiere 3–80 en formulario/servidor; repetir D-23 en alta, edición y servicio, incluidos límites y no-mutación al rechazar |
+| WEB-3 | Baja · histórico/pre-corrección | La versión probada no ofrecía retirada visible | La rama actual añade **Retirar** con motivo y evento auditable; repetir D-24 y, opcionalmente, D-26. Verificar que venta e inventario no desaparecen del historial |
+| WEB-4 | Informativa · histórico | Chromium advirtió sobre el formulario de contraseña en `/respaldo` | La plantilla actual usa `autocomplete="new-password"` al crear/confirmar y `off` al restaurar; comprobar comportamiento/DOM en Chromium real sin exponer contraseñas. No es bloqueo de la campaña prioritaria |

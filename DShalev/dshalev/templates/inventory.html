@@ -1,16 +1,98 @@
-{% extends 'base.html' %}{% block title %}Inventario{% endblock %}{% block content %}
-<div class="page-heading"><div><p class="eyebrow">CATÁLOGO DEL NEGOCIO</p><h1>Inventario</h1><p class="muted">Gestiona artículos, precios y existencias.</p></div>{% if user and user.role == 'admin' %}<a class="quiet-button" href="/inventario/movimientos">Movimientos</a><a class="quiet-button" href="/inventario/movimientos.csv">Historial CSV</a>{% endif %}<a class="quiet-button" href="/inventario.csv">CSV</a><a class="quiet-button" href="/inventario.xlsx">Excel</a></div>
-<div class="content-grid inventory-grid"><section class="panel"><div class="panel-heading"><div><p class="eyebrow">ALTA RÁPIDA</p><h2>Nuevo artículo</h2></div><span class="icon-tile">＋</span></div>
-  <form method="post" action="/inventario/nuevo" class="form-stack"><input type="hidden" name="csrf" value="{{ csrf }}">
-    <label>Nombre<input name="name" required maxlength="80" placeholder="Ej. Café molido"></label>
-    <div class="form-row"><label>Categoría<select name="category"><option>Producto</option><option>Insumo</option><option>Servicio</option></select></label><label>Unidad<input name="unit" value="unidad" maxlength="20" required></label></div>
-    <div class="form-row"><label>Precio de venta (CUP)<input name="sale_price" type="number" min="0" step="0.01" inputmode="decimal" value="0" required></label><label>Costo (CUP)<input name="cost" type="number" min="0" step="0.01" inputmode="decimal" value="0" required></label></div>
-    <div class="form-row"><label>Existencia<input name="stock" type="number" min="0" step="0.001" value="0" required></label><label>Stock bajo<input name="low_stock" type="number" min="0" step="0.001" value="5" required></label></div>
-    <label>Stock crítico<input name="critical_stock" type="number" min="0" step="0.001" value="1" required></label>
-    <label>Motivo de la existencia inicial<input name="reason" maxlength="160" placeholder="Obligatorio si el stock inicial es mayor que cero"><small class="tiny">De 3 a 160 caracteres para dejar registrada la primera existencia.</small></label>
-    <button class="primary-button full" type="submit">Guardar artículo</button>
-  </form>
-</section>
-<section class="panel table-panel"><div class="panel-heading"><div><p class="eyebrow">EXISTENCIAS</p><h2>{{ items|length }} artículos</h2></div><form method="get" action="/inventario" class="search-form"><input name="q" value="{{ query }}" placeholder="Buscar artículo" aria-label="Buscar artículo"><button class="quiet-button" type="submit">Buscar</button></form></div>
-{% if items %}<div class="table-wrap"><table><thead><tr><th>Artículo</th><th>Categoría</th><th class="numeric">Precio</th><th class="numeric">Stock</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{% for item in items %}<tr><td><strong>{{ item.name }}</strong><small class="cell-sub">{{ item.unit }}</small></td><td>{{ item.category }}</td><td class="numeric">{{ item.sale_price_cents|cup }}</td><td class="numeric stock">{{ item.stock|qty }}</td><td>{% if item.category == 'Servicio' %}<span class="stock-badge ok">Disponible</span>{% elif item.stock_milli < 0 %}<span class="stock-badge critical">Saldo negativo · revisar sincronización</span>{% elif item.stock_milli <= item.critical_stock_milli %}<span class="stock-badge critical">Crítico</span>{% elif item.stock_milli <= item.low_stock_milli %}<span class="stock-badge low">Bajo</span>{% else %}<span class="stock-badge ok">Disponible</span>{% endif %}</td><td><a class="text-link" href="/inventario/{{ item.id }}/editar">Editar</a><form method="post" action="/inventario/{{ item.id }}/eliminar" class="inline-form"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="quiet-button" type="submit">Retirar</button></form></td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty-state"><span class="empty-icon">▦</span><strong>No encontramos artículos</strong><p>Prueba otra búsqueda o crea el primero.</p></div>{% endif %}</section></div>
+{% extends 'base.html' %}
+{% block title %}Inventario{% endblock %}
+{% block content %}
+<div class="page-heading inventory-heading">
+  <div>
+    <p class="eyebrow">CATÁLOGO DEL NEGOCIO</p>
+    <h1>Inventario</h1>
+    <p class="muted">Gestiona artículos, precios y existencias.</p>
+  </div>
+  <nav class="inventory-heading-actions" aria-label="Acciones de inventario">
+    {% if user and user.role == 'admin' %}
+    <a class="quiet-button" href="/inventario/movimientos">Movimientos</a>
+    <a class="quiet-button" href="/inventario/movimientos.csv">Historial CSV</a>
+    {% endif %}
+    <a class="quiet-button" href="/inventario.csv">CSV</a>
+    <a class="quiet-button" href="/inventario.xlsx">Excel</a>
+  </nav>
+</div>
+
+<div class="content-grid inventory-grid">
+  <section class="panel">
+    <div class="panel-heading">
+      <div><p class="eyebrow">ALTA RÁPIDA</p><h2>Nuevo artículo</h2></div>
+      <span class="icon-tile">＋</span>
+    </div>
+    <form method="post" action="/inventario/nuevo" class="form-stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label>Nombre<input name="name" required minlength="3" maxlength="80" placeholder="Ej. Café molido"><small class="tiny">De 3 a 80 caracteres.</small></label>
+      <div class="form-row">
+        <label>Categoría<select name="category"><option>Producto</option><option>Insumo</option><option>Servicio</option></select></label>
+        <label>Unidad<input name="unit" value="unidad" maxlength="20" required></label>
+      </div>
+      <div class="form-row">
+        <label>Precio de venta (CUP)<input name="sale_price" type="number" min="0" step="0.01" inputmode="decimal" value="0" required></label>
+        <label>Costo (CUP)<input name="cost" type="number" min="0" step="0.01" inputmode="decimal" value="0" required></label>
+      </div>
+      <div class="form-row">
+        <label>Existencia<input name="stock" type="number" min="0" step="0.001" value="0" required></label>
+        <label>Stock bajo<input name="low_stock" type="number" min="0" step="0.001" value="5" required></label>
+      </div>
+      <label>Stock crítico<input name="critical_stock" type="number" min="0" step="0.001" value="1" required></label>
+      <label>Motivo de la existencia inicial<input name="reason" maxlength="160" placeholder="Obligatorio si el stock inicial es mayor que cero"><small class="tiny">De 3 a 160 caracteres para dejar registrada la primera existencia.</small></label>
+      <button class="primary-button full" type="submit">Guardar artículo</button>
+    </form>
+  </section>
+
+  <section class="panel table-panel">
+    <div class="panel-heading">
+      <div><p class="eyebrow">EXISTENCIAS</p><h2>{{ items|length }} artículos</h2></div>
+      <form method="get" action="/inventario" class="search-form">
+        <input name="q" value="{{ query }}" placeholder="Buscar artículo" aria-label="Buscar artículo">
+        <button class="quiet-button" type="submit">Buscar</button>
+      </form>
+    </div>
+    {% if items %}
+    <div class="table-wrap inventory-table-wrap">
+      <table class="inventory-table">
+        <thead><tr><th>Artículo</th><th>Categoría</th><th class="numeric">Precio</th><th class="numeric">Stock</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td data-label="Artículo"><strong>{{ item.name }}</strong><small class="cell-sub">{{ item.unit }}</small></td>
+            <td data-label="Categoría">{{ item.category }}</td>
+            <td data-label="Precio" class="numeric">{{ item.sale_price_cents|cup }}</td>
+            <td data-label="Stock" class="numeric stock">{{ item.stock|qty }}</td>
+            <td data-label="Estado">
+              {% if item.category == 'Servicio' %}<span class="stock-badge ok">Disponible</span>
+              {% elif item.stock_milli < 0 %}<span class="stock-badge critical">Saldo negativo · revisar sincronización</span>
+              {% elif item.stock_milli <= item.critical_stock_milli %}<span class="stock-badge critical">Crítico</span>
+              {% elif item.stock_milli <= item.low_stock_milli %}<span class="stock-badge low">Bajo</span>
+              {% else %}<span class="stock-badge ok">Disponible</span>{% endif %}
+            </td>
+            <td data-label="Acciones">
+              <div class="inventory-row-actions">
+                <a class="text-link" href="/inventario/{{ item.id }}/editar">Editar</a>
+                <details class="retire-action">
+                  <summary aria-label="Retirar {{ item.name }} del catálogo">Retirar</summary>
+                  <form method="post" action="/inventario/{{ item.id }}/eliminar" class="retire-form">
+                    <input type="hidden" name="csrf" value="{{ csrf }}">
+                    <label>Motivo del retiro<input name="reason" required minlength="3" maxlength="160" placeholder="3 a 160 caracteres"></label>
+                    <small class="tiny">Se ocultará del catálogo; las ventas e historial se conservarán.</small>
+                    <button class="quiet-button" type="submit">Confirmar retiro</button>
+                  </form>
+                </details>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><span class="empty-icon">▦</span><strong>No encontramos artículos</strong><p>Prueba otra búsqueda o crea el primero.</p></div>
+    {% endif %}
+  </section>
+</div>
+<p class="tiny">Retirar un artículo lo oculta de los catálogos activos; no borra ventas ni movimientos y deja registrado el motivo.</p>
 {% endblock %}

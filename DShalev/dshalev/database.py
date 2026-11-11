@@ -73,6 +73,23 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_item ON inventory_movements(item_id,id);
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_created ON inventory_movements(created_at,id);
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_reference ON inventory_movements(reference);
+CREATE TABLE IF NOT EXISTS item_retirements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    item_name TEXT NOT NULL,
+    item_category TEXT NOT NULL,
+    item_unit TEXT NOT NULL,
+    stock_milli INTEGER NOT NULL CHECK (stock_milli BETWEEN -9000000000000000000 AND 9000000000000000000),
+    actor_type TEXT NOT NULL CHECK (actor_type IN ('usuario','empleado','sistema')),
+    actor_id INTEGER,
+    actor TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    source TEXT NOT NULL,
+    reference TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_item_retirements_item ON item_retirements(item_id,id);
+CREATE INDEX IF NOT EXISTS idx_item_retirements_created ON item_retirements(created_at,id);
 CREATE TABLE IF NOT EXISTS sync_services (
     service_id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
@@ -720,9 +737,17 @@ class Database:
                         BEFORE DELETE ON inventory_movements BEGIN
                             SELECT RAISE(ABORT,'inventory movements are append-only');
                         END""",
+                    """CREATE TRIGGER IF NOT EXISTS item_retirements_no_update
+                        BEFORE UPDATE ON item_retirements BEGIN
+                            SELECT RAISE(ABORT,'item retirements are append-only');
+                        END""",
+                    """CREATE TRIGGER IF NOT EXISTS item_retirements_no_delete
+                        BEFORE DELETE ON item_retirements BEGIN
+                            SELECT RAISE(ABORT,'item retirements are append-only');
+                        END""",
                 ):
                     conn.execute(trigger_sql)
-                conn.execute("UPDATE app_meta SET value='9' WHERE key='schema_version'")
+                conn.execute("UPDATE app_meta SET value='10' WHERE key='schema_version'")
                 conn.commit()
             except Exception:
                 conn.rollback()

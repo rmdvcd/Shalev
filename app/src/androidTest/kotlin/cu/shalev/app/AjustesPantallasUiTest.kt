@@ -12,6 +12,11 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import cu.shalev.app.ayuda.AyudaContenido
 import cu.shalev.app.ayuda.AyudaScreen
@@ -26,6 +31,7 @@ import cu.shalev.app.perfil.DatosPerfilForm
 import cu.shalev.app.perfil.PerfilContent
 import cu.shalev.app.perfil.PerfilTags
 import cu.shalev.app.perfil.PerfilUiState
+import cu.shalev.app.perfil.TextosPerfil
 import cu.shalev.app.respaldo.AccionesRespaldo
 import cu.shalev.app.respaldo.ExportForm
 import cu.shalev.app.respaldo.ImportForm
@@ -97,6 +103,20 @@ class AjustesPantallasUiTest {
             }
         }
         rule.onNodeWithTag(PerfilTags.GUARDAR).assertIsEnabled()
+    }
+
+    @Test fun perfilMuestraErrorDelNombreMientrasSeEdita() {
+        rule.setContent {
+            var form by remember { mutableStateOf(DatosPerfilForm.desde(perfil)) }
+            ShalevTheme(darkTheme = false) {
+                PerfilContent(
+                    PerfilUiState(true, perfil, form), {},
+                    AccionesPerfil({ actualizar -> form = actualizar(form) }, {}, {}),
+                )
+            }
+        }
+        rule.onNodeWithTag(PerfilTags.NOMBRE).performTextReplacement("12345!!!")
+        rule.onNodeWithText(TextosPerfil.ERROR_NOMBRE).performScrollTo().assertIsDisplayed()
     }
 
     // ---------- Respaldo

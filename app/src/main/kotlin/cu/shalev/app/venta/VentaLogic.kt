@@ -396,6 +396,7 @@ object TextosVenta {
     }
     const val IMPORTE = "Importe a transferir"
     const val TOTAL_ESTIMADO = "Total estimado"
+    const val CANTIDAD_AJUSTADA = "Cantidad ajustada a lo disponible."
     const val TOTAL = "Total"
     fun registrada(total: Cup, m: MetodoPago) = "Venta registrada: ${Money.format(total)} en ${metodo(m).lowercase()}."
     /** Auditoría 2026-10-14 (§6.1): advertencia (no bloqueo) cuando una línea queda al costo o por debajo. */

@@ -612,6 +612,12 @@ Dentro de la propia aplicación cuentas siempre con **Ajustes → Manual de usua
 |:---:|:---:|:---:|
 | *Figura 15.1 — Menú completo de Ajustes* | *Figura 15.2 — Ayuda rápida dentro de la app* | *Figura 15.3 — Contacto directo con Soporte* |
 
+## Perfil y cantidades en Shalev (Android)
+
+En **Ajustes → Perfil**, Nombre y Apellidos aceptan entre 2 y 80 letras Unicode, espacios y guiones o apóstrofos internos. Los números y otros símbolos se marcan con un mensaje mientras escribes; los campos pueden dejarse vacíos si todavía no quieres completar tus datos.
+
+En el carrito, si escribes una cantidad superior a la existencia disponible, Shalev la reduce automáticamente al stock y muestra un aviso. El total se recalcula con la cantidad ajustada; no se pueden vender unidades por encima de lo disponible.
+
 ## Local (Android)
 
 En Ajustes → Local puedes añadir nombres y tocar uno para editarlo. Se admiten de 1 a
@@ -646,7 +652,9 @@ El borrador se recupera en la misma pestaña y sesión si el navegador permite a
 
 ### DShalev: ajustes y anulación auditables
 
-En **Inventario**, cambia la existencia al editar un artículo y escribe un motivo de 3 a 160 caracteres; el alta con existencia inicial mayor que cero también requiere motivo. La cuenta administradora tiene los enlaces **Movimientos**, que abre el historial de solo lectura, y **Historial CSV**, que lo descarga. Si aparece **Saldo negativo · revisar sincronización**, revisa las ventas recibidas de apps secundarias y concilia antes de hacer un ajuste.
+En **Inventario**, los nombres nuevos o editados deben tener entre 3 y 80 caracteres. Cambia la existencia al editar un artículo y escribe un motivo de 3 a 160 caracteres; el alta con existencia inicial mayor que cero también requiere motivo. La cuenta administradora tiene los enlaces **Movimientos**, que abre el historial de solo lectura, y **Historial CSV**, que lo descarga. Si aparece **Saldo negativo · revisar sincronización**, revisa las ventas recibidas de apps secundarias y concilia antes de hacer un ajuste.
+
+Junto al enlace **Editar**, abre **Retirar**, escribe el motivo (3–160 caracteres) y confirma. El artículo se oculta de los catálogos activos; no se borran sus ventas ni su historial. El retiro queda anotado como **RETIRO** en Movimientos y en el CSV, con la existencia sin cambios y el motivo indicado.
 
 En **Ventas**, una cuenta administradora puede anular una venta de escritorio reciente, con motivo obligatorio. DShalev conserva la operación, registra los movimientos compensatorios y excluye la venta anulada de los totales/reportes; no procesa devoluciones de efectivo ni de transferencias. Las ventas anteriores a la habilitación del libro no se anulan automáticamente. Para corregir una venta de escritorio, anúlala con motivo y registra una operación nueva; ambas quedan separadas en el historial. La corrección móvil está disponible solo para ventas de productos simples sin recetas; las demás se pueden anular, pero no editar parcialmente. DShalev enviará la anulación y el reemplazo móvil en la próxima sincronización.
 

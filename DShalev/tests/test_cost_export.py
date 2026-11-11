@@ -52,6 +52,28 @@ def test_exportar_servicio_y_conservar_otras_partidas(tmp_path):
     assert client.post('/herramientas/fichas/1/exportar-catalogo', data={'csrf': 'bad', 'category': 'Servicio'}).status_code == 403
 
 
+def test_exportacion_rechaza_nombres_cortos_de_articulo_e_insumo(tmp_path):
+    client = client_for(tmp_path)
+    setup_and_login(client)
+    csrf = fixture(client)
+    with client.app.state.db.transaction() as conn:
+        conn.execute("UPDATE cost_sheets SET name='AB' WHERE id=1")
+    short_item = client.post("/herramientas/fichas/1/exportar-catalogo", data={
+        "csrf": csrf, "category": "Producto", "rate": "100",
+    }, follow_redirects=True)
+    assert "El nombre del artículo exportado debe tener entre 3 y 80 caracteres" in short_item.text
+    with client.app.state.db.transaction() as conn:
+        conn.execute("UPDATE cost_sheets SET name='Pizza' WHERE id=1")
+        conn.execute("UPDATE cost_sheet_lines SET description='AB' WHERE id=1")
+    short_ingredient = client.post("/herramientas/fichas/1/exportar-catalogo", data={
+        "csrf": csrf, "category": "Producto", "rate": "100",
+    }, follow_redirects=True)
+    assert "El nombre de cada insumo creado debe tener entre 3 y 80 caracteres" in short_ingredient.text
+    with client.app.state.db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM cost_sheet_exports").fetchone()[0] == 0
+
+
 def test_unidad_incompatible_y_cantidad_fuera_de_rango_revierten(tmp_path):
     client = client_for(tmp_path); setup_and_login(client); csrf = fixture(client)
     with client.app.state.db.transaction() as conn:

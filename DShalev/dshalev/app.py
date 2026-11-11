@@ -30,7 +30,7 @@ from .cost_sheets import CATEGORIES, CURRENCIES, calculate as calculate_sheet, p
 from .cost_export import export_sheet as export_cost_to_catalog
 from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
-from .inventory import format_milli, record_movement
+from .inventory import format_milli, record_movement, record_retirement
 from .licencia import motivo_activacion_deshabilitada
 from .security import csrf_token, hash_password, valid_csrf, verify_password
 from .sync_protocol import canonical_json, generate_pairing_code
@@ -52,6 +52,16 @@ PERMISSION_PROTOCOL = {
     "inventario": "EDITAR_INVENTARIO", "precios": "CAMBIAR_PRECIOS", "exportar": "EXPORTAR",
 }
 PUBLIC_HOST_RE = re.compile(r"^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\.(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?))*$")
+INVENTORY_HISTORY_QUERY = """SELECT created_at,item_name,item_category,item_unit,movement_type,delta_milli,
+    stock_after_milli,actor,reason,source,reference,event_id FROM (
+        SELECT created_at,item_name,item_category,item_unit,movement_type,delta_milli,stock_after_milli,
+            actor,reason,source,reference,id AS event_id
+        FROM inventory_movements
+        UNION ALL
+        SELECT created_at,item_name,item_category,item_unit,'RETIRO' AS movement_type,0 AS delta_milli,
+            stock_milli AS stock_after_milli,actor,reason,source,reference,id AS event_id
+        FROM item_retirements
+    )"""
 
 
 def csv_text(value: Any) -> str:
@@ -193,7 +203,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             "item_added": "Artículo guardado.", "sale_saved": "Venta registrada y existencia actualizada.",
             "shift_opened": "Turno abierto.", "shift_closed": "Turno cerrado; revisa el arqueo en Turnos.", "cash_saved": "Movimiento de caja registrado.", "employee_added": "Plaza secundaria creada.",
             "pairing_created": "QR de vinculación generado; caduca en 10 minutos.",
-            "item_saved": "Artículo actualizado.", "item_deleted": "Artículo retirado del inventario.",
+            "item_saved": "Artículo actualizado.", "item_deleted": "Artículo retirado; se conservaron las ventas y el motivo quedó en el historial.",
             "recipe_saved": "Receta guardada; se descontará del inventario al vender.", "recipe_deleted": "Ingrediente retirado de la receta.",
             "customer_added": "Cliente agregado.", "customer_saved": "Datos del cliente actualizados.", "customer_retired": "Cliente retirado; sus ventas históricas se conservan.",
             "mobile_close_approved": "Se aprobó el cierre; se ordenará en la próxima sincronización.", "mobile_close_rejected": "Se rechazó la solicitud; la app recibirá el aviso al sincronizar.",
@@ -618,7 +628,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         if not user:
             return redirect("/entrar")
         with db.connect() as conn:
-            rows = conn.execute("SELECT * FROM inventory_movements ORDER BY id DESC LIMIT 500").fetchall()
+            rows = conn.execute(INVENTORY_HISTORY_QUERY + " ORDER BY created_at DESC,event_id DESC,movement_type DESC LIMIT 500").fetchall()
         movements = []
         for row in rows:
             movement = dict(row)
@@ -638,7 +648,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         writer = csv.writer(output, lineterminator="\r\n")
         writer.writerow(["Fecha UTC", "Artículo", "Categoría", "Unidad", "Tipo", "Cambio", "Existencia anterior", "Existencia posterior", "Actor", "Motivo", "Origen", "Referencia"])
         with db.connect() as conn:
-            rows = conn.execute("SELECT * FROM inventory_movements ORDER BY id LIMIT 50000").fetchall()
+            rows = conn.execute(INVENTORY_HISTORY_QUERY + " ORDER BY created_at,event_id,movement_type LIMIT 50000").fetchall()
         for row in rows:
             writer.writerow([
                 row["created_at"], csv_text(row["item_name"]), csv_text(row["item_category"]), csv_text(row["item_unit"]),
@@ -672,8 +682,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             name = data.get("name", "").strip()
             category = data.get("category", "Producto")
             unit = data.get("unit", "unidad").strip()
-            if not name or len(name) > 80 or not unit or len(unit) > 20 or category not in {"Producto", "Insumo", "Servicio"}:
-                raise ValueError("Revisa el nombre, la categoría y la unidad.")
+            if not 3 <= len(name) <= 80:
+                raise ValueError("El nombre del artículo debe tener entre 3 y 80 caracteres.")
+            if not unit or len(unit) > 20 or category not in {"Producto", "Insumo", "Servicio"}:
+                raise ValueError("Revisa la categoría y la unidad.")
             sale_price, cost = money_to_cents(data.get("sale_price")), money_to_cents(data.get("cost"))
             if category == "Insumo":
                 stock_milli = decimal_quantity_milli(data.get("stock"))
@@ -714,14 +726,23 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
 
     @app.post("/inventario/{item_id}/eliminar")
     async def delete_item(request: Request, item_id: int):
-        if not current_user(request):
+        user = current_user(request)
+        if not user:
             return redirect("/entrar")
         data = await form_data(request)
         if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
             return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        reason = data.get("reason", "").strip()
+        if not 3 <= len(reason) <= 160:
+            return flash_redirect(request, "/inventario", "Escribe el motivo del retiro (3 a 160 caracteres).")
         with db.transaction() as conn:
             updated = conn.execute("UPDATE items SET active=0 WHERE id=? AND active=1", (item_id,)).rowcount
-        if updated != 1:
+            if updated:
+                record_retirement(
+                    conn, item_id, actor=user["username"], actor_type="usuario", actor_id=user["id"],
+                    reason=reason, source="web", reference=f"item-retirement:{item_id}",
+                )
+        if not updated:
             return flash_redirect(request, "/inventario", "El artículo ya no existe.")
         return redirect("/inventario", notice="item_deleted")
 
@@ -740,8 +761,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             name = data.get("name", "").strip()
             category = data.get("category", "Producto")
             unit = data.get("unit", "unidad").strip()
-            if not name or len(name) > 80 or not unit or len(unit) > 20 or category not in {"Producto", "Insumo", "Servicio"}:
-                raise ValueError("Revisa el nombre, la categoría y la unidad del artículo.")
+            if not 3 <= len(name) <= 80:
+                raise ValueError("El nombre del artículo debe tener entre 3 y 80 caracteres.")
+            if not unit or len(unit) > 20 or category not in {"Producto", "Insumo", "Servicio"}:
+                raise ValueError("Revisa la categoría y la unidad del artículo.")
             sale_price = money_to_cents(data.get("sale_price"))
             cost = money_to_cents(data.get("cost"))
             if category == "Insumo":

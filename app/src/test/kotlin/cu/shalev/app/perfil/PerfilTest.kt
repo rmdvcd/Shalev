@@ -38,6 +38,12 @@ class PerfilTest {
         assertFalse(malo.valido)
     }
 
+    @Test fun nombreConDigitosYSimbolosSeMarcaComoInvalidoMientrasSeEdita() {
+        val form = DatosPerfilForm(nombre = "12345!!!")
+        assertEquals(TextosPerfil.ERROR_NOMBRE, form.errorNombre)
+        assertFalse(form.valido)
+    }
+
     @Test fun aplicarNormalizaYConservaLasListas() {
         val p = DatosPerfilForm("  Luis ", "Pérez Gómez ", "ab12345").aplicarA(repo.state.value)
         assertEquals("Luis", p.nombre); assertEquals("Pérez Gómez", p.apellidos); assertEquals("AB12345", p.ci)
