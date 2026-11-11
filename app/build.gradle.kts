@@ -173,6 +173,10 @@ dependencies {
     // Tests de Compose sin Hilt: se prueban los *Content sin estado.
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
+    // Plan UI/UX/IX 2026-11 (SK-1): checks ATF con enableAccessibilityChecks() en AccessibilityTest
+    // (androidTest: la API requiere API 34+ y NO funciona en Robolectric — b/332778271; se compila en cada
+    // push y corre en el trabajo de emulador del CI).
+    androidTestImplementation(libs.compose.ui.test.junit4.accessibility)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
     // Prompt 15 — integración: Room en memoria con los repositorios reales de :data.
@@ -184,8 +188,6 @@ dependencies {
     // Solo testImplementation: no entran en el APK. Ver CAPTURAS.md.
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
-    // Plan UI/UX/IX 2026-11 (SK-1): enableAccessibilityChecks() sobre la regla Compose (aserciones ATF en Robolectric).
-    testImplementation(libs.compose.ui.test.junit4.accessibility)
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.roborazzi)

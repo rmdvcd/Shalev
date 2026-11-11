@@ -1,13 +1,14 @@
 package cu.shalev.app
 
-import android.app.Application
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertHasClickAction
-import androidx.compose.ui.test.enableAccessibilityChecks
+import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import cu.shalev.designsystem.component.ShalevCard
 import cu.shalev.designsystem.component.ShalevLoading
 import cu.shalev.designsystem.component.ShalevPrimaryButton
@@ -17,30 +18,27 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
-import org.robolectric.annotation.GraphicsMode
 
 /**
- * Plan UI/UX/IX 2026-11 (SK-1) — Batería de accesibilidad sobre ATF (Accessibility Test Framework), en JVM con
- * Robolectric: `enableAccessibilityChecks()` engancha los checks (TouchTargetSize, TextContrast, ClickableSpan…)
- * al árbol de Compose y los lanza en cada acción que el test ejecuta sobre un nodo.
+ * Plan UI/UX/IX 2026-11 (SK-1) — Batería de accesibilidad sobre ATF (Accessibility Test Framework):
+ * `enableAccessibilityChecks()` (artefacto `ui-test-junit4-accessibility`) engancha los checks
+ * (TouchTargetSize, TextContrast, ClickableSpan…) al árbol de Compose y los ejecuta en cada acción
+ * del test que cambia la UI.
  *
- * Criterio calibrado el día 1 para mantener la señal limpia y no señalar falsos positivos del propio marco:
- *   - Los checks corren al interactuar (assert/click) con un nodo: aquí probamos los componentes que NO dependen
- *     de estado ni de datos de ejemplo, de modo que cualquier aviso se puede reproducir sin montar la app entera.
- *   - No se suprimen checks a mano (salvo causa justificada en comentario): la señal de ATF es la capa ruidosa
- *     pero universal que complementa las aserciones semánticas de [AuditoriaUiTest] (que no necesitan ATF).
- *   - Si un check legítimo aparece en un componente común, el arreglo va en `:designsystem` (un solo lugar),
- *     nunca silenciando el check.
+ * Por qué es instrumentado y no JVM/Robolectric: la propia API lo dice — requiere API 34+ y
+ * «currently does not work on Robolectric» (b/332778271). Por eso este archivo vive en
+ * `androidTest`: se COMPILA en cada push del CI (`:app:compileDebugAndroidTestKotlin`) y se ejecuta
+ * en el trabajo de emulador (semanal y a mano, ver ci.yml). En JVM la capa equivalente son las
+ * aserciones semánticas de `AuditoriaUiTest`, que no necesitan ATF.
  *
- * NOTA (dependencia): el artefacto `ui-test-junit4-accessibility` con `enableAccessibilityChecks()` solo existe
- * en Maven desde la línea 1.10 de Compose; con la BOM 2024.12.01 (Compose 1.7.6) se fija la versión por separado
- * en `gradle/libs.versions.toml`. Si un build sin red no puede bajarlo, la tarea falla en `dependencies`, no aquí.
+ * Criterio de la batería:
+ *   - Componentes comunes montados con `ShalevTheme` y sin estado ni datos de ejemplo, para que un
+ *     aviso se reproduzca sin montar la app entera.
+ *   - No se suprimen checks a mano (salvo causa justificada en comentario). Un aviso legítimo de un
+ *     componente común se arregla en `:designsystem` — un solo lugar — nunca silenciando el check.
  */
-@RunWith(RobolectricTestRunner::class)
-@GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "w360dp-h800dp-xhdpi", application = Application::class)
+@RunWith(AndroidJUnit4::class)
+@SdkSuppress(minSdkVersion = 34) // enableAccessibilityChecks requiere Android 14 (API 34+)
 class AccessibilityTest {
 
     @get:Rule

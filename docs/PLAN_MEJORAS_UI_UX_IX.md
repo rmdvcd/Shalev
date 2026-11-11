@@ -23,7 +23,7 @@
 
 | ID | Estado | Qué quedó hecho |
 |---|---|---|
-| SK-1 | ✅ | `ui-test-junit4-accessibility` 1.9.5 en el catálogo (no está en la BOM) + `testImplementation` en `:app` + `AccessibilityTest` (Robolectric, `enableAccessibilityChecks()`) sobre botón, card y estado de carga |
+| SK-1 | ✅ | `ui-test-junit4-accessibility` 1.9.5 en el catálogo (no está en la BOM) + `androidTestImplementation` en `:app` + `AccessibilityTest` instrumentado (API 34+, emulador del CI). Nota aprendida: ATF/Compose no funciona en Robolectric (b/332778271), por eso no va en la suite JVM |
 | SK-2 | ✅ | Previews privadas Light/Dark en Buttons/Surfaces/Indicators de `:designsystem` (+ `ui-tooling-preview` como `implementation` del módulo); regla documentada en `DESIGN_SYSTEM.md` §9-fin |
 | SK-3 | ✅ (medido) | `IndicadorDesplazamiento` ya lee las banderas como lambdas dentro de `drawWithContent` (fase de dibujo): no hay recomposición que amortiguar; decisión registrada y criterio «medir primero» para futuras listas |
 | SK-4 | ✅ | Piloto: `calculateWindowSizeClass` en `MainScaffold`; en Medium/Expanded el contenido del `NavHost` se centra a `ShalevSize.contentMaxWidth` (600dp), navegación intacta (el gesto se mueve al `Box` envolvente) |
