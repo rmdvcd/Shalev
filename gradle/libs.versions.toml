@@ -67,7 +67,9 @@ compose-ui = { module = "androidx.compose.ui:ui" }
 compose-foundation = { module = "androidx.compose.foundation:foundation" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
 # Plan UI/UX/IX 2026-11 (SK-4): piloto adaptativo con calculateWindowSizeClass en MainScaffold.
-compose-material3-window-size-class = { module = "androidx.compose.material3:material3-window-size-class" }
+# OJO: el alias NO puede terminar en "-class": el accesor quedaría `libs.….class` y `class` es palabra
+# reservada de Kotlin, así que build.gradle.kts no compilaría (el CI lo detectó el 2026-11-11).
+compose-material3-window-sizeclass = { module = "androidx.compose.material3:material3-window-size-class" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 
