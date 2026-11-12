@@ -117,6 +117,7 @@
   async function findItems() {
     const version = ++searchVersion;
     resultsStatus.textContent = 'Buscando artículos…';
+    results.setAttribute('aria-busy', 'true');
     try {
       const response = await fetch(`/api/v1/pos/catalogo?q=${encodeURIComponent(search.value)}`, {cache: 'no-store'});
       if (!response.ok) throw new Error();
@@ -137,6 +138,8 @@
     } catch (_) {
       if (version !== searchVersion) return;
       results.replaceChildren(); resultsStatus.textContent = 'No se pudo cargar el catálogo. Revisa la conexión y vuelve a buscar.';
+    } finally {
+      if (version === searchVersion) results.setAttribute('aria-busy', 'false');
     }
   }
   search.addEventListener('input', () => { ++searchVersion; clearTimeout(timer); timer = setTimeout(findItems, 180); });
@@ -154,6 +157,7 @@
     if (!cart.size) return;
     checkingCart = true; updateTotal();
     const ids = [...cart.keys()];
+    lines.setAttribute('aria-busy', 'true');
     error.textContent = 'Comprobando precios del carrito recuperado…';
     try {
       const response = await fetch(`/api/v1/pos/catalogo?ids=${ids.join(',')}`, {cache: 'no-store'});
@@ -173,6 +177,8 @@
     } catch (_) {
       error.textContent = 'No se pudieron actualizar los precios. Recarga la página para volver a comprobarlos.';
       updateTotal();
+    } finally {
+      lines.setAttribute('aria-busy', 'false');
     }
   }
   restore(); renderCart();

@@ -7,13 +7,13 @@
     <div class="pos-search"><input id="pos-search" type="search" maxlength="80" autocomplete="off" placeholder="Nombre del producto o servicio" aria-describedby="pos-search-help"><kbd>F2</kbd></div>
     <p id="pos-search-help" class="tiny">Busca y agrega artículos sin perder el carrito. F2 vuelve a la búsqueda.</p>
     <p id="pos-results-status" class="pos-result-status" role="status" aria-live="polite"></p>
-    <div id="pos-results" class="pos-results" aria-label="Resultados de artículos"></div>
+    <div id="pos-results" class="pos-results" aria-label="Resultados de artículos" aria-busy="false"></div>
   </div>
-  <form id="pos-sale-form" method="post" action="/ventas/nueva" class="pos-cart">
+  <form id="pos-sale-form" method="post" action="/ventas/nueva" class="pos-cart" data-manual>
     <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="sale_key" value="{{ sale_key }}"><input type="hidden" name="pos_prices" value="{}">
     <div class="pos-cart-heading"><div><p class="eyebrow">VENTA ACTUAL</p><h3>Carrito</h3></div><button type="button" id="pos-clear" class="quiet-button">Vaciar</button></div>
     <p id="pos-empty" class="pos-empty">Agrega artículos desde la búsqueda.</p>
-    <div id="pos-lines" class="pos-lines"></div>
+    <div id="pos-lines" class="pos-lines" aria-busy="false"></div>
     <div class="pos-total"><span>Total estimado</span><strong id="pos-total">0 CUP</strong></div>
     <p class="tiny">Si cambia un precio, deberás revisar el carrito. La existencia y el turno se comprueban al registrar; el carrito no reserva inventario.</p>
     <label class="pos-label">Cliente (opcional)<select name="customer_id"><option value="">Venta sin cliente</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.name }}</option>{% endfor %}</select></label>

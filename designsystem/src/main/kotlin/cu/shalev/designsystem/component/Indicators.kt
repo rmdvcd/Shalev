@@ -1,5 +1,6 @@
 package cu.shalev.designsystem.component
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import cu.shalev.designsystem.theme.ShalevTextos
+import cu.shalev.designsystem.theme.ShalevTheme
 import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
 
@@ -116,5 +119,28 @@ fun ShalevLinearProgress(modifier: Modifier = Modifier, progress: Float? = null)
         LinearProgressIndicator(modifier.fillMaxWidth())
     } else {
         LinearProgressIndicator(progress = { progress }, modifier = modifier.fillMaxWidth())
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------
+// Plan UI/UX/IX 2026-11 (SK-2): previews PRIVADAS Light/Dark solo en :designsystem; Roborazzi sigue siendo la
+// fuente de verdad de la regresión visual (ver CAPTURAS.md).
+
+@Preview(name = "Indicadores — claro", showBackground = true)
+@Composable
+private fun IndicadoresPreviewClaro() = IndicadoresPreview()
+
+@Preview(name = "Indicadores — oscuro", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
+@Composable
+private fun IndicadoresPreviewOscuro() = IndicadoresPreview()
+
+@Composable
+private fun IndicadoresPreview() {
+    ShalevTheme {
+        Column(Modifier.padding(ShalevSpacing.md)) {
+            ShalevChip(label = "Todos", selected = true, onClick = {})
+            ShalevChip(label = "Con poco stock", selected = false, onClick = {})
+            ShalevLinearProgress(Modifier.padding(vertical = ShalevSpacing.xs), progress = 0.6f)
+        }
     }
 }

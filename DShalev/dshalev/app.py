@@ -80,6 +80,14 @@ def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+class FieldError(ValueError):
+    """Error de validación ligado al nombre del campo del formulario: la plantilla lo marca junto al input."""
+
+    def __init__(self, field: str, message: str):
+        super().__init__(message)
+        self.field = field
+
+
 def get_lan_addresses() -> list[str]:
     found: set[str] = set()
     try:
@@ -170,11 +178,15 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             if flash_notice:
                 values["notice"] = flash_notice
                 values["notice_kind"] = request.session.pop("flash_kind", "info")
+                campo = request.session.pop("flash_field", None)
+                if campo:
+                    values["flash_field"] = campo
         with db.connect() as conn:
             business = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
         return {
             "request": request, "user": user, "csrf": csrf(request), "section": section,
             "business_name": business["value"] if business else "DShalev", "local_id": config.local_id, "notice": None,
+            "flash_field": None,
             **values,
         }
 
@@ -184,9 +196,11 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             path += ("&" if "?" in path else "?") + "notice=" + quote(notice)
         return RedirectResponse(path, status_code=303)
 
-    def flash_redirect(request: Request, path: str, message: str, *, kind: str = "error") -> RedirectResponse:
+    def flash_redirect(request: Request, path: str, message: str, *, kind: str = "error", field: str | None = None) -> RedirectResponse:
         request.session["flash_notice"] = message
         request.session["flash_kind"] = kind
+        if field:
+            request.session["flash_field"] = field
         return RedirectResponse(path, status_code=303)
 
     def decimal_quantity_milli(raw: Any, *, maximum: Decimal = Decimal("1000000000")) -> int:
@@ -609,6 +623,13 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             context(request, user=user, section="licencia", motivo_licencia=motivo_activacion_deshabilitada()),
         )
 
+    @app.get("/ayuda", response_class=HTMLResponse)
+    async def help_page(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        return templates.TemplateResponse(request, "ayuda.html", context(request, user=user, section="ayuda"))
+
     @app.get("/inventario", response_class=HTMLResponse)
     async def inventory(request: Request):
         user = current_user(request)
@@ -762,28 +783,41 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             category = data.get("category", "Producto")
             unit = data.get("unit", "unidad").strip()
             if not 3 <= len(name) <= 80:
-                raise ValueError("El nombre del artículo debe tener entre 3 y 80 caracteres.")
+                raise FieldError("name", "El nombre del artículo debe tener entre 3 y 80 caracteres.")
             if not unit or len(unit) > 20 or category not in {"Producto", "Insumo", "Servicio"}:
-                raise ValueError("Revisa la categoría y la unidad del artículo.")
-            sale_price = money_to_cents(data.get("sale_price"))
-            cost = money_to_cents(data.get("cost"))
-            if category == "Insumo":
-                stock_milli = decimal_quantity_milli(data.get("stock"))
-                low_milli = decimal_quantity_milli(data.get("low_stock"))
-                critical_milli = decimal_quantity_milli(data.get("critical_stock", "1"))
-            else:
-                stock_milli = integer(data.get("stock"), maximum=10**9) * 1000
-                low_milli = integer(data.get("low_stock"), maximum=10**9) * 1000
-                critical_milli = integer(data.get("critical_stock", "1"), maximum=10**9) * 1000
+                raise FieldError("category", "Revisa la categoría y la unidad del artículo.")
+
+            def campo_importe(campo: str) -> int:
+                try:
+                    return money_to_cents(data.get(campo))
+                except ValueError as exc:
+                    raise FieldError(campo, str(exc)) from exc
+
+            def campo_cantidad(campo: str, *, por_defecto: str | None = None) -> int:
+                valor = data.get(campo, por_defecto)
+                try:
+                    if category == "Insumo":
+                        return decimal_quantity_milli(valor)
+                    return integer(valor, maximum=10**9) * 1000
+                except ValueError as exc:
+                    raise FieldError(campo, str(exc)) from exc
+
+            sale_price = campo_importe("sale_price")
+            cost = campo_importe("cost")
+            stock_milli = campo_cantidad("stock")
+            low_milli = campo_cantidad("low_stock")
+            critical_milli = campo_cantidad("critical_stock", por_defecto="1")
             if category == "Servicio":
                 stock_milli = low_milli = critical_milli = 0
             if critical_milli > low_milli:
-                raise ValueError("El nivel crítico no puede superar el nivel bajo.")
+                raise FieldError("critical_stock", "El nivel crítico no puede superar el nivel bajo.")
             reason = data.get("reason", "").strip()
             if stock_milli and not 3 <= len(reason) <= 160:
-                raise ValueError("Escribe el motivo de la existencia inicial (3 a 160 caracteres).")
+                raise FieldError("reason", "Escribe el motivo de la existencia inicial (3 a 160 caracteres).")
             if len(reason) > 160:
-                raise ValueError("El motivo no puede superar 160 caracteres.")
+                raise FieldError("reason", "El motivo no puede superar 160 caracteres.")
+        except FieldError as exc:
+            return flash_redirect(request, destination, str(exc), field=exc.field)
         except ValueError as exc:
             return flash_redirect(request, destination, str(exc))
         try:
@@ -1401,8 +1435,14 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
             return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
         name, phone, email, notes = (data.get(key, "").strip() for key in ("name", "phone", "email", "notes"))
-        if not name or len(name) > 100 or len(phone) > 40 or len(email) > 160 or len(notes) > 500 or (email and ("@" not in email or any(ch.isspace() for ch in email))):
-            return flash_redirect(request, "/clientes", "Revisa el nombre, teléfono, correo y nota del cliente.")
+        if not name or len(name) > 100:
+            return flash_redirect(request, "/clientes", "Escribe un nombre de cliente de hasta 100 caracteres.", field="name")
+        if len(phone) > 40:
+            return flash_redirect(request, "/clientes", "El teléfono no puede superar 40 caracteres.", field="phone")
+        if len(email) > 160 or (email and ("@" not in email or any(ch.isspace() for ch in email))):
+            return flash_redirect(request, "/clientes", "Escribe un correo válido, con @ y sin espacios (hasta 160 caracteres).", field="email")
+        if len(notes) > 500:
+            return flash_redirect(request, "/clientes", "La nota no puede superar 500 caracteres.", field="notes")
         with db.transaction() as conn:
             conn.execute("INSERT INTO customers(name,phone,email,notes) VALUES(?,?,?,?)", (name, phone, email, notes))
         return redirect("/clientes", notice="customer_added")
@@ -1866,7 +1906,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         name = data.get("name", "").strip()
         permissions = [PERMISSION_PROTOCOL[key] for key in PERMISSIONS if data.get("perm_" + key) == "on"]
         if not name or len(name) > 60:
-            return flash_redirect(request, "/equipo", "Escribe un nombre de hasta 60 caracteres.")
+            return flash_redirect(request, "/equipo", "Escribe un nombre de hasta 60 caracteres.", field="name")
         try:
             with db.transaction() as conn:
                 limit = int(conn.execute("SELECT value FROM app_meta WHERE key='secondary_limit'").fetchone()[0])

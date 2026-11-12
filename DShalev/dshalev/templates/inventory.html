@@ -25,21 +25,21 @@
     </div>
     <form method="post" action="/inventario/nuevo" class="form-stack">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <label>Nombre<input name="name" required minlength="3" maxlength="80" placeholder="Ej. Café molido"><small class="tiny">De 3 a 80 caracteres.</small></label>
+      <label>Nombre<input name="name" required minlength="3" maxlength="80" placeholder="Ej. Café molido" aria-describedby="ayuda-nombre{{ ' error-name' if flash_field == 'name' }}"{% if flash_field == 'name' %} aria-invalid="true"{% endif %}><small class="tiny" id="ayuda-nombre">De 3 a 80 caracteres.</small>{% if flash_field == 'name' %}<p class="campo-error" id="error-name" role="alert">⚠ {{ notice }}</p>{% endif %}</label>
       <div class="form-row">
-        <label>Categoría<select name="category"><option>Producto</option><option>Insumo</option><option>Servicio</option></select></label>
+        <label>Categoría<select name="category"{% if flash_field == 'category' %} aria-invalid="true"{% endif %}><option>Producto</option><option>Insumo</option><option>Servicio</option></select>{% if flash_field == 'category' %}<p class="campo-error" role="alert">⚠ {{ notice }}</p>{% endif %}</label>
         <label>Unidad<input name="unit" value="unidad" maxlength="20" required></label>
       </div>
       <div class="form-row">
-        <label>Precio de venta (CUP)<input name="sale_price" type="number" min="0" step="0.01" inputmode="decimal" value="0" required></label>
-        <label>Costo (CUP)<input name="cost" type="number" min="0" step="0.01" inputmode="decimal" value="0" required></label>
+        <label>Precio de venta (CUP)<input name="sale_price" type="number" min="0" step="0.01" inputmode="decimal" value="0" required{% if flash_field == 'sale_price' %} aria-invalid="true"{% endif %}>{% if flash_field == 'sale_price' %}<p class="campo-error" role="alert">⚠ {{ notice }}</p>{% endif %}</label>
+        <label>Costo (CUP)<input name="cost" type="number" min="0" step="0.01" inputmode="decimal" value="0" required{% if flash_field == 'cost' %} aria-invalid="true"{% endif %}>{% if flash_field == 'cost' %}<p class="campo-error" role="alert">⚠ {{ notice }}</p>{% endif %}</label>
       </div>
       <div class="form-row">
-        <label>Existencia<input name="stock" type="number" min="0" step="0.001" value="0" required></label>
-        <label>Stock bajo<input name="low_stock" type="number" min="0" step="0.001" value="5" required></label>
+        <label>Existencia<input name="stock" type="number" min="0" step="0.001" value="0" required{% if flash_field == 'stock' %} aria-invalid="true"{% endif %}>{% if flash_field == 'stock' %}<p class="campo-error" role="alert">⚠ {{ notice }}</p>{% endif %}</label>
+        <label>Stock bajo<input name="low_stock" type="number" min="0" step="0.001" value="5" required{% if flash_field == 'low_stock' %} aria-invalid="true"{% endif %}>{% if flash_field == 'low_stock' %}<p class="campo-error" role="alert">⚠ {{ notice }}</p>{% endif %}</label>
       </div>
-      <label>Stock crítico<input name="critical_stock" type="number" min="0" step="0.001" value="1" required></label>
-      <label>Motivo de la existencia inicial<input name="reason" maxlength="160" placeholder="Obligatorio si el stock inicial es mayor que cero"><small class="tiny">De 3 a 160 caracteres para dejar registrada la primera existencia.</small></label>
+      <label>Stock crítico<input name="critical_stock" type="number" min="0" step="0.001" value="1" required{% if flash_field == 'critical_stock' %} aria-invalid="true"{% endif %}>{% if flash_field == 'critical_stock' %}<p class="campo-error" role="alert">⚠ {{ notice }}</p>{% endif %}</label>
+      <label>Motivo de la existencia inicial<input name="reason" maxlength="160" placeholder="Obligatorio si el stock inicial es mayor que cero" aria-describedby="ayuda-motivo{{ ' error-reason' if flash_field == 'reason' }}"{% if flash_field == 'reason' %} aria-invalid="true"{% endif %}><small class="tiny" id="ayuda-motivo">De 3 a 160 caracteres para dejar registrada la primera existencia.</small>{% if flash_field == 'reason' %}<p class="campo-error" id="error-reason" role="alert">⚠ {{ notice }}</p>{% endif %}</label>
       <button class="primary-button full" type="submit">Guardar artículo</button>
     </form>
   </section>

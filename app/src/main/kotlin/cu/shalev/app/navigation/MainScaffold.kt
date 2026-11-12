@@ -1,7 +1,13 @@
 package cu.shalev.app.navigation
 
+import android.app.Activity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
@@ -18,7 +24,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
@@ -62,10 +70,12 @@ import cu.shalev.app.venta.VentaScreen
 import cu.shalev.designsystem.component.ShalevNavItem
 import cu.shalev.designsystem.component.ShalevNavigationBar
 import cu.shalev.designsystem.token.ShalevMotion
+import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.domain.model.Licencia
 import cu.shalev.domain.model.PasoConfiguracion
 import cu.shalev.domain.model.TipoAlerta
 
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun MainScaffold(snapshot: Licencia) {
     val nav = rememberNavController()
@@ -105,6 +115,12 @@ fun MainScaffold(snapshot: Licencia) {
         current?.hasRoute(Route.QrVinculacion::class) == true || current?.hasRoute(Route.Respaldo::class) == true
     val bloquear = actualizacion.bloqueada && !permitidaConBloqueo
 
+    // Plan UI/UX/IX 2026-11 (SK-4, piloto): en teléfono (Compact) todo queda como estaba; en tablet/plegable
+    // (Medium/Expanded) el contenido se centra con el ancho máximo de lectura (P18/A22). La navegación no cambia:
+    // la barra inferior sigue a todo lo ancho y el deslizar entre secciones se detecta en toda la pantalla.
+    val anchoClase = (LocalContext.current as? Activity)
+        ?.let { calculateWindowSizeClass(it).widthSizeClass } ?: WindowWidthSizeClass.Compact
+
     CompositionLocalProvider(cu.shalev.app.common.LocalPermisosApp provides permisos, cu.shalev.designsystem.component.LocalBloqueoGestos provides bloqueoGestos) {
     Box(Modifier.fillMaxSize()) {
     Box(Modifier.fillMaxSize().then(if (bloquear) Modifier.clearAndSetSemantics { } else Modifier)) {
@@ -132,10 +148,8 @@ fun MainScaffold(snapshot: Licencia) {
         // 0.25.0 (§3.4, §6.2): consulta semanal (revocaciones + versión) al abrir la app; nada en segundo plano.
         val actualizacionVm: cu.shalev.app.actualizacion.ActualizacionViewModel = hiltViewModel()
         LaunchedEffect(Unit) { actualizacionVm.alAbrir() }
-        NavHost(
-            navController = nav,
-            startDestination = Route.Inicio,
-            modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)
+        Box(
+            Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)
                 .deslizarEntreSecciones(activo = deslizar && selected != null) { dir ->
                     val actual = selected ?: return@deslizarEntreSecciones
                     secciones.getOrNull(secciones.indexOf(actual) + dir)?.let {
@@ -144,6 +158,17 @@ fun MainScaffold(snapshot: Licencia) {
                         nav.navigateTopLevel(it.route)
                     }
                 },
+            contentAlignment = Alignment.TopCenter,
+        ) {
+        NavHost(
+            navController = nav,
+            startDestination = Route.Inicio,
+            // SK-4: en Medium/Expanded el contenido se limita al ancho de lectura y queda centrado en el Box.
+            modifier = if (anchoClase == WindowWidthSizeClass.Compact) {
+                Modifier.fillMaxSize()
+            } else {
+                Modifier.widthIn(max = ShalevSize.contentMaxWidth).fillMaxHeight()
+            },
             // P18 (A17): al entrar en una pantalla de detalle, desliza 1/4 del ancho hacia la izquierda y al volver,
             // hacia la derecha (muelle de entrada blando en el recorrido, FastOutSlowIn en el fundido).
             // 0.31.0 (P10): entre secciones, el DESLIZAMIENTO lleva ese mismo desplazamiento lateral (con la
@@ -331,6 +356,7 @@ fun MainScaffold(snapshot: Licencia) {
             composable<Route.Respaldo> { RespaldoScreen(onBack = { nav.popBackStack() }) }
             composable<Route.Ayuda> { AyudaScreen(onBack = { nav.popBackStack() }) }
             composable<Route.Soporte> { SoporteScreen(onBack = { nav.popBackStack() }) }
+        }
         }
     }
     }

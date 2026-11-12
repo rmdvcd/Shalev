@@ -145,6 +145,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
+    // Plan UI/UX/IX 2026-11 (SK-4): WindowSizeClass para el piloto tablet/plegable de MainScaffold.
+    implementation(libs.compose.material3.window.sizeclass)
     implementation(libs.androidx.splashscreen)
     implementation(libs.androidx.biometric)          // 0.27.0 (T11): añade USE_BIOMETRIC y USE_FINGERPRINT (permisos normales)
     implementation(libs.androidx.fragment)           // 0.27.0 (T11): MainActivity es FragmentActivity (BiometricPrompt)
@@ -171,6 +173,10 @@ dependencies {
     // Tests de Compose sin Hilt: se prueban los *Content sin estado.
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
+    // Plan UI/UX/IX 2026-11 (SK-1): checks ATF con enableAccessibilityChecks() en AccessibilityTest
+    // (androidTest: la API requiere API 34+ y NO funciona en Robolectric — b/332778271; se compila en cada
+    // push y corre en el trabajo de emulador del CI).
+    androidTestImplementation(libs.compose.ui.test.junit4.accessibility)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
     // Prompt 15 — integración: Room en memoria con los repositorios reales de :data.

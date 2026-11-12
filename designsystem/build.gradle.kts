@@ -32,6 +32,8 @@ dependencies {
     api(libs.compose.ui)
     api(libs.compose.foundation)
     api(libs.compose.material3)
+    // Plan UI/UX/IX 2026-11 (SK-2): @Preview privadas Light/Dark en los componentes públicos de este módulo.
+    implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit)
