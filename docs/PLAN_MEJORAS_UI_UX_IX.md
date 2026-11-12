@@ -19,7 +19,7 @@
 | DS-9 | ✅ | `app.css` formateado a 1694 líneas verificando equivalencia canónica de tokens con tinycss2 |
 | DS-10 | ✅ | Convenciones documentadas en `docs/DSHALEV_DISENO.md` §«Interfaz y accesibilidad» |
 
-**Shalev — 7/7 completado (código a la espera del CI, sin SDK en el entorno de edición).**
+**Shalev — 7/7 completado y verificado en CI (2026-11-11).**
 
 | ID | Estado | Qué quedó hecho |
 |---|---|---|
@@ -31,7 +31,7 @@
 | SK-6 | ✅ | 3 literales de `CajaUi.kt` → `ShalevRadius.billeteCup` (6dp) y `ShalevSize.billeteCupAncho/Alto/Borde` (88/40/0.8dp); umbral de gesto 72.dp queda en `Deslizar.kt` como comportamiento |
 | SK-7 | ✅ | Criterio diálogo-vs-Deshacer documentado en `UI_UX_IX.md` §2.2 |
 
-**Pendiente de CI (requiere SDK/rodeos del repo):** `shalevTests` + compilación de instrumentados en verde con los cambios de `:app`/`:designsystem`; `AccessibilityTest` corriendo en CI; Roborazzi sin cambio de píxel esperado (los tokens de SK-6 conservan valores y el piloto SK-4 solo actúa en Medium/Expanded; las capturas son a 360dp = Compact).
+**Verificación CI (corridas 43121360369 y 43118818918):** `shalevTests` + compilación de instrumentados ✅, lint baseline ✅, permisos del manifiesto ✅, API mínima 26 ✅, Release R8 + APK ✅; `build-windows-portable` (pytest + **ramplint** + npm) ✅. `AccessibilityTest` se compila en cada push y corre en el trabajo de emulador (semanal/a mano). Roborazzi sin cambio de píxel: los tokens de SK-6 conservan valores y el piloto SK-4 solo actúa en Medium/Expanded (las capturas son a 360dp = Compact), así que no fue necesario regenerar. Dos incidencias detectadas y corregidas por el propio CI: alias del catálogo terminado en `-class` (palabra reservada de Kotlin → renombrado a `compose-material3-window-sizeclass`) y la API ATF no funciona en Robolectric (b/332778271 → la batería se movió a `androidTest`).
 
 Análisis de las dos aplicaciones contra las skills del proyecto:
 
