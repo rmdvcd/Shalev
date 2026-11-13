@@ -2,6 +2,7 @@ package cu.shalev.data.sync
 
 import cu.shalev.data.dto.conteoDeJson
 import cu.shalev.data.dto.aJson
+import cu.shalev.data.repository.consumirLotes
 import cu.shalev.data.db.dao.registrar
 import cu.shalev.core.result.AppError
 import cu.shalev.data.db.abortar

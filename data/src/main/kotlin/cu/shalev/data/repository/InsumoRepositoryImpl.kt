@@ -91,7 +91,7 @@ class InsumoRepositoryImpl @Inject constructor(
     }
 
     private suspend fun mov(tipo: TipoMovimiento, id: Long, nombre: String, deltaMil: Long, existenciaMil: Long, nota: String? = null) {
-        if (delta < 0) db.consumirLotes(locales.localOperacion(), "INSUMO", id, Math.negateExact(delta))
+        if (deltaMil < 0) db.consumirLotes(locales.localOperacion(), "INSUMO", id, Math.negateExact(deltaMil))
         movimientos.insertar(
             MovimientoEntity(
                 fecha = clock.now().toEpochMilli(), tipo = tipo.name, entidad = TipoEntidad.INSUMO.name, entidadId = id,

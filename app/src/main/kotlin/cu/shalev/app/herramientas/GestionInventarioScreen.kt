@@ -31,6 +31,11 @@ fun GestionInventarioScreen(onBack: () -> Unit, vm: GestionInventarioViewModel =
     val articulos by vm.articulos.collectAsStateWithLifecycle()
     val recepciones by vm.recepciones.collectAsStateWithLifecycle()
     val lotes by vm.lotes.collectAsStateWithLifecycle()
+    LaunchedEffect(articulos) {
+        val anterior = vm.articulo
+        val actual = articulos.firstOrNull { it.id == anterior?.id && it.entidad == anterior.entidad } ?: articulos.firstOrNull()
+        if (actual != null) vm.elegir(actual) else vm.articulo = null
+    }
     var seccion by rememberSaveable { mutableStateOf("Recepción") }
     var salir by rememberSaveable { mutableStateOf(false) }
     val volver = { if (!vm.ocupado) { if (vm.tieneDatos) salir = true else onBack() } }
@@ -52,7 +57,10 @@ fun GestionInventarioScreen(onBack: () -> Unit, vm: GestionInventarioViewModel =
                         item { ShalevSecondaryText("El comprobante se registra como referencia de texto; no se fotografía ni se adjunta un archivo.") }
                     }
                     if (vm.paso == 2) {
-                        item { ShalevComboBox("Artículo del local", articulos, vm.articulo, { "${it.nombre} · ${it.unidad.simbolo}" }, vm::elegir) }
+                        item {
+                            vm.articulo?.let { seleccionado -> ShalevComboBox("Artículo del local", articulos, seleccionado, { "${it.nombre} · ${it.unidad.simbolo}" }, vm::elegir) }
+                                ?: ShalevSecondaryText("Crea primero un producto o un insumo en este local.")
+                        }
                         item { ShalevTextField(vm.cantidad, { vm.cantidad = it }, "Cantidad (${vm.articulo?.unidad?.simbolo.orEmpty()})", filtro = FiltroEntrada.DECIMAL) }
                         item { ShalevTextField(vm.costo, { vm.costo = it }, "Costo por ${vm.articulo?.unidad?.simbolo.orEmpty()} (CUP)", filtro = FiltroEntrada.DECIMAL) }
                         item { ShalevTextField(vm.codigoLote, { vm.codigoLote = it }, "Código de lote") }
@@ -72,7 +80,10 @@ fun GestionInventarioScreen(onBack: () -> Unit, vm: GestionInventarioViewModel =
                     }
                 }
                 "Ajuste con motivo" -> {
-                    item { ShalevComboBox("Artículo del local", articulos, vm.articulo, { "${it.nombre} · ${it.unidad.simbolo}" }, vm::elegir) }
+                    item {
+                            vm.articulo?.let { seleccionado -> ShalevComboBox("Artículo del local", articulos, seleccionado, { "${it.nombre} · ${it.unidad.simbolo}" }, vm::elegir) }
+                                ?: ShalevSecondaryText("Crea primero un producto o un insumo en este local.")
+                        }
                     item { ShalevComboBox("Tipo de cambio", listOf(true, false), vm.esSalida, { if (it) "Salida" else "Entrada" }, { vm.esSalida = it }) }
                     item { ShalevComboBox("Motivo", MotivoMovimiento.entries.filter { it != MotivoMovimiento.COMPRA }, vm.motivoAjuste, { it.titulo }, { vm.motivoAjuste = it }) }
                     item { ShalevTextField(vm.cantidad, { vm.cantidad = it }, "Cantidad del cambio", filtro = FiltroEntrada.DECIMAL) }

@@ -89,8 +89,10 @@ class GestionInventarioRepositoryImpl @Inject constructor(
                     db.movimientoDao().actualizar(m.copy(nota = "Compra · ${recepcion.proveedor.trim()} · ${recepcion.comprobante.trim()} · ${recepcion.motivo.trim()}", hechoPor = autor, motivo = MotivoMovimiento.COMPRA.name))
                 }
                 total += l.costoUnitario.porMilesimas(mil)
+                // Parte de la entrada puede cubrir una existencia negativa conciliada de ventas offline.
+                val existenciaMil = if (l.entidad == TipoEntidad.PRODUCTO) Math.multiplyExact(existencia.coerceAtLeast(0), 1000) else existencia.coerceAtLeast(0)
                 lotes += LoteInventarioEntity(UUID.randomUUID().toString(), recepcion.uuid, localId, l.entidad.name, l.id, nombre,
-                    unidad, l.lote.trim(), mil, mil, l.costoUnitario.centavos, l.caducidad?.toEpochDay())
+                    unidad, l.lote.trim(), mil, minOf(mil, existenciaMil), l.costoUnitario.centavos, l.caducidad?.toEpochDay())
             }
             db.gestionDao().insertarRecepcion(RecepcionEntity(recepcion.uuid, localId, clock.now().toEpochMilli(), recepcion.proveedor.trim(),
                 recepcion.comprobante.trim(), recepcion.motivo.trim(), autor, total.centavos))
