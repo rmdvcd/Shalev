@@ -39,7 +39,7 @@ El código y los tests cierran el hueco implementable. Aún no se ha probado el 
 
 ### P1 — La integración LAN sigue sin prueba de interoperabilidad real
 
-IShalev implementa Bonjour/TCP, protocolo v1, cifrado de sesión y comandos, y hay pruebas con vectores independientes y datos serializados. Pero `IShalev/README.md` dice expresamente que aún no se ha ejecutado una sesión iOS↔Android ni una prueba con dos dispositivos físicos. La compatibilidad de formato/criptografía en tests unitarios no cubre permisos del SO, descubrimiento Bonjour, modo de red, estados de fondo, reintentos, fotos ni flujos de aprobación en un teléfono.
+IShalev implementa Bonjour/TCP, protocolo v1, cifrado de sesión y comandos, y hay pruebas con vectores independientes y datos serializados. Pero `iOS/README.md` dice expresamente que aún no se ha ejecutado una sesión iOS↔Android ni una prueba con dos dispositivos físicos. La compatibilidad de formato/criptografía en tests unitarios no cubre permisos del SO, descubrimiento Bonjour, modo de red, estados de fondo, reintentos, fotos ni flujos de aprobación en un teléfono.
 
 **Criterio para cerrar:** prueba documentada de al menos iPhone ↔ Android en rol principal/secundaria en ambas direcciones, en Wi‑Fi y hotspot, incluyendo venta offline, reenvío duplicado, cambio de catálogo, fotos, cierre/conteo aprobado, expulsión de empleado y revocación/licencia. No mover PIN/perfiles locales si esa sigue siendo la decisión de seguridad.
 
@@ -59,7 +59,7 @@ Estas divergencias no tienen por qué bloquear el uso de IShalev, pero deben fig
 
 ## Funciones con paridad sustancial observada
 
-La lectura de `IShalev/README.md`, `Domain.swift`, `AndroidBackup.swift`, `SyncManager.swift` y los módulos Android muestra implementación compartida o equivalente en estas capacidades:
+La lectura de `iOS/README.md`, `Domain.swift`, `AndroidBackup.swift`, `SyncManager.swift` y los módulos Android muestra implementación compartida o equivalente en estas capacidades:
 
 - inicio con resumen de negocio, período, gráficos/rankings, alertas y acceso a venta/caja;
 - catálogo de productos, insumos, elaborados, servicios y recetas con consumo de insumos;

@@ -14,8 +14,8 @@ JH=os.environ.get('JAVA_HOME')
 JAVAP=os.path.join(JH,'bin','javap') if JH else 'javap'
 MIN=26
 RAIZ=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DIRS={'core':'core/build/classes/kotlin/main','domain':'domain/build/classes/kotlin/main','licencia':'licencia/build/classes/kotlin/main',
-      'data':'data/build/tmp/kotlin-classes/debug','designsystem':'designsystem/build/tmp/kotlin-classes/debug','app':'app/build/tmp/kotlin-classes/debug'}
+DIRS={'core':'Android/core/build/classes/kotlin/main','domain':'Android/domain/build/classes/kotlin/main','licencia':'Android/licencia/build/classes/kotlin/main',
+      'data':'Android/data/build/tmp/kotlin-classes/debug','designsystem':'Android/designsystem/build/tmp/kotlin-classes/debug','app':'Android/app/build/tmp/kotlin-classes/debug'}
 JVM={'core','domain','licencia'}
 # Llamadas revisadas a mano: protegidas con Build.VERSION.SDK_INT (lint NewApi las da por buenas).
 PERMITIDAS={

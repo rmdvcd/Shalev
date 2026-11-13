@@ -29,8 +29,8 @@ adb shell getprop ro.build.version.sdk   # API del teléfono (Shalev pide 26+)
 # Solo un release FIRMADO y verificado con la clave vigente de RELEASE.md puede actualizar producción.
 # Los APK *-release-unsigned.apk de CI no son instalables. Debug usa otro paquete y no actualiza producción.
 # No desinstalar producción para resolver una firma distinta: se perderían los datos y el vínculo de licencia.
-bash tools/verificacion/verificar_firma_apk.sh app/build/outputs/apk/release/app-arm64-v8a-release.apk
-adb install -r app/build/outputs/apk/release/app-arm64-v8a-release.apk   # únicamente si la firma pasó
+bash tools/verificacion/verificar_firma_apk.sh Android/app/build/outputs/apk/release/app-arm64-v8a-release.apk
+adb install -r Android/app/build/outputs/apk/release/app-arm64-v8a-release.apk   # únicamente si la firma pasó
 ```
 
 Desde 2026-10-14 el release genera un APK por ABI más el universal; para un teléfono moderno basta el
@@ -55,8 +55,8 @@ en el commit publicado (trabajo `instrumentados`); aquí van contra el teléfono
   -Pandroid.testInstrumentationRunnerArguments.class=cu.shalev.data.LocalesPermisosCobroRoomTest#referenciaNormalizadaSeRechazaSinCambiosYSeLiberaAlAnular
 
 # Informe legible
-#   app/build/reports/androidTests/connected/index.html
-#   data/build/reports/androidTests/connected/index.html
+#   Android/app/build/reports/androidTests/connected/index.html
+#   Android/data/build/reports/androidTests/connected/index.html
 ```
 
 Antes de entregar: `connectedDebugAndroidTest` en verde Y `shalevTests` en verde. Si un instrumentado
@@ -107,7 +107,7 @@ actividad real de Android y hardware):
 - [ ] Sin `Log.*` con datos del negocio en el código nuevo (R8 los elimina en release, pero el debug los
       mostraría en Logcat).
 - [ ] Sin permisos nuevos en el manifiesto (la lista es cerrada: `AGENTS.md`).
-- [ ] Versión: `versionCode`/`versionName` y notas en `Pendiente.md`/`docs/HISTORIAL_DESARROLLO.md` al día.
+- [ ] Versión: `versionCode`/`versionName` y notas en `README.md`/`docs/HISTORIAL_DESARROLLO.md` al día.
 - [ ] Fila nueva en `docs/VERIFICACION.md` con fecha, commit y cifras de esta corrida.
 
 ## 6. Solución de problemas
@@ -120,7 +120,7 @@ actividad real de Android y hardware):
 | Los instrumentados no encuentran el equipo | Emulador apagado y USB sin autorizar | `adb devices` debe listar 1 equipo antes de lanzar Gradle |
 | La secundaria no ve a la principal | wifis distintas, aislamiento de clientes del router o VPN activa | Misma red, sin VPN; probar con la zona wifi del emisor |
 | El QR de migración «no vale» | La clave del QR es de un solo uso y caduca con la sesión | Generar un QR nuevo desde el emisor y reintentar |
-| Una captura Roborazzi cambió sola | Cambio visual real o fuente/escala del emulador | Revisar el diff en `app/capturas/`; si es el cambio buscado, versionar la nueva imagen (ver `CAPTURAS.md`) |
+| Una captura Roborazzi cambió sola | Cambio visual real o fuente/escala del emulador | Revisar el diff en `Android/app/capturas/`; si es el cambio buscado, versionar la nueva imagen (ver `CAPTURAS.md`) |
 
 
 ### Movimiento y accesibilidad

@@ -4,7 +4,7 @@
 **Formato:** 1920 × 1080 · **60 fps** · H.264 High + AAC  
 **Idioma:** español · narración y subtítulos integrados (también en `.srt`)  
 
-Promoción de las funciones clave de Shalev construida con las capturas reales de la app (`app/capturas/claro` y `promocion/capturas`). El zoom, los pulsos naranja y el punto de toque señalan el control que se está usando; la música de fondo es original y baja de volumen sola mientras hay voz.
+Promoción de las funciones clave de Shalev construida con las capturas reales de la app (`Android/app/capturas/claro` y `promocion/capturas`). El zoom, los pulsos naranja y el punto de toque señalan el control que se está usando; la música de fondo es original y baja de volumen sola mientras hay voz.
 
 ## Escenas
 

@@ -109,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: informe-lint
-          path: "app/build/reports/lint-results-*"
+          path: "Android/app/build/reports/lint-results-*"
           if-no-files-found: ignore
           retention-days: 14
 
@@ -144,9 +144,9 @@ jobs:
       - name: R8 sin clases ausentes
         run: |
           set -uo pipefail
-          archivo=app/build/outputs/mapping/release/missing_rules.txt
-          echo "== salida de R8 (app/build/outputs/mapping/release) =="
-          ls -la app/build/outputs/mapping/release/ 2>/dev/null || echo "(no hay directorio de mapping)"
+          archivo=Android/app/build/outputs/mapping/release/missing_rules.txt
+          echo "== salida de R8 (Android/app/build/outputs/mapping/release) =="
+          ls -la Android/app/build/outputs/mapping/release/ 2>/dev/null || echo "(no hay directorio de mapping)"
           fallo=0
           # La prueba que manda es el propio aviso de R8; missing_rules.txt solo se escribe si hay clases ausentes.
           if grep -qi "Missing classes detected while running R8" /tmp/salida.log; then
@@ -178,8 +178,8 @@ jobs:
         with:
           name: apk
           path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
+            Android/app/build/outputs/apk/debug/*.apk
+            Android/app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
           retention-days: 30
 

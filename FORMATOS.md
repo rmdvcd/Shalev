@@ -38,7 +38,7 @@ binario de los respaldos ni los escritores PDF/XLSX.
 
 ## 1. Respaldo `.shalev`
 
-Implementación: `data/.../respaldo/BackupCipher.kt` (contenedor cifrado), `data/.../dto/RespaldoDto.kt` (contenido) y `data/.../respaldo/RespaldoRepositoryImpl.kt` (lectura y escritura).
+Implementación: `Android/data/.../respaldo/BackupCipher.kt` (contenedor cifrado), `Android/data/.../dto/RespaldoDto.kt` (contenido) y `Android/data/.../respaldo/RespaldoRepositoryImpl.kt` (lectura y escritura).
 
 ### 1.1 Contenedor binario v4 (0.27.0; se leen también los v3)
 
@@ -178,7 +178,7 @@ Antes de abrir el instalador, la app escribe un `.shalev` **sin contraseña** co
 
 ## 3. Exportaciones
 
-Todas las tablas salen de una misma fuente neutra, `TablaExport` (título, columnas, filas y pie), definida en `domain/.../service/TablasExport.kt`. Los escritores están en `data/.../export/`.
+Todas las tablas salen de una misma fuente neutra, `TablaExport` (título, columnas, filas y pie), definida en `Android/domain/.../service/TablasExport.kt`. Los escritores están en `Android/data/.../export/`.
 
 ### 3.1 Qué se exporta y desde dónde
 
@@ -242,7 +242,7 @@ Formatos de celda: importes «1,450.00 CUP»; fechas con hora `dd/MM/aaaa HH:mm`
 
 ### 3.6 Texto
 
-Desde la 0.26.0 Shalev no exporta texto: Registros, Inventario, Servicios y las fichas usan PDF y Excel (e Imagen/Tarjetas en Inventario). Solo la **solicitud de licencia** (y el contacto de Soporte) se envían como mensaje; ver [docs/LICENCIA_0.23.md](docs/LICENCIA_0.23.md).
+Desde la 0.26.0 Shalev no exporta texto: Registros, Inventario, Servicios y las fichas usan PDF y Excel (e Imagen/Tarjetas en Inventario). Solo la **solicitud de licencia** (y el contacto de Soporte) se envían como mensaje; ver [LICENSE_CLIENT.md](LICENSE_CLIENT.md) para el formato vigente.
 
 ### 3.7 Registro de la prueba (0.26.0)
 

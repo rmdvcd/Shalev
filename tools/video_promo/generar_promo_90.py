@@ -8,7 +8,7 @@ Uso:
 
 Entradas
   · Narración: .cache/shalev_promo90/voz/01.mp3 … 10.mp3 (voz del asistente de Arena).
-  · Capturas reales: app/capturas/claro y promocion/capturas.
+  · Capturas reales: Android/app/capturas/claro y promocion/capturas.
 Salidas (promocion/video_promo_90/)
   · Shalev_promo_90s_1080p60.mp4
   · Shalev_promo_90s.srt
@@ -66,7 +66,7 @@ PALE_ORANGE = "#FCE9DE"
 WHITE = "#FFFFFF"
 GREEN = "#24734A"
 
-A = "app/capturas/claro"
+A = "Android/app/capturas/claro"
 P = "promocion/capturas"
 
 TELEGRAM_URL = "https://t.me/spviapp/1"
@@ -117,7 +117,7 @@ _FONT_CANDIDATES = {
 @lru_cache(maxsize=256)
 def font(size: int, weight: str = "regular", brand: bool = False):
     if brand:
-        return ImageFont.truetype(str(ROOT / "designsystem/src/main/res/font/orbitron.ttf"), size=max(8, size))
+        return ImageFont.truetype(str(ROOT / "Android/designsystem/src/main/res/font/orbitron.ttf"), size=max(8, size))
     for name in _FONT_CANDIDATES[weight]:
         for base in (FONTS, Path("/usr/share/fonts/truetype/dejavu")):
             path = base / name
@@ -656,7 +656,7 @@ def kpi_card(d, local, slug, y=880, x=104, t0=0.75):
 
 
 def logo_tile(size: int) -> Image.Image:
-    src = Image.open(ROOT / "play_store/icono_512.png").convert("RGB").resize((size, size), Image.Resampling.LANCZOS)
+    src = Image.open(ROOT / "Android/play_store/icono_512.png").convert("RGB").resize((size, size), Image.Resampling.LANCZOS)
     mask = Image.new("L", (size, size), 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, size - 1, size - 1), radius=int(size * 0.22), fill=255)
     tile = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -1097,7 +1097,7 @@ def write_guide(total: float) -> Path:
         "**Idioma:** español · narración y subtítulos integrados (también en `.srt`)  ",
         "",
         "Promoción de las funciones clave de Shalev construida con las capturas reales de la app "
-        "(`app/capturas/claro` y `promocion/capturas`). El zoom, los pulsos naranja y el punto de toque "
+        "(`Android/app/capturas/claro` y `promocion/capturas`). El zoom, los pulsos naranja y el punto de toque "
         "señalan el control que se está usando; la música de fondo es original y baja de volumen sola "
         "mientras hay voz.",
         "",

@@ -1,6 +1,7 @@
-# Dependencias opcionales de las herramientas Python de capturas, exportaciones y pruebas de licencia.
+# Dependencias opcionales para generar documentación, datos de demostración y pruebas de licencia.
 # No forman parte de la app Android ni de tools/verificacion/.
 cryptography==50.0.2
 Pillow==12.3.0
 PyMuPDF==1.28.2
+reportlab==4.4.10
 qrcode==8.2

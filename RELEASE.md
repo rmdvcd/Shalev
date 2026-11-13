@@ -25,7 +25,7 @@ keytool -list -v -keystore "$HOME/.android/gl-release.jks" -alias gl
 > | Alias | `gl` |
 > | Certificado | `CN=GL, O=GL, C=US` |
 > | Huella SHA-256 | `13:9D:3D:A9:3B:D3:AB:B8:81:A2:C5:55:03:DA:E0:B0:59:AB:4C:36:A6:8A:D1:63:94:A8:B5:26:FF:D4:17:38` |
-> | Credenciales | `keystore.properties` en la raíz (ignorado por git) o variables `Shalev_*` |
+> | Credenciales | `Android/keystore.properties` (ignorado por git) o variables `Shalev_*` |
 >
 > Verificado contra la Release `v1.0` publicada (`Shalev-1.0.apk`): `apksigner` confirma ese mismo
 > certificado (`docs/HISTORIAL_DESARROLLO.md`, 2026-10-22). Es la **misma clave con la que se firma
@@ -40,9 +40,9 @@ keytool -list -v -keystore "$HOME/.android/gl-release.jks" -alias gl
 
 ## 2. Configurar la firma en Gradle
 
-`app/build.gradle.kts` ya trae el `signingConfig` de release. Lee los datos, por orden, de:
+`Android/app/build.gradle.kts` ya trae el `signingConfig` de release. Lee los datos, por orden, de:
 
-**Opción A — `keystore.properties`** en la raíz del proyecto. Está en `.gitignore`, así que nunca se sube:
+**Opción A — `Android/keystore.properties`** en la raíz del proyecto Android. Está en `.gitignore`, así que nunca se sube:
 
 ```properties
 storeFile=/ruta/absoluta/gl-release.jks
@@ -88,8 +88,8 @@ buildTypes {
 
 ## 3. Antes de compilar
 
-1. Sube `versionCode` (siempre mayor que el anterior) y `versionName` en `app/build.gradle.kts`.
-   - **Actualizaciones automáticas:** por defecto `gradle.properties` apunta `shalevGithubRepo` a `rmdvcd/Shalev`; no hace falta configurarlo para este repositorio. La app consulta la última Release pública en [github.com/rmdvcd/Shalev/releases](https://github.com/rmdvcd/Shalev/releases), tanto para encontrar el APK como para descargar la lista de revocaciones. Para probar un fork/repo distinto, sobrescribe con `-PshalevGithubRepo=usuario/repositorio`; un valor vacío desactiva las consultas.
+1. Sube `versionCode` (siempre mayor que el anterior) y `versionName` en `Android/app/build.gradle.kts`.
+   - **Actualizaciones automáticas:** por defecto `Android/gradle.properties` apunta `shalevGithubRepo` a `rmdvcd/Shalev`; no hace falta configurarlo para este repositorio. La app consulta la última Release pública en [github.com/rmdvcd/Shalev/releases](https://github.com/rmdvcd/Shalev/releases), tanto para encontrar el APK como para descargar la lista de revocaciones. Para probar un fork/repo distinto, sobrescribe con `-PshalevGithubRepo=usuario/repositorio`; un valor vacío desactiva las consultas.
 2. Ejecuta `./gradlew shalevCheck shalevInstrumentedTests` con un emulador o teléfono conectado.
    Después, `python3 tools/verificacion/api_minima.py` (con el JDK 17 en el PATH). Comprueba que ninguna clase compilada llama a una API de Android o de Java posterior a la 26 sin comprobar la versión, también en core/domain/licencia, que lint no analiza. Debe terminar con «0 llamadas no permitidas».
 3. No regenerar el baseline de lint para ocultar errores. Verificar que el esquema actual **v18** está
@@ -107,9 +107,9 @@ buildTypes {
 
 | Artefacto | Ruta | Para qué |
 |---|---|---|
-| APK firmado | `app/build/outputs/apk/release/app-universal-release.apk` | **Distribución directa** (WhatsApp, Telegram, Zapya, Bluetooth, USB). Es lo habitual para Shalev |
-| AAB | `app/build/outputs/bundle/release/app-release.aab` | Solo para subir a Google Play. No se instala directamente |
-| Mapping de R8 | `app/build/outputs/mapping/release/mapping.txt` | **Guárdalo con cada versión**: sin él las trazas de error de release no se pueden leer |
+| APK firmado | `Android/app/build/outputs/apk/release/app-universal-release.apk` | **Distribución directa** (WhatsApp, Telegram, Zapya, Bluetooth, USB). Es lo habitual para Shalev |
+| AAB | `Android/app/build/outputs/bundle/release/app-release.aab` | Solo para subir a Google Play. No se instala directamente |
+| Mapping de R8 | `Android/app/build/outputs/mapping/release/mapping.txt` | **Guárdalo con cada versión**: sin él las trazas de error de release no se pueden leer |
 
 También se generan splits firmados `app-arm64-v8a-release.apk`, `app-armeabi-v7a-release.apk` y
 `app-x86_64-release.apk`. Elegir la ABI del teléfono o el universal. Si aparecen con `-unsigned`, detenerse:
@@ -125,11 +125,11 @@ En Android Studio, el mismo resultado: **Build → Generate Signed App Bundle / 
 
 ```bash
 BT=$ANDROID_HOME/build-tools/35.0.0
-$BT/apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-universal-release.apk
+$BT/apksigner verify --verbose --print-certs Android/app/build/outputs/apk/release/app-universal-release.apk
   # → "Verified using v2 scheme (APK Signature Scheme v2): true" y la huella SHA-256 vigente
 # Automático: compara la huella con la clave vigente (falla si el APK salió con otra clave):
-bash tools/verificacion/verificar_firma_apk.sh app/build/outputs/apk/release/app-universal-release.apk
-$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer manifest permissions app/build/outputs/apk/release/app-universal-release.apk
+bash tools/verificacion/verificar_firma_apk.sh Android/app/build/outputs/apk/release/app-universal-release.apk
+$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer manifest permissions Android/app/build/outputs/apk/release/app-universal-release.apk
   # → android.permission.CAMERA, android.permission.INTERNET, android.permission.POST_NOTIFICATIONS,
   #   android.permission.FOREGROUND_SERVICE, android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE,
   #   android.permission.CHANGE_NETWORK_STATE, android.permission.REQUEST_INSTALL_PACKAGES,
@@ -137,7 +137,7 @@ $ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer manifest permissions app/buil
   #   android.permission.READ_EXTERNAL_STORAGE (maxSdk 32), android.permission.WRITE_EXTERNAL_STORAGE (maxSdk 28),
   #   android.permission.USE_BIOMETRIC, android.permission.USE_FINGERPRINT (0.27.0, acceso con clave)
   #   (y cu.shalev.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, permiso propio de androidx.core)
-$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer manifest debuggable app/build/outputs/apk/release/app-universal-release.apk
+$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer manifest debuggable Android/app/build/outputs/apk/release/app-universal-release.apk
   # → false
 ```
 
@@ -146,7 +146,7 @@ $ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer manifest debuggable app/build
 > La guía completa por USB (comandos adb, tests instrumentados, pruebas manuales por flujo y checklist de 45 puntos) está en [PRUEBAS_DISPOSITIVO.md](PRUEBAS_DISPOSITIVO.md).
 
 ```bash
-adb install -r app/build/outputs/apk/release/app-universal-release.apk
+adb install -r Android/app/build/outputs/apk/release/app-universal-release.apk
 adb logcat -c && adb logcat | grep -i shalev    # en release no debe aparecer ningún log propio
 ```
 
@@ -179,7 +179,7 @@ adb logcat -c && adb logcat | grep -i shalev    # en release no debe aparecer ni
 
 Si R8 rompe algo en release que en debug funciona, es casi siempre por reflexión o serialización:
 
-1. Revisa `app/build/outputs/mapping/release/missing_rules.txt`.
+1. Revisa `Android/app/build/outputs/mapping/release/missing_rules.txt`.
 2. Añade la regla en `app/proguard-rules.pro`.
 3. Repite la prueba de humo.
 
@@ -201,14 +201,14 @@ Shalev busca la **última Release pública** del repositorio configurado (`GITHU
 bash tools/verificacion/publicar_release.sh notas.md   # notas.md = novedades de la versión
 ```
 
-El script lee `versionName` de `app/build.gradle.kts`, compila `:app:assembleRelease`, **verifica la firma** con `verificar_firma_apk.sh` (clave vigente `gl-release.jks`, alias `gl`; si falla, no publica), prepara `Shalev-<version>.apk` (solo el universal) + `Shalev-<version>.apk.sha256` y crea la Release pública `v<version>`. Se niega a publicar si la etiqueta ya existe.
+El script lee `versionName` de `Android/app/build.gradle.kts`, compila `:app:assembleRelease`, **verifica la firma** con `verificar_firma_apk.sh` (clave vigente `gl-release.jks`, alias `gl`; si falla, no publica), prepara `Shalev-<version>.apk` (solo el universal) + `Shalev-<version>.apk.sha256` y crea la Release pública `v<version>`. Se niega a publicar si la etiqueta ya existe.
 
 **Forma manual.** Para que la ofrezca e instale:
 
 1. Crea la etiqueta `vX.Y.Z` (por ejemplo `v0.25.1`) y una Release **no** marcada como borrador ni pre-release.
 2. Sube el APK firmado con el nombre `Shalev-X.Y.Z.apk`. GitHub calcula su huella (`digest: sha256:…`), que Shalev usa para comprobar la descarga. Si tu cuenta no muestra `digest`, sube también `Shalev-X.Y.Z.apk.sha256`, con la huella en hex (`sha256sum Shalev-X.Y.Z.apk | cut -d' ' -f1 > Shalev-X.Y.Z.apk.sha256`). **Sin huella, Shalev avisa pero no instala.**
 3. Escribe las novedades en la descripción: se muestran como notas.
-4. **No toques la Release `revocaciones`**: la gestiona GL (lista firmada `revocadas.json`, ver [docs/GL_PROMPT_0.25.md](docs/GL_PROMPT_0.25.md)) y debe tener «Set as latest» desactivado para no tapar la versión de la app.
+4. **No toques la Release `revocaciones`**: la gestiona GL (lista firmada `revocadas.json`, ver [docs/GL_ESPECIFICACION.md](docs/GL_ESPECIFICACION.md)) y debe tener «Set as latest» desactivado para no tapar la versión de la app.
 5. Firma **siempre con el mismo keystore**: Android rechaza instalar encima una versión con otra firma.
 
 Las apps principales lo ven en su próxima consulta semanal (o con **Ajustes → Buscar ahora**). Las secundarias reciben el APK de su principal por la red local, sin internet.

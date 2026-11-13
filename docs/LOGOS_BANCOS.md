@@ -108,9 +108,9 @@ como referencia de por qué la regla anterior parecía plausible.
 
 | Recurso | Banco | Fuente consultada para el logotipo |
 |---|---|---|
-| `app/src/main/res/drawable-nodpi/bpa_miniatura.png` | Banco Popular de Ahorro (BPA) | [Artículo de Wikipedia sobre BPA](https://es.wikipedia.org/wiki/Banco_Popular_de_Ahorro), con una imagen servida desde Wikimedia Commons. No se verificó la licencia específica del archivo descargado. |
-| `app/src/main/res/drawable-nodpi/bandec_miniatura.png` | Banco de Crédito y Comercio (BANDEC) | [Artículo de EcuRed sobre BANDEC](https://www.ecured.cu/Banco_de_Cr%C3%A9dito_y_Comercio). EcuRed no se tomó como prueba de licencia de redistribución. |
-| `app/src/main/res/drawable-nodpi/banmet_miniatura.png` | Banco Metropolitano (BANMET) | [Ficha de Banco Metropolitano en el portal de La Habana](https://www.lahabana.gob.cu/entity_detalles/es/20/banco-metropolitano-s-a). La ficha no acredita por sí sola permiso para reutilizar el logotipo. |
+| `Android/app/src/main/res/drawable-nodpi/bpa_miniatura.png` | Banco Popular de Ahorro (BPA) | [Artículo de Wikipedia sobre BPA](https://es.wikipedia.org/wiki/Banco_Popular_de_Ahorro), con una imagen servida desde Wikimedia Commons. No se verificó la licencia específica del archivo descargado. |
+| `Android/app/src/main/res/drawable-nodpi/bandec_miniatura.png` | Banco de Crédito y Comercio (BANDEC) | [Artículo de EcuRed sobre BANDEC](https://www.ecured.cu/Banco_de_Cr%C3%A9dito_y_Comercio). EcuRed no se tomó como prueba de licencia de redistribución. |
+| `Android/app/src/main/res/drawable-nodpi/banmet_miniatura.png` | Banco Metropolitano (BANMET) | [Ficha de Banco Metropolitano en el portal de La Habana](https://www.lahabana.gob.cu/entity_detalles/es/20/banco-metropolitano-s-a). La ficha no acredita por sí sola permiso para reutilizar el logotipo. |
 
 Que una imagen sea visible o descargable desde una página pública **no significa que sea de dominio público**. Los
 nombres, emblemas y marcas siguen perteneciendo a sus titulares; no se presume autorización comercial. El recorte y

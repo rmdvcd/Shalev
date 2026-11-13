@@ -1,6 +1,6 @@
 # Prompt para firmar el APK en el PC del desarrollador con OpenCode
 
-Copia el bloque de abajo tal cual en OpenCode (CLI o Desktop) **en tu PC**, donde ya están el JDK 17, el SDK 35 y el keystore. No pegues contraseñas en el chat: se leen de `keystore.properties` o de variables de entorno.
+Copia el bloque de abajo tal cual en OpenCode (CLI o Desktop) **en tu PC**, donde ya están el JDK 17, el SDK 35 y el keystore. No pegues contraseñas en el chat: se leen de `Android/keystore.properties` o de variables de entorno.
 
 ```text
 Firma el APK de release de Shalev SIN cambiar ninguna clave, siguiendo RELEASE.md:
@@ -16,7 +16,7 @@ Firma el APK de release de Shalev SIN cambiar ninguna clave, siguiendo RELEASE.m
      «SPVI:» + ANDROID_ID y depende de la clave de firma; cambiarla anula todas las licencias emitidas y
      obliga a desinstalar la app. Tampoco cambies applicationId ni versionCode salvo que vayas a publicar
      una versión nueva.
-   - Las credenciales se toman SOLO de keystore.properties (en la raíz, ignorado por git) o de las
+   - Las credenciales se toman SOLO de Android/keystore.properties (ignorado por git) o de las
      variables de entorno Shalev_KEYSTORE, Shalev_KEYSTORE_PASSWORD, Shalev_KEY_ALIAS, Shalev_KEY_PASSWORD.
      No las imprimas en pantalla, no las escribas en el repo ni en ningún archivo versionado.
 
@@ -24,19 +24,19 @@ Firma el APK de release de Shalev SIN cambiar ninguna clave, siguiendo RELEASE.m
    ./gradlew :app:assembleRelease
    (o ./gradlew shalevRelease si quieres check + AAB + APK). Si Gradle avisa «firma de release no
    configurada», el APK sale SIN FIRMAR y no se puede instalar: soluciónanos solo aportando las
-   credenciales EXISTENTES por keystore.properties o Shalev_*, nunca generando una clave nueva.
+   credenciales EXISTENTES por Android/keystore.properties o Shalev_*, nunca generando una clave nueva.
 
 3. Verifica la firma antes de entregar nada:
-   bash tools/verificacion/verificar_firma_apk.sh app/build/outputs/apk/release/app-release.apk
+   bash tools/verificacion/verificar_firma_apk.sh Android/app/build/outputs/apk/release/app-release.apk
    Debe terminar en «OK: firmado con la clave vigente» con la huella de arriba; si falla, NO distribuyas
    ese APK. Comprueba también a mano:
-   $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+   $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs Android/app/build/outputs/apk/release/app-release.apk
    (esperado: «Verified using v2 scheme: true» y la misma huella SHA-256).
 
 4. Entrega los artefactos:
-   - APK firmado: app/build/outputs/apk/release/app-release.apk (distribución directa).
-   - AAB si se sube a Play: app/build/outputs/bundle/release/app-release.aab.
-   - Guarda SIEMPRE app/build/outputs/mapping/release/mapping.txt con la versión (sin él no se leen
+   - APK firmado: Android/app/build/outputs/apk/release/app-release.apk (distribución directa).
+   - AAB si se sube a Play: Android/app/build/outputs/bundle/release/app-release.aab.
+   - Guarda SIEMPRE Android/app/build/outputs/mapping/release/mapping.txt con la versión (sin él no se leen
      las trazas de error de release).
 
 5. Prueba de humo rápida en un teléfono real (adb install -r del APK y la checklist de

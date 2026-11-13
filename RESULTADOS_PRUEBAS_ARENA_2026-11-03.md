@@ -28,13 +28,13 @@ es la que se completa aquí.
 **Resultado: BUILD SUCCESSFUL en 5 m 59 s.** Sin errores; solo los avisos que ya existían
 (`CajaUi.kt:394`, opt-in de `FlowPreview` en tres ViewModels).
 
-APK generado: `app/build/outputs/apk/debug/app-arm64-v8a-debug.apk`
+APK generado: `Android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk`
 (además de `universal`, `armeabi-v7a` y `x86_64`).
 
 ## 2. Instalación y arranque
 
 ```bash
-adb install -r app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+adb install -r Android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
 adb shell am start -n cu.shalev.app.debug/cu.shalev.app.MainActivity
 ```
 
@@ -68,7 +68,7 @@ En esta ejecución Gradle volvió a ejecutar `:app`, `:data`, `:designsystem` y 
 | `:licencia` | 113 | 0 | 0 | 0 | no (al día) |
 | **Total** | **913** | **0** | **0** | **0** | 781 reejecutados |
 
-No se cuentan los `@Test` de `app/src/test/.../capturas/` (Roborazzi), que `shalevTests`
+No se cuentan los `@Test` de `Android/app/src/test/.../capturas/` (Roborazzi), que `shalevTests`
 excluye por diseño.
 
 ### Pruebas nuevas o modificadas por los PR
@@ -100,7 +100,7 @@ forma aislada; aquí se ejecutaron además dentro de la suite Gradle completa.
 | `CalculadoraCambioUiTest.convierteEnAmbosSentidos` | ok |
 | `FichaCostoUiTest.agregarPartidaYAdvertirAlSalir` | ok |
 
-Informe JUnit: `app/build/outputs/androidTest-results/connected/debug/TEST-23021RAAEG - 15-_app-.xml`
+Informe JUnit: `Android/app/build/outputs/androidTest-results/connected/debug/TEST-23021RAAEG - 15-_app-.xml`
 (`tests="4" failures="0" errors="0"`).
 
 Además se ejecutaron las mismas cuatro pruebas directamente con `am instrument`
@@ -110,7 +110,7 @@ Además se ejecutaron las mismas cuatro pruebas directamente con `am instrument`
 
 1. **Primer intento de instrumentados interrumpido por el límite de 10 minutos del terminal.**
    El proceso de UTP (`com.google.testing.platform.launcher.Launcher`) quedó vivo y bloqueaba
-   `app/build/outputs/androidTest-results`; Gradle fallaba después con
+   `Android/app/build/outputs/androidTest-results`; Gradle fallaba después con
    `Failed to create MD5 hash for file content`. Se terminó el proceso huérfano, se borró esa
    salida de build y la ejecución posterior terminó correctamente.
 2. **MIUI bloqueó el arranque de la actividad de prueba** desde la instrumentación
@@ -138,7 +138,7 @@ Ninguna de estas incidencias requirió cambios en el código de la app.
 ./gradlew :app:assembleDebug
 
 # 2. Instalar y abrir
-adb install -r app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+adb install -r Android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
 adb shell am start -n cu.shalev.app.debug/cu.shalev.app.MainActivity
 
 # 3. Suite JVM
@@ -149,6 +149,6 @@ adb shell am start -n cu.shalev.app.debug/cu.shalev.app.MainActivity
   -Pandroid.testInstrumentationRunnerArguments.class=cu.shalev.app.herramientas.CalculadoraCambioUiTest,cu.shalev.app.herramientas.FichaCostoUiTest
 
 # 5. Dejar la app instalada otra vez (UTP la desinstala al terminar)
-adb install -r app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+adb install -r Android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
 adb shell am start -n cu.shalev.app.debug/cu.shalev.app.MainActivity
 ```

@@ -7,7 +7,7 @@
 #   1. Descarga JDK 17, kotlinc 2.0.21, KSP 2.0.21-1.0.28 y las librerías del catálogo (Maven Central / Google Maven).
 #   2. Compila TODOS los módulos (core, licencia, domain, data, designsystem, app) con los plugins de Compose y de
 #      kotlinx-serialization, usando el framework de Robolectric (android-all 14) como android.jar.
-#   3. Ejecuta Room (KSP): valida cada @Query, genera los DAO y exporta data/schemas/…/<VERSION>.json.
+#   3. Ejecuta Room (KSP): valida cada @Query, genera los DAO y exporta Android/data/schemas/…/<VERSION>.json.
 #   4. Ejecuta Hilt/Dagger (KSP) en data y app: valida el grafo de inyección completo (faltas de binding = error).
 #   5. Comprueba que la última migración deja exactamente el esquema exportado (SQLite + PRAGMA, como Room).
 #   6. Ejecuta los tests JVM de core, licencia, domain, data, designsystem y app (no las capturas Roborazzi).
@@ -81,8 +81,8 @@ PRUEBAS=$(ls "$TC"/lib/pruebas/*.jar | tr '\n' ':')
 
 # R / BuildConfig mínimos (AGP los genera; aquí solo hacen falta para compilar).
 mkdir -p "$TC/stub/src/cu/shalev/data" "$TC/stub/src/cu/shalev/app" "$TC/stub/src/cu/shalev/designsystem" "$TC/stub/rt/android/os"
-VN=$(sed -n 's/.*versionName *= *"\([^"]*\)".*/\1/p' "$ROOT/app/build.gradle.kts" | head -1)
-VC=$(sed -n 's/.*versionCode *= *\([0-9]*\).*/\1/p' "$ROOT/app/build.gradle.kts" | head -1)
+VN=$(sed -n 's/.*versionName *= *"\([^"]*\)".*/\1/p' "$ROOT/Android/app/build.gradle.kts" | head -1)
+VC=$(sed -n 's/.*versionCode *= *\([0-9]*\).*/\1/p' "$ROOT/Android/app/build.gradle.kts" | head -1)
 cat > "$TC/stub/src/cu/shalev/app/R.java" <<'J'
 package cu.shalev.app; public final class R { public static final class drawable { public static final int ic_stat_shalev = 0x7f010002; public static final int billete_1 = 0x7f010010; public static final int billete_3 = 0x7f010011; public static final int billete_5 = 0x7f010012; public static final int billete_10 = 0x7f010013; public static final int billete_20 = 0x7f010014; public static final int billete_50 = 0x7f010015; public static final int billete_100 = 0x7f010016; public static final int billete_200 = 0x7f010017; public static final int billete_500 = 0x7f010018; public static final int billete_1000 = 0x7f010019; public static final int billete_2000 = 0x7f01001a; public static final int billete_5000 = 0x7f01001b; public static final int billete_20000 = 0x7f01001c; } }
 J
@@ -157,37 +157,37 @@ ksp() { # nombre, dir-procesadores, classpath, "opciones -P extra", fuentes…
 S="$ROOT"
 # --------------------------------------------------------------------------------------------- 2. compilación
 paso "2. Compilación de los módulos"
-kc "$OUT/core" "$JVM" "$S/core/src/main" "$S/core/src/test"
-kc "$OUT/licencia" "$JVM:$OUT/core" "$S/licencia/src/main" "$S/licencia/src/test"
-kc "$OUT/domain" "$JVM:$OUT/core:$OUT/licencia" "$S/domain/src/main" "$S/domain/src/test"
+kc "$OUT/core" "$JVM" "$S/Android/core/src/main" "$S/Android/core/src/test"
+kc "$OUT/licencia" "$JVM:$OUT/core" "$S/Android/licencia/src/main" "$S/Android/licencia/src/test"
+kc "$OUT/domain" "$JVM:$OUT/core:$OUT/licencia" "$S/Android/domain/src/main" "$S/Android/domain/src/test"
 BASE="$JVM:$OUT/core:$OUT/licencia:$OUT/domain:$DATA$ANDROID"
 paso "3. Room (KSP): consultas, DAO y esquema"
 SCH="$OUT/schemas"; mkdir -p "$SCH"
 PK="plugin:com.google.devtools.ksp.symbol-processing"
-ksp room "$TC/lib/room" "$BASE" "-P $PK:apoption=room.schemaLocation=$SCH -P $PK:apoption=room.generateKotlin=true -P $PK:apoption=room.incremental=false" "$S/data/src/main/kotlin"
-kc "$OUT/data" "$BASE" "$S/data/src/main/kotlin" "$OUT/ksp-room/kotlin"
-VER=$(sed -n 's/.*const val VERSION *= *\([0-9]*\).*/\1/p' "$S/data/src/main/kotlin/cu/shalev/data/db/ShalevDatabase.kt" | head -1)
-NUEVO="$SCH/cu.shalev.data.db.ShalevDatabase/$VER.json"; VIEJO="$S/data/schemas/cu.shalev.data.db.ShalevDatabase/$VER.json"
+ksp room "$TC/lib/room" "$BASE" "-P $PK:apoption=room.schemaLocation=$SCH -P $PK:apoption=room.generateKotlin=true -P $PK:apoption=room.incremental=false" "$S/Android/data/src/main/kotlin"
+kc "$OUT/data" "$BASE" "$S/Android/data/src/main/kotlin" "$OUT/ksp-room/kotlin"
+VER=$(sed -n 's/.*const val VERSION *= *\([0-9]*\).*/\1/p' "$S/Android/data/src/main/kotlin/cu/shalev/data/db/ShalevDatabase.kt" | head -1)
+NUEVO="$SCH/cu.shalev.data.db.ShalevDatabase/$VER.json"; VIEJO="$S/Android/data/schemas/cu.shalev.data.db.ShalevDatabase/$VER.json"
 [ -f "$NUEVO" ] || falla "Room no exportó $VER.json"
 if [ -f "$VIEJO" ]; then cmp -s "$NUEVO" "$VIEJO" && echo "Esquema $VER.json sin cambios." || { echo "AVISO: las entidades no coinciden con $VER.json versionado (¿falta subir la versión?). Nuevo: $NUEVO"; }
 else mkdir -p "$(dirname "$VIEJO")"; cp "$NUEVO" "$VIEJO"; echo "Exportado $VIEJO"; fi
 paso "4. Hilt/Dagger (KSP): grafo de inyección"
 HO="-P $PK:apoption=dagger.hilt.android.internal.disableAndroidSuperclassValidation=true"
-ksp hilt-data "$TC/lib/hilt" "$BASE:$OUT/data" "$HO" "$S/data/src/main/kotlin" "$OUT/ksp-room/kotlin"
+ksp hilt-data "$TC/lib/hilt" "$BASE:$OUT/data" "$HO" "$S/Android/data/src/main/kotlin" "$OUT/ksp-room/kotlin"
 mkdir -p "$OUT/hilt-data"; javac -nowarn -proc:none -cp "$OUT/data:$BASE:$STD" -d "$OUT/hilt-data" $(find "$OUT/ksp-hilt-data/java" -name '*.java') || falla "javac Hilt (data)"
 # app+data resueltos JUNTOS (una sola versión por librería: p. ej. hilt-android arrastra androidx.activity 1.5 y dagger).
 UI="$JVM:$OUT/core:$OUT/licencia:$OUT/domain:$APP$ANDROID"
-COMPOSE=1 kc "$OUT/designsystem" "$UI:$TC/stub/cls" "$S/designsystem/src/main/kotlin"
+COMPOSE=1 kc "$OUT/designsystem" "$UI:$TC/stub/cls" "$S/Android/designsystem/src/main/kotlin"
 APPCP="$UI:$OUT/data:$OUT/designsystem:$TC/stub/cls"
-COMPOSE=1 kc "$OUT/app" "$APPCP" "$S/app/src/main/kotlin"
-ksp hilt-app "$TC/lib/hilt" "$OUT/hilt-data:$APPCP" "$HO" "$S/app/src/main/kotlin"
+COMPOSE=1 kc "$OUT/app" "$APPCP" "$S/Android/app/src/main/kotlin"
+ksp hilt-app "$TC/lib/hilt" "$OUT/hilt-data:$APPCP" "$HO" "$S/Android/app/src/main/kotlin"
 ls "$OUT"/ksp-hilt-app/java/cu/shalev/app/DaggerShalevApplication_HiltComponents_SingletonC.java >/dev/null 2>&1 || falla "Hilt no generó el componente"
 mkdir -p "$OUT/hilt-app"; javac -nowarn -proc:none -cp "$OUT/app:$OUT/hilt-data:$APPCP:$STD" -d "$OUT/hilt-app" $(find "$OUT/ksp-hilt-app/java" -name '*.java') || falla "javac Hilt (app)"
 echo "Grafo de Hilt completo y compilado."
 
 # --------------------------------------------------------------------------------------------- 5. migración
 paso "5. Última migración == esquema exportado"
-python3 - "$NUEVO" "$S/data/src/main/kotlin/cu/shalev/data/db/ShalevDatabase.kt" "$VER" <<'PY'
+python3 - "$NUEVO" "$S/Android/data/src/main/kotlin/cu/shalev/data/db/ShalevDatabase.kt" "$VER" <<'PY'
 import json, sqlite3, re, sys
 esq, src, ver = sys.argv[1], open(sys.argv[2]).read(), int(sys.argv[3])
 ents = {e["tableName"]: e for e in json.load(open(esq))["database"]["entities"]}
@@ -231,20 +231,20 @@ PY
 
 # --------------------------------------------------------------------------------------------- 6–7. tests
 paso "6. Tests JVM"
-echo "core:"; pruebas "$OUT/core" "$JVM" "$S/core/src/test"
-echo "licencia:"; pruebas "$OUT/licencia" "$OUT/core:$JVM" "$S/licencia/src/test"
-echo "domain:"; pruebas "$OUT/domain" "$OUT/core:$OUT/licencia:$JVM" "$S/domain/src/test"
-EXTRA="-Xfriend-paths=$OUT/data" kc "$OUT/data-test" "$BASE:$OUT/data" "$S/data/src/test/kotlin"
-echo "data:"; pruebas "$OUT/data-test" "$OUT/data:$BASE" "$S/data/src/test/kotlin"
-COMPOSE=1 EXTRA="-Xfriend-paths=$OUT/designsystem" kc "$OUT/ds-test" "$APPCP" "$S/designsystem/src/test/kotlin"
-echo "designsystem:"; pruebas "$OUT/ds-test" "$APPCP" "$S/designsystem/src/test/kotlin"
-TESTS=$(find "$S/app/src/test/kotlin" -name '*.kt' -not -path '*/capturas/*')
-COMPOSE=1 EXTRA="-Xfriend-paths=$OUT/app" kc "$OUT/app-test" "$APPCP:$OUT/app" $TESTS "$S/app/src/sharedTest/kotlin"
-echo "app:"; pruebas "$OUT/app-test" "$APPCP:$OUT/app" "$S/app/src/test/kotlin"
+echo "core:"; pruebas "$OUT/core" "$JVM" "$S/Android/core/src/test"
+echo "licencia:"; pruebas "$OUT/licencia" "$OUT/core:$JVM" "$S/Android/licencia/src/test"
+echo "domain:"; pruebas "$OUT/domain" "$OUT/core:$OUT/licencia:$JVM" "$S/Android/domain/src/test"
+EXTRA="-Xfriend-paths=$OUT/data" kc "$OUT/data-test" "$BASE:$OUT/data" "$S/Android/data/src/test/kotlin"
+echo "data:"; pruebas "$OUT/data-test" "$OUT/data:$BASE" "$S/Android/data/src/test/kotlin"
+COMPOSE=1 EXTRA="-Xfriend-paths=$OUT/designsystem" kc "$OUT/ds-test" "$APPCP" "$S/Android/designsystem/src/test/kotlin"
+echo "designsystem:"; pruebas "$OUT/ds-test" "$APPCP" "$S/Android/designsystem/src/test/kotlin"
+TESTS=$(find "$S/Android/app/src/test/kotlin" -name '*.kt' -not -path '*/capturas/*')
+COMPOSE=1 EXTRA="-Xfriend-paths=$OUT/app" kc "$OUT/app-test" "$APPCP:$OUT/app" $TESTS "$S/Android/app/src/sharedTest/kotlin"
+echo "app:"; pruebas "$OUT/app-test" "$APPCP:$OUT/app" "$S/Android/app/src/test/kotlin"
 paso "7. Compilación de capturas Roborazzi y tests instrumentados"
-COMPOSE=1 EXTRA="-Xfriend-paths=$OUT/app" kc "$OUT/capturas" "$APPCP:$OUT/app:$OUT/app-test:$PRUEBAS" "$S/app/src/test/kotlin/cu/shalev/app/capturas"
-COMPOSE=1 EXTRA="-Xfriend-paths=$OUT/app" kc "$OUT/app-at" "$APPCP:$OUT/app:$PRUEBAS" "$S/app/src/androidTest/kotlin" "$S/app/src/sharedTest/kotlin"
-EXTRA="-Xfriend-paths=$OUT/data" kc "$OUT/data-at" "$OUT/data:$BASE:$PRUEBAS" "$S/data/src/androidTest/kotlin"
+COMPOSE=1 EXTRA="-Xfriend-paths=$OUT/app" kc "$OUT/capturas" "$APPCP:$OUT/app:$OUT/app-test:$PRUEBAS" "$S/Android/app/src/test/kotlin/cu/shalev/app/capturas"
+COMPOSE=1 EXTRA="-Xfriend-paths=$OUT/app" kc "$OUT/app-at" "$APPCP:$OUT/app:$PRUEBAS" "$S/Android/app/src/androidTest/kotlin" "$S/Android/app/src/sharedTest/kotlin"
+EXTRA="-Xfriend-paths=$OUT/data" kc "$OUT/data-at" "$OUT/data:$BASE:$PRUEBAS" "$S/Android/data/src/androidTest/kotlin"
 
 # --------------------------------------------------------------------------------------------- 8. Room en la JVM
 # 0.21.9 (P59): los tests instrumentados de :data que usan Room EN MEMORIA se ejecutan aquí con SQLite real por JDBC
@@ -256,7 +256,7 @@ JDBC=$(resolver jdbc org.xerial:sqlite-jdbc:3.46.1.3 org.slf4j:slf4j-api:1.7.36 
 JR="$OUT/jvm-room"; mkdir -p "$JR/cls"
 javac -encoding UTF-8 -nowarn -d "$JR/cls" -cp "$ANDROID:$DATA$JVM" $(find "$S/tools/verificacion/jvm-room/src" -name '*.java') || falla "adaptador Room-JDBC"
 EXTRA="-Xfriend-paths=$OUT/data" kc "$JR/test" "$JR/cls:$OUT/data:$BASE" "$S/tools/verificacion/jvm-room/test"
-ROOMCLS=$(python3 - "$S/data/src/androidTest/kotlin" <<'PY'
+ROOMCLS=$(python3 - "$S/Android/data/src/androidTest/kotlin" <<'PY'
 import os, re, sys
 out = []
 for raiz, _, fs in os.walk(sys.argv[1]):
@@ -268,8 +268,8 @@ for raiz, _, fs in os.walk(sys.argv[1]):
 print(" ".join(sorted(out)))
 PY
 )
-echo "Clases: $(echo $ROOMCLS | wc -w) de data/src/androidTest + MigracionesJvmTest"
-R=$(java -Xmx700m -Dshalev.esquemas="$S/data/schemas/cu.shalev.data.db.ShalevDatabase" -Djava.io.tmpdir="$JR" \
+echo "Clases: $(echo $ROOMCLS | wc -w) de Android/data/src/androidTest + MigracionesJvmTest"
+R=$(java -Xmx700m -Dshalev.esquemas="$S/Android/data/schemas/cu.shalev.data.db.ShalevDatabase" -Djava.io.tmpdir="$JR" \
   -cp "$TC/stub/rtcls:$JR/cls:$JDBC$JR/test:$OUT/data-at:$OUT/data:$BASE:$PRUEBAS$STD" org.junit.runner.JUnitCore $ROOMCLS cu.shalev.verificacion.room.MigracionesJvmTest 2>&1 | grep -vE '^\s+at ' || true)
 echo "$R" | grep -E '^OK \(|^Tests run' || true
 echo "$R" | grep -q '^OK (' || { echo "$R" | grep -E '^[0-9]+\) ' -A2 | head -40; falla "Room en la JVM"; }
@@ -277,11 +277,11 @@ paso "9. Permisos del manifiesto de :app dentro de la lista autorizada (shalevPe
 python3 - "$S" <<'PY' || falla "permisos"
 import re, sys
 s = sys.argv[1]
-man = open(f"{s}/app/src/main/AndroidManifest.xml", encoding="utf-8").read()
+man = open(f"{s}/Android/app/src/main/AndroidManifest.xml", encoding="utf-8").read()
 man = re.sub(r"<!--.*?-->", "", man, flags=re.S)
 pedidos = {m.group(2) for m in re.finditer(r'<uses-permission\b([^>]*?)android:name="([^"]+)"([^>]*)>', man)
            if 'tools:node="remove"' not in m.group(0)}
-gr = open(f"{s}/build.gradle.kts", encoding="utf-8").read()
+gr = open(f"{s}/Android/build.gradle.kts", encoding="utf-8").read()
 bloque = re.search(r"permitidos\.set\(setOf\((.*?)\)\)", gr, re.S).group(1)
 permitidos = set(re.findall(r'"([^"]+)"', bloque))
 sobran = pedidos - permitidos

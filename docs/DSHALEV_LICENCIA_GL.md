@@ -1,6 +1,6 @@
 # DShalev — licencia de canje GL: estado, decisiones y límites
 
-**Fecha:** 2026-11-10 · **Ámbito:** `DShalev/` (servidor web Python/FastAPI, EXE portable de Windows)
+**Fecha:** 2026-11-10 · **Ámbito:** `Web-Desktop/` (servidor web Python/FastAPI, EXE portable de Windows)
 **Estado:** base local implementada y probada; **canje, estado y enforcement pendientes del contrato GL**.
 
 Este documento sustituye a `docs/DSHALEV_GL_SERVICIO_PROPUESTA.md` como referencia de lo construido. La propuesta

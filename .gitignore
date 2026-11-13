@@ -10,7 +10,7 @@ keystore.properties
 *.jks
 *.keystore
 
-# Contexto para OpenCode (17 MB): no se sube al repositorio
+# PDF histórico generado de maquetas/exportaciones: conservar fuera de git
 Shalev_*_capturas_y_exportaciones.pdf
 
 # Entornos y cachés locales para las herramientas Python y multimedia

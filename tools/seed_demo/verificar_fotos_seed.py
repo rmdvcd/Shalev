@@ -3,7 +3,7 @@
 
 Comprueba que:
 1. El mapeo de FOTOS_SEED.md (tablas productos 1-36 y servicios 1-20) coincide con el
-   catálogo real de `data/src/debug/kotlin/cu/shalev/data/seed/Sembrador.kt`
+   catálogo real de `Android/data/src/debug/kotlin/cu/shalev/data/seed/Sembrador.kt`
    (el índice del catálogo es el número del archivo: prodNN.jpg / servNN.jpg).
 2. Existen todas las imágenes necesarias en `seed_fotos/` y son JPEG válidos.
 3. Empaqueta el lote listo para subir al teléfono en `fotos_seed/`
@@ -27,7 +27,7 @@ import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(os.path.dirname(AQUI))
-SEMBRADOR = os.path.join(RAIZ, "data/src/debug/kotlin/cu/shalev/data/seed/Sembrador.kt")
+SEMBRADOR = os.path.join(RAIZ, "Android/data/src/debug/kotlin/cu/shalev/data/seed/Sembrador.kt")
 DOC = os.path.join(RAIZ, "FOTOS_SEED.md")
 FOTOS = os.path.join(AQUI, "seed_fotos")
 LOTE = os.path.join(AQUI, "fotos_seed")

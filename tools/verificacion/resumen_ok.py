@@ -61,7 +61,7 @@ def resumen_lint() -> None:
     print(f"  detalle por severidad: {por_severidad}")
 
 def resumen_apk() -> None:
-    apks = sorted(glob.glob("app/build/outputs/apk/*/*.apk"))
+    apks = sorted(glob.glob("Android/app/build/outputs/apk/*/*.apk"))
     if not apks:
         aviso("apk: no se encontró ningún APK")
         return

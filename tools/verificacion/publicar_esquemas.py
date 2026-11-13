@@ -11,7 +11,7 @@ import pathlib
 import subprocess
 
 raiz = pathlib.Path(__file__).resolve().parents[2]
-for archivo in sorted((raiz / "data/schemas/cu.shalev.data.db.ShalevDatabase").glob("*.json")):
+for archivo in sorted((raiz / "Android/data/schemas/cu.shalev.data.db.ShalevDatabase").glob("*.json")):
     ruta = archivo.relative_to(raiz).as_posix()
     versionado = subprocess.run(["git", "ls-files", "--error-unmatch", ruta], cwd=raiz, capture_output=True).returncode == 0
     cambiado = subprocess.run(["git", "diff", "--quiet", "--", ruta], cwd=raiz).returncode != 0
