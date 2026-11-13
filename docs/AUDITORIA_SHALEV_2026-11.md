@@ -48,4 +48,4 @@ Los puntos más débiles eran **integridad de cobro y locales**, **respaldo/actu
 
 ## Verificación y entrega
 
-Ver [VERIFICACION.md](VERIFICACION.md) para comandos, SHA, número de casos y resultados reales. El análisis está concluido y los hallazgos accionables están implementados; se continúa resolviendo los fallos que aparezcan en la ejecución final. No dar por aprobada la entrega hasta cerrar esa verificación. No publicar un APK firmado sin el procedimiento de RELEASE.md y la prueba física independiente.
+Ver [VERIFICACION.md](VERIFICACION.md) para comandos, SHA y resultados reales. **Análisis, implementación y cierre automatizado concluidos:** [CI 43349968643](https://github.com/rmdvcd/Shalev/actions/runs/43349968643), código `44cf4950cc62e629506542e6adddd53c13ab8e39`, con los seis trabajos aprobados: **991 JVM y 205 instrumentados sin fallos ni omisiones**; lint sin errores (102 avisos), API mínima, permisos y R8/debug aprobados. No se publica un APK firmado ni se declara validación física: antes de distribuir, completar RELEASE.md y las pruebas de teléfono independientes.

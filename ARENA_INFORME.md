@@ -2,7 +2,7 @@
 
 **Fecha:** 13/11/2026 · **Versión de trabajo:** 1.0.1/54
 **Rama:** `arena/5d323d0e-shalev` · **Base:** `edde212323332cc97781fcf220c98a67641627b6`
-**Estado:** análisis concluido, correcciones implementadas; cierre de regresiones UI en curso.
+**Estado:** análisis y correcciones concluidos; cierre automatizado aprobado en CI. Distribución firmada y aceptación física pendientes.
 
 > Este informe sustituye al del 04/11/2026. No se reutilizan su prueba en teléfono ni sus cifras como
 > evidencia de este trabajo. Su instrucción de usar una firma distinta era incorrecta: la referencia
@@ -39,26 +39,26 @@ La matriz completa con archivos, prioridades y regresiones está en
 
 ## Resultados observados (no mezclar SHA)
 
-Última corrida concluida: **`808caf0b15e31234da852ccfe1494651fe04556b`**, [CI 43347828403](https://github.com/rmdvcd/Shalev/actions/runs/43347828403).
+Código verificado: **`44cf4950cc62e629506542e6adddd53c13ab8e39`**, [CI 43349968643](https://github.com/rmdvcd/Shalev/actions/runs/43349968643), **SUCCESS: los seis trabajos aprobados**. El cierre documental posterior no cambia ese código ni sus pruebas.
 
-- **988 pruebas JVM**, sin fallos, errores ni omisiones; instrumentados compilan.
+- **991 pruebas JVM**, sin fallos, errores ni omisiones; instrumentados compilan.
 - **100 pruebas data en emulador**, sin fallos ni omisiones; incluye Room y migraciones.
-- **104 pruebas UI/integración**, **10 fallos** y 0 omitidas: no se declara todavía aprobado el cierre UI.
+- **105 pruebas UI/integración**, sin fallos ni omisiones; **205 instrumentados** sumando ambos módulos.
 - Lint: **0 errores, 102 avisos**; permisos: OK; API 26: **4016 clases, 0 llamadas prohibidas**.
-- APK debug/release y R8: OK, sin clases ausentes. El release de CI está **sin firmar**, no es instalable
-  como actualización de producción.
+- APK debug/release y R8: **OK**, sin clases ausentes. El release de CI está **sin firmar** y no es una
+  actualización instalable de producción.
 
-Las correcciones posteriores a esa corrida resuelven el redondeo visual de la calculadora y los fixtures
-UI fallidos (protección por defecto, pie fijo del QR, cabecera del acordeón y selectores/validación). Su
-nueva ejecución está pendiente. En local pasaron **14 pruebas Python** de herramientas, `bash -n` y
-`git diff --check`; son fixtures de XML/apksigner, no sustituyen Android ni una firma real. El manual MD/PDF
+La corrida anterior `808caf0` tenía 10 fallos UI. La nueva ejecución ya confirma su corrección: centavos
+de calculadora, protección por defecto y opt-out, pie fijo del QR, cabecera del acordeón y selectores/
+validación. En local pasaron **14 pruebas Python** de herramientas, `bash -n` y `git diff --check`; son
+fixtures de XML/apksigner, no sustituyen Android ni una firma real. El manual MD/PDF
 fue actualizado; el PDF regenerado tiene 32 páginas y 66 marcadores válidos.
 
 Evidencia y comandos por SHA: [docs/VERIFICACION.md](docs/VERIFICACION.md).
 
 ## Qué falta para distribuir
 
-- Concluir en verde la nueva corrida automatizada, sin quitar aserciones ni checks para ocultar fallos.
+- Los controles automatizados de este alcance están aprobados; no hay una corrida fallida pendiente de cierre.
 - En equipo con la clave custodiada, generar/verificar el release firmado y actualizar una instalación
   de prueba v1.0 sin desinstalar ni perder datos/licencia.
 - Revisión visual, TalkBack/letra grande, recuperación con GL y pruebas de principal/secundaria en dos

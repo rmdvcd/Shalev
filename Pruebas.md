@@ -25,7 +25,9 @@ Consultar el SHA y resultados en [docs/VERIFICACION.md](docs/VERIFICACION.md), s
 
 **Manual en teléfonos antes de publicar:** crear dos locales y dos empleados, vender/cambiar precios/recetas durante un cobro, desconectar tras enviar un comando y reconectar/reiniciar; anular/modificar una venta con lotes; importar copia con fotos en otro teléfono; actualizar con operaciones posteriores a crear la copia previa; confirmar que esta no las sobrescribe. Revisar nuevo formulario en claro/oscuro, teclado, TalkBack y pantallas pequeñas. Estas comprobaciones no se declaran hechas solo por ejecutar CI.
 
-## En este entorno (checkout Arena, 2026-11-11)
+## Registro histórico del checkout Arena — 2026-11-11
+
+Este registro no sustituye el cierre Android del 13/11/2026 en CI, documentado por SHA en [docs/VERIFICACION.md](docs/VERIFICACION.md).
 
 Este contenedor no tiene `java`/JDK, Android SDK ni Xcode; por tanto, `shalevTests`, `shalevCheck`, compilación/instrumentados Android y `swift test` no se ejecutaron aquí. La IA en el PC real debe comprobar su propio toolchain; los resultados de otros equipos no aplican automáticamente.
 

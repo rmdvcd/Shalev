@@ -1,36 +1,36 @@
 # Shalev — Verificación real
 
-## Auditoría Android — 2026-11-13 · cierre en curso
+## Auditoría Android — 2026-11-13 · cierre automatizado aprobado
 
 **Rama:** `arena/5d323d0e-shalev`, base `edde212323332cc97781fcf220c98a67641627b6`.
 **Versión:** 1.0.1/54; Room 18, DTO de respaldo 5 y contenedor 4.
 La matriz de hallazgos/correcciones está en [AUDITORIA_SHALEV_2026-11.md](AUDITORIA_SHALEV_2026-11.md).
 Las secciones antiguas de este archivo son históricas; no acreditan esta revisión ni su instalación física.
 
-### Última ejecución concluida: `808caf0b15e31234da852ccfe1494651fe04556b`
+### Código verificado: `44cf4950cc62e629506542e6adddd53c13ab8e39`
 
-[CI 43347828403](https://github.com/rmdvcd/Shalev/actions/runs/43347828403): **falló** por los casos UI
-indicados abajo. No confundir la compilación de `androidTest` con su ejecución.
+[CI 43349968643](https://github.com/rmdvcd/Shalev/actions/runs/43349968643): **SUCCESS, los seis trabajos
+aprobados**. No confundir la compilación de `androidTest` con su ejecución. El cierre documental posterior
+solo registra esta evidencia: no cambia el código ni las pruebas del SHA verificado.
 
 | Comprobación ejecutada | Resultado observado |
 |---|---|
-| `shalevTests` | **988 casos JVM, 0 fallos, 0 errores, 0 omitidos**. No incluye capturas Roborazzi. |
+| `shalevTests` | **991 casos JVM, 0 fallos, 0 errores, 0 omitidos**. No incluye capturas Roborazzi. |
 | Compilar instrumentados app/data | **OK**, con Espresso core explícito en app. |
 | Instrumentados data, emulador API 35/x86_64 | **100 casos, 0 fallos, 0 omitidos**. Room/migraciones/rollback/locales/fotos/lotes incluidos. Muchas bases de prueba son Room en memoria, no todas SQLCipher. |
-| Instrumentados app, mismo emulador | **104 casos, 10 con fallo, 0 omitidos**. El cierre UI aún no está aprobado. |
+| Instrumentados app, mismo emulador | **105 casos, 0 fallos, 0 omitidos**. UI Compose, accesibilidad automatizada y flujos de venta/turno/licencia/respaldo ejecutados, no solo compilados. |
 | API mínima 26 (análisis de bytecode) | **4016 clases, 0 llamadas no permitidas**. No equivale a un teléfono/emulador API 26. |
 | Permisos del manifiesto fusionado | **OK**; sin permisos nuevos por esta auditoría. |
 | Lint, baseline vacío | **0 errores, 102 avisos**. No se declara ausencia de avisos. |
-| `assembleRelease` + `assembleDebug`, R8 | **OK**, sin clases ausentes (`missing_rules.txt` no generado). Universal debug 60.8 MB; release 46.6 MB **sin firmar**. No instala/actualiza producción. |
+| `assembleRelease` + `assembleDebug`, R8 | **OK**, sin clases ausentes (`missing_rules.txt` no generado). Universal debug 60.8 MB; release 46.6 MB **sin firmar**: no es una actualización instalable de producción. |
 
-Fallos app: FlujoRespaldo (3), FlujoVenta (1), calculadora (1), Venta (1), Registros (2), Inicio (1),
-Soporte (1). Se revisan contra el comportamiento real, sin retirar aserciones de integridad ni la guardia
-anti-doble-toque. La UI de calculadora sí perdía centavos al redondear otra vez a entero. Los demás
-incluyen un interruptor de respaldo que el test apagaba pese a venir **encendido** desde S-01, un gesto
-sobre un pie no desplazable, selectores retirados/ambiguos y un toque al centro de la tarjeta expandida
-en vez de su cabecera. Las correcciones posteriores a este SHA todavía requieren su nueva ejecución.
+El cierre del emulador mantiene todas las comprobaciones de datos y accesibilidad; no se retiró la
+guardia anti-doble-toque. Se corrigió la pérdida real de centavos de la calculadora y se actualizaron los
+fixtures contra los controles reales: contraseña de respaldo **encendida por defecto** y opt-out explícito,
+pie fijo de QR, cabecera pulsable del acordeón, textos completos de Soporte, validación de importes
+parciales y filas de formato de Registros. Las 10 regresiones que fallaban en `808caf0` ya pasaron.
 
-### Verificaciones locales de las correcciones posteriores
+### Verificaciones complementarias
 
 ```bash
 python3 -m unittest discover -s tools/verificacion/tests -p 'test_*.py'
@@ -39,14 +39,17 @@ git diff --check
 ```
 
 **14 tests Python aprobados** (7 del resumen XML y 7 del parser de firma con salidas simuladas), sintaxis
-shell y diff correctos. Estos tests **no** verifican la firma criptográfica de un APK real. El script
-conserva la huella vigente de RELEASE.md; no se cambió ninguna clave. La compilación Android local no
-se pudo ejecutar: este checkout no tiene JDK/SDK Android funcional; se usan los trabajos reales de CI,
-no se atribuyen a este contenedor los resultados históricos de otro equipo.
+shell y diff correctos. CI también ejecuta esta suite de herramientas. Estos tests **no** verifican la firma
+criptográfica de un APK real. El script conserva la huella vigente de RELEASE.md; no se cambió ninguna clave.
+La compilación Android local no se pudo ejecutar: este checkout no tiene JDK/SDK Android funcional;
+se usan los trabajos reales de CI, no resultados históricos de otro equipo atribuidos al contenedor.
 
 El esquema 18 fue generado por Room/KSP y versionado, 74092 bytes, SHA-256
 `1f9882e5a0307afd1fbe4b508891b71819369567d76bd7450165ec1e54c90e09`. Además de la comprobación
-estática SQLite 17→18, esta corrida ya ejecutó `EsquemaTest` en el emulador. No se escribió el JSON a mano.
+estática SQLite 17→18, esta corrida ejecutó `EsquemaTest` en el emulador. No se escribió el JSON a mano.
+El manual PDF se regeneró con `python tools/manual/generar_pdf.py` (venv temporal): **32 páginas,
+66 marcadores válidos**, texto de respaldo/calculadora comprobado. No se presenta como revisión visual
+ni como grabación de nuevas capturas.
 
 ### Corridas previas de esta auditoría (no son el resultado final)
 
@@ -55,6 +58,10 @@ estática SQLite 17→18, esta corrida ya ejecutó `EsquemaTest` en el emulador.
   también el defecto real NoEncontrado/SinPermiso en artículos ausentes, preservando el aislamiento.
 - `3629167`, CI `43347241166`: compilación androidTest fallida al faltar Espresso; corrida cancelada
   tras publicar la dependencia en `808caf0`. No se le atribuye el verde de este último.
+- `808caf0`, [CI 43347828403](https://github.com/rmdvcd/Shalev/actions/runs/43347828403): 988 JVM y
+  compilación instrumentados verdes, data 100/0 fallos, app 104/10 fallos. API/lint/permisos/release/debug
+  aprobados. Fallos app: FlujoRespaldo (3), FlujoVenta (1), calculadora (1), Venta (1), Registros (2), Inicio (1),
+  Soporte (1); cerrados en `44cf495`, con un test adicional del opt-out seguro del respaldo.
 
 ### Límites y aceptación antes de distribuir
 
@@ -63,7 +70,7 @@ Roborazzi/capturas comparadas, revisión visual/TalkBack/letra grande en teléfo
 físicos, recuperación con GL real ni redes/operadores móviles. El emulador sí ejecuta pruebas de Room,
 Compose y sockets locales, pero no sustituye esas validaciones. No se publicó una release ni se pidió
 ningún secreto. Seguir [Pruebas.md](../Pruebas.md), [PRUEBAS_DISPOSITIVO.md](../PRUEBAS_DISPOSITIVO.md)
-y [RELEASE.md](../RELEASE.md). **No declarar entrega automatizada final hasta aprobar el nuevo CI.**
+y [RELEASE.md](../RELEASE.md). **Cierre automatizado aprobado; la aceptación física previa a distribución sigue pendiente.**
 
 ---
 

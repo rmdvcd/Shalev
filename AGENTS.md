@@ -66,7 +66,7 @@ Un solo test: `./gradlew :domain:test --tests "cu.shalev.domain.Version025Test"`
 
 ## Estado de verificación
 
-El estado medido y la separación entre corridas históricas se mantienen en [docs/VERIFICACION.md](docs/VERIFICACION.md). La auditoría Android del 2026-11-13 usa CI real: el checkout Arena no tiene JDK/SDK Android funcional y no debe atribuirse a este entorno la instalación física ni los 883 tests históricos de otro equipo. El cierre está en curso hasta que pase la corrida final de JVM, emulador, lint, API mínima, permisos y R8/debug.
+El estado medido y la separación entre corridas históricas se mantienen en [docs/VERIFICACION.md](docs/VERIFICACION.md). La auditoría Android del 2026-11-13 usa CI real: el checkout Arena no tiene JDK/SDK Android funcional y no debe atribuirse a este entorno la instalación física ni los 883 tests históricos de otro equipo. El cierre automatizado de la auditoría está aprobado en CI `43349968643`, código `44cf495` (991 JVM y 205 instrumentados sin fallos ni omisiones; los seis trabajos verdes). Lint conserva 102 avisos, sin errores ni baseline que los oculte; las comprobaciones físicas no se atribuyen al emulador.
 
 Los instrumentados se ejecutan en emulador API 35 por programación semanal, `workflow_dispatch` o un commit publicado con `[instrumentados]`. Compilar `androidTest` por sí solo no valida Room/Compose. Las capturas Roborazzi, dos teléfonos reales, revisión visual/TalkBack y actualización de producción firmada siguen siendo comprobaciones independientes; antes de publicar, seguir `Pruebas.md`, `PRUEBAS_DISPOSITIVO.md` y `RELEASE.md`.
 
