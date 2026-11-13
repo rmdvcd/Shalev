@@ -131,14 +131,14 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
     }
 
     /** Una ronda completa: envía lo pendiente, recibe lo guardado y, si cambió, el catálogo. */
-    suspend fun sincronizar(): AppResult<Unit> {
+    suspend fun sincronizar(): AppResult<Unit> = try {
         val recuperada = bandeja.recuperar(::enviarComando)
         if (recuperada != null) {
-            if (!recuperada.confirmada) return AppResult.Err(AppError.Validacion("comandoPendiente"))
-            _cambiosPendientes.value = true
+            if (recuperada.confirmada) _cambiosPendientes.value = true
         }
-        return sincronizarCatalogo()
-    }
+        if (recuperada != null && !recuperada.confirmada) AppResult.Err(AppError.Validacion("comandoPendiente")) else sincronizarCatalogo()
+    } catch (e: CancellationException) { throw e }
+    catch (_: Exception) { AppResult.Err(AppError.Almacenamiento) }
 
     private suspend fun sincronizarCatalogo(): AppResult<Unit> = ronda.withLock {
         val d = config.secundariaActual() ?: return@withLock AppResult.Err(AppError.NoEncontrado)
@@ -289,7 +289,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
         if (entrega.confirmada) {
             _cambiosPendientes.value = true
             // Un fallo de refresco posterior NO cambia el resultado definitivo de la operación.
-            sincronizarCatalogo()
+            try { sincronizarCatalogo() } catch (e: CancellationException) { throw e } catch (_: Exception) { /* se conserva cambiosPendientes */ }
         }
         return entrega.resultado
     }

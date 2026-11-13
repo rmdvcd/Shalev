@@ -70,6 +70,16 @@ class InventarioOperativoRoomTest {
         assertEquals("COMPRA", db.movimientoDao().ultimoDe("PRODUCTO", p)!!.motivo)
     }
 
+    @Test fun reintentarLaMismaRecepcionNoSumaDosVecesYReutilizarIdConOtrosDatosSeRechaza() = runBlocking {
+        val p = producto()
+        val r = recepcion(linea(p, 2, "L-1"))
+        assertEquals(ok(gestion.recibir(r, "Ana")), ok(gestion.recibir(r, "Ana")))
+        assertEquals(2L, productos.obtener(p)!!.cantidad)
+        assertEquals(1, db.gestionDao().recepciones().size)
+        assertTrue(gestion.recibir(r.copy(comprobante = "Otro"), "Ana") is AppResult.Err)
+        assertEquals(2L, productos.obtener(p)!!.cantidad)
+    }
+
     @Test fun unaLineaDeOtroLocalAbortaTodaLaRecepcion() = runBlocking {
         locales.guardar("A"); val a = producto(2)
         locales.guardar("B"); locales.seleccionar("B"); val b = producto(1)

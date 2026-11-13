@@ -56,7 +56,16 @@ class GestionInventarioRepositoryImpl @Inject constructor(
             if (!recepcionValida(recepcion)) abortar(AppError.Validacion("recepcion"))
             val local = db.almacenLocalDao().localActivo()
             val localId = db.almacenLocalDao().idActivo()
-            if (db.gestionDao().recepciones().any { it.uuid == recepcion.uuid }) abortar(AppError.Duplicado("recepcion"))
+            db.gestionDao().recepcion(recepcion.uuid)?.let { previa ->
+                if (previa.localId != localId) abortar(AppError.SinPermiso)
+                val guardadas = db.gestionDao().lotesDeRecepcion(recepcion.uuid).map {
+                    LineaRecepcion(TipoEntidad.valueOf(it.entidad), it.entidadId, Cantidad(it.cantidadInicialMil), Cup(it.costoUnitarioCent), it.codigo, it.caducidad?.let(LocalDate::ofEpochDay))
+                }.groupingBy { it }.eachCount()
+                val solicitadas = recepcion.lineas.map { it.copy(lote = it.lote.trim()) }.groupingBy { it }.eachCount()
+                if (previa.proveedor != recepcion.proveedor.trim() || previa.comprobante != recepcion.comprobante.trim() || previa.motivo != recepcion.motivo.trim() || guardadas != solicitadas)
+                    abortar(AppError.Duplicado("recepcion"))
+                return@tx previa.uuid // reintento confirmado: nunca volver a sumar la entrada
+            }
             var total = Cup.ZERO
             val lotes = mutableListOf<LoteInventarioEntity>()
             for (l in recepcion.lineas) {

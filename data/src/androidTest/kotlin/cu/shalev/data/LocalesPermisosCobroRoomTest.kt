@@ -13,6 +13,7 @@ import cu.shalev.data.db.dao.idActivo
 import cu.shalev.data.db.entity.EmpleadoEntity
 import cu.shalev.data.db.entity.TurnoEntity
 import cu.shalev.data.dto.toDto
+import cu.shalev.data.mapper.toEntity
 import cu.shalev.data.foto.FotosLocal
 import cu.shalev.data.repository.*
 import cu.shalev.data.sync.*
@@ -84,7 +85,7 @@ class LocalesPermisosCobroRoomTest {
 
     @Test fun turnoRemotoAbiertoTambienBloqueaCambiarDeLocal() = runBlocking {
         locales.guardar("A"); locales.guardar("B"); locales.seleccionar("B")
-        db.turnoDao().insertar(TurnoEntity(abiertoEn = 0, empleadoId = 3, local = "A"))
+        db.turnoDao().insertar(Turno(abiertoEn = Instant.EPOCH).toEntity().copy(empleadoId = 3, local = "A"))
         try { locales.seleccionar("A"); fail("No se debe cambiar con turno remoto abierto") } catch (_: IllegalArgumentException) { }
         assertEquals("B", db.almacenLocalDao().activo())
     }
