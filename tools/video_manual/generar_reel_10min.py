@@ -35,7 +35,7 @@ TOTAL = 600.0
 CHAPTER = 60.0
 VOICE_DELAY = 0.80
 TRANSITION = 0.38
-A = "app/capturas/claro"
+A = "Android/app/capturas/claro"
 PROMO = "promocion/capturas"
 
 NAVY, DARK, BLUE, CYAN = base.NAVY, base.DARK, base.BLUE, base.CYAN
@@ -730,7 +730,7 @@ def draw_panel(frame, ph, scene):
 
 def draw_intro(frame, scene, ph):
     d = ImageDraw.Draw(frame, "RGBA")
-    logo = Image.open(ROOT / "play_store/icono_512.png").convert("RGB").resize((270, 270), Image.Resampling.LANCZOS)
+    logo = Image.open(ROOT / "Android/play_store/icono_512.png").convert("RGB").resize((270, 270), Image.Resampling.LANCZOS)
     mask = Image.new("L", (270, 270), 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, 269, 269), radius=62, fill=255)
     frame.paste(logo, (405, 130), mask)
@@ -746,7 +746,7 @@ def draw_intro(frame, scene, ph):
 
 def draw_outro(frame, scene, ph):
     d = ImageDraw.Draw(frame, "RGBA")
-    logo = Image.open(ROOT / "play_store/icono_512.png").convert("RGB").resize((300, 300), Image.Resampling.LANCZOS)
+    logo = Image.open(ROOT / "Android/play_store/icono_512.png").convert("RGB").resize((300, 300), Image.Resampling.LANCZOS)
     mask = Image.new("L", (300, 300), 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, 299, 299), radius=68, fill=255)
     frame.paste(logo, (390, 260), mask)

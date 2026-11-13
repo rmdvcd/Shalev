@@ -8,13 +8,13 @@
 #
 # Uso (en el PC del desarrollador, con Android SDK instalado; no necesita Gradle):
 #   bash tools/verificacion/verificar_firma_apk.sh [ruta/al.apk]
-# Por defecto revisa app/build/outputs/apk/release/app-universal-release.apk.
+# Por defecto revisa Android/app/build/outputs/apk/release/app-universal-release.apk.
 #
 # Sale con 0 si la firma es la vigente (v2/v3 verificadas y SHA-256 idéntico) y con 1 en cualquier otro caso.
 # =====================================================================================================================
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-APK="${1:-$ROOT/app/build/outputs/apk/release/app-universal-release.apk}"
+APK="${1:-$ROOT/Android/app/build/outputs/apk/release/app-universal-release.apk}"
 
 # Clave vigente: la que firmó la Release v1.0 publicada (Shalev-1.0.apk) y la MISMA con la que se firma
 # GL.apk (gl-release.jks, alias "gl", CN=GL) — prioridad según las claves de GL en sus releases.
@@ -24,7 +24,7 @@ APK="${1:-$ROOT/app/build/outputs/apk/release/app-universal-release.apk}"
 # desinstalar. Este script rechaza cualquier otra huella.
 ESPERADA="13:9D:3D:A9:3B:D3:AB:B8:81:A2:C5:55:03:DA:E0:B0:59:AB:4C:36:A6:8A:D1:63:94:A8:B5:26:FF:D4:17:38"
 
-[ -f "$APK" ] || { echo "FALLO: no existe el APK: $APK"; echo "Compila primero: ./gradlew :app:assembleRelease (con keystore.properties o las variables Shalev_* ya configuradas)"; exit 1; }
+[ -f "$APK" ] || { echo "FALLO: no existe el APK: $APK"; echo "Compila primero: ./gradlew :app:assembleRelease (con Android/keystore.properties o las variables Shalev_* ya configuradas)"; exit 1; }
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 [ -n "$SDK" ] || { echo "FALLO: falta ANDROID_HOME (o ANDROID_SDK_ROOT)"; exit 1; }
 APKSIGNER="$(ls -d "$SDK"/build-tools/*/ 2>/dev/null | sort -V | tail -1)apksigner"

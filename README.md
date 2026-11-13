@@ -2,7 +2,17 @@
 
 App Android nativa para pequeños negocios: vender en turnos, controlar inventario e insumos, cobrar por transferencia, ver estadísticas y exportar registros. Funciona **sin conexión** y guarda todos los datos **cifrados en el teléfono**. El uso se controla con licencias offline emitidas por la app GL del desarrollador (contrato v1).
 
-**Contraparte iOS:** [IShalev](IShalev/README.md) es un proyecto SwiftUI nativo e independiente dentro de este repositorio. Incluye onboarding, licencia GL, perfiles locales de empleados, venta, caja, inventario, servicios, corrección de ventas, exportación y soporte. **Contraparte de escritorio:** [DShalev](DShalev/README.md) es una app web Python con POS de carrito y búsqueda incremental, servicios/insumos decimales, recetas, clientes, turnos/caja, reportes y exportaciones CSV/XLSX, respaldo cifrado y una implementación SPVI ampliada (acciones, aprobaciones, fotos/APK por bloques). En el POS web las cantidades se operan en milésimas enteras y quedan registradas en un libro de movimientos; las ventas nuevas se atribuyen al usuario, deduplican reintentos y admiten anulación administrativa con motivo. Los retiros de artículos dejan una constancia auditable sin borrar las ventas. Incluye estadísticas, fichas de costo básicas, conversor manual de moneda y selector de tema; incluye una primera separación de locales por arranque; la gestión visual de locales y la activación comercial GL siguen pendientes. Sus pruebas automatizadas son locales/loopback; no equivalen a dispositivos reales. Relay no integrado, licencia GL/sub-token comercial y Windows EXE aún no verificado; ver límites en [docs/DSHALEV_DISENO.md](docs/DSHALEV_DISENO.md) y [docs/VERIFICACION.md](docs/VERIFICACION.md).
+**Contraparte iOS:** [IShalev](iOS/README.md) es un proyecto SwiftUI nativo e independiente dentro de este repositorio. Incluye onboarding, licencia GL, perfiles locales de empleados, venta, caja, inventario, servicios, corrección de ventas, exportación y soporte. **Contraparte de escritorio:** [DShalev](Web-Desktop/README.md) es una app web Python con POS de carrito y búsqueda incremental, servicios/insumos decimales, recetas, clientes, turnos/caja, reportes y exportaciones CSV/XLSX, respaldo cifrado y una implementación SPVI ampliada (acciones, aprobaciones, fotos/APK por bloques). En el POS web las cantidades se operan en milésimas enteras y quedan registradas en un libro de movimientos; las ventas nuevas se atribuyen al usuario, deduplican reintentos y admiten anulación administrativa con motivo. Los retiros de artículos dejan una constancia auditable sin borrar las ventas. Incluye estadísticas, fichas de costo básicas, conversor manual de moneda y selector de tema; incluye una primera separación de locales por arranque; la gestión visual de locales y la activación comercial GL siguen pendientes. Sus pruebas automatizadas son locales/loopback; no equivalen a dispositivos reales. Relay no integrado, licencia GL/sub-token comercial y Windows EXE aún no verificado; ver límites en [docs/DSHALEV_DISENO.md](docs/DSHALEV_DISENO.md) y [docs/VERIFICACION.md](docs/VERIFICACION.md).
+
+## Estructura de las aplicaciones
+
+| Carpeta | Aplicación |
+|---|---|
+| [`Android/`](Android/README.md) | Shalev Android nativa; aquí están la raíz Gradle, sus módulos y los recursos de Google Play. |
+| [`Web-Desktop/`](Web-Desktop/README.md) | DShalev para escritorio/web, con su código Python y pruebas. |
+| [`iOS/`](iOS/README.md) | IShalev nativa en SwiftUI/Xcode; también contiene sus capturas de referencia. |
+
+Cada app tiene sus propios archivos de proyecto y compilación. La documentación general, `tools/`, `relay/` y el marketing compartido permanecen en la raíz. Para compilar Android, abre `Android/`; el `./gradlew` de la raíz se conserva como acceso de conveniencia al wrapper de esa carpeta.
 
 En las ventas móviles, la acción de agregar artículos permanece en la barra inferior cuando el carrito tiene líneas, y se solicita confirmación antes de descartar la venta.
 
@@ -19,8 +29,9 @@ En las ventas móviles, la acción de agregar artículos permanece en la barra i
 
 | Documento | Contenido |
 |---|---|
-| [IShalev/README.md](IShalev/README.md) | Proyecto iOS nativo SwiftUI, alcance, compilación y pruebas online |
-| [DShalev/README.md](DShalev/README.md) · [docs/DSHALEV_DISENO.md](docs/DSHALEV_DISENO.md) | App web-escritorio Python, ejecutable portable y alcance de la integración móvil |
+| [Android/README.md](Android/README.md) | Raíz Gradle, módulos y comandos de compilación de Android |
+| [iOS/README.md](iOS/README.md) | Proyecto iOS nativo SwiftUI, alcance, compilación y pruebas online |
+| [Web-Desktop/README.md](Web-Desktop/README.md) · [docs/DSHALEV_DISENO.md](docs/DSHALEV_DISENO.md) | App web-escritorio Python, ejecutable portable y alcance de la integración móvil |
 | [SECURITY.md](SECURITY.md) | Gestión de claves, cifrado, modelo de amenazas y buenas prácticas |
 | [LICENSE_CLIENT.md](LICENSE_CLIENT.md) | Cómo aplica Shalev el contrato de licencias GL v1 |
 | [FORMATOS.md](FORMATOS.md) | Formato del respaldo `.shalev`, exportaciones PDF/Excel/imágenes y CSV del libro de inventario DShalev |
@@ -29,7 +40,7 @@ En las ventas móviles, la acción de agregar artículos permanece en la barra i
 | [MANUAL_USUARIO.md](MANUAL_USUARIO.md) | Manual breve para el usuario final, sin tecnicismos |
 | [RELEASE.md](RELEASE.md) | Keystore, firma, `bundleRelease`/`assembleRelease`, verificación del APK y prueba de humo |
 | [PRUEBAS_DISPOSITIVO.md](PRUEBAS_DISPOSITIVO.md) | Pruebas en teléfono por USB: adb, tests instrumentados, pruebas manuales guiadas, checklist y solución de problemas |
-| [Contexto.md](Contexto.md) · [Pruebas.md](Pruebas.md) · [Pendiente.md](Pendiente.md) | Resumen del proyecto, orden de pruebas y lo que falta (para OpenCode) |
+| [Pruebas.md](Pruebas.md) · [docs/VERIFICACION.md](docs/VERIFICACION.md) | Orden de pruebas y estado verificado de las tres aplicaciones |
 | [docs/HISTORIAL_DESARROLLO.md](docs/HISTORIAL_DESARROLLO.md) | Qué se hizo en cada fase (Prompts 1–19) y las suposiciones de cada momento |
 
 Los documentos de trabajo que estaban fuera del proyecto (`DECISIONES_LICENCIA_Shalev.md`, `PRUEBA_COMPATIBILIDAD_GL.md`, `ARQUITECTURA_Shalev.md`, planes y auditorías de los Prompts 17 y 18, entregas `ENTREGA_*`) se retiraron en la 0.18.0. Lo vigente está en `LICENSE_CLIENT.md` (contrato GL y decisiones de licencia), `SECURITY.md`, `docs/HISTORIAL_DESARROLLO.md` y el propio código.
@@ -50,13 +61,9 @@ Se corrigieron integridad de importes y cobros, separación de locales, permisos
 
 **Verificación:** consultar [docs/VERIFICACION.md](docs/VERIFICACION.md); compilar instrumentados no equivale a ejecutarlos. Las pruebas en dos teléfonos, la instalación firmada y la revisión visual no se sustituyen por CI.
 
-## Alcance anterior y cambios recientes — 24 de octubre de 2026
+## Versión publicada
 
-La aplicación principal de este repositorio sigue siendo **Android nativa**. Los antiguos proyectos Flutter/iOS y web de escritorio se retiraron; `IShalev/` es una contraparte iOS nueva, nativa en SwiftUI y con proyecto Xcode separado, no una restauración del código Flutter eliminado. `DShalev/` es una implementación nueva de escritorio en Python; no restaura el antiguo proyecto. La sincronización por red local entre teléfonos Android sigue siendo parte de la app Android.
-
-La rama contiene mejoras recientes en Inicio, Inventario, Registros, Actualizar y Licencia. Además: protección contra la doble pulsación en todos los botones (una acción no se ejecuta dos veces por tocar dos veces seguidas; los selectores +/− y las flechas de los asistentes quedan fuera, a propósito), el campo en edición siempre visible al aparecer el teclado, errores siempre en lenguaje llano (sin códigos internos, con un traductor central que cubre todos los tipos de error), permanencia al cerrar la app de los ajustes de pantalla (período de Inicio, pestaña y filtros de Registros, filtros de Inventario y Servicios, tasa de la calculadora de cambio; el texto del buscador no se recuerda de un día para otro), paneles de solo información como acordeones que se pliegan solos al escribir (Licencia, Respaldo, ficha de costo, precios del asistente) y el arranque sin repetir datos: activar la licencia en los primeros pasos ya no hace que el asistente vuelva a pedir los datos del titular. Herramientas estrena iconos propios (llave para la sección, hoja de partidas para la ficha de costo y conversión de moneda para la calculadora). El detalle para usuarios está en [MANUAL_USUARIO.md](MANUAL_USUARIO.md), los cambios técnicos en [docs/HISTORIAL_DESARROLLO.md](docs/HISTORIAL_DESARROLLO.md) y el estado medido de las pruebas en [docs/VERIFICACION.md](docs/VERIFICACION.md).
-
-La versión publicada es la **1.0 (`versionCode 53`)**: la primera versión pública de Shalev (Release `v1.0` de GitHub, 22/10/2026). El número interno de trabajo era `0.32.0` (`versionCode 52`); el detalle de lo que trae está en la sección «Novedades de la 0.32.0» y en [docs/HISTORIAL_DESARROLLO.md](docs/HISTORIAL_DESARROLLO.md).
+La Release pública es **v1.0** (`versionCode 53`, 22/10/2026). El código Android de trabajo indicado arriba es **1.0.1** (`versionCode 54`); no constituye una nueva release firmada. Los cambios por versión se conservan en [docs/HISTORIAL_DESARROLLO.md](docs/HISTORIAL_DESARROLLO.md).
 
 ## Descripción
 
@@ -88,16 +95,16 @@ La versión publicada es la **1.0 (`versionCode 53`)**: la primera versión púb
 - **Gradle 8.11.1**: lo descarga el wrapper (`gradlew`).
 - Teléfono o emulador con **Android 8.0 (API 26)** o superior. La cámara es opcional (`android.hardware.camera.any`, `required=false`).
 
-Versiones principales (`gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 8.7.3, Compose BOM 2025.06.01, Hilt 2.52, Room 2.6.1, SQLCipher 4.6.1, DataStore 1.1.1, Navigation 2.8.5, CameraX 1.4.1, ML Kit barcode 17.3.0 (empaquetado, sin descargas), OkHttp 4.12.0, Coil 3.0.4, fastexcel 0.18.4, ZXing core 3.5.3, kotlinx.serialization 1.7.3, coroutines 1.9.0.
+Versiones principales (`Android/gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 8.7.3, Compose BOM 2025.06.01, Hilt 2.52, Room 2.6.1, SQLCipher 4.6.1, DataStore 1.1.1, Navigation 2.8.5, CameraX 1.4.1, ML Kit barcode 17.3.0 (empaquetado, sin descargas), OkHttp 4.12.0, Coil 3.0.4, fastexcel 0.18.4, ZXing core 3.5.3, kotlinx.serialization 1.7.3, coroutines 1.9.0.
 
 ## Configuración
 
 1. **Claves públicas de GL.** `LicenseTrust.kt` fija la ECDH `sha256:fb3a:f7fc:…:078d` y la firma `sha256:113f:a5f6:…:4b1c` del emisor vigente (GL 1.2.0, pestaña Claves del teléfono `4bc9f8f3`, 22/10/2026). También acepta las firmas de instalaciones anteriores (`sha256:58d4:3aac:…:8c4e` del bundle del 05/10/2026, `sha256:e693:6c20:…:0a6e` y `sha256:d9c4:d821:…:998e` del 15/10/2026, `sha256:8a91:…:6888` del 30/09/2026) para licencias ya emitidas. Como GL genera claves locales por instalación, verifica siempre las huellas en la pestaña Claves del GL emisor: firma nueva → añadir a `SIGN_KEYS`; ECDH distinta → fijar esa clave y publicar un build nuevo. `LicenseTrustTest` valida las huellas.
-2. **Firma de release.** El repositorio no contiene ningún keystore ni contraseña. `app/build.gradle.kts` los lee de `keystore.properties`, que git ignora, o de las variables `Shalev_KEYSTORE`, `Shalev_KEYSTORE_PASSWORD`, `Shalev_KEY_ALIAS` y `Shalev_KEY_PASSWORD`. Los pasos completos están en [RELEASE.md](RELEASE.md). **Firma siempre con la misma clave**, porque `ANDROID_ID` (y con él el `deviceId` de la licencia) depende de la firma del APK.
-3. **Contacto del desarrollador.** Teléfono `+5351815604` en una sola constante (`core/.../contact/DeveloperContact.kt`), que usan Licencia y Soporte.
-4. **Esquema Room.** La versión de trabajo es **v18** (`data/schemas/cu.shalev.data.db.ShalevDatabase/18.json`). Cada cambio requiere migración, esquema exportado y `EsquemaTest`.
-5. **Baseline de lint.** Se entrega vacío. La primera vez ejecuta `./gradlew :app:updateLintBaseline` y versiona `app/lint-baseline.xml`; a partir de ahí, cualquier error nuevo de lint rompe `shalevCheck`.
-6. **Actualizaciones:** el build apunta por defecto a las Releases públicas de [`rmdvcd/Shalev`](https://github.com/rmdvcd/Shalev/releases) (`shalevGithubRepo` en `gradle.properties`). Para compilar un fork, se puede sobrescribir con `-PshalevGithubRepo=usuario/repositorio`; vacío desactiva las consultas.
+2. **Firma de release.** El repositorio no contiene ningún keystore ni contraseña. `Android/app/build.gradle.kts` los lee de `Android/keystore.properties`, que git ignora, o de las variables `Shalev_KEYSTORE`, `Shalev_KEYSTORE_PASSWORD`, `Shalev_KEY_ALIAS` y `Shalev_KEY_PASSWORD`. Los pasos completos están en [RELEASE.md](RELEASE.md). **Firma siempre con la misma clave**, porque `ANDROID_ID` (y con él el `deviceId` de la licencia) depende de la firma del APK.
+3. **Contacto del desarrollador.** Teléfono `+5351815604` en una sola constante (`Android/core/.../contact/DeveloperContact.kt`), que usan Licencia y Soporte.
+4. **Esquema Room.** La versión de trabajo es **v18** (`Android/data/schemas/cu.shalev.data.db.ShalevDatabase/18.json`). Cada cambio requiere migración, esquema exportado y `EsquemaTest`.
+5. **Baseline de lint.** Se entrega vacío. La primera vez ejecuta `./gradlew :app:updateLintBaseline` y versiona `Android/app/lint-baseline.xml`; a partir de ahí, cualquier error nuevo de lint rompe `shalevCheck`.
+6. **Actualizaciones:** el build apunta por defecto a las Releases públicas de [`rmdvcd/Shalev`](https://github.com/rmdvcd/Shalev/releases) (`shalevGithubRepo` en `Android/gradle.properties`). Para compilar un fork, se puede sobrescribir con `-PshalevGithubRepo=usuario/repositorio`; vacío desactiva las consultas.
 7. **Nada más que configurar:** no hay claves de API, `google-services.json` ni variables de entorno.
 
 ## Compilación
@@ -145,13 +152,13 @@ Versiones principales (`gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 8.7.3, C
 | Un módulo | `./gradlew :domain:test` · `./gradlew :app:testDebugUnitTest` |
 | Todos los instrumentados | `./gradlew shalevInstrumentedTests` |
 | Solo los flujos de integración | `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=cu.shalev.app.integracion` |
-| Capturas de pantalla claro/oscuro (Robolectric + Roborazzi, sin emulador) | `./gradlew :app:recordRoborazziDebug` → `app/capturas/` · ver [CAPTURAS.md](CAPTURAS.md) |
+| Capturas de pantalla claro/oscuro (Robolectric + Roborazzi, sin emulador) | `./gradlew :app:recordRoborazziDebug` → `Android/app/capturas/` · ver [CAPTURAS.md](CAPTURAS.md) |
 | **Sin Gradle ni Android SDK** (Linux): compila todo, Room y Hilt por KSP, migración, tests JVM y los tests de Room de `:data` con SQLite por JDBC | `bash tools/verificacion/verificar.sh` (descarga ~1,5 GB la primera vez en `~/.cache/spvi-tc`) |
 
 - Los tests JVM **no pueden salir a internet** (proxy inexistente salvo el bucle local, que usa `MockWebServer`) y se ejecutan con `user.timezone=UTC`.
-- Los instrumentados usan Room **en memoria** y fakes en los bordes (cámara, selector de archivos, bases públicas). Los fakes de `:app` viven en `app/src/sharedTest` y los comparten los tests JVM y los instrumentados.
+- Los instrumentados usan Room **en memoria** y fakes en los bordes (cámara, selector de archivos, bases públicas). Los fakes de `:app` viven en `Android/app/src/sharedTest` y los comparten los tests JVM y los instrumentados.
 - Informes: `<módulo>/build/reports/tests/` y `<módulo>/build/reports/androidTests/connected/`.
-- **Verificación actual: [docs/VERIFICACION.md](docs/VERIFICACION.md)** (única fuente de verdad). El último CI observado, del 2026-10-15, falló en tests JVM al no poder descargar el SDK instrumentado de Robolectric; los demás trabajos pasaron. La corrección de esta rama aún requiere CI. No hay JDK/Android SDK local para ejecutar Gradle.
+- **Verificación vigente:** [docs/VERIFICACION.md](docs/VERIFICACION.md) es la fuente única del estado medido por fecha y SHA. No mezclar resultados históricos ni confundir la compilación de instrumentados con su ejecución.
 
 ## Contrato GL aplicado
 
@@ -162,7 +169,7 @@ Shalev es **cliente** del contrato v1 de GL, sin cambiarlo. Detalle completo en 
 | Solicitud | `RequestPayload` (`v = 2`): nombre, apellidos, CI, vía, teléfono, `deviceId`, tipo, fecha, nonce y clave pública del teléfono; añade `secundarias` y `renueva` cuando corresponden. Se cifra como `SPVIR1:` hacia la clave ECDH de GL; no lleva `appName` ni firma efímera |
 | `deviceId` | `"SPVI:" + ANDROID_ID` |
 | `devicePub` | Clave P-256 persistente del teléfono. **Nunca se envía `null`** |
-| Envío | Solo texto: WhatsApp (`wa.me/5351815604`) o SMS (`smsto:+5351815604`) con los datos legibles + la solicitud cifrada `SPVIR1:`. Respuesta de GL: licencia corta cifrada `SPVI2:` (216 caracteres) con las características arriba ([docs/LICENCIA_0.23.md](docs/LICENCIA_0.23.md)) |
+| Envío | Solo texto: WhatsApp (`wa.me/5351815604`) o SMS (`smsto:+5351815604`) con los datos legibles + la solicitud cifrada `SPVIR1:`. Respuesta de GL: licencia corta cifrada `SPVI2:` (216 caracteres) con las características arriba ([LICENSE_CLIENT.md](LICENSE_CLIENT.md)) |
 | Activación | Se pega el mensaje de GL: firma ECDSA de GL, descifrado con la clave del teléfono, `deviceId`, `devicePub`, `estado` y `venceEn` |
 | Envelope legado v1 | Android conserva la verificación criptográfica de una licencia larga ya instalada; no activa una nueva desde 0.23.0. El formato v1 acepta únicamente sus 8 campos |
 | Claves de GL | Firma y ECDH: solo fijadas en el build |
@@ -174,12 +181,12 @@ Shalev es **cliente** del contrato v1 de GL, sin cambiarlo. Detalle completo en 
 
 ## Novedades de la 0.32.0
 
-- **Sincronización manual, con barra de avance y sonidos:** ya no hay sincronización automática: el empleado toca «Sincronizar ahora» (y se sincroniza al abrir turno y al pedir el cierre). La app secundaria **mantiene la conexión abierta** con la principal, así el dueño ve si está conectada. Mientras sincroniza hay una **barra de avance horizontal** en la notificación y, en la principal, una barra por cada app vinculada. Tres avisos con **sonido propio**: la app de un empleado se conectó, se desconectó y terminó de sincronizar (la app del empleado oye «sincronización terminada»). Los audios están en `app/src/main/res/raw` y se pueden sustituir.
+- **Sincronización manual, con barra de avance y sonidos:** ya no hay sincronización automática: el empleado toca «Sincronizar ahora» (y se sincroniza al abrir turno y al pedir el cierre). La app secundaria **mantiene la conexión abierta** con la principal, así el dueño ve si está conectada. Mientras sincroniza hay una **barra de avance horizontal** en la notificación y, en la principal, una barra por cada app vinculada. Tres avisos con **sonido propio**: la app de un empleado se conectó, se desconectó y terminó de sincronizar (la app del empleado oye «sincronización terminada»). Los audios están en `Android/app/src/main/res/raw` y se pueden sustituir.
 - **El fondo de caja lo escribe quien abre el turno**, también en la app de un empleado: el encargado ya no lo asigna ni lo pide (se invierte la regla de 0.26.0).
 - **Las fotos de productos y servicios llegan a la app del empleado**: viajan por la red entre los teléfonos (wifi o, desde 1.0.1, datos móviles) en bloques (como el APK), se guardan en su teléfono con el mismo nombre y se comprueban con su SHA-256.
 - **El conteo de inventario es parcial y unificado:** solo se cuenta **lo que cambió durante el turno**, con productos e insumos juntos en una misma lista (sin pestañas por categoría). En la principal, la diferencia se aplica sobre el valor actual (no se rechaza el conteo si el artículo se movió después).
 - **Se retiran «Design system» y «Generar datos de prueba»** del menú de Ajustes (y el generador del APK de release).
-- **Cierre de turno:** conteo opcional por denominaciones CUP (1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, **5000 y 20000**), monedas/otro efectivo y comparación con el esperado. Después se cuentan productos físicos e insumos (hasta tres decimales), se revisan diferencias y se exige motivo si hay ajustes. Los elaborados se controlan mediante sus insumos. El conteo queda en el turno, el respaldo y sus PDF/Excel. Cada secundaria envía su declaración; solo la principal autoriza y ajusta. Si las existencias cambiaron, se debe repetir el conteo, no sobrescribir stock nuevo. Para este flujo deben actualizarse tanto la principal como las secundarias. **Pendiente de compilación y prueba en dos dispositivos**; ver `docs/VERIFICACION.md`.
+- **Cierre de turno:** conteo opcional por denominaciones CUP (1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, **5000 y 20000**), monedas/otro efectivo y comparación con el esperado. Después se cuentan productos físicos e insumos (hasta tres decimales), se revisan diferencias y se exige motivo si hay ajustes. Los elaborados se controlan mediante sus insumos. El conteo queda en el turno, el respaldo y sus PDF/Excel. Cada secundaria envía su declaración; solo la principal autoriza y ajusta. Si las existencias cambiaron, se debe repetir el conteo, no sobrescribir stock nuevo. Para este flujo deben actualizarse tanto la principal como las secundarias. La compilación y las pruebas automatizadas constan en [docs/VERIFICACION.md](docs/VERIFICACION.md); la aceptación en dos teléfonos reales sigue pendiente.
 
 - **Pago electrónico:** el logo de BPA, BANDEC o BANMET se elige por el **código de banco de los dígitos 5–8** de la tarjeta (`1299` BPA, `0699` BANDEC, `9598` Banco Metropolitano), no por los 4 primeros, que solo indican moneda y producto. Las tarjetas AIS (`95…`), Clásica (`97…`) y los códigos desconocidos quedan con el icono genérico; sigue siendo una estimación y no verifica la titularidad (ver [docs/LOGOS_BANCOS.md](docs/LOGOS_BANCOS.md)).
 - **Inicio:** el turno con su interruptor de dos estados, debajo el selector de período y, debajo, el banner de licencia: los tres a todo el ancho y **fijos** (el resto de la pantalla se desplaza por debajo). Inicio se abre siempre por arriba: no guarda por dónde ibas. En la tarjeta de Pago electrónico, el teléfono y la tarjeta/cuenta van en seminegrita. Los gráficos y listas que siguen al selector de período son acordeones: empiezan cerrados y se vuelven a cerrar al cambiar de ventana.
@@ -268,44 +275,17 @@ Con esto desaparecen las desviaciones de la 0.25.0 sobre Modificar, el conteo no
 | **Actualizaciones** | Consulta semanal a la última Release pública de GitHub (`-PshalevGithubRepo`), descarga con SHA-256 e instalación con `PackageInstaller`; la principal reparte el APK a las secundarias por la red. El cuadro de «Actualizar» (Ajustes) se cierra solo al terminar con «Actualizado» o «Estas al día» (1.0.1) |
 | **Recuperar licencia** | El respaldo v4 trae el ID de la licencia; la solicitud `SPVIR1` lleva `recupera`; GL revoca la anterior y publica `revocadas.json` firmado; el teléfono antiguo borra sus datos, se bloquea («Licencia transferida») y pide desinstalarse. Compartir el mensaje `SPVI2:` a Shalev la activa sola |
 
-Desviaciones documentadas: instalación con `PackageInstaller` (sin FileProvider ni configuración de red propia; OkHttp solo HTTPS); Modificar no cambia el método de pago ni añade artículos (para eso, anular y vender de nuevo); el diálogo de conteo de un cierre pedido por la principal no se puede descartar; la tarjeta de actualización solo aparece en Inicio y Ajustes y nunca interrumpe una venta; la descarga no sigue en segundo plano; el campo de recuperación solo aparece sin licencia instalada; el arqueo se ve en la pestaña Caja (no hay PDF/Excel del turno) y el Excel de ventas añade la columna Estado; una venta de servicios anulada llega a la secundaria en su siguiente sincronización. Protocolo de sincronización: sigue en v1 con campos opcionales (las secundarias 0.24 siguen funcionando).
+**Estado histórico de 0.25.0 (varias limitaciones cambiaron después):** instalación con `PackageInstaller` (sin FileProvider ni configuración de red propia; OkHttp solo HTTPS); Modificar no cambia el método de pago ni añade artículos (para eso, anular y vender de nuevo); el diálogo de conteo de un cierre pedido por la principal no se puede descartar; la tarjeta de actualización solo aparece en Inicio y Ajustes y nunca interrumpe una venta; la descarga no sigue en segundo plano; el campo de recuperación solo aparece sin licencia instalada; el arqueo se ve en la pestaña Caja (no hay PDF/Excel del turno) y el Excel de ventas añade la columna Estado; una venta de servicios anulada llega a la secundaria en su siguiente sincronización. Protocolo de sincronización: sigue en v1 con campos opcionales (las secundarias 0.24 siguen funcionando).
 
 Para GL: recuperación automática, lista de revocadas (`tools/licencia/probar_gl.py revocadas …`, dependencias Python en `tools/requirements.txt`) y ampliación de apps secundarias (`amplia`, parche en [docs/gl-ampliar-secundarias.patch](docs/gl-ampliar-secundarias.patch)).
 
-## Apps Principal y Secundaria (0.19.0)
+## Apps principal y secundarias
 
-Una app **principal** (dueño: base de datos general y licencia) y hasta **5 secundarias** (empleados), vinculadas con un QR cifrado y sincronizadas **a mano** (el empleado toca «Sincronizar ahora»; además se sincroniza al abrir turno y al pedir el cierre) por **wifi del local, zona wifi del teléfono principal o datos móviles** (1.0.1: el QR lleva todas las direcciones de la principal —privadas primero, después las de datos móviles— y la secundaria prueba por orden; el NSD solo descubre en la misma red local). La app secundaria **mantiene la conexión abierta** mientras esté en la red, con una barra de avance por app en «Apps vinculadas» y avisos con sonido cuando una app se conecta, se desconecta o termina de sincronizar. Las **fotos** de productos y servicios viajan también a la secundaria. Ajustes → Apps vinculadas. Detalle técnico y de seguridad: [docs/VINCULACION.md](docs/VINCULACION.md).
+Una app **principal** (dueño: base de datos general y licencia) y hasta **10 apps secundarias** según las ranuras autorizadas por la licencia (la prueba admite hasta **5**), vinculadas con un QR cifrado y sincronizadas **a mano** (el empleado toca «Sincronizar ahora»; además se sincroniza al abrir turno y al pedir el cierre) por **wifi del local, zona wifi del teléfono principal o datos móviles** (1.0.1: el QR lleva todas las direcciones de la principal —privadas primero, después las de datos móviles— y la secundaria prueba por orden; el NSD solo descubre en la misma red local). La app secundaria **mantiene la conexión abierta** mientras esté en la red, con una barra de avance por app en «Apps vinculadas» y avisos con sonido cuando una app se conecta, se desconecta o termina de sincronizar. Las **fotos** de productos y servicios viajan también a la secundaria. Ajustes → Apps vinculadas. Detalle técnico y de seguridad: [docs/VINCULACION.md](docs/VINCULACION.md).
 
 ## Esquema de base de datos
 
-Archivo `shalev.db`, Room **versión 10** (v4: servicios; v5: Principal/Secundaria; historial abajo, ver [docs/VINCULACION.md](docs/VINCULACION.md)), cifrado con SQLCipher. Definición en `data/src/main/kotlin/cu/shalev/data/db/entity/Entities.kt`.
-
-**Convenciones:** importes en centavos (`…Cent`, `Long`); cantidades de insumo en milésimas (`…Mil`); instantes en epoch ms UTC; fechas de calendario en `epochDay`; enums como `TEXT` con su nombre; sin `TypeConverters`.
-
-| Tabla | Clave | Columnas principales | Relaciones e índices |
-|---|---|---|---|
-| `producto` | `id` auto | `categoria`, `nombre`, `descripcion`, `fotoUri`, `fechaCaducidad`, `precioCostoCent`, `precioVentaCent`, `cantidad`, `nivelBajo`, `nivelCritico`, `codigo`, `creadoEn`, `actualizadoEn`, `eliminado` | Índices: `categoria`, `codigo`, (`eliminado`, `creadoEn`), `fechaCaducidad`. Borrado lógico (`eliminado`) |
-| `insumo` | `id` auto | `nombre`, `unidad`, `precioCent`, `cantidadMil`, `nivelBajoMil`, `nivelCriticoMil`, `creadoEn`, `actualizadoEn` | Índices: `creadoEn`, `nombre` |
-| `receta_linea` | (`productoId`, `insumoId`) | `cantidadMil` | FK producto (CASCADE), FK insumo (**RESTRICT**: un insumo en uso no se borra) |
-| `turno` | `id` auto | `abiertoEn`, `cerradoEn`, `numVentas`, `unidades`, `totalCent`, `efectivoCent`, `transferenciaCent`, `costoCent`, `numMovimientos`, `abiertoPor`, `cerradoPor`, `ventasEfectivo`, `ventasTransferencia`, `movimientosProducto`, `movimientosInsumo` | Resumen nulo mientras está abierto |
-| `venta` | `id` auto | `turnoId`, `fecha`, `metodoPago`, `totalCent`, `costoCent`, `unidades` | FK turno (RESTRICT). Índices: `fecha`, `turnoId`, `totalCent` |
-| `detalle_venta` | `id` auto | `ventaId`, `productoId`, `nombre`, `categoria`, `cantidad`, `precioBaseCent`, `precioUnitarioCent`, `costoUnitarioCent` | FK venta (CASCADE). Nombre y precios copiados al vender |
-| `transaccion` | `id` auto | `ventaId`, `fecha`, `importeCent`, `numero`, `clienteNombre`, `clienteCi`, `clienteTelefono`, `tarjetaCobro`, `telefonoCobro`, `clienteFijo` (v10) | FK venta (CASCADE), `ventaId` único. Índices: `fecha`, `numero`, `importeCent` |
-| `movimiento` | `id` auto | `fecha`, `tipo`, `entidad` (PRODUCTO/INSUMO), `entidadId`, `nombre`, `delta`, `existencia`, `turnoId`, `ventaId`, `nota` | Índices: `fecha`, (`entidad`, `entidadId`), `turnoId` |
-| `perfil` | `id` = 1 | `nombre`, `apellidos`, `ci`, `pagoTarjetaId`, `pagoTelefonoId` | Fila única |
-| `tarjeta` | `id` auto | `numero`, `alias` | `numero` único |
-| `telefono` | `id` auto | `numero`, `alias` | `numero` único |
-| `preajuste` | `id` auto | `nombre`, `puntosBasicos`, `metodoPago`, `importeMinimoCent`, `activo` | — |
-| `preajuste_producto` | (`preajusteId`, `productoId`) | — | FK a ambos (CASCADE) |
-| `cliente_fijo` (v10) | `id` auto | `nombreApellidos`, `ci`, `telefono`, `creadoEn`, `actualizadoEn` | `ci` único. Las compras se calculan de `transaccion` por carné |
-
-- **Versión 3 consolidada (P17):** sin `tasa_cambio` ni `caducidad_codigo`. Como no había clientes, las bases de desarrollo v1 y v2 se recrean vacías (`fallbackToDestructiveMigrationFrom(1, 2)`) y no hay clases de migración. Cualquier versión futura necesita una `Migration(3, 4)`… explícita: una migración que falte rompe en desarrollo en lugar de borrar datos de usuarios.
-- **v5 (0.19.0):** `turno` y `venta` con `uuid` único, `empleadoId` y `sincronizado`; tabla `empleado` (apps secundarias de la principal). `MIGRACION_4_5`.
-- **v10 (0.27.0):** tabla `cliente_fijo` (carné único) y `transaccion.clienteFijo` (`MIGRACION_9_10`, esquema `10.json`). Solo añade.
-- **v6–v9:** v6/v7 (0.20–0.21) empleados y permisos; **v9 (0.26.0)**: `empleado.fondoAsignadoCent`/`fondoAsignadoEn`/`aperturaSolicitadaEn`/`versionCode` (`MIGRACION_8_9`, esquema `9.json`); **v8 (0.25.0)**: tabla `movimiento_caja`, `turno.fondoCent`/`contadoCent` y totales de caja, `venta.anuladaEn`/`motivoAnulacion`/`anuladaPor`/`corrigeVentaId`. `MIGRACION_7_8`, esquema `8.json`.
-- **Stock nunca negativo:** las actualizaciones usan `WHERE cantidad + :delta >= 0`.
-- **Atomicidad:** venta, producción, cierre de turno e importación de respaldo van cada uno en una sola transacción (`db.tx { }`).
-- **Fuera de la base de datos:** preferencias (`pref.v1`), progreso del asistente (`setup.v1`) y licencia (`lic.*`) van en DataStore con cada valor cifrado; las fotos, en `filesDir/fotos`.
+La versión vigente es Room **v18**, cifrada con SQLCipher. Room/KSP genera el esquema versionado en [`Android/data/schemas/`](Android/data/schemas/cu.shalev.data.db.ShalevDatabase/18.json); las entidades están en [`Entities.kt`](Android/data/src/main/kotlin/cu/shalev/data/db/entity/Entities.kt) y las migraciones en [`ShalevDatabase.kt`](Android/data/src/main/kotlin/cu/shalev/data/db/ShalevDatabase.kt). Cada cambio de esquema requiere migración, esquema exportado y pruebas. Los formatos de respaldo se documentan en [FORMATOS.md](FORMATOS.md).
 
 ## Manual de uso
 
@@ -320,15 +300,6 @@ El manual para el usuario final, sin tecnicismos, está en [MANUAL_USUARIO.md](M
 7. **Copia de seguridad:** Ajustes → Respaldo, con contraseña. El respaldo siempre es completo.
 8. **Licencia:** Ajustes → Licencia → elegir tipo → *Enviar por WhatsApp* o *SMS* → pegar la respuesta → *Activar*.
 
-## Desviaciones de Shalev.txt (decididas en P17)
-
-| Shalev.txt | Pedía | Estado en 0.14.0 | Motivo |
-|---|---|---|---|
-| línea 6 | Transfermóvil **y Enzona** para confirmar el pago y el QR | **Solo Transfermóvil.** Se quitaron el botón «Abrir Enzona» y su `<queries>` | Enzona no publica el formato de su QR: el botón solo abría la app |
-| línea 11 | Exportar en PDF el perfil, los preajustes **y las tasas de cambio** | **Sin tasas** (tabla, DTO y sección del PDF eliminadas) | Nunca tuvieron pantalla de edición y ninguna operación las usaba |
-| línea 87 | Escáner: buscar la fecha de caducidad en Room por código y guardarla | **Sin escáner ni campo código.** La fecha va en cada producto | Se eliminó el subsistema de código de barras; decisión del propietario |
-| línea 132 | Respaldo de «Configuración» o «Todo» | **Solo «Todo»** | Un único tipo evita importar a medias y simplifica el formato (v3) |
-
 ## Advertencias
 
 - **La contraseña del respaldo no se puede recuperar.** Sin ella el archivo `.shalev` no se abre.
@@ -337,7 +308,7 @@ El manual para el usuario final, sin tecnicismos, está en [MANUAL_USUARIO.md](M
 - **La licencia no va en el respaldo.** Cada teléfono necesita la suya (`deviceId` distinto). Desde la 0.25.0 el respaldo lleva su ID para **recuperarla** gratis en otro teléfono (MANUAL §9).
 - **Borrar los datos de la app o reinstalarla** destruye la base de datos (su clave vive en el Keystore del teléfono) y la licencia instalada. Haz un respaldo antes. El `deviceId` suele mantenerse si el APK está firmado con la misma clave, así que el desarrollador puede volver a emitir la licencia.
 - **El PDF de configuración y las exportaciones de Registros no llevan contraseña.** Las de Transferencias incluyen nombre, carné y teléfono de clientes.
-- **Licencia offline:** la única revocación es la lista de GitHub (0.25.0), que el teléfono antiguo solo aplica si se conecta a internet; un APK modificado puede saltarse la comprobación. **Reinstalar** Shalev reinicia los 7 días de prueba (aceptado y documentado). Ver [SECURITY.md](SECURITY.md#modelo-de-amenazas).
+- **Licencia offline:** la única revocación es la lista de GitHub (0.25.0), que el teléfono antiguo solo aplica si se conecta a internet; un APK modificado puede saltarse la comprobación. El registro de la prueba se conserva en copias cifradas externas para evitar que una reinstalación reinicie los 7 días; si se niega el permiso requerido o se borran esas copias, la app no podrá detectar el registro anterior. Ver [SECURITY.md](SECURITY.md#modelo-de-amenazas) y [FORMATOS.md](FORMATOS.md).
 - **QR de Transfermóvil sin importe:** el formato oficial no lo admite; el cliente escribe el total que Shalev muestra bajo el QR.
 - **SMS de licencia:** la solicitud ocupa unos 780 caracteres (varios SMS) y la licencia, unos 340 (3 SMS) o 216 si GL manda solo el código. WhatsApp es el canal recomendado.
 - **Valores fijos:** el tema sigue al sistema, el aviso de caducidad salta 7 días antes y la red espera 5 s. Son constantes, no preferencias (P17).
@@ -348,14 +319,11 @@ El manual para el usuario final, sin tecnicismos, está en [MANUAL_USUARIO.md](M
 
 El repositorio no incluye un archivo de licencia del código fuente; los derechos corresponden al desarrollador (ver Ajustes → Soporte). El documento [LICENSE_CLIENT.md](LICENSE_CLIENT.md) describe el sistema de **licencias de uso** de la app, no la licencia del código fuente.
 
-**Recursos de terceros incluidos en el APK:** iconos con trazados de Material Symbols (Apache 2.0) y, desde la 0.15.0, 9 ilustraciones de [unDraw](https://undraw.co) (licencia unDraw: uso libre, también comercial, sin atribución obligatoria) tomadas del paquete npm `undraw-svg` 2.0.0 (MIT) y convertidas a vectores Compose (`designsystem/.../ilustracion/ShalevIlustraciones.kt`).
+**Recursos de terceros incluidos en el APK:** iconos con trazados de Material Symbols (Apache 2.0) y 10 ilustraciones vectoriales de [unDraw](https://undraw.co) (nueve añadidas en P24 y «Servicios» en P29), tomadas del paquete npm `undraw-svg` 2.0.0 (MIT) y convertidas a Compose en [`ShalevIlustraciones.kt`](Android/designsystem/src/main/kotlin/cu/shalev/designsystem/ilustracion/ShalevIlustraciones.kt). La licencia de unDraw permite uso comercial sin atribución obligatoria.
 
 ### Local (Android)
 
-En Inicio se selecciona un local mediante un desplegable no editable. En Ajustes → Local
-se añaden y editan los nombres (1 a 80 caracteres); el primero queda seleccionado y la
-selección posterior se conserva en el equipo. No se asignan ubicaciones a los artículos
-ni se filtra el catálogo. Las ubicaciones se incluyen en los respaldos.
+En Inicio se elige el local activo; en Ajustes → Local se crean y renombran locales (nombres de 1 a 80 caracteres). La selección se conserva en el equipo y los renombrados mantienen la identidad del local. Cada local tiene su propio catálogo e inventario de productos e insumos, servicios, fichas de costo, recepciones y lotes; las operaciones quedan asociadas al local y sus datos se incluyen en el respaldo. El local delimita los datos del establecimiento; no registra ubicaciones internas de cada artículo, como pasillos o estantes. Cada empleado vinculado queda asignado a un local; su app secundaria sincroniza el catálogo correspondiente. Cambiar el selector de la principal no altera esa asignación.
 
 ### Conexión remota por Internet (piloto Android)
 

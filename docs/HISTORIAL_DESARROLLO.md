@@ -8,7 +8,7 @@
 - **Inventario ampliado:** recepciones idempotentes con proveedor/costo/comprobante/motivo/autor; costo promedio ponderado, lotes/caducidades y asignación FEFO contable, devolución al anular y al corregir salidas manuales. Recepciones inmutables; revisiones append-only de ajustes. No se cambia la decisión de venta entera de insumos; recetas/recepciones admiten milésimas. No hay comprobante adjunto ni garantía de lote físico offline.
 - **Calculadora:** la presentación deja de redondear a entero un resultado monetario ya redondeado al centavo por el dominio. Conserva 0.01 USD y fracciones CUP; se añaden regresiones JVM y se mantiene la conversión en ambos sentidos del test UI.
 - **Indicadores:** Ganancia bruta y distribución del inventario por valor al costo CUP; reacción a cambios de catálogo y ventas de servicios.
-- **Room v18:** migración no destructiva 17→18, JSON generado por KSP y pruebas de migración/rollback. Se añade metadato local de migración; no se exporta con el negocio. Sin cambios en DShalev/IShalev, permisos Android, telemetría ni servicios nuevos.
+- **Room v18:** migración no destructiva 17→18, JSON generado por KSP y pruebas de migración/rollback. Se añade metadato local de migración; no se exporta con el negocio. Sin cambios en Web-Desktop/IShalev, permisos Android, telemetría ni servicios nuevos.
 - **Cierre de revisión:** costo de receta+adicional fuera de rango se muestra como error de formulario/dominio (sin caer Compose), diferencia y desplazamiento de correcciones comprobados antes de tocar historia; Merma/Consumo no se convierten en entradas. Refrescar Gestión no reescribe el costo de compra en edición y los borradores parciales avisan antes de salir. El borrado total informa si un archivo privado no se pudo eliminar. El cifrador comprueba también la cabecera/tamaño final para no exportar un archivo mayor que el lector admite.
 - **Compatibilidad de tests:** el emulador detectó `NoClassDefFoundError` al mezclar ui 1.7 (BOM 2024.12.01) con ATF/ui-test 1.9.5. Se alinean runtime y tests en Compose 1.8.3 (BOM 2025.06.01), sin retirar comprobaciones de accesibilidad. Se agrupan fallos repetidos para no ocultar regresiones de datos por el límite de anotaciones de GitHub.
 - **Cierre del emulador:** se respeta la protección de respaldo **encendida por defecto** (S-01) y se comprueba el opt-out explícito, el pie fijo del QR, los textos completos de Soporte, el centro real de la cabecera del acordeón, importes parciales válidos al escribir/incorrectos al aplicar y las filas de formato actuales de Registros. No se retiran aserciones de datos ni accesibilidad para ocultar fallos.
@@ -16,6 +16,14 @@
 - **Guías de distribución:** se retiran instrucciones antiguas de regenerar la clave, instalar un APK sin firmar, borrar producción ante una firma distinta, usar `--tests` para instrumentados o un escáner retirado. El verificador de firma acepta la salida real de apksigner (texto de esquema v2 y SHA con/sin dos puntos), exige un único firmante y conserva la huella vigente; sus regresiones usan salidas simuladas, no acreditan una firma real nueva.
 - **Cierre automatizado:** CI `43349968643`, código `44cf495`: 991 JVM y 205 instrumentados (100 data + 105 app), sin fallos ni omisiones; permisos, API mínima, lint y R8/debug aprobados. Lint tiene 0 errores y 102 avisos; el release de CI no está firmado. El cierre documental no modifica ese código verificado.
 - **Verificación:** ver [VERIFICACION.md](VERIFICACION.md) y [AUDITORIA_SHALEV_2026-11.md](AUDITORIA_SHALEV_2026-11.md). El CI distingue compilar `androidTest` de ejecutarlo; la tubería del emulador propaga el fallo y publica XML reales. Instalación firmada, revisión visual y dos teléfonos siguen siendo validaciones distintas.
+
+## Limpieza documental y de artefactos (2026-11-13)
+
+- Se actualizaron las referencias activas al esquema Room v18, la persistencia del periodo de prueba al reinstalar, los límites de apps secundarias y el estado de verificación. Las decisiones P17 frente a `Shalev.txt` se conservaron aquí, con su contexto histórico de 0.14.0.
+- `CAPTURAS.md` ahora refleja las 137 pruebas y los 137 PNG por tema existentes. El PDF de maquetas 0.26.0 no estaba en el checkout; se retiró el generador antiguo, que no tenía consumidores actuales ni podía ensamblar la entrega sin el PDF 0.25.1 externo. Los iconos usados por los diagramas del manual se conservaron en `tools/manual/iconos.json`.
+- Se retiraron el snapshot generado `Web-Desktop/repomix-output.xml` y el informe Arena duplicado; se conserva `RESULTADOS_PRUEBAS_ARENA_2026-11-03.md` como evidencia histórica de pruebas en un teléfono real. No se tocaron las muestras documentales útiles para el OCR de iOS ni las fotos `prod37`–`prod40` del seed.
+- Se corrigió la descripción del local en el README, el manual y el texto de Ajustes: el catálogo/inventario sí se separa por local; el local delimita los datos del establecimiento, no las ubicaciones internas de cada artículo (como pasillos o estantes). También se actualizaron a cinco los destinos de navegación del Design System y el recuento de ilustraciones (nueve P24 + Servicios P29); `services.svg` está presente en `undraw-svg` 2.0.0.
+- El mapa de navegación estaba generado pero no incluido en el manual: ahora se inserta junto a los otros seis diagramas. También se incorporó al recurso del generador el trazado de la llave inglesa Material «Build», para que el diagrama use el mismo icono que la navegación Android. Se añadió ReportLab a `tools/requirements.txt` y se regeneró el PDF. No se modificó lógica Android: el único cambio de interfaz es el texto de Ajustes → Local; las otras ediciones Android son comentarios y documentación del test.
 
 ## Correcciones de pruebas de ventanas Android y DShalev (2026-11-11)
 
@@ -34,7 +42,7 @@
 - **POS web:** clave UUID por intento y huella del contenido guardadas junto con la venta y sus cambios de stock. El reenvío idéntico no vuelve a descontar; la misma clave con contenido distinto se rechaza, se rota y limpia el borrador del POS. La venta nueva conserva el usuario responsable. Una cuenta administradora puede anular una venta con motivo: la venta original permanece, se agregan movimientos de reversión y los reportes/totales excluyen anuladas. No se anulan automáticamente ventas anteriores a la trazabilidad ni se procesan devoluciones de dinero.
 - **Sincronización:** los recibos de comandos remotos DShalev ya no se podan al superar las 512 claves antiguas; se verifican huella y resultado previos y se conservan en la misma transacción que la mutación. Las pruebas cubren reintento después de reabrir la base, 520 claves, y movimientos de venta/corrección/anulación móvil.
 - **Búsqueda móvil:** Android e iOS ya no ofrecen buscar por «código» en Inventario; los campos indican descripción/nombre. No se implementaron SKU ni lectura de código de barras.
-- **Documentación:** se actualizaron `README.md`, `DShalev/README.md`, `MANUAL_USUARIO.md` y `FORMATOS.md` para describir el comportamiento, los límites y el CSV.
+- **Documentación:** se actualizaron `README.md`, `Web-Desktop/README.md`, `MANUAL_USUARIO.md` y `FORMATOS.md` para describir el comportamiento, los límites y el CSV.
 - **Verificación de esta rama:** suite Python DShalev y tests Node descritos en `docs/VERIFICACION.md`. Android/iOS no se compilaron en este entorno (faltan JDK/Android SDK y Swift/Xcode).
 - **Fuera de alcance en ese corte:** compras/recepción de mercancía, certificación PCI, rediseño de roles/ubicaciones, conteo ciego y flujo SKU/barcode. La persistencia de comandos Android, inicialmente pendiente en ese corte, se implementó después en la sección «2026-11-10 — Recibos persistentes de comandos y compatibilidad del catálogo».
 
@@ -50,7 +58,7 @@
 - **Cierre de turno (asistente de 3 pasos):** «Atrás» y «Omitir» ya no van dentro del contenido desplazable; pasan al pie, junto al ✓. Así no dependen del desplazamiento del inventario y no quedan en una fila aparte.
 - **Conteo de efectivo («¿Cerrar el turno?»):** «Omitir el conteo de billetes» y «Contar billetes por denominación» se ven en el pie, en la fila del ✓ (antes: un icono solo, pegado al borde izquierdo del contenido).
 - **«Cuadra» (contado = esperado):** deja de ser un ✓ suelto fuera del campo —se confundía con un testigo de validez y con el ✓ de confirmar— y pasa a `ShalevIconAction` tonal, alineada con el campo.
-- Pendiente (este entorno no dispone de Java ni de Android SDK): ejecutar `./gradlew shalevTests shalevCheck :app:assembleDebug`, las pruebas de `CajaConteoUiTest` y regrabar las capturas Roborazzi de los diálogos de cierre. Paridad en `IShalev/` (iOS) pendiente de su ciclo con Xcode.
+- Pendiente (este entorno no dispone de Java ni de Android SDK): ejecutar `./gradlew shalevTests shalevCheck :app:assembleDebug`, las pruebas de `CajaConteoUiTest` y regrabar las capturas Roborazzi de los diálogos de cierre. Paridad en `iOS/` (iOS) pendiente de su ciclo con Xcode.
 
 ## Correcciones de uso diario: doble pulsación, teclado, errores, permanencia, paneles y datos de licencia (2026-11-03)
 
@@ -61,7 +69,7 @@
 - **Paneles informativos colapsables:** nuevo estado reutilizable `PanelesInformativos` + `AutoColapsarPanelesAlEscribir` en el sistema de diseño (al aparecer el teclado, los paneles se pliegan dejando título y resumen). Aplicado en Licencia (bloqueo, estado, avisos y precios —estos empiezan cerrados y se pliegan al cambiar de paso—), en la explicación de Respaldo, en el aviso y los totales de la ficha de costo y en los precios del paso de prueba del asistente. `ShalevAccordionCard` acepta un icono opcional en la cabecera.
 - **La licencia no re-pide los datos:** quien activa su licencia en los primeros pasos ya dio sus datos en la pantalla de Licencia (solicitar los guarda en el Perfil); el asistente de primera vez ahora solo muestra los pasos **pendientes** (`planWizard`), así que «Tus datos» no se pide dos veces. Simétricamente, `pasoInicialLicencia` entra directo en «Pide la licencia» cuando el Perfil ya tiene los datos completos (con Atrás se revisan), y la pantalla aplica ese arranque en cuanto el Perfil llega, sin pisar la navegación de la persona ni moverla mientras edita.
 - **Iconos de Herramientas:** la sección usa la llave (nuevo trazado `Build` de Material; `Checklist` queda solo para «Completar configuración»); la ficha de costo, la hoja de partidas (`ListAlt`); la calculadora de cambio, las flechas de conversión (`SwapHoriz`). Las dos tarjetas de la sección llevan icono y chevrones de apertura como las de Ajustes, y la acción de la barra de la ficha usa el icono de la calculadora.
-- Pendiente (este entorno no dispone de Java ni de Android SDK): ejecutar `./gradlew shalevTests shalevCheck :app:assembleDebug`, las pruebas instrumentadas tocadas (`LicenciaUiTest`, `CalculadoraCambioUiTest`) y regrabar las capturas Roborazzi afectadas (Licencia, Herramientas, ficha de costo, Respaldo, paso de prueba del asistente, icono de pestaña). La paridad de estas correcciones en `IShalev/` (iOS) queda pendiente de su propio ciclo con Xcode.
+- Pendiente (este entorno no dispone de Java ni de Android SDK): ejecutar `./gradlew shalevTests shalevCheck :app:assembleDebug`, las pruebas instrumentadas tocadas (`LicenciaUiTest`, `CalculadoraCambioUiTest`) y regrabar las capturas Roborazzi afectadas (Licencia, Herramientas, ficha de costo, Respaldo, paso de prueba del asistente, icono de pestaña). La paridad de estas correcciones en `iOS/` (iOS) queda pendiente de su propio ciclo con Xcode.
 
 ## CUP, USD y calculadora de cambio (2026-11-02)
 
@@ -158,7 +166,7 @@ Tres cambios pedidos por el dueño; `versionName` pasa a **1.0.1** (`versionCode
 
 ## 2026-10-22 - Sembrador de datos de demostración (solo depuración) y material de promoción
 
-Se añadió un **sembrador de datos de demostración** para poblar la app instalada en un teléfono sin tocar el APK de release: `data/src/debug/.../seed/Sembrador.kt` (lógica) y `app/src/debug/.../seed/SeedActivity.kt` (pantalla que lo dispara). Se ejecuta con `adb shell am start -n cu.shalev.app.debug/cu.shalev.app.seed.SeedActivity` y está declarado en el manifiesto **de debug**, así que el release sigue sin llevarlo (D-05 de la auditoría de la 0.32.0). El sembrador vacía los datos operativos y de configuración (y la tabla `empleado`, que no viaja en los respaldos) antes de cargar, de modo que se puede repetir.
+Se añadió un **sembrador de datos de demostración** para poblar la app instalada en un teléfono sin tocar el APK de release: `Android/data/src/debug/.../seed/Sembrador.kt` (lógica) y `Android/app/src/debug/.../seed/SeedActivity.kt` (pantalla que lo dispara). Se ejecuta con `adb shell am start -n cu.shalev.app.debug/cu.shalev.app.seed.SeedActivity` y está declarado en el manifiesto **de debug**, así que el release sigue sin llevarlo (D-05 de la auditoría de la 0.32.0). El sembrador vacía los datos operativos y de configuración (y la tabla `empleado`, que no viaja en los respaldos) antes de cargar, de modo que se puede repetir.
 
 Carga **18 meses** de operación (abr-2025 → oct-2026): **886 turnos**, **2 382 ventas** por efectivo y transferencia con sus líneas, transacciones bancarias, movimientos de inventario y de caja; **54 artículos** de inventario —36 productos y 4 elaborados con receta, más **14 insumos**—, **20 servicios** (algunos consumen insumos), 6 clientes fijos, 2 preajustes de precio y **8 apps secundarias** «vinculadas» con sus permisos, teléfono y `device`.
 
@@ -170,7 +178,7 @@ Con la app sembrada se tomaron capturas reales del teléfono `4bc9f8f3` (claro y
 
 También se abrió turno en el teléfono y se registró una venta de cinco artículos para capturar la pantalla **Nueva venta** (carrito con cantidades y total) y el **Comprobante de pago**; la lista de más vendidos y los totales del Inicio se actualizaron con esa venta.
 
-Con las capturas definitivas se preparó el paquete de **Google Play** en `play_store/`: icono 512×512, gráfico destacado 1024×500, ocho capturas 1080×1920 (9:16, recortadas de las de 2400) y `ficha.md` con nombre, descripción corta y completa y novedades. Lo genera `tools/seed_demo/play_store.py`. `play_store/README.md` anota lo que falta para publicar: el AAB firmado con la misma clave (`app/build/outputs/bundle/release/app-release.aab`), la política de privacidad y los formularios de la consola.
+Con las capturas definitivas se preparó el paquete de **Google Play** en `Android/play_store/`: icono 512×512, gráfico destacado 1024×500, ocho capturas 1080×1920 (9:16, recortadas de las de 2400) y `ficha.md` con nombre, descripción corta y completa y novedades. Lo genera `tools/seed_demo/play_store.py`. `Android/play_store/README.md` anota lo que falta para publicar: el AAB firmado con la misma clave (`Android/app/build/outputs/bundle/release/app-release.aab`), la política de privacidad y los formularios de la consola.
 
 ## 2026-10-22 - Primera versión pública: Release v1.0 en GitHub
 
@@ -180,9 +188,9 @@ Se publicó la **Release `v1.0`** del repositorio `rmdvcd/Shalev` con el APK uni
 
 **(2) Los recursos de la Release importan.** El actualizador toma el **primer** recurso que empieza por «Shalev» y acaba en `.apk`, y exige huella: usa el `digest` SHA-256 que da la API o, si falta, el recurso `<apk>.sha256`. Por eso la Release lleva **un solo** APK, `Shalev-1.0.apk` (universal: arm64-v8a, armeabi-v7a y x86_64; 47,7 MB), más `Shalev-1.0.apk.sha256`. Publicar también los APK por ABI con el mismo prefijo volvería ambigua la elección.
 
-**(3) Firma de release.** `keystore.properties` (local, fuera de git) apunta a `~/.android/gl-release.jks`, alias `gl`, el mismo con el que se firmaron los APK de release anteriores del equipo; `apksigner` confirma el mismo certificado. No se generó ni se sustituyó ninguna clave.
+**(3) Firma de release.** `Android/keystore.properties` (local, fuera de git) apunta a `~/.android/gl-release.jks`, alias `gl`, el mismo con el que se firmaron los APK de release anteriores del equipo; `apksigner` confirma el mismo certificado. No se generó ni se sustituyó ninguna clave.
 
-**Pruebas.** `shalevRelease` en verde: `shalevCheck` (tests JVM, lint con baseline, APK debug y control de permisos) + AAB + APK firmado. El daemon de Gradle que estaba en marcha traía 1 GiB de heap y R8 lo agotó; se reinició con 4 GiB (`-Dorg.gradle.jvmargs=-Xmx4096m`) sin tocar `gradle.properties`.
+**Pruebas.** `shalevRelease` en verde: `shalevCheck` (tests JVM, lint con baseline, APK debug y control de permisos) + AAB + APK firmado. El daemon de Gradle que estaba en marcha traía 1 GiB de heap y R8 lo agotó; se reinició con 4 GiB (`-Dorg.gradle.jvmargs=-Xmx4096m`) sin tocar `Android/gradle.properties`.
 
 ## 2026-10-22 - Activación de licencias arreglada: claves de GL vigentes fijadas en el build
 
@@ -205,7 +213,7 @@ Se publicó la **Release `v1.0`** del repositorio `rmdvcd/Shalev` con el APK uni
 
 ## 2026-10-21 - Auditoría de interfaz (ui-ux-pro-max): teclado, icono de continuar y ventanas (0.32.0)
 
-Se auditó la interfaz completa (`:designsystem` + 20 pantallas + las 274 capturas) con la base de reglas de `ui-ux-pro-max`. El informe con la evidencia (`archivo:línea` y mediciones) queda en [`docs/AUDITORIA_UI_2026-10-21.md`](AUDITORIA_UI_2026-10-21.md). La app sale bien parada: sin colores ni tamaños sueltos, una sola familia de iconos, estados de carga/vacío/error en todas las listas, contraste verificado por test en claro y oscuro, diálogos centrados y gráficos sin rejilla. Se aplicaron los hallazgos que eran defectos reales.
+Se auditó la interfaz completa (`:designsystem` + 20 pantallas + las 274 capturas) con la base de reglas de `ui-ux-pro-max`. El informe con la evidencia (`archivo:línea` y mediciones) se identificaba como `AUDITORIA_UI_2026-10-21.md`, archivo que ya no está incluido en este checkout. La app sale bien parada: sin colores ni tamaños sueltos, una sola familia de iconos, estados de carga/vacío/error en todas las listas, contraste verificado por test en claro y oscuro, diálogos centrados y gráficos sin rejilla. Se aplicaron los hallazgos que eran defectos reales.
 
 **(1) El teclado tapaba la barra de acción de la venta.** Con `enableEdgeToEdge` (`MainActivity.kt`) la ventana no se redimensiona al abrir el teclado: hay que aplicar el inset del IME a mano, como ya hacían los formularios. En **Venta** (paso «Datos del cliente»: nombre, carné, teléfono y número de transacción) y en **Modificar venta** (datos del cliente y motivo) faltaba: la barra «Cancelar / Confirmar» quedaba bajo el teclado. Ahora ambos `Scaffold` llevan `imePadding()`, y el contenido se encoge para que los campos sigan a la vista.
 
@@ -247,7 +255,7 @@ Ocho pedidos del dueño en un lote. Se conservan las seis decisiones que se toma
 
 **(3) Barra de avance en las notificaciones y en cada app vinculada.** El protocolo ya sabía el tamaño de cada trama (4 bytes de longitud), así que el avance se mide en bytes sin tocar el formato: `Tramas.leer`/`escribir` informan del avance y `CanalCifrado` lo propaga. En la principal, cada app conectada tiene su barra en «Apps vinculadas» y su avance en la notificación (canal «Sincronización», sin sonido); en la secundaria, la suya. La notificación de la barra se quita al terminar.
 
-**(4) Sonidos propios.** Tres archivos nuevos en `app/src/main/res/raw` (`conectada.wav`, `desconectada.wav`, `sincronizada.wav`, 13–17 KB, generados por `tools/sonidos/generar-sonidos.ps1` — se pueden sustituir por otros conservando el nombre). El sonido queda congelado en el canal, así que hay **tres canales** nuevos («App conectada», «App desconectada», «Sincronización terminada»). El aviso de turno (canal «Turno») sigue **mudo** como se decidió en P29.
+**(4) Sonidos propios.** Tres archivos nuevos en `Android/app/src/main/res/raw` (`conectada.wav`, `desconectada.wav`, `sincronizada.wav`, 13–17 KB, generados por `tools/sonidos/generar-sonidos.ps1` — se pueden sustituir por otros conservando el nombre). El sonido queda congelado en el canal, así que hay **tres canales** nuevos («App conectada», «App desconectada», «Sincronización terminada»). El aviso de turno (canal «Turno») sigue **mudo** como se decidió en P29.
 
 **(5) Las fotos de productos y servicios viajan a la secundaria.** Hasta ahora no viajaban: se anulaban en tres sitios (`AlmacenSync`, `RepositoriosSegunTipo`, `EjecutorComandos`). Ahora la instantánea lleva la **lista** de fotos (artículo, nombre del archivo, tamaño) y los **bytes van aparte, por bloques de 256 KB**, con el mismo mecanismo del APK (`PedirFoto`/`BloqueFoto`): la secundaria pide solo las que no tiene, las guarda en su álbum con el mismo nombre y comprueba el SHA-256. La instantánea se reenvía entera cuando el catálogo cambia, pero los bytes de una foto solo viajan una vez.
 
@@ -301,7 +309,7 @@ Se retiran `docs/ESCANEO_OCR.md` y `docs/OPENCODE_ESCANEO_OCR.md`; las entradas 
 
 **(1) De dónde salen y con qué licencia.** Se buscaron en **Wikimedia Commons**, con el filtro puesto en licencias que permiten redistribuir: dominio público, CC0, CC BY y CC BY-SA; **nada** con cláusula NC (no comercial) o ND (sin obras derivadas). De cada artículo se bajaron 4 candidatas a una hoja de contactos (§ por categoría de Commons) y **se eligieron mirándolas una por una**, no por el título: la primera pasada automática dio un lince como «desodorante», una planta como «galletas» o una autopista de Salt Lake City como «sal». Las claves son las del catálogo (`CatalogoBodega`), así que la ausencia de archivo significa «sin foto», sin ningún dato más.
 
-**(2) Dónde viven y cómo entran.** `app/src/debug/assets/seed/fotos/<clave>.jpg` — **solo depuración**, por el `sourceSets` del `build.gradle.kts` de `:app`; el APK/AAB de release no las lleva (y sigue sin poder sembrar: la pantalla está detrás de `BuildConfig.DEBUG`). Se recortan a ≤512 px y se re-codifican a JPEG (1,5 MB los 38 archivos). Al sembrar, `FotoRepository.importarIncluida(clave)` las copia **por el mismo conducto que las fotos del usuario** —`guardar` re-codifica a JPEG ≤1024 px y descarta EXIF—, así que en el teléfono son fotos normales del almacén de siempre, y `limpiarHuerfanas` las recoge cuando el seed vuelve a borrar todo.
+**(2) Dónde viven y cómo entran.** `Android/app/src/debug/assets/seed/fotos/<clave>.jpg` — **solo depuración**, por el `sourceSets` del `build.gradle.kts` de `:app`; el APK/AAB de release no las lleva (y sigue sin poder sembrar: la pantalla está detrás de `BuildConfig.DEBUG`). Se recortan a ≤512 px y se re-codifican a JPEG (1,5 MB los 38 archivos). Al sembrar, `FotoRepository.importarIncluida(clave)` las copia **por el mismo conducto que las fotos del usuario** —`guardar` re-codifica a JPEG ≤1024 px y descarta EXIF—, así que en el teléfono son fotos normales del almacén de siempre, y `limpiarHuerfanas` las recoge cuando el seed vuelve a borrar todo.
 
 **(3) La foto nunca tumba el seed.** El orquestador pide la imagen de cada producto no elaborado y de cada servicio y, si esa compilación no la trae (release, APK de otra rama) o la copia falla, el artículo se siembra **sin foto**: la foto es cosmética y el seed sigue siendo «todo o nada» para los datos. Los **insumos** quedan fuera: no tienen campo de foto en el modelo (ni en el formulario ni en la base de datos), y añadírselo habría exigido esquema v14 y migración para una decoración de la demo.
 
@@ -309,7 +317,7 @@ Se retiran `docs/ESCANEO_OCR.md` y `docs/OPENCODE_ESCANEO_OCR.md`; las entradas 
 
 **Pruebas.** Primero en rojo, en `OrquestadorSeedTest`: `fotosIncluidasEnProductosYServicios` (cada producto no elaborado y cada servicio llevan la foto de **su** clave, el elaborado no la pide, el insumo tampoco) y `unaFotoQueFaltaNoAbortaElSeed` (con el almacén de fotos fallando, el seed termina `Ok` y todo queda sin foto). Se comprobó que muerden de verdad con una **mutación temporal** (foto siempre `Err`) que puso las dos en rojo, y se revirtió. `shalevTests`: **922 casos JVM en verde**; `shalevCheck`: **OK**; `mergeReleaseAssets` no lleva ninguna de las 38 (solo debug). En el teléfono 4bc9f8f3 (Android 15, API 35), APK debug: Ajustes › Generar datos de prueba › «Seed listo.», Inventario y Servicios muestran las fotos elegidas, los dos Elaborados salen sin foto y `files/fotos` queda con **38 archivos** (comprobado con `run-as`). Commit `a1743cb`, **CI verde** (run `39198204810`).
 
-**Corrección de una cifra de las entradas anteriores.** `shalevTests` **no** corre los tests de capturas: el `Test` de `:app` excluye `**/capturas/**` salvo cuando la tarea invocada es de Roborazzi (`app/build.gradle.kts`, línea 219), así que los 137 `@Test` de `app/src/test/.../capturas/` (que `recordRoborazziDebug` graba como PNG) **no cuentan** en `shalevTests`: `:app` corre 414, no 551, y el total honesto es **922** (19 `:core` + 114 `:licencia` + 250 `:domain` + 91 `:data` + 34 `:designsystem` + 414 `:app`). Se corrigió el texto en `docs/VERIFICACION.md` y en `AGENTS.md`.
+**Corrección de una cifra de las entradas anteriores.** `shalevTests` **no** corre los tests de capturas: el `Test` de `:app` excluye `**/capturas/**` salvo cuando la tarea invocada es de Roborazzi (`Android/app/build.gradle.kts`, línea 219), así que los 137 `@Test` de `Android/app/src/test/.../capturas/` (que `recordRoborazziDebug` graba como PNG) **no cuentan** en `shalevTests`: `:app` corre 414, no 551, y el total honesto es **922** (19 `:core` + 114 `:licencia` + 250 `:domain` + 91 `:data` + 34 `:designsystem` + 414 `:app`). Se corrigió el texto en `docs/VERIFICACION.md` y en `AGENTS.md`.
 
 ## 2026-10-18 - El escáner OCR de inventario, terminado y ajustado con el teléfono (0.31.0)
 
@@ -324,9 +332,9 @@ El asistente de escaneo del merge #44 llegó sin compilar y sin pruebas; en este
 - **Un nombre largo se comía la columna vecina.** Las columnas se agrupaban por solape de cajas y «Arroz grano largo» (que desborda su columna) unía su columna con la de categoría; ahora se agrupan por **borde izquierdo** de la celda —todas las celdas de una columna empiezan en la misma x— y cada celda va a la columna de inicio más cercano.
 - **El corte por palabras partía celdas.** Para separar dos columnas que ML Kit devuelve en una línea, se cortaba donde el hueco pasaba del alto del texto, y con eso «Jabon de tocador» (26 px de hueco, 20 px de alto) se partía en dos y aparecían columnas fantasma; ahora el corte exige un hueco que **duplique el alto**. El diagnóstico se hizo con `logcat` temporal en el APK debug, ya retirado: ML Kit devuelve una línea por celda y el corte fino era nuestro.
 
-**(4) PP-Layout/ONNX: retirado y bloqueado.** La detección de disposición con modelo ONNX **no está implementada**: no hay artefacto con licencia de redistribución, procedencia y contrato de salida verificables, así que `onnxruntime-android` salió de `gradle/libs.versions.toml` y de `:app` (declarar el runtime solo engordaba el APK) y los pasos exactos para reincorporarlo quedan en `docs/ESCANEO_OCR.md`. El fallback de ML Kit se conserva: sin estructura confirmada, **una línea = un registro** con aviso visible.
+**(4) PP-Layout/ONNX: retirado y bloqueado.** La detección de disposición con modelo ONNX **no está implementada**: no hay artefacto con licencia de redistribución, procedencia y contrato de salida verificables, así que `onnxruntime-android` salió de `Android/gradle/libs.versions.toml` y de `:app` (declarar el runtime solo engordaba el APK) y los pasos exactos para reincorporarlo quedan en `docs/ESCANEO_OCR.md`. El fallback de ML Kit se conserva: sin estructura confirmada, **una línea = un registro** con aviso visible.
 
-**Pruebas.** `shalevTests`: **920 casos JVM en verde** (19 `:core` + 114 `:licencia` + 248 `:domain` + 91 `:data` + 34 `:designsystem` + 414 `:app`; cifra corregida el 2026-10-19: los 137 tests de `app/src/test/.../capturas/` **no** corren en `shalevTests`); los 414 de `:app` incluyen los 19 tests del escáner del merge #44 —que existían pero no corrían porque el merge no compilaba— y **5 nuevos** de `EscanerInventarioLogicTest` (19 en total): corte de columnas pegadas, hueco de palabra que no corta, nombre que desborda su columna y encabezado bajo un título, todos en rojo antes del arreglo. `shalevCheck`: **OK**. `verifyRoborazziDebug`: **527 capturas en verde**, ninguna cambia. En el teléfono 4bc9f8f3 (Android 15, API 35), APK debug, con tres PNG generados para la prueba: **productos 43 → 47** (4 filas correctas, encabezado mapeado solo), **insumos → 50** (3 filas con unidad `kg` y cantidades `12.5`/`8.25`/`3.75`) y el **párrafo sin tabla**: aviso de estructura no confirmada, «No se pudo leer “Cantidad” en la fila 1» y **nada guardado** (sigue con 50). Se regeneraron también los datos de ejemplo del teléfono (Ajustes › Generar datos de prueba), que cierra el pendiente de los nombres del catálogo sin unidad pegada.
+**Pruebas.** `shalevTests`: **920 casos JVM en verde** (19 `:core` + 114 `:licencia` + 248 `:domain` + 91 `:data` + 34 `:designsystem` + 414 `:app`; cifra corregida el 2026-10-19: los 137 tests de `Android/app/src/test/.../capturas/` **no** corren en `shalevTests`); los 414 de `:app` incluyen los 19 tests del escáner del merge #44 —que existían pero no corrían porque el merge no compilaba— y **5 nuevos** de `EscanerInventarioLogicTest` (19 en total): corte de columnas pegadas, hueco de palabra que no corta, nombre que desborda su columna y encabezado bajo un título, todos en rojo antes del arreglo. `shalevCheck`: **OK**. `verifyRoborazziDebug`: **527 capturas en verde**, ninguna cambia. En el teléfono 4bc9f8f3 (Android 15, API 35), APK debug, con tres PNG generados para la prueba: **productos 43 → 47** (4 filas correctas, encabezado mapeado solo), **insumos → 50** (3 filas con unidad `kg` y cantidades `12.5`/`8.25`/`3.75`) y el **párrafo sin tabla**: aviso de estructura no confirmada, «No se pudo leer “Cantidad” en la fila 1» y **nada guardado** (sigue con 50). Se regeneraron también los datos de ejemplo del teléfono (Ajustes › Generar datos de prueba), que cierra el pendiente de los nombres del catálogo sin unidad pegada.
 
 ## 2026-10-18 - El filtro por alerta de Inicio y la compilación del escaneo OCR (0.31.0)
 
@@ -404,7 +412,7 @@ La primera apertura muestra UNA ventana (`root/PermisosIniciales.kt`) con el che
 
 Compilado `:app:assembleDebug` con JDK 17, instalado en el teléfono 4bc9f8f3 (Android 15) y regeneradas las capturas Roborazzi en claro y oscuro (146 por tema). Correcciones: título de `ShalevVentana` en `titleMedium` (era `titleLarge`; el design system exige 15sp para diálogos); aviso de la fila de Inventario en 2 líneas (la fecha de vencimiento se cortaba: «Crítico · Vence 0…»); caso `07d_perfil_errores` ahora con `mostrarErrores = true` (antes no mostraba los errores); limpieza de `Icon`/`Checkbox`/`ShalevSize` fully-qualified en PagoElectronicoScreen y ServiciosScreen. Descartados como artefactos del arnés (fondo claro de la ventana de prueba en `Content` sin `Scaffold`): textos de Licencia/Migrar en oscuro. El resto observado (pestañas en 2 líneas a 360dp, franja de exportando, pie fijo sobre formularios largos sin desplazar) es el diseño vigente.
 
-**Pruebas:** `shalevTests` en verde local (incluye la corrección Robolectric offline de `app/build.gradle.kts`, pendiente de CI).
+**Pruebas:** `shalevTests` en verde local (incluye la corrección Robolectric offline de `Android/app/build.gradle.kts`, pendiente de CI).
 
 Registro **histórico** de lo implementado en cada fase y de las suposiciones vigentes en ese momento. Se conserva para trazabilidad; no es una lista de productos o tareas actuales.
 
@@ -424,7 +432,7 @@ Revisión con `@ui-ux-pro-max` y captura real en el teléfono: la sección DATOS
 
 Ajustes → Migrar (asistente de 4 pasos + paso de datos por QR Emisor/Receptor, 0.31.0 P6) desaparece por decisión del dueño. Borrados 31 ficheros (`app/migrar/` con `CanalMigracion`, `MigrarRed`/`MigrarModule` Hilt, pantallas y textos; `MigracionUseCases`, `Migracion.kt`, sus tests; `TransferAuthorizationTest`; 18 doradas Roborazzi 09n–09v). En `domain`, fuera `verificarAutorizacionMigracion`/`cederLicencia` de `LicenciaRepository`; en `:licencia`, fuera `TransferAuthorization`, `checkTransferAuthorization` y `transferOut`. Se conserva todo lo de **recuperación**: `recupera`, `aplicarRevocaciones`/`markRevoked`, `lic.migrated_at`/`Outdated`, «Licencia transferida» y `MantenimientoRepository.borrarTodo` (lo usan semilla, caja y vinculación). Para cambiar de teléfono: respaldo `.shalev` + recuperación de la licencia. Actualizados navegación, Ajustes, onboarding (sin paso final), Ayuda, icono, tests, fakes y documentos (README, MANUAL, Contexto, FORMATOS sin §2, LICENSE_CLIENT §7 como retirado, SECURITY, UI_UX_IX, CAPTURAS, Pendiente, AGENTS, VINCULACION H7).
 
-**Pruebas:** `./gradlew shalevTests` en verde (93 tareas) y `./gradlew shalevCheck` en verde (tests + lintDebug + assembleDebug + shalevPermisos; hubo que limpiar `app/build/generated` por la trampa de Hilt con clases viejas). El test instrumentado de cesión se reescribió por la vía de revocación (pendiente de correrlo en el teléfono).
+**Pruebas:** `./gradlew shalevTests` en verde (93 tareas) y `./gradlew shalevCheck` en verde (tests + lintDebug + assembleDebug + shalevPermisos; hubo que limpiar `Android/app/build/generated` por la trampa de Hilt con clases viejas). El test instrumentado de cesión se reescribió por la vía de revocación (pendiente de correrlo en el teléfono).
 
 ## 2026-10-15 - Móvil: 2.ª rotación de claves GL del día (captura de pantalla)
 
@@ -448,7 +456,7 @@ Se eliminan los valores fuera de la rejilla de 8dp (`ShalevSpacing.xs / 2` = 4dp
 
 Se retiraron las aplicaciones `desktop/` (web de escritorio) y `flutter_app/` (Flutter/iOS), además de sus workflows, configuración de Codemagic, dependencias Python de desarrollo y documentos de usuario específicos. Se eliminó también `tools/escaner/`, un auxiliar obsoleto distinto del escáner Android, y archivos locales/candidatos sin referencias (`.kotlin/`, `icono.jpg` y los planes web). Se conservaron el escáner Android, las herramientas activas `tools/licencia/` y `tools/verificacion/`, las licencias GL para Android y el plan móvil que comparte fecha con el plan web.
 
-Se actualizaron los documentos vigentes para reflejar el alcance Android-only y el esquema Room v12. `docs/VERIFICACION.md` registra el estado observado del CI. La corrida 38802995010 falló porque dos tests de `ProcesoActualizarTest` no pudieron descargar el SDK instrumentado de Robolectric; la configuración de `app/build.gradle.kts` ahora prepara el SDK con Gradle y pasa a Robolectric un directorio local en modo offline para todos los tests JVM de `:app`. **Pendiente:** verificar esa corrección en una corrida CI; no hubo JDK/Android SDK para probarla localmente.
+Se actualizaron los documentos vigentes para reflejar el alcance Android-only y el esquema Room v12. `docs/VERIFICACION.md` registra el estado observado del CI. La corrida 38802995010 falló porque dos tests de `ProcesoActualizarTest` no pudieron descargar el SDK instrumentado de Robolectric; la configuración de `Android/app/build.gradle.kts` ahora prepara el SDK con Gradle y pasa a Robolectric un directorio local en modo offline para todos los tests JVM de `:app`. **Pendiente:** verificar esa corrección en una corrida CI; no hubo JDK/Android SDK para probarla localmente.
 
 ## 2026-10-15 - Web: ejes de gráficos y tops en acordeones (verificado en navegador)
 
@@ -550,7 +558,7 @@ Capturas de las 10 secciones y correcciones solo en `desktop/spvi_web/static` (s
 
 ## 2026-10-14 — Compilación: revierte subidas de Dependabot incompatibles con AGP 8.7.3
 
-`gradle/libs.versions.toml`: el proyecto no compilaba (`:app:assembleDebug`) por cuatro subidas
+`Android/gradle/libs.versions.toml`: el proyecto no compilaba (`:app:assembleDebug`) por cuatro subidas
 automáticas incompatibles con la pila documentada en `AGENTS.md` (AGP 8.7.3, compileSdk 35,
 Kotlin 2.0.21). Se devuelven a sus valores buenos conocidos, sin cambios de comportamiento:
 `kotlin` 2.4.21 → 2.0.21 (no existe KSP para Kotlin 2.4; el último es 2.3.12), `hilt` 2.60.1 → 2.52
@@ -692,9 +700,9 @@ Implementado en `app/` **sin compilar ni probar** (en este entorno no hay JDK/An
   `test/` (los corre Codemagic; en esta máquina no hay Dart).
 - Verificación: Android compila y pasa `shalevTests` en el CI del repositorio (lint, R8, permisos del manifiesto y API
   mínima 26, en verde). La app iOS **no se compiló aquí** (no hay Dart en el entorno): queda pendiente `flutter test`
-  (Codemagic) y commitear `data/schemas/…/12.json`, que Room exporta al compilar.
+  (Codemagic) y commitear `Android/data/schemas/…/12.json`, que Room exporta al compilar.
 - Documentación: [LICENSE_CLIENT.md](../LICENSE_CLIENT.md) §11–§13, [SECURITY.md](../SECURITY.md) §4 quater
-  y [Pendiente.md](../Pendiente.md).
+  y `Pendiente.md` (archivo histórico que ya no está incluido en este checkout).
 
 ## 2026-10-11 — Revisión de cambios de OpenCode en móvil y escritorio
 
@@ -796,7 +804,7 @@ Criterio: la opción más segura, simple y accesible, documentada.
 2. **El turno activo vive en Room,** no en preferencias: así se verifica en la misma transacción que la venta.
 3. **Preajustes de precio:** los aplicables a un producto **se suman**. Filtran por método de pago y por importe mínimo (el total antes de ajustes). El precio resultante nunca baja de 0.
 4. **Ajuste permanente de precios:** el precio mínimo resultante es 0.01 CUP.
-5. **Insumos con `UnidadMedida`** (u, kg, g, L, ml) y cantidades en milésimas, porque las recetas necesitan fracciones. El precio es el costo por unidad de medida.
+5. **Insumotidades en milésimas, porque las recetas necesitan fracciones. El precio es el costo por unidad de medida.
 6. **Elaborado:** al guardar se anulan foto, caducidad y código. Su costo se calcula desde la receta y sí tiene precio de venta (C4).
 7. **CI del cliente:** 11 dígitos.
 8. **Licencia en dominio:** `EstadoLicencia`, `TipoLicencia` y `ViaSolicitud` son alias de los tipos de `:licencia`, para no duplicar el contrato.
@@ -1084,14 +1092,14 @@ Los informes quedan en `<módulo>/build/reports/tests/` (JVM) y `<módulo>/build
 
 | Capa | Dónde | Qué prueba |
 |---|---|---|
-| Dominio y casos de uso | `domain/src/test` | Venta (cotizar, registrar, producción al vuelo), turno, inventario, alertas, Top 3 y gráficos, precios, escáner, respaldo, licencia, onboarding, perfil |
-| Cifrado GL y licencia | `licencia/src/test` | ECIES P-256/AES-256-GCM, firma ECDSA, AAD, claves fijadas, vectores dorados, estados (prueba, activa, vencida, perpetua), reloj atrasado, migración |
-| Validación y formato monetario | `core/src/test` | `Validators`, `Cup`/`Money` («1,450.00 CUP»), `Cantidad` |
-| Repositorios (JVM) | `data/src/test` | Mapeos entidad↔dominio, DTO, códecs, `BackupCipher`, exportadores, red del escáner con `MockWebServer` |
-| Repositorios con BD en memoria | `data/src/androidTest` | `RepositoriosRoomTest` (inventario, recetas, producir, venta en Efectivo y por Transferencia, todo o nada, producción al vuelo, Registros, Precios), `RespaldoRoomTest` (ida y vuelta; archivo cortado, alterado o con otra contraseña no toca los datos), `TurnoRepositoryInstrumentedTest`, `LicenciaInstrumentedTest` (Keystore real) |
-| ViewModels | `app/src/test` | Todas las pantallas con estado: Inicio, Venta, Inventario, Producto, Escáner, Elaboración, Registros, Turno, Precios, Pago electrónico, Perfil, Ajustes, Licencia, Migrar, Onboarding, Respaldo, raíz y entrada compartida. Ayuda y Soporte no tienen ViewModel (ver Ajustes) |
-| UI Compose | `app/src/androidTest` | Pantallas sin estado (`*Content`) con datos fijos |
-| Integración | `app/src/androidTest/.../integracion` | Pantalla real + ViewModel real + casos de uso + Room en memoria: `FlujoVentaTest` (Efectivo, Transferencia y sin turno), `FlujoTurnoTest` (apertura y cierre desde Inicio), `FlujoEscanerTest`, `FlujoRespaldoTest`, `FlujoLicenciaTest` (bloqueo → activar → Inicio) |
+| Dominio y casos de uso | `Android/domain/src/test` | Venta (cotizar, registrar, producción al vuelo), turno, inventario, alertas, Top 3 y gráficos, precios, escáner, respaldo, licencia, onboarding, perfil |
+| Cifrado GL y licencia | `Android/licencia/src/test` | ECIES P-256/AES-256-GCM, firma ECDSA, AAD, claves fijadas, vectores dorados, estados (prueba, activa, vencida, perpetua), reloj atrasado, migración |
+| Validación y formato monetario | `Android/core/src/test` | `Validators`, `Cup`/`Money` («1,450.00 CUP»), `Cantidad` |
+| Repositorios (JVM) | `Android/data/src/test` | Mapeos entidad↔dominio, DTO, códecs, `BackupCipher`, exportadores, red del escáner con `MockWebServer` |
+| Repositorios con BD en memoria | `Android/data/src/androidTest` | `RepositoriosRoomTest` (inventario, recetas, producir, venta en Efectivo y por Transferencia, todo o nada, producción al vuelo, Registros, Precios), `RespaldoRoomTest` (ida y vuelta; archivo cortado, alterado o con otra contraseña no toca los datos), `TurnoRepositoryInstrumentedTest`, `LicenciaInstrumentedTest` (Keystore real) |
+| ViewModels | `Android/app/src/test` | Todas las pantallas con estado: Inicio, Venta, Inventario, Producto, Escáner, Elaboración, Registros, Turno, Precios, Pago electrónico, Perfil, Ajustes, Licencia, Migrar, Onboarding, Respaldo, raíz y entrada compartida. Ayuda y Soporte no tienen ViewModel (ver Ajustes) |
+| UI Compose | `Android/app/src/androidTest` | Pantallas sin estado (`*Content`) con datos fijos |
+| Integración | `Android/app/src/androidTest/.../integracion` | Pantalla real + ViewModel real + casos de uso + Room en memoria: `FlujoVentaTest` (Efectivo, Transferencia y sin turno), `FlujoTurnoTest` (apertura y cierre desde Inicio), `FlujoEscanerTest`, `FlujoRespaldoTest`, `FlujoLicenciaTest` (bloqueo → activar → Inicio) |
 
 En la integración solo se simulan los bordes que dependen del dispositivo o de terceros (`EntornoIntegracion`): Keystore y DataStore (perfil, preferencias, licencia), cámara (se escribe el código a mano, el mismo camino que un código leído), el selector de archivos del sistema (se entrega la URI al ViewModel, igual que el callback del launcher) y las bases públicas de productos. `MainScaffold` necesita Hilt, así que `FlujoLicenciaTest` reproduce la puerta de `ShalevRoot` con `RootViewModel` y un marcador en lugar de Inicio.
 
@@ -1122,15 +1130,24 @@ Plan completo y decisiones en `PLAN_OPTIMIZACION_P17.md` (§9; retirado en la 0.
 | A. Limpieza | 20 casos de uso sin uso borrados; fuera `TextoWriter`, `sqlite-ktx` y `compose-animation`; OkHttp directo en lugar de Retrofit; iconos propios (trazados de Material Symbols, Apache 2.0) en lugar de `material-icons-extended`, con `ShalevIconsTest`; días de aviso de caducidad (7) y tiempo de espera de red (5 s) pasan a constantes |
 | B. Funciones retiradas | *Clave del emisor* (`GlKeyPolicy`, `GlKeyStore`, `ClaveEmisorScreen` y sus tests); botón «Abrir Enzona» y su `<queries>`; caducidad recordada por código; tasas de cambio; respaldo solo «Todo» (formato v3, sin lectura de v1/v2); BD v3 con `fallbackToDestructiveMigrationFrom(1, 2)` y sin `Migraciones.kt` |
 | C. Casos de uso que solo reenvían | 20 clases borradas; los ViewModels usan directamente las interfaces de repositorio de `:domain`. Se quedan los que tienen lógica |
-| D. Estructura | `:security` se integra en `:data` (`cu.shalev.data.security`), quedan 6 módulos; exportación unificada en `app/common/ExportadorArchivos.kt`; fakes de `:app` compartidos en `app/src/sharedTest` |
-| E. Automatización local | `./gradlew shalevCheck` (tests JVM + lint con `app/lint-baseline.xml` + APK debug + control de permisos), `EsquemaTest` (instrumentado) y `.github/workflows/ci.yml` preparado e inactivo |
+| D. Estructura | `:security` se integra en `:data` (`cu.shalev.data.security`), quedan 6 módulos; exportación unificada en `app/common/ExportadorArchivos.kt`; fakes de `:app` compartidos en `Android/app/src/sharedTest` |
+| E. Automatización local | `./gradlew shalevCheck` (tests JVM + lint con `Android/app/lint-baseline.xml` + APK debug + control de permisos), `EsquemaTest` (instrumentado) y `.github/workflows/ci.yml` preparado e inactivo |
 | F. Documentación | 0.13.0 (13) |
 
-**Desviaciones de Shalev.txt (decididas por el usuario):** tasas de cambio (:11), botón Enzona (:6), caducidad por código (:87) y respaldo «Solo configuración» (:132). Detalle en el README.
+### Desviaciones frente a `Shalev.txt` acordadas en P17 (estado de 0.14.0)
+
+| Referencia | Pedido original | Decisión documentada | Motivo |
+|---|---|---|---|
+| línea 6 | Transfermóvil **y Enzona** para confirmar el pago y el QR | **Solo Transfermóvil.** Se quitaron el botón «Abrir Enzona» y su `<queries>` | Enzona no publica el formato de su QR: el botón solo abría la app |
+| línea 11 | Exportar en PDF el perfil, los preajustes **y las tasas de cambio** | **Sin tasas** (tabla, DTO y sección del PDF eliminadas) | Nunca tuvieron pantalla de edición y ninguna operación las usaba |
+| línea 87 | Escáner: buscar la fecha de caducidad en Room por código y guardarla | **Sin escáner ni campo código.** La fecha va en cada producto | Se eliminó el subsistema de código de barras; decisión del propietario |
+| línea 132 | Respaldo de «Configuración» o «Todo» | **Solo «Todo»** | Un único tipo evita importar a medias y simplifica el formato (v3) |
+
+Esta tabla conserva decisiones de aquella etapa; no describe el comportamiento actual de todas esas funciones.
 
 ### Suposiciones del Prompt 17
 
-1. **`data/schemas/cu.shalev.data.db.ShalevDatabase/3.json`** lo genera Room (KSP) en la primera compilación en Android Studio; hay que subirlo a git. `EsquemaTest` lo lee desde los assets de `androidTest`.
+1. **`Android/data/schemas/cu.shalev.data.db.ShalevDatabase/3.json`** lo genera Room (KSP) en la primera compilación en Android Studio; hay que subirlo a git. `EsquemaTest` lo lee desde los assets de `androidTest`.
 2. **S6 (fakes compartidos):** se compartieron los 3 fakes que usaban a la vez los tests JVM y los instrumentados; los que solo usa un lado se quedaron donde estaban.
 3. **Teléfonos de prueba:** al abrir la 0.13.0, una BD v1 o v2 se recrea vacía. Lo más sencillo es desinstalar y reinstalar.
 4. **Baseline de lint vacío:** no se pudo ejecutar lint en este entorno. La primera ejecución de `shalevCheck` dirá si hay que regenerarlo con `./gradlew updateLintBaseline`.
@@ -1171,7 +1188,7 @@ Sin funciones nuevas. El informe completo está en `REVISION_FINAL.md` y el proc
 - **Build:**
   - `shalevPermisos` revisa debug y release, y admite el permiso propio `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` de androidx.core; sin esa excepción, `shalevCheck` habría fallado.
   - Nueva tarea `shalevRelease`.
-  - `signingConfig` desde `keystore.properties` o variables `Shalev_*`.
+  - `signingConfig` desde `Android/keystore.properties` o variables `Shalev_*`.
   - `gradlew` ejecutable, también en la CI.
   - Secretos de firma en `.gitignore`.
 - **Contrato GL:** el `deviceId` se limita a ASCII `a-z0-9` y a 128 caracteres (`DeviceIdTest`). Con un ANDROID_ID real el valor no cambia.
@@ -1266,7 +1283,7 @@ Desde el Prompt 25 las ventas se identifican por su fecha y el número interno n
 |---|---|
 | `coincide(Venta)` ya no compara el texto con `venta.id` (con o sin `#`) | `domain/.../service/RegistrosFiltro.kt` |
 | `coincide(Transaccion)` ya no compara el texto con `ventaId` | ídem |
-| Prueba renombrada a `buscadorSinTildesNiMayusculasYSinIdInterno`: «12» y «#12» no encuentran la venta 12; «#7» no encuentra la transferencia de la venta 7 | `domain/src/test/.../RegistrosTest.kt` |
+| Prueba renombrada a `buscadorSinTildesNiMayusculasYSinIdInterno`: «12» y «#12» no encuentran la venta 12; «#7» no encuentra la transferencia de la venta 7 | `Android/domain/src/test/.../RegistrosTest.kt` |
 
 **Se mantiene:** la búsqueda por el **Nº de transacción bancaria** (el del SMS de PAGOxMOVIL), que sí se ve en pantalla y en la ficha. El texto de ayuda de Transferencias («Nº de transacción, cliente, CI o teléfono») ya no mencionaba el número de venta, así que no cambia.
 
@@ -1323,7 +1340,7 @@ Ocho peticiones. Respuestas del usuario a las dudas: (1) QR solo aviso, (2) tipo
 | # | Petición | Resultado |
 |---|---|---|
 | 1 | «Transfermóvil captura los datos del QR excepto el importe» | **Sin cambios.** El QR que genera Shalev es el de transferencia de persona (`TRANSFERMOVIL_ETECSA,TRANSFERENCIA,<tarjeta>,<móvil>,`), que no lleva importe. Los QR con importe son de comercios registrados en la pasarela. El total sigue arriba y centrado para que el cliente lo escriba |
-| 2 | Tipografía «Anurati» en el título | La licencia de Anurati es contradictoria (en unas fuentes es gratuita, en otras solo personal). Se usa **Orbitron** (SIL OFL 1.1), con un estilo geométrico parecido: `designsystem/res/font/orbitron.ttf`, peso 700, en `ShalevMarca`. `ShalevTopBar` la aplica al título «Shalev». La licencia está en `designsystem/src/main/OFL_Orbitron.txt` |
+| 2 | Tipografía «Anurati» en el título | La licencia de Anurati es contradictoria (en unas fuentes es gratuita, en otras solo personal). Se usa **Orbitron** (SIL OFL 1.1), con un estilo geométrico parecido: `designsystem/res/font/orbitron.ttf`, peso 700, en `ShalevMarca`. `ShalevTopBar` la aplica al título «Shalev». La licencia está en `Android/designsystem/src/main/OFL_Orbitron.txt` |
 | 3 | Elaboración → Servicios; insumos en Inventario | Fuera la sección Elaboración (paquete `elaboracion/`). Los insumos aparecen en Inventario como la categoría «Insumos» (id negativo para no mezclarse con productos), con ficha, eliminar, el filtro «Insumos» y la acción «Insumo» en el botón +. El formulario de insumo pasa a `app/…/insumos/` y gana «Precio de venta» (opcional): si lo tiene, se vende en unidades enteras. Ningún producto puede usar la categoría «Insumos» (`NO_PERMITIDO`) |
 | 4 | Servicios | Nueva sección (icono: mano que recibe, `VolunteerActivism`). Campos: Nombre, Tipo (libre, con sugerencias), Importe, y opcionales Foto y Descripción. Puede gastar insumos («por vez»): muestra «Alcanza para N» y no se vende si no alcanzan. Venta separada: «Nueva venta» → Productos o Servicios. Un carrito no puede mezclar ambos. Registros tiene la pestaña **Servicios** y la exportación incluye la clase de cada línea. Inicio tiene «Servicios: top ventas» y «Servicios: menos vendidos» («1 vez» / «N veces») |
 | 5 | Deslizar | `navigation/Deslizar.kt`: un gesto horizontal de 72dp cambia de sección en la barra inferior. Solo funciona en las 5 secciones, y no en formularios ni en la venta. Se ignoran los toques en las franjas de gestos del sistema y los gestos que ya usa un hijo. En Registros cambia de pestaña y, después de la última, pasa a la sección siguiente. `ShalevTabs` se vuelve desplazable con más de 4 pestañas |
@@ -1582,7 +1599,7 @@ Los generadores están en `tools/capturas/` (ver CAPTURAS.md). Son maquetas HTML
   - El respaldo lleva `empleados[]`, sin claves ni QR; al restaurar aparecen «Sin vincular».
   - Migrar → paso 2 avisa de sincronizar antes las apps de los empleados.
 - **Ayuda:** «Apps de tus empleados» tiene un 5.º paso.
-- **Base de datos v6:** `MIGRACION_5_6` añade `tarjetaId`, `telefonoId` y `cierreSolicitadoEn` a `empleado`. Se exportó `data/schemas/.../6.json`.
+- **Base de datos v6:** `MIGRACION_5_6` añade `tarjetaId`, `telefonoId` y `cierreSolicitadoEn` a `empleado`. Se exportó `Android/data/schemas/.../6.json`.
 
 **Tests:**
 - Nuevos: `Version020Test` (domain, 8) y `Version020SyncTest` (data, 6).
@@ -1905,7 +1922,7 @@ Revisión de la paleta (`docs/PROPUESTA_COLOR.md`) y aplicación de H1–H5:
 
 ## Prompt 73 — 0.26.0 (48): PLAN_0.26 (respaldo, botón +, sin texto, fondo asignado, seminegrita, actualizaciones obligatorias)
 
-Plan confirmado: [docs/PLAN_0.26.md](PLAN_0.26.md).
+Plan confirmado en el archivo histórico `docs/PLAN_0.26.md`, que ya no está incluido en este checkout.
 - **§1 Respaldo:** solo el archivo `.shalev` cifrado (se quita el PDF de configuración).
 - **§2 Botón +:** abajo a la derecha (`FabPosition.End`) en Inventario, Precios y Servicios.
 - **§3 Sin exportaciones de texto:** se quitan `texto*` y `Compartir.texto`. Quedan la solicitud de licencia, el contacto de Soporte y el pegado/compartido de SMS.
@@ -1917,7 +1934,7 @@ Plan confirmado: [docs/PLAN_0.26.md](PLAN_0.26.md).
 
 ## Prompt 74 — 0.26.0 (48): la prueba no se reinicia al reinstalar
 
-Ver [PLAN_ANTIREINSTALACION.md](PLAN_ANTIREINSTALACION.md).
+Ver el plan histórico `PLAN_ANTIREINSTALACION.md`, que ya no está incluido en este checkout.
 - **Registro cifrado** (`licencia/prueba/RegistroPrueba.kt`): AES-GCM con clave PBKDF2 a partir de ANDROID_ID. Se guarda en cuatro sitios: imagen PNG en Imágenes/Shalev, `.bin` en Download y en Documents, y copia interna. Gana la fecha más antigua y una copia ilegible se ignora.
 - **`LicenseManager`:** usa `RegistroExterno` y `DetectorRetroceso` (`elapsedRealtime` dentro del mismo arranque, combinado con `lastSeen`).
 - **Implementación Android:** `RegistroPruebaAndroid` / `DetectorRelojAndroid` (MediaStore en 10+, `File` en 8–9).
@@ -1929,7 +1946,7 @@ Ver [PLAN_ANTIREINSTALACION.md](PLAN_ANTIREINSTALACION.md).
 
 ## Limpieza para OpenCode (0.26.0)
 
-Se retiraron los documentos de trabajo antiguos: `docs/PLAN_0.25.md`, `docs/DEPURACION_0.21.6.md`, `docs/PRUEBAS_0.21.9.md`, `docs/PRUEBA_ESCANER.md` y `REVISION_FINAL.md`. Su contenido vigente está en este historial (Prompts 53, 55, 58 y 70), en `Contexto.md`, `Pruebas.md` y `Pendiente.md`. Las menciones que quedan arriba son históricas.
+Se retiraron los documentos de trabajo antiguos: `docs/PLAN_0.25.md`, `docs/DEPURACION_0.21.6.md`, `docs/PRUEBAS_0.21.9.md`, `docs/PRUEBA_ESCANER.md` y `REVISION_FINAL.md`. Su contenido vigente quedó en este historial (Prompts 53, 55, 58 y 70) y en `Pruebas.md`; `Contexto.md` y `Pendiente.md` fueron archivos de trabajo que ya no forman parte de este checkout. Las menciones que quedan arriba son históricas.
 
 ## 0.27.0 · Claves de GL del 05/10/2026
 
@@ -1940,7 +1957,7 @@ Se retiraron los documentos de trabajo antiguos: `docs/PLAN_0.25.md`, `docs/DEPU
 
 ## 0.27.0 (49) · Pulido de interfaz, acceso con clave, respaldo sin contraseña y clientes fijos
 
-Especificación: [PROMPT_0.27.0.md](PROMPT_0.27.0.md) (T1–T14) más cuatro pedidos del dueño en P78 (N1–N4). Implementado en la copia propia de la 0.26.0, no en la de OpenCode: **los arreglos que OpenCode hiciera para compilar la 0.26.0 hay que volver a aplicarlos** si siguen haciendo falta.
+Especificación histórica: `PROMPT_0.27.0.md` (ya no incluido en este checkout; T1–T14) más cuatro pedidos del dueño en P78 (N1–N4). Implementado en la copia propia de la 0.26.0, no en la de OpenCode: **los arreglos que OpenCode hiciera para compilar la 0.26.0 hay que volver a aplicarlos** si siguen haciendo falta.
 
 | Tarea | Qué se hizo |
 |---|---|
@@ -2130,7 +2147,7 @@ Primera vez que el repositorio se verifica solo: GitHub Actions ejecuta Gradle r
 - **Gráficos:** las etiquetas de hora y mes usan los patrones breves del dispositivo; día/mes conserva el formato configurado.
 - **Transferencia:** no se inventa un campo de importe para Transfermóvil: el total de la venta se ve debajo del QR oficial. Pago electrónico presenta logotipos orientativos solo para prefijos no ambiguos; la asignación, fuentes y advertencias de licencia están en [LOGOS_BANCOS.md](LOGOS_BANCOS.md).
 - **SMS:** captura automática opcional a través de `NotificationListenerService`, solo mientras Shalev espera una transferencia, con habilitación manual de Acceso a notificaciones. No se solicita `READ_SMS`, no se consulta el buzón ni se conserva el cuerpo: al flujo de venta solo llegan el número y el importe reconocidos. Pegar o compartir el SMS sigue disponible.
-- **Actualizaciones:** `gradle.properties` fija `shalevGithubRepo=rmdvcd/Shalev`; el build consulta la última Release pública del mismo repositorio (API de GitHub Releases) y descarga desde sus assets. Se puede sobrescribir para un fork. El repositorio es público, pero el 2026-10-08 aún no tenía Releases, así que falta publicar la primera APK firmada.
+- **Actualizaciones:** `Android/gradle.properties` fija `shalevGithubRepo=rmdvcd/Shalev`; el build consulta la última Release pública del mismo repositorio (API de GitHub Releases) y descarga desde sus assets. Se puede sobrescribir para un fork. El repositorio es público, pero el 2026-10-08 aún no tenía Releases, así que falta publicar la primera APK firmada.
 - **Pruebas añadidas/actualizadas:** formatos locales del gráfico, prefijos bancarios, selección fijada, filtros desplegables y captura SMS condicional. Las imágenes binarias de Roborazzi aún no se regrabaron. Pendiente ejecutar compilación, pruebas y capturas en un entorno con JDK; en esta sesión Gradle no encontró Java.
 
 ## Revisión de entradas y textos — 2026-10-09 (sin ejecutar)
@@ -2170,7 +2187,7 @@ Primera vez que el repositorio se verifica solo: GitHub Actions ejecuta Gradle r
 - El dueño fusionó la PR #10 después de la sesión anterior (incluyó mis entradas del 2026-10-10 en `desktop/README.md`; las capturas regeneradas quedaron sin commitear). El venv de ayer quedó viejo: el `requirements.txt` nuevo ya trae `tzdata==2026.5`, `pystray` y `six`; bastó `pip install -r requirements.txt`, sin tocar código.
 - **Móvil:** `./gradlew shalevTests shalevCheck` en verde (**859 tests JVM, 0 fallos**; lint 0 errores, `shalevPermisos` OK). APK reinstalado y abierto en el Redmi: Inicio con banner de prueba, Pago electrónico enmascarado, acordeones; Registros con pestañas FlowRow en varias filas (0.30.1), ninguna cortada.
 - **Instrumentados (primera ejecución real):** `:data` 50 tests, 46 OK y **4 fallos conocidos** en `ConfiguracionInicialInstrumentedTest` (migraciones 4/5/6→11 ausentes y versión esperada 9 vs real 11): es la deuda T3.2 ya documentada, no se tocó. `:app` (94 tests UI) **bloqueado por el dispositivo**: el primer test se cuelga (MIUI no trae la actividad al frente; el teléfono es el de uso diario con los datos del dueño, contra D6). Veredicto: UI instrumentada pendiente de emulador o teléfono dedicado.
-- **Roborazzi:** `verify` inicial dio 101 diferencias (referencias del 08/10 + capturas nuevas sin referencia tras los cambios de UI). `record` regeneró `app/capturas` (286 PNG) y `verify --rerun-tasks` pasó en verde. Revisión visual propia: Inicio oscuro y Registros claros correctos y coincidentes con el teléfono; la revisión final de cada captura queda para el dueño.
+- **Roborazzi:** `verify` inicial dio 101 diferencias (referencias del 08/10 + capturas nuevas sin referencia tras los cambios de UI). `record` regeneró `Android/app/capturas` (286 PNG) y `verify --rerun-tasks` pasó en verde. Revisión visual propia: Inicio oscuro y Registros claros correctos y coincidentes con el teléfono; la revisión final de cada captura queda para el dueño.
 - **Web:** `unittest` **103 tests OK (1 omitido)**. `build_windows.ps1` regeneró `dist/Shalev.exe` (30,1 MB, `.sha256` actualizado a mano porque el script no lo reescribió) con `--self-test` pasado.
 - **Aceptación en Chrome real contra el EXE (datos temporales, borrados después):** abrir turno con fondo 1000, crear producto Pan (costo 20, venta 50, 100 u; la categoría es texto libre con sugerencias y frena el Guardar si falta), vender ×1 en efectivo (stock 99), corregir a ×2 con motivo (2 registros, válido 100.00), anular con motivo (válido 0.00, stock de vuelta a 100), doble anulación imposible (la ficha anulada solo muestra Cerrar), exportar inventario a PDF y XLSX válidos (hoja SPVI: Pan, 50, 20, 100, u), Tiempo en línea con uptime, y cierre de turno con **Cuadra** (1000 = 1000).
 - **Observación menor (sin tocar):** la tarjeta de producto sin foto pide `/api/photo/...` y el servidor devuelve 404 que ensucia la consola (3–7 errores). Decisión del dueño: no pedir la foto si no existe, o devolver 204.
@@ -2236,12 +2253,12 @@ Primera vez que el repositorio se verifica solo: GitHub Actions ejecuta Gradle r
 
 ## Contraparte iOS nativa `IShalev` — 2026-10-24
 
-- Se creó `IShalev/` como proyecto SwiftUI/Xcode independiente (target iOS 17+), conservando la paleta, iconografía y tipografía de marca del Android.
+- Se creó `iOS/` como proyecto SwiftUI/Xcode independiente (target iOS 17+), conservando la paleta, iconografía y tipografía de marca del Android.
 - Incluye Inicio y gráficos, apertura/cierre de turno, caja, catálogo de productos/insumos/elaborados con recetas, servicios, carrito, cobro efectivo/Transfermóvil con QR compatible, clientes fijos, registros, ajustes de precios y datos de perfil/cobro.
 - Los importes del dominio se almacenan en centavos; persistencia local JSON cifrada con AES-GCM y clave en Keychain; respaldo iOS con contraseña independiente del `.shalev` Android.
 - Se añadió `.github/workflows/ios-build.yml` para compilar en runner macOS y publicar una app de simulador como artefacto para Appetize.
 - Revisión estática: nueve fuentes Swift pasan Tree-sitter; `project.pbxproj`, scheme, `Info.plist`, manifiestos de recursos y YAML del workflow pasan parseo estructural. Esto no equivale a type-check ni compilación.
-- **No compilado ni ejecutado:** este entorno no tiene Xcode ni simulador iOS; el primer build queda pendiente del workflow macOS. La licencia GL, la LAN entre teléfonos, captura de SMS/notificaciones, edición/anulación de ventas y exportaciones PDF/Excel Android no se portaron en esta fase. `IShalev/README.md` documenta límites y pasos de compilación/emulación gratuita.
+- **No compilado ni ejecutado:** este entorno no tiene Xcode ni simulador iOS; el primer build queda pendiente del workflow macOS. La licencia GL, la LAN entre teléfonos, captura de SMS/notificaciones, edición/anulación de ventas y exportaciones PDF/Excel Android no se portaron en esta fase. `iOS/README.md` documenta límites y pasos de compilación/emulación gratuita.
 
 ## IShalev — alineación visual con Android: Inicio, Venta y Ajustes (2026-10-26)
 
@@ -2428,9 +2445,9 @@ antes de aprobar el conteo de una app secundaria. No cambia el protocolo de sinc
 - **Perfiles locales de empleado** (función solo de iOS): los permisos usan la misma fila con detalle y la
   lista resume «PIN configurado · N permisos» en lugar de encadenar todos los nombres.
 
-## IShalev — Capturas de pantalla en la raíz del repositorio (2026-10-27)
+## IShalev — Capturas de pantalla (2026-10-27)
 
-La sesión interactiva de Appetize se queda en la pantalla de licencia y no deja recorrer la app, así que se crea **`capturas_IShalev/`** en la raíz con el recorrido visual de IShalev: onboarding (4 pasos), Inicio, cierre de turno, Inventario y su ficha, venta y carrito, QR de Transfermóvil, y (siguiente lote) Servicios, Registros, Ajustes, Licencia, Apps vinculadas, Respaldo y bloqueo del dispositivo. Son **maquetas generadas** fieles al código SwiftUI (paleta `DesignSystem.swift`, textos de las pantallas), no capturas del simulador; el índice y la nota están en `capturas_IShalev/README.md`. No cambia el código de IShalev.
+La sesión interactiva de Appetize se queda en la pantalla de licencia y no deja recorrer la app, así que se crea un recorrido visual de IShalev: onboarding (4 pasos), Inicio, cierre de turno, Inventario y su ficha, venta y carrito, QR de Transfermóvil, y (siguiente lote) Servicios, Registros, Ajustes, Licencia, Apps vinculadas, Respaldo y bloqueo del dispositivo. Son **maquetas generadas** fieles al código SwiftUI (paleta `DesignSystem.swift`, textos de las pantallas), no capturas del simulador; el índice y la nota están en `iOS/capturas/README.md`. La carpeta, que originalmente estaba en la raíz, ahora queda agrupada junto al proyecto iOS en `iOS/capturas/`. No cambia el código de IShalev.
 
 ## IShalev y Shalev — Auditoría UI · UX · IX y correcciones de accesibilidad (2026-10-28)
 
@@ -2456,7 +2473,7 @@ Todo en ficheros existentes; **no se añadió ningún fichero nuevo**, así el `
 La app Android ya cumple el checklist mapeado, pero la auditoría destapó que **`main` estaba en rojo** con **dos** pruebas rotas, las dos herencia del cambio de 1.0.1 (2026-10-27), que se hizo sin poder ejecutar los tests. Fallaban desde el commit base `d125513` (run de CI `40437981165`, PR #63):
 
 1. **`app/ayuda/AyudaContenido.kt:173`.** Un paso de ayuda de **136 caracteres** cuando `AyudaSoporteTest` exige ≤ 110. Se reescribió a **110** conservando la etiqueta real del botón («Usar esta app como secundaria», `vinculacion/VinculacionLogic.kt:20`), el teléfono, la acción de escanear y las tres redes que 1.0.1 añadió a propósito (wifi, zona wifi y datos). Verificado sin JVM repasando todas las aserciones del test sobre el fichero (13 temas, títulos únicos, ≤ 5 pasos por tema, longitud máxima 110 y las seis palabras clave): ese paso era la única incumplida. **El CI lo confirmó**: en la ejecución siguiente `AyudaSoporteTest > manualBreveYCompleto` ya no aparece entre los fallos. **Cambia el texto de la pantalla de Ayuda, así que hay que regrabar `07g_ayuda.png` en claro y oscuro**, que ya estaba pendiente por esos mismos textos de 1.0.1.
-2. **`app/src/test/.../actualizacion/ProcesoActualizarTest.kt:114`.** `sinConexionNoSeCierraSolo()` está escrita como `= runBlocking { … }` y su última expresión es `withTimeout { g.estado.first { … } }`, que **devuelve el estado** en vez de `Unit`: el método JVM no era `void` y JUnit 4 exige que todo `@Test` lo sea, así que la clase entera se rechazaba al inicializar (`InvalidTestClassError`, reportado como `initializationError`) y **ninguno de sus cuatro tests llegaba a correr**. Se añadió el parámetro de tipo explícito `runBlocking<Unit>` —Kotlin descarta entonces el valor de la última expresión— sin tocar la lógica. Los otros tres tests de la clase terminan en `assertNull`/`assertTrue`, que sí devuelven `Unit`. Se rastreó el mismo patrón en todos los tests JVM e instrumentados del repositorio: no hay otro caso (`RendimientoInicioTest.inicioConDieciochoMesesDeDatos` termina en un `try/finally` cuyo bloque acaba en `assertTrue`, y el CI solo lo compila). **Al correr de verdad por primera vez desde 1.0.1 pueden aparecer fallos reales de comportamiento** que estaban ocultos tras el error de inicialización; si aparecen, no los causó esta rama.
+2. **`Android/app/src/test/.../actualizacion/ProcesoActualizarTest.kt:114`.** `sinConexionNoSeCierraSolo()` está escrita como `= runBlocking { … }` y su última expresión es `withTimeout { g.estado.first { … } }`, que **devuelve el estado** en vez de `Unit`: el método JVM no era `void` y JUnit 4 exige que todo `@Test` lo sea, así que la clase entera se rechazaba al inicializar (`InvalidTestClassError`, reportado como `initializationError`) y **ninguno de sus cuatro tests llegaba a correr**. Se añadió el parámetro de tipo explícito `runBlocking<Unit>` —Kotlin descarta entonces el valor de la última expresión— sin tocar la lógica. Los otros tres tests de la clase terminan en `assertNull`/`assertTrue`, que sí devuelven `Unit`. Se rastreó el mismo patrón en todos los tests JVM e instrumentados del repositorio: no hay otro caso (`RendimientoInicioTest.inicioConDieciochoMesesDeDatos` termina en un `try/finally` cuyo bloque acaba en `assertTrue`, y el CI solo lo compila). **Al correr de verdad por primera vez desde 1.0.1 pueden aparecer fallos reales de comportamiento** que estaban ocultos tras el error de inicialización; si aparecen, no los causó esta rama.
 
 Los dos hallazgos restantes son decisiones pendientes del dueño, no descuidos: la casilla de 24 dp (AND-001, anotada desde la auditoría del 2026-10-21 y que exige regrabar capturas) y los permisos pedidos en lote en la primera apertura (AND-002). Se verificó **en la fuente del framework**, no de memoria, que Compose respeta «Quitar animaciones»: observa `Settings.Global.ANIMATOR_DURATION_SCALE` (`WindowRecomposer.android.kt:95-119`) y lo expone como `MotionDurationScale`, cuyo factor 0 resuelve el movimiento en el fotograma siguiente; todas las animaciones de Shalev salen de `ShalevMotion` y no hay `rememberInfiniteTransition`.
 
@@ -2464,7 +2481,7 @@ Los dos hallazgos restantes son decisiones pendientes del dueño, no descuidos: 
 
 Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por saturación de la cola Apple Silicon de GitHub Actions. Se migró `.github/workflows/ios-build.yml` a **`macos-15-intel`** (Xcode 16.4, cola inmediata) con tres salidas verificadas en verde (runs `40735858971` en `47a0dc4` y `40740036716` en `8e7f7da`):
 
-1. **`swift test --package-path IShalev`** en verde.
+1. **`swift test --package-path iOS`** en verde.
 2. **Paquete universal de simulador (`ARCHS="arm64 x86_64"`, `IShalev-iOS-Simulator.zip`)** subido automáticamente a Appetize.io (`https://appetize.io/app/w3nz2pnc4iwdzjao2evosl7dci`), ya que Appetize exige un `.app` de simulador comprimido y no admite `.ipa` de dispositivo.
 3. **Compilación Release para dispositivo (`generic/platform=iOS`, sin firma) empaquetada como `IShalev.ipa` (4,1 MB)** y publicada como artefacto `IShalev-iOS-IPA`, que verifica además las rutas `#if !targetEnvironment(simulator)` del código.
 
@@ -2568,7 +2585,7 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
 
 ### 2026-11-10 — Base de licencia de canje GL en DShalev
 
-- Se añade `DShalev/dshalev/licencia/`: identidad P-256 persistente por instalación (privada con DPAPI del usuario en Windows; variante de prueba solo fuera de Windows y solo con `DSHALEV_ALLOW_DEV_IDENTITY=1`), huella SHA-256/Base64url de la SPKI, configuración de endpoint/`appId`/`kid` fijada en compilación y almacén local atómico ligado a la huella del equipo.
+- Se añade `Web-Desktop/dshalev/licencia/`: identidad P-256 persistente por instalación (privada con DPAPI del usuario en Windows; variante de prueba solo fuera de Windows y solo con `DSHALEV_ALLOW_DEV_IDENTITY=1`), huella SHA-256/Base64url de la SPKI, configuración de endpoint/`appId`/`kid` fijada en compilación y almacén local atómico ligado a la huella del equipo.
 - La licencia se guarda sellada y con un resguardo fuera de `DShalevData` que conserva la más reciente y la marca de agua del reloj; una restauración anterior no la destruye, una copia de otro equipo no se activa y un retroceso de reloj de más de 2 h obliga a fallar cerrado. DPAPI no se presenta como atestación.
 - La activación comercial sigue **deshabilitada**: no hay endpoint ni claves de producción aprobados y el contrato del servicio GL (`services/redeem/...`) no forma parte de este repositorio. No se implementaron canje, estado, enforcement ni sub-tokens; no se activan secundarias ni se sube `MAX_SECUNDARIAS`.
 - Pruebas nuevas de identidad, configuración y almacén; `pytest` pasa de 54 a 107 casos en Linux. Quedan pendientes: contrato GL y vector, extremo a extremo con servicio de prueba HTTPS, Windows/DPAPI y EXE portable, enforcement en rutas y sincronización, y la UI de activación/transferencia. Detalle y riesgos en `docs/DSHALEV_LICENCIA_GL.md`.
@@ -2576,7 +2593,7 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
 ### 2026-11-10 — Recibos persistentes de comandos y compatibilidad del catálogo
 
 - Android reemplaza el LRU en RAM de `MemoriaComandos` por recibos idempotentes en Room v17. La acción, su resultado/error y la huella de contenido se comprueban y guardan dentro de la misma transacción SQLite que aplica el comando. Reintentos después de reiniciar la principal responden con el resultado original; una clave reutilizada para otra acción se rechaza sin mutar el catálogo. Los recibos no se podan y la clave sigue acotada por empleado. Importar un respaldo borra los recibos, porque se sustituye el estado de negocio.
-- La migración 16→17 y `data/schemas/.../17.json` son aditivas. Se añaden pruebas instrumentadas de reapertura, conflicto de contenido, error recordado y concurrencia, además de prueba de migración. No fue posible ejecutar Gradle ni los instrumentados en este entorno sin JDK/Android SDK.
+- La migración 16→17 y `Android/data/schemas/.../17.json` son aditivas. Se añaden pruebas instrumentadas de reapertura, conflicto de contenido, error recordado y concurrencia, además de prueba de migración. No fue posible ejecutar Gradle ni los instrumentados en este entorno sin JDK/Android SDK.
 - La revisión confirmó que el buscador Android sí filtra por nombre, categoría y descripción (`InventarioFiltro`), de modo que se conserva su etiqueta actual.
 - `/api/v1/catalog` mantiene sin cambios sus campos heredados (`stock`, `low_stock`, precios) y añade columnas enteras canónicas `stock_milli`, `low_stock_milli` y `critical_stock_milli`, además de `critical_stock`. Una prueba API comprueba las milésimas y los alias heredados.
 - Python/Node se reejecutan tras estos cambios; los resultados medidos se registran en `docs/VERIFICACION.md`. La auditoría IPV/POS se actualiza con los límites de retención y verificaciones pendientes.

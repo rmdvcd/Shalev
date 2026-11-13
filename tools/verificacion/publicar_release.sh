@@ -3,9 +3,9 @@
 # Shalev — publicar la actualización en GitHub Releases (se ejecuta en el PC del desarrollador).
 #
 # Flujo completo y con guardas:
-#   1. Lee versionName de app/build.gradle.kts → etiqueta v<versionName> (p. ej. v1.0.1).
+#   1. Lee versionName de Android/app/build.gradle.kts → etiqueta v<versionName> (p. ej. v1.0.1).
 #   2. Falla si ya existe una Release con esa etiqueta (no se republica nada).
-#   3. Compila ./gradlew :app:assembleRelease (firma con el keystore existente: keystore.properties
+#   3. Compila ./gradlew :app:assembleRelease (firma con el keystore existente: Android/keystore.properties
 #      o variables Shalev_*; NUNCA genera claves nuevas).
 #   4. Verifica la firma con verificar_firma_apk.sh (clave vigente: gl-release.jks, alias gl,
 #      SHA-256 13:9D:…:17:38, la de GL.apk y de la Release v1.0). Si falla, NO publica.
@@ -22,7 +22,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 GRADLE="$ROOT/gradlew"
-BUILD="$ROOT/app/build.gradle.kts"
+BUILD="$ROOT/Android/app/build.gradle.kts"
 
 VERSION="$(grep -oP 'versionName\s*=\s*"\K[^"]+' "$BUILD" | head -1)"
 [ -n "$VERSION" ] || { echo "FALLO: no se leyó versionName de $BUILD"; exit 1; }
@@ -32,16 +32,16 @@ echo "== Versión de la app: $VERSION (versionName) → etiqueta $TAG en $REPO"
 
 # 1. No republicar una release existente.
 if gh api "repos/$REPO/releases/tags/$TAG" >/dev/null 2>&1; then
-  echo "FALLO: ya existe la Release $TAG en $REPO. Sube versionName/versionCode en app/build.gradle.kts antes de publicar."
+  echo "FALLO: ya existe la Release $TAG en $REPO. Sube versionName/versionCode en Android/app/build.gradle.kts antes de publicar."
   exit 1
 fi
 
-# 2. Compilar release firmado (usa keystore.properties o Shalev_*; no toca claves).
+# 2. Compilar release firmado (usa Android/keystore.properties o Shalev_*; no toca claves).
 echo "== Compilando :app:assembleRelease (puede tardar varios minutos)…"
 ( cd "$ROOT" && "$GRADLE" :app:assembleRelease )
 
 # 3. Verificar la firma del APK (clave vigente de GL.apk / v1.0).
-APK_UNIVERSAL="$ROOT/app/build/outputs/apk/release/app-universal-release.apk"
+APK_UNIVERSAL="$ROOT/Android/app/build/outputs/apk/release/app-universal-release.apk"
 [ -f "$APK_UNIVERSAL" ] || { echo "FALLO: no está el APK universal: $APK_UNIVERSAL"; exit 1; }
 echo "== Verificando firma del APK…"
 bash "$ROOT/tools/verificacion/verificar_firma_apk.sh" "$APK_UNIVERSAL"

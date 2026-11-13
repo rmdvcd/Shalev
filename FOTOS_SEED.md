@@ -2,7 +2,7 @@
 
 ## Cómo funciona
 
-En `data/src/debug/.../seed/Sembrador.kt`:
+En `Android/data/src/debug/.../seed/Sembrador.kt`:
 - `foto("prod", i)` → busca `files/fotos/prod01.jpg` … `prod36.jpg` (índice `i` del catálogo de productos, 0-based → archivo con `+1`).
 - `foto("serv", i)` → busca `files/fotos/serv01.jpg` … `serv20.jpg` (índice `i` del catálogo de servicios).
 - Si el archivo no existe, el producto/servicio se siembra **sin foto** y el seed no falla.

@@ -13,7 +13,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * SOLO tools/verificacion (0.21.9, P59). Versión JVM de data/src/androidTest/.../EsquemaTest (que en Gradle usa
+ * SOLO tools/verificacion (0.21.9, P59). Versión JVM de Android/data/src/androidTest/.../EsquemaTest (que en Gradle usa
  * MigrationTestHelper y SQLiteDatabase nativos): crea con JDBC una BD de la versión antigua a partir del esquema
  * exportado (<VERSION>.json) y la abre con Room y las migraciones reales. Room valida cada tabla, índice y clave foránea contra
  * las entidades al terminar la migración, y lanza IllegalStateException si algo no coincide.
@@ -22,7 +22,7 @@ class MigracionesJvmTest {
 
     private val archivo: File = JdbcOpenHelper.archivo(BD)
     private val esquema: JSONObject by lazy {
-        val dir = System.getProperty("shalev.esquemas") ?: error("falta -Dshalev.esquemas=<data/schemas/cu.shalev.data.db.ShalevDatabase>")
+        val dir = System.getProperty("shalev.esquemas") ?: error("falta -Dshalev.esquemas=<Android/data/schemas/cu.shalev.data.db.ShalevDatabase>")
         JSONObject(File(dir, "12.json").readText()).getJSONObject("database")
     }
 

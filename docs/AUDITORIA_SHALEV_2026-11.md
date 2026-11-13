@@ -1,6 +1,6 @@
 # Auditoría y correcciones de Shalev Android — 13/11/2026
 
-**Alcance:** diagnóstico e implementación sobre Shalev Android 1.0.1/54. Se reutilizan casos de uso, repositorios, Room/SQLCipher y componentes Shalev. No se reescriben módulos ni se modifica DShalev/IShalev. Esta edición de trabajo no es una nueva publicación firmada.
+**Alcance:** diagnóstico e implementación sobre Shalev Android 1.0.1/54. Se reutilizan casos de uso, repositorios, Room/SQLCipher y componentes Shalev. No se reescriben módulos ni se modifica Web-Desktop/IShalev. Esta edición de trabajo no es una nueva publicación firmada.
 
 ## Diagnóstico concluido
 

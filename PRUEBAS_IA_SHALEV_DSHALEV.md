@@ -7,7 +7,7 @@
 
 ## 1. Instrucciones para la IA ejecutora
 
-1. Lee `AGENTS.md`, este documento, `Pruebas.md`, `PRUEBAS_DISPOSITIVO.md`, `DShalev/README.md` y los informes `PRUEBAS_VENTANAS_ANDROID.md`/`PRUEBAS_VENTANAS_DSHALEV.md`. Estos últimos son solo líneas base del 2026-11-10: no trates sus resultados como verificación de la rama actual. Si una instrucción antigua contradice el código, comprueba la implementación y anota la diferencia.
+1. Lee `AGENTS.md`, este documento, `Pruebas.md`, `PRUEBAS_DISPOSITIVO.md`, `Web-Desktop/README.md` y los informes `PRUEBAS_VENTANAS_ANDROID.md`/`PRUEBAS_VENTANAS_DSHALEV.md`. Estos últimos son solo líneas base del 2026-11-10: no trates sus resultados como verificación de la rama actual. Si una instrucción antigua contradice el código, comprueba la implementación y anota la diferencia.
 2. Confirma con el usuario qué equipo se puede usar, si hay un Android de pruebas o un emulador, si hay dos dispositivos para sincronización y si se autoriza instalar software o ejecutar pruebas instrumentadas. No solicites contraseñas, claves ni certificados en el chat; el usuario debe introducirlos directamente en la interfaz cuando sean necesarios.
 3. Desde la raíz del repositorio, registra `git branch --show-current`, `git rev-parse HEAD` y `git status --short`. Si hay cambios sin confirmar, **consérvalos** y deja constancia de que los resultados incluyen el árbol de trabajo, no solo el commit. No cambies de rama, no hagas `reset`, `clean`, `checkout` de archivos, ni modifiques el código sin autorización.
 4. Usa exclusivamente **datos ficticios** y un entorno de pruebas aislado. No abras, borres ni restaures sobre una instalación o base de datos de negocio. No uses `adb shell pm clear`, desinstalaciones, restauraciones, cambios de red, revocaciones, configuración de licencias ni actualizaciones en equipos de producción sin permiso explícito y respaldo verificado.
@@ -39,7 +39,7 @@ Si aparece `unauthorized`, pide al usuario que autorice el equipo en el teléfon
 
 ### DShalev
 
-La ejecución normal en desarrollo guarda `DShalevData/` junto al proyecto y el `.exe` guarda datos junto al ejecutable. **No arranques la instalación habitual para esta campaña.** Para aislar el servidor de desarrollo en Windows, abre PowerShell desde la carpeta `DShalev` del repositorio y, previa autorización para instalar dependencias, ejecuta:
+La ejecución normal en desarrollo guarda `DShalevData/` junto al proyecto y el `.exe` guarda datos junto al ejecutable. **No arranques la instalación habitual para esta campaña.** Para aislar el servidor de desarrollo en Windows, abre PowerShell desde la carpeta `Web-Desktop` del repositorio y, previa autorización para instalar dependencias, ejecuta:
 
 ```powershell
 py -3.11 -m venv .venv
@@ -67,12 +67,12 @@ Ejecuta desde la raíz salvo indicación contraria. Guarda el resultado, código
 | --- | --- | --- |
 | A-01 | `./gradlew shalevTests --no-daemon` | Tests JVM sin fallos. En Windows usa `./gradlew.bat`. Recoge los informes Gradle `*/build/reports/tests/`. |
 | A-02 | `./gradlew shalevCheck --no-daemon` | Tests, lint debug, APK debug y revisión de permisos terminan correctamente. Examina los informes si falla. No implica pruebas físicas. |
-| A-03 | `./gradlew :app:assembleDebug --no-daemon` | Compilación debug. Ubica los APK existentes en `app/build/outputs/apk/debug/`; puede haber varios por ABI. No confundas un APK de release sin firma con uno instalable. |
-| A-04 | Con **solo el dispositivo de pruebas** conectado y autorización: `./gradlew shalevInstrumentedTests --no-daemon` | Tests instrumentados de app y data ejecutados. Busca informes en `app/build/reports/androidTests/connected/` y `data/build/reports/androidTests/connected/`. Pueden instalar/reemplazar aplicaciones de prueba: no usar en equipos con datos importantes. |
+| A-03 | `./gradlew :app:assembleDebug --no-daemon` | Compilación debug. Ubica los APK existentes en `Android/app/build/outputs/apk/debug/`; puede haber varios por ABI. No confundas un APK de release sin firma con uno instalable. |
+| A-04 | Con **solo el dispositivo de pruebas** conectado y autorización: `./gradlew shalevInstrumentedTests --no-daemon` | Tests instrumentados de app y data ejecutados. Busca informes en `Android/app/build/reports/androidTests/connected/` y `Android/data/build/reports/androidTests/connected/`. Pueden instalar/reemplazar aplicaciones de prueba: no usar en equipos con datos importantes. |
 | A-05 | `./gradlew :app:verifyRoborazziDebug --no-daemon` | Compara capturas existentes. Si difieren, revisa las imágenes y reporta el diff; no actualices referencias automáticamente para ocultar un fallo. Si procede una actualización visual, solicita autorización y sigue `CAPTURAS.md`. |
-| D-01 | En `DShalev`: `.\.venv\Scripts\python.exe -m pytest tests -q` | Suite Python sin fallos; registra conteo y avisos. En macOS/Linux usa el Python del entorno virtual correspondiente. |
-| D-02 | En `DShalev`: `npm ci` y `npm test` | Tests de interacción del carrito con DOM simulado sin fallos. No sustituyen un navegador real. |
-| D-03 | En Windows, en `DShalev`: `.\build_windows.ps1` | Se genera `dist\DShalev.exe`. Ejecuta después la prueba aislada indicada arriba; compilar no demuestra que el ejecutable funcione. El script instala dependencias en `.venv` y genera artefactos de compilación. |
+| D-01 | En `Web-Desktop`: `.\.venv\Scripts\python.exe -m pytest tests -q` | Suite Python sin fallos; registra conteo y avisos. En macOS/Linux usa el Python del entorno virtual correspondiente. |
+| D-02 | En `Web-Desktop`: `npm ci` y `npm test` | Tests de interacción del carrito con DOM simulado sin fallos. No sustituyen un navegador real. |
+| D-03 | En Windows, en `Web-Desktop`: `.\build_windows.ps1` | Se genera `dist\DShalev.exe`. Ejecuta después la prueba aislada indicada arriba; compilar no demuestra que el ejecutable funcione. El script instala dependencias en `.venv` y genera artefactos de compilación. |
 
 ### 3.1 Repruebas prioritarias de esta rama
 
@@ -85,7 +85,7 @@ Ejecuta en el árbol de trabajo existente, sin cambiar de rama ni descartar camb
 .\gradlew.bat :app:verifyRoborazziDebug --no-daemon
 ```
 
-En `DShalev/`, con su entorno virtual preparado:
+En `Web-Desktop/`, con su entorno virtual preparado:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
@@ -93,7 +93,7 @@ En `DShalev/`, con su entorno virtual preparado:
 npm test
 ```
 
-La suite debe pasar sin fallos; anota el conteo real y cualquier aviso. Los tests de DShalev cubren migración de esquema 9→10, límites de nombres, retiros web/remotos, conservación de ventas/historial/respaldo y sincronización. Para aislar regresiones antes de la suite completa, ejecuta desde `DShalev/` en Windows: `.\.venv\Scripts\python.exe -m pytest tests/test_database.py tests/test_inventory_pos.py tests/test_cost_export.py tests/test_cost_sheets.py tests/test_sync_server.py -q` (macOS/Linux: `.venv/bin/python -m pytest ...`). **No pruebes la migración ni la restauración sobre `DShalevData` habitual ni sobre una base real:** usa tests automatizados o copias desechables autorizadas.
+La suite debe pasar sin fallos; anota el conteo real y cualquier aviso. Los tests de DShalev cubren migración de esquema 9→10, límites de nombres, retiros web/remotos, conservación de ventas/historial/respaldo y sincronización. Para aislar regresiones antes de la suite completa, ejecuta desde `Web-Desktop/` en Windows: `.\.venv\Scripts\python.exe -m pytest tests/test_database.py tests/test_inventory_pos.py tests/test_cost_export.py tests/test_cost_sheets.py tests/test_sync_server.py -q` (macOS/Linux: `.venv/bin/python -m pytest ...`). **No pruebes la migración ni la restauración sobre `DShalevData` habitual ni sobre una base real:** usa tests automatizados o copias desechables autorizadas.
 
 Después completa las pruebas manuales **S-12/S-13** y **D-23/D-24/D-25** de abajo. La prueba remota **D-26** es opcional y requiere un Android secundario de prueba, red privada y autorización. Distingue en el informe automatización, Compose instrumentado, navegador real, Android físico y EXE Windows; un resultado en una categoría no sustituye las otras.
 
@@ -148,7 +148,7 @@ Usa solo la instancia aislada de la sección 2. Si el código ensayado no incluy
 
 Requiere PC y Android de pruebas en una red privada confiable, acceso físico a ambos y un respaldo de prueba. No abrir puertos a internet ni cambiar el router o firewall sin autorización. DShalev en modo LAN usa HTTP para el navegador: no usar redes públicas. El servidor nativo usa el puerto indicado en el QR; la conectividad depende de la red. La integración móvil de DShalev sigue en desarrollo y su licencia de prueba local no equivale a activación comercial GL.
 
-1. En la instancia aislada, configura **Red local** y reiníciala como indica `DShalev/README.md`; confirma que el listener está activo. Desde Equipo crea una plaza ficticia y genera QR. El usuario maneja el teléfono y escanea el QR sin compartirlo en el informe.
+1. En la instancia aislada, configura **Red local** y reiníciala como indica `Web-Desktop/README.md`; confirma que el listener está activo. Desde Equipo crea una plaza ficticia y genera QR. El usuario maneja el teléfono y escanea el QR sin compartirlo en el informe.
 2. Vincula Shalev de prueba como secundaria. Registra modelo/API y resultado sin publicar el código ni la clave. Si no enlaza, guarda el síntoma y marca el resto bloqueado; no inventes una solución.
 3. Si vincula, realiza una venta ficticia en la secundaria, sincroniza y comprueba una sola operación y un solo descuento en escritorio. Desconecta/reconecta y repite sincronización para revisar idempotencia. Compara lo mostrado en historial y reportes.
 4. Solo si corresponde a la versión y con autorización, prueba la retirada de la secundaria y su rechazo al reconectar. No retires dispositivos reales. Anota si las capacidades que probaste funcionan o están pendientes; una prueba de loopback no sustituye esta prueba física.

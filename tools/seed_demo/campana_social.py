@@ -24,7 +24,7 @@ AZUL = '#2E50A3'
 CIAN = '#61D0E6'
 GRIS = '#526775'
 BLANCO = '#FFFFFF'
-CONTACTO = (RAIZ / 'core/src/main/kotlin/cu/shalev/core/contact/DeveloperContact.kt').read_text()
+CONTACTO = (RAIZ / 'Android/core/src/main/kotlin/cu/shalev/core/contact/DeveloperContact.kt').read_text()
 TELEFONO = re.search(r'TELEFONO_LOCAL = "(\d{8})"', CONTACTO).group(1)
 WHATSAPP = f'+53 {TELEFONO[:4]} {TELEFONO[4:]}'
 DURACIONES = [4, 4, 4, 4, 4, 4, 6]

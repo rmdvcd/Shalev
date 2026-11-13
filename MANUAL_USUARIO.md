@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="play_store/icono_512.png" alt="Logo oficial de Shalev" width="120"/>
+<img src="Android/play_store/icono_512.png" alt="Logo oficial de Shalev" width="120"/>
 
 # Manual Oficial de Usuario · Shalev
 
@@ -87,7 +87,7 @@ Tras la pantalla de bienvenida, el asistente te guía por preguntas sencillas. P
 
 > **Atención — La elección entre Principal y Secundaria es definitiva:** una vez que configuras tu teléfono como **App Principal**, nunca puede convertirse en secundaria desde los ajustes para evitar pérdidas accidentales de la base de datos del negocio. Si alguna vez necesitaras cambiar el rol del teléfono, primero exporta un respaldo y borra los datos de la aplicación en los ajustes de Android.
 
-| <img src="app/capturas/claro/10b_onboarding_bienvenida.png" alt="Pantalla de bienvenida" width="230"/> | <img src="app/capturas/claro/10c_onboarding_datos.png" alt="Paso Tus datos" width="230"/> | <img src="app/capturas/claro/10e_onboarding_alertas.png" alt="Paso Avisos de inventario" width="230"/> |
+| <img src="Android/app/capturas/claro/10b_onboarding_bienvenida.png" alt="Pantalla de bienvenida" width="230"/> | <img src="Android/app/capturas/claro/10c_onboarding_datos.png" alt="Paso Tus datos" width="230"/> | <img src="Android/app/capturas/claro/10e_onboarding_alertas.png" alt="Paso Avisos de inventario" width="230"/> |
 |:---:|:---:|:---:|
 | *Figura 2.1 — Bienvenida a Shalev* | *Figura 2.2 — Datos del titular* | *Figura 2.3 — Umbrales de stock bajo y crítico* |
 
@@ -109,6 +109,8 @@ La disponibilidad de Inventario y Servicios depende de los módulos seleccionado
 
 Las acciones se muestran principalmente con **iconos** para dejar más espacio al contenido. Cada icono tiene una descripción accesible que TalkBack puede leer. En diálogos y ventanas emergentes se conserva el texto de **Confirmar**, **Eliminar**, **Omitir** y **Cancelar**; los demás botones usan iconos. Para mantener las listas compactas, cada fila limita su texto a tres líneas y recorta lo que no cabe con puntos suspensivos.
 
+![Mapa de navegación y botones de Shalev](docs/manual/diagramas/01_navegacion_general.svg)
+
 | Icono o acción | Qué hace | Dónde lo encontrarás |
 |---|---|---|
 | **Ayuda** *(arriba a la izquierda)* | Abre la guía de la sección y el acceso al manual resumido | Inicio, Inventario, Servicios, Registros y Herramientas |
@@ -126,7 +128,7 @@ Mientras una pantalla carga sus datos verás **huesos grises** con la forma apro
 
 Shalev sigue automáticamente el **modo claro** o **modo oscuro** configurado en tu teléfono Android, garantizando siempre alto contraste para leer sin esfuerzo tanto a plena luz del sol como de noche. Además, respeta el **tamaño de fuente del sistema** (hasta el 200 % de ampliación) pasando los textos e importes a varias líneas sin recortar cifras.
 
-| <img src="app/capturas/claro/01a2_inicio_con_datos_pantalla.png" alt="Inicio en modo claro" width="240"/> | <img src="app/capturas/oscuro/01a2_inicio_con_datos_pantalla.png" alt="Inicio en modo oscuro" width="240"/> |
+| <img src="Android/app/capturas/claro/01a2_inicio_con_datos_pantalla.png" alt="Inicio en modo claro" width="240"/> | <img src="Android/app/capturas/oscuro/01a2_inicio_con_datos_pantalla.png" alt="Inicio en modo oscuro" width="240"/> |
 |:---:|:---:|
 | *Figura 3.1 — Interfaz en modo claro* | *Figura 3.2 — Interfaz en modo oscuro* |
 
@@ -159,7 +161,7 @@ Debajo del banner fijo de licencia, con el turno abierto, aparecen los iconos de
   - **Métodos de pago:** proporción cobrada en efectivo frente a transferencia.
   - **Rankings Top 3 con medallas de oro, plata y bronce:** productos más vendidos, artículos de lento movimiento, mayor rentabilidad y —en los últimos 30 días— los **3 mejores vendedores (empleados)** y los **3 mejores clientes por transferencia**. Los **insumos con precio de venta** cuentan como productos en estos rankings (los de solo receta no).
 
-| <img src="promocion/capturas/shot_inicio_claro.png" alt="Pantalla de Inicio con barra inferior" width="240"/> | <img src="app/capturas/claro/01j_inicio_acordeones_cerrados.png" alt="Inicio con turno abierto y alertas" width="240"/> |
+| <img src="promocion/capturas/shot_inicio_claro.png" alt="Pantalla de Inicio con barra inferior" width="240"/> | <img src="Android/app/capturas/claro/01j_inicio_acordeones_cerrados.png" alt="Inicio con turno abierto y alertas" width="240"/> |
 |:---:|:---:|
 | *Figura 4.1 — Inicio con turno cerrado y gráfico desplegado* | *Figura 4.2 — Turno abierto, alertas y botones de venta y caja* |
 
@@ -206,7 +208,7 @@ Al finalizar la jornada, desactiva el interruptor de **Turno abierto** en **Inic
    - Revisa en pantalla el efectivo contado y cualquier diferencia de inventario. Si hay faltantes o sobrantes de stock, escribe el **Motivo del ajuste** (de 3 a 160 caracteres) y pulsa **Confirmar**.
    - En la **App Principal**, los ajustes de existencias y el cierre del turno se guardan juntos en ese instante. En una **App Secundaria de empleado**, confirmar envía la declaración al encargado para que la revise y apruebe en **Apps vinculadas**.
 
-| <img src="app/capturas/claro/01f_inicio_dialogo_cerrar_turno.png" alt="Conteo de billetes al cerrar turno" width="240"/> | <img src="app/capturas/claro/04s_turno_detalle_cerrado.png" alt="Resumen completo de un turno cerrado" width="240"/> |
+| <img src="Android/app/capturas/claro/01f_inicio_dialogo_cerrar_turno.png" alt="Conteo de billetes al cerrar turno" width="240"/> | <img src="Android/app/capturas/claro/04s_turno_detalle_cerrado.png" alt="Resumen completo de un turno cerrado" width="240"/> |
 |:---:|:---:|
 | *Figura 5.1 — Conteo de billetes por denominación CUP* | *Figura 5.2 — Informe guardado en Registros → Turnos* |
 
@@ -263,7 +265,7 @@ Si tienes una cafetería, pizzería, dulcería o taller de producción, Shalev c
   3. **Categoría:** cualquiera de las categorías de tu negocio.
 - **Selección múltiple:** marca las casillas cuadradas a la izquierda de los productos para ver la barra superior con el conteo de elegidos, el botón de **Seleccionar todo** y las acciones sobre el lote seleccionado (como exportar únicamente esos productos).
 
-| <img src="promocion/capturas/shot_inventario_claro.png" alt="Lista de Inventario con fotos" width="230"/> | <img src="app/capturas/claro/08j_producto_nuevo.png" alt="Formulario de nuevo producto" width="230"/> | <img src="app/capturas/claro/08m_producto_elaborado_receta.png" alt="Producto elaborado con receta" width="230"/> |
+| <img src="promocion/capturas/shot_inventario_claro.png" alt="Lista de Inventario con fotos" width="230"/> | <img src="Android/app/capturas/claro/08j_producto_nuevo.png" alt="Formulario de nuevo producto" width="230"/> | <img src="Android/app/capturas/claro/08m_producto_elaborado_receta.png" alt="Producto elaborado con receta" width="230"/> |
 |:---:|:---:|:---:|
 | *Figura 6.1 — Lista de Inventario con fotos y alcance* | *Figura 6.2 — Alta de producto con cámara o galería* | *Figura 6.3 — Receta y costo automático de un Elaborado* |
 
@@ -282,7 +284,7 @@ La tercera pestaña de la barra inferior, **Servicios**, está dedicada a todo l
 5. **Insumos que gasta (opcional):** si cada vez que realizas ese servicio consumes algún material de tu inventario (por ejemplo, champú, tinte, detergente o bolsas de regalo), agrégalo con su cantidad. Al cobrar el servicio, Shalev descontará esos insumos automáticamente y calculará tu ganancia real descontando su costo.
 6. Guarda con **Guardar**.
 
-| <img src="promocion/capturas/shot_servicios_claro.png" alt="Catálogo de Servicios" width="240"/> | <img src="app/capturas/claro/09e_servicio_form.png" alt="Formulario Nuevo servicio" width="240"/> |
+| <img src="promocion/capturas/shot_servicios_claro.png" alt="Catálogo de Servicios" width="240"/> | <img src="Android/app/capturas/claro/09e_servicio_form.png" alt="Formulario Nuevo servicio" width="240"/> |
 |:---:|:---:|
 | *Figura 7.1 — Catálogo de Servicios por especialidad* | *Figura 7.2 — Formulario de Nuevo servicio con insumos opcionales* |
 
@@ -325,7 +327,7 @@ Antes de tu primer cobro electrónico, asegúrate de haber marcado una tarjeta y
    - **Compartir SMS con Shalev:** desde la app de Mensajes del teléfono, comparte el texto del SMS hacia Shalev.
 4. Pulsa **Confirmar** para dejar registrada la venta y su transferencia asociada.
 
-| <img src="app/capturas/claro/05a_venta_carrito.png" alt="Carrito de Nueva venta" width="230"/> | <img src="app/capturas/claro/05f_venta_qr.png" alt="Código QR de cobro por transferencia" width="230"/> | <img src="app/capturas/claro/05h_venta_datos_cliente.png" alt="Datos del cliente y validación del SMS" width="230"/> |
+| <img src="Android/app/capturas/claro/05a_venta_carrito.png" alt="Carrito de Nueva venta" width="230"/> | <img src="Android/app/capturas/claro/05f_venta_qr.png" alt="Código QR de cobro por transferencia" width="230"/> | <img src="Android/app/capturas/claro/05h_venta_datos_cliente.png" alt="Datos del cliente y validación del SMS" width="230"/> |
 |:---:|:---:|:---:|
 | *Figura 8.1 — Carrito con cantidades y método de pago* | *Figura 8.2 — QR de Transfermóvil e importe debajo* | *Figura 8.3 — Cliente fijo y verificación del SMS* |
 
@@ -356,7 +358,7 @@ En **Pago electrónico** administras la lista de teléfonos y tarjetas o cuentas
 4. Marca a qué productos se aplica y guarda con **Guardar** (Shalev te muestra una vista previa; si el precio final queda al costo o por debajo, advierte al cobrar).
 5. En la lista de **Precios**, usa el interruptor de la derecha para encender o apagar cada regla cuando quieras.
 
-| <img src="app/capturas/claro/06c_pago_lista.png" alt="Configuración de Pago electrónico" width="240"/> | <img src="app/capturas/claro/06i_precios_lista.png" alt="Reglas automáticas de Precios" width="240"/> |
+| <img src="Android/app/capturas/claro/06c_pago_lista.png" alt="Configuración de Pago electrónico" width="240"/> | <img src="Android/app/capturas/claro/06i_precios_lista.png" alt="Reglas automáticas de Precios" width="240"/> |
 |:---:|:---:|
 | *Figura 9.1 — Teléfono y tarjeta seleccionados para cobrar* | *Figura 9.2 — Reglas de subida o rebaja con interruptor* |
 
@@ -392,7 +394,7 @@ Pulsa el icono de **embudo (Filtrar)** arriba a la derecha:
   - **Anular:** pide el motivo, marca la venta como **ANULADA** (deja de sumar en totales y en la caja) y devuelve automáticamente las existencias al inventario. *(Nota: si el cliente ya había transferido dinero, recuerda hacerle la devolución desde Transfermóvil, pues Shalev no mueve fondos bancarios).*
 - **En un Movimiento de tipo Ajuste:** abre su ficha en *Registros → Movimientos* y toca **Editar ajuste**. Escribe la nueva cantidad y el motivo: Shalev corrige tu stock actual y recalcula la *«existencia después»* de los movimientos posteriores de ese turno.
 
-| <img src="app/capturas/claro/04a_registros_ventas.png" alt="Pestañas y lista de Registros" width="240"/> | <img src="app/capturas/claro/04o_registros_ficha_venta.png" alt="Ficha detallada de una venta" width="240"/> |
+| <img src="Android/app/capturas/claro/04a_registros_ventas.png" alt="Pestañas y lista de Registros" width="240"/> | <img src="Android/app/capturas/claro/04o_registros_ficha_venta.png" alt="Ficha detallada de una venta" width="240"/> |
 |:---:|:---:|
 | *Figura 10.1 — Pestañas de Registros y selección múltiple* | *Figura 10.2 — Ficha de una venta con costo y ganancia* |
 
@@ -419,7 +421,7 @@ Shalev distingue claramente entre los **documentos internos de administración**
 
 <div align="center">
 
-<img src="app/capturas/claro/02j_inventario_hoja_exportar.png" alt="Ventana Exportar desde Inventario" width="250"/>
+<img src="Android/app/capturas/claro/02j_inventario_hoja_exportar.png" alt="Ventana Exportar desde Inventario" width="250"/>
 
 *Figura 11.1 — Opciones de exportación de Inventario diferenciando uso interno y material para clientes*
 
@@ -468,7 +470,7 @@ Al tocar el nombre de un empleado en **Ajustes → Apps vinculadas** de la princ
 1. El empleado toca cerrar su turno, realiza su conteo de efectivo e inventario y confirma: su app envía una **solicitud de cierre** (o bien el dueño puede tocar **Pedir cierre del turno** desde su teléfono, lo cual esperará siempre a que el empleado termine cualquier venta en curso).
 2. El encargado entra en **Apps vinculadas → empleado**, revisa el efectivo esperado frente al contado y las diferencias de stock, y pulsa **Aprobar cierre** (aplicando en ese momento los ajustes al inventario central) o **Rechazar cierre** para que el empleado vuelva a contar.
 
-| <img src="app/capturas/claro/07p_vinculacion_principal_turnos.png" alt="Apps vinculadas en el teléfono principal" width="240"/> | <img src="app/capturas/claro/07s_vinculacion_secundaria.png" alt="Vista de Apps vinculadas en el empleado" width="240"/> |
+| <img src="Android/app/capturas/claro/07p_vinculacion_principal_turnos.png" alt="Apps vinculadas en el teléfono principal" width="240"/> | <img src="Android/app/capturas/claro/07s_vinculacion_secundaria.png" alt="Vista de Apps vinculadas en el empleado" width="240"/> |
 |:---:|:---:|
 | *Figura 12.1 — Vista del dueño con estado de conexión y turnos* | *Figura 12.2 — Vista del empleado con permisos y botón Sincronizar* |
 
@@ -510,7 +512,7 @@ Si cambiaste de teléfono, sigue estos 4 pasos en orden:
 
 <div align="center">
 
-<img src="app/capturas/claro/09a_respaldo_paso1.png" alt="Pantalla de Respaldo exportar e importar" width="250"/>
+<img src="Android/app/capturas/claro/09a_respaldo_paso1.png" alt="Pantalla de Respaldo exportar e importar" width="250"/>
 
 *Figura 13.1 — Exportación protegida con contraseña e importación de archivos `.shalev`*
 
@@ -552,7 +554,7 @@ Entra en **Ajustes → Licencia**:
 
 > **Cuidado con la fecha y hora del teléfono:** para evitar manipulaciones del calendario, si el reloj de tu teléfono se atrasa más de **2 horas**, Shalev bloqueará temporalmente el acceso avisándote **«Fecha u hora incorrecta»**. Basta con volver a poner en hora automática el reloj de Android para seguir trabajando enseguida con todos tus datos intactos.
 
-| <img src="app/capturas/claro/07n_licencia_activa.png" alt="Estado de licencia, tarifas y Paso 1" width="240"/> | <img src="app/capturas/claro/07l_licencia_paso3_activar.png" alt="Paso 3 Activar licencia" width="240"/> |
+| <img src="Android/app/capturas/claro/07n_licencia_activa.png" alt="Estado de licencia, tarifas y Paso 1" width="240"/> | <img src="Android/app/capturas/claro/07l_licencia_paso3_activar.png" alt="Paso 3 Activar licencia" width="240"/> |
 |:---:|:---:|
 | *Figura 14.1 — Licencia activa, tarifas oficiales y Paso 1* | *Figura 14.2 — Paso 3 para pegar y activar la respuesta* |
 
@@ -636,7 +638,7 @@ Dentro de la propia aplicación cuentas siempre con **Ajustes → Manual de usua
 
 > **Recuerda siempre:** soporte técnico **jamás** te pedirá la contraseña de tus respaldos `.shalev`, tu PIN del teléfono ni los códigos privados de tus tarjetas bancarias.
 
-| <img src="app/capturas/claro/07a2_ajustes_configuracion_completa.png" alt="Menú completo de Ajustes" width="230"/> | <img src="app/capturas/claro/07g_ayuda.png" alt="Pantalla de Ayuda integrada" width="230"/> | <img src="app/capturas/claro/07h_soporte.png" alt="Ficha oficial de Soporte" width="230"/> |
+| <img src="Android/app/capturas/claro/07a2_ajustes_configuracion_completa.png" alt="Menú completo de Ajustes" width="230"/> | <img src="Android/app/capturas/claro/07g_ayuda.png" alt="Pantalla de Ayuda integrada" width="230"/> | <img src="Android/app/capturas/claro/07h_soporte.png" alt="Ficha oficial de Soporte" width="230"/> |
 |:---:|:---:|:---:|
 | *Figura 15.1 — Menú completo de Ajustes* | *Figura 15.2 — Ayuda rápida dentro de la app* | *Figura 15.3 — Contacto directo con Soporte* |
 
@@ -651,11 +653,19 @@ En el carrito, si escribes una cantidad superior a la existencia disponible, Sha
 En Ajustes → Local puedes añadir nombres y tocar uno para editarlo. Se admiten de 1 a
 80 caracteres, sin duplicados por mayúsculas o espacios sobrantes. En Inicio, abre el
 selector de Local y elige uno de los nombres existentes; no se escribe en el selector.
-El primer local añadido queda seleccionado automáticamente.
+El primer local añadido queda seleccionado automáticamente y la selección se conserva
+en ese equipo.
 
-La ubicación es general del equipo: no separa existencias ni filtra productos o servicios.
-Se conserva al cerrar la app y se incluye en los respaldos; un respaldo antiguo puede no
-contener locales. Inventario y Servicios ya no muestran selectores propios.
+Cada local tiene su propio catálogo e inventario de productos e insumos, además de sus
+servicios, fichas de costo, recepciones y lotes. Las ventas, turnos y movimientos quedan
+asociados al local activo. El respaldo incluye los locales y sus datos; uno antiguo puede
+no contenerlos. El local delimita los datos del establecimiento; no registra ubicaciones
+internas de cada artículo, como pasillos o estantes.
+
+Cada empleado vinculado conserva el local que se le asignó aunque la principal cambie
+el selector o renombre el local; su app secundaria sincroniza el catálogo de ese local.
+No se puede cambiar de local mientras haya turnos abiertos, incluidos los de las apps
+secundarias.
 
 ## Sincronización desde lugares distintos (piloto Android)
 
@@ -676,7 +686,7 @@ encender datos móviles en ambos teléfonos no garantiza que puedan comunicarse.
 
 Con un turno abierto, entra en **Ventas**. Busca cada artículo por nombre (F2 vuelve a la búsqueda), agrégalo al carrito y ajusta sus cantidades. Elige cliente opcional y forma de pago, revisa el total y pulsa **Registrar venta**. Puedes buscar otros artículos sin perder los ya agregados; **Vaciar** solicita confirmación. El carrito no reserva inventario y los precios y existencias se comprueban al registrar. Si un precio cambió, revisa el total actualizado antes de volver a registrar.
 
-El borrador se recupera en la misma pestaña y sesión si el navegador permite almacenamiento de sesión. Cada intento de venta conserva una clave idempotente: reenviar la misma operación no crea otra venta; si cambias el contenido después de que el servidor ya la guardó, revisa el historial y empieza una operación nueva. Esto no hace que el POS funcione sin conexión. Para requisitos y límites de la versión de escritorio, consulta [DShalev/README.md](DShalev/README.md).
+El borrador se recupera en la misma pestaña y sesión si el navegador permite almacenamiento de sesión. Cada intento de venta conserva una clave idempotente: reenviar la misma operación no crea otra venta; si cambias el contenido después de que el servidor ya la guardó, revisa el historial y empieza una operación nueva. Esto no hace que el POS funcione sin conexión. Para requisitos y límites de la versión de escritorio, consulta [Web-Desktop/README.md](Web-Desktop/README.md).
 
 ### DShalev: ajustes y anulación auditables
 

@@ -89,7 +89,7 @@ Arranque
 
 ### 1.5 Riesgos estructurales y recomendaciones
 
-**P1 — Alinear documentación con el artefacto actual.** Fuente de verdad inspeccionada: `app/build.gradle.kts` declara 1.0.1/54; `ShalevDatabase.VERSION` es 16 y contiene migraciones 15→16. README y AGENTS contradicen esos valores. Antes de publicar o pedir una auditoría externa, actualizar versión, alcance de migración, módulos y estado verificado en los documentos de entrada. No inferir desde un texto de README qué esquema está instalado.
+**P1 — Alinear documentación con el artefacto actual.** Fuente de verdad inspeccionada: `Android/app/build.gradle.kts` declara 1.0.1/54; `ShalevDatabase.VERSION` es 16 y contiene migraciones 15→16. README y AGENTS contradicen esos valores. Antes de publicar o pedir una auditoría externa, actualizar versión, alcance de migración, módulos y estado verificado en los documentos de entrada. No inferir desde un texto de README qué esquema está instalado.
 
 **P1 — Fotos no viajan en backup.** `UI_UX_IX.md` ya lo lista como pendiente funcional. Ofrecer exportación opcional de fotos dentro del respaldo, o hacer que la importación presente con claridad que las fotos quedan fuera y cómo re-vincularlas. Debe manejarse el límite de tamaño y el URI de origen perdido.
 
@@ -210,7 +210,7 @@ Es un diagrama conceptual resumido, no reproduce todas las columnas ni cardinali
 ## 5. Fuentes inspeccionadas
 
 - Arquitectura/estado: `AGENTS.md`, `README.md`, `UI_UX_IX.md`, `docs/AUDITORIA_UI_UX_IX_2026-10-28.md`.
-- UI y navegación: `app/src/main/kotlin/cu/shalev/app/root/`, `navigation/`, `onboarding/`, `venta/`, `inicio/`, `inventario/`, `registros/`.
-- Dominio: `domain/src/main/kotlin/cu/shalev/domain/model/`, `repository/`, `usecase/VentaUseCases.kt`, `usecase/OnboardingUseCases.kt`.
-- Persistencia: `data/src/main/kotlin/cu/shalev/data/db/`, `db/entity/Entities.kt`, `db/dao/`, `repository/`, `sync/`, `security/`, `respaldo/`.
-- Build versionada: `app/build.gradle.kts`, `data/src/main/kotlin/cu/shalev/data/db/ShalevDatabase.kt`, `data/schemas/`.
+- UI y navegación: `Android/app/src/main/kotlin/cu/shalev/app/root/`, `navigation/`, `onboarding/`, `venta/`, `inicio/`, `inventario/`, `registros/`.
+- Dominio: `Android/domain/src/main/kotlin/cu/shalev/domain/model/`, `repository/`, `usecase/VentaUseCases.kt`, `usecase/OnboardingUseCases.kt`.
+- Persistencia: `Android/data/src/main/kotlin/cu/shalev/data/db/`, `db/entity/Entities.kt`, `db/dao/`, `repository/`, `sync/`, `security/`, `respaldo/`.
+- Build versionada: `Android/app/build.gradle.kts`, `Android/data/src/main/kotlin/cu/shalev/data/db/ShalevDatabase.kt`, `Android/data/schemas/`.

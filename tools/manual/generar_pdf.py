@@ -112,7 +112,7 @@ def register_fonts() -> None:
         boldItalic="Sans-BoldItalic",
     )
     pdfmetrics.registerFont(TTFont("Mono", str(dejavu_dir / "DejaVuSansMono.ttf")))
-    orbitron = ROOT / "designsystem/src/main/res/font/orbitron.ttf"
+    orbitron = ROOT / "Android/designsystem/src/main/res/font/orbitron.ttf"
     if orbitron.exists():
         pdfmetrics.registerFont(TTFont("Orbitron", str(orbitron)))
 
@@ -923,7 +923,7 @@ def draw_cover_page(page: pymupdf.Page, orbitron_font: Path, sans_reg: Path, san
     sh2.draw_rect(pymupdf.Rect(lx - 6, ly - 6, lx + logo_size + 6, ly + logo_size + 6), radius=0.22)
     sh2.finish(fill=(1, 1, 1), color=hex_to_rgb01(HEX_PRI_BG), width=1.2)
     sh2.commit()
-    page.insert_image(pymupdf.Rect(lx, ly, lx + logo_size, ly + logo_size), filename=str(ROOT / "play_store/icono_512.png"))
+    page.insert_image(pymupdf.Rect(lx, ly, lx + logo_size, ly + logo_size), filename=str(ROOT / "Android/play_store/icono_512.png"))
 
     # Wordmark oficial "SHALEV" en Orbitron
     center_text(196.0, "SHALEV", f_orb, "FOrb", 32.0, "#FFFFFF")
@@ -1154,7 +1154,7 @@ def stamp_headers_footers_and_svgs(pdf_bytes: bytes) -> None:
     doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
     total_pages = len(doc)
 
-    orbitron_font = ROOT / "designsystem/src/main/res/font/orbitron.ttf"
+    orbitron_font = ROOT / "Android/designsystem/src/main/res/font/orbitron.ttf"
     sans_reg = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
     sans_bold = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
     f_reg = pymupdf.Font(fontfile=str(sans_reg))

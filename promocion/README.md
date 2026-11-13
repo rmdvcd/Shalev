@@ -60,5 +60,5 @@ adb shell am start -n cu.shalev.app.debug/cu.shalev.app.seed.SeedActivity
 python tools/seed_demo/collage.py
 ```
 
-El sembrador vive en `data/src/debug` (no entra en el APK de release) y las fotos de los artículos
+El sembrador vive en `Android/data/src/debug` (no entra en el APK de release) y las fotos de los artículos
 están en `tools/seed_demo/seed_fotos` (créditos en `tools/seed_demo/CREDITOS.md`).

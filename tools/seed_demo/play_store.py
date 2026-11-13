@@ -1,6 +1,6 @@
 """Prepara los recursos de la ficha de Google Play a partir de las capturas reales.
 
-Salidas en `play_store/`:
+Salidas en `Android/play_store/`:
   - icono_512.png            (512x512, 32 bits)
   - grafico_1024x500.png     (gráfico destacado)
   - capturas/01..08.png      (1080x1920, 9:16)
@@ -14,8 +14,8 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 AQUI = os.path.dirname(__file__)
 RAIZ = os.path.dirname(os.path.dirname(AQUI))
 SHOTS = os.path.join(RAIZ, "app_usb_check")
-RES = os.path.join(RAIZ, "app", "src", "main", "res", "mipmap-xxxhdpi")
-SALIDA = os.path.join(RAIZ, "play_store")
+RES = os.path.join(RAIZ, "Android", "app", "src", "main", "res", "mipmap-xxxhdpi")
+SALIDA = os.path.join(RAIZ, "Android", "play_store")
 CAPTURAS = os.path.join(SALIDA, "capturas")
 
 AZUL = (96, 206, 244)

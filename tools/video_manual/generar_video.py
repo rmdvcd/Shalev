@@ -57,9 +57,9 @@ AMBER = "#8A6500"
 
 FONT_REG_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FONT_BOLD_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-FONT_BRAND_PATH = str(ROOT / "designsystem/src/main/res/font/orbitron.ttf")
+FONT_BRAND_PATH = str(ROOT / "Android/designsystem/src/main/res/font/orbitron.ttf")
 
-A = "app/capturas/claro"
+A = "Android/app/capturas/claro"
 P = "promocion/capturas"
 
 
@@ -292,7 +292,7 @@ SCENES = [
         ],
         "phases": [phase(0, "benefits", phones=[
             phone(f"{A}/01a2_inicio_con_datos_pantalla.png", 1270, 165, 760, label="Tema claro"),
-            phone("app/capturas/oscuro/01a2_inicio_con_datos_pantalla.png", 1570, 165, 760, label="Tema oscuro"),
+            phone("Android/app/capturas/oscuro/01a2_inicio_con_datos_pantalla.png", 1570, 165, 760, label="Tema oscuro"),
         ])],
         "taps": [],
         "highlights": [],
@@ -480,7 +480,7 @@ def mini_title(draw, txt, y=205, color=BLUE):
 def draw_intro(frame, scene, ph):
     d = ImageDraw.Draw(frame, "RGBA")
     # Logo oficial en una tarjeta limpia.
-    logo = Image.open(ROOT / "play_store/icono_512.png").convert("RGB").resize((250, 250), Image.Resampling.LANCZOS)
+    logo = Image.open(ROOT / "Android/play_store/icono_512.png").convert("RGB").resize((250, 250), Image.Resampling.LANCZOS)
     mask = Image.new("L", (250, 250), 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, 249, 249), radius=54, fill=255)
     d.rounded_rectangle((137, 177, 413, 453), radius=62, fill=(255, 255, 255, 28))
@@ -814,7 +814,7 @@ def draw_benefits(frame, ph):
 
 def draw_outro(frame, scene, ph):
     d = ImageDraw.Draw(frame, "RGBA")
-    logo = Image.open(ROOT / "play_store/icono_512.png").convert("RGB").resize((285, 285), Image.Resampling.LANCZOS)
+    logo = Image.open(ROOT / "Android/play_store/icono_512.png").convert("RGB").resize((285, 285), Image.Resampling.LANCZOS)
     mask = Image.new("L", (285, 285), 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, 284, 284), radius=64, fill=255)
     d.rounded_rectangle((803, 95, 1145, 437), radius=76, fill=(255, 255, 255, 25))

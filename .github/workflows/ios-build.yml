@@ -3,11 +3,11 @@ name: Compilación iOS de IShalev
 on:
   push:
     paths:
-      - 'IShalev/**'
+      - 'iOS/**'
       - '.github/workflows/ios-build.yml'
   pull_request:
     paths:
-      - 'IShalev/**'
+      - 'iOS/**'
       - '.github/workflows/ios-build.yml'
   workflow_dispatch:
 
@@ -37,14 +37,14 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          swift test --package-path IShalev 2>&1 | tee "$RUNNER_TEMP/swift-test.log"
+          swift test --package-path iOS 2>&1 | tee "$RUNNER_TEMP/swift-test.log"
 
       - name: Compilar sin firma para el simulador (universal arm64 + x86_64)
         shell: bash
         run: |
           set -o pipefail
           xcodebuild \
-            -project IShalev/IShalev.xcodeproj \
+            -project iOS/IShalev.xcodeproj \
             -scheme IShalev \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
@@ -149,7 +149,7 @@ jobs:
           rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH"
           set -o pipefail
           xcodebuild \
-            -project IShalev/IShalev.xcodeproj \
+            -project iOS/IShalev.xcodeproj \
             -scheme IShalev \
             -configuration Release \
             -destination 'generic/platform=iOS' \
@@ -209,7 +209,7 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild \
-            -project IShalev/IShalev.xcodeproj \
+            -project iOS/IShalev.xcodeproj \
             -scheme IShalev \
             -configuration Release \
             -destination 'generic/platform=iOS' \

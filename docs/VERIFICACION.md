@@ -1,5 +1,42 @@
 # Shalev — Verificación real
 
+## Reorganización de carpetas — 2026-11-13
+
+**Rama:** `arena/7904f1fb-shalev`. **HEAD base:** `67592b0bbd2efdaf071a3e4d57a7affa9c6f9ab6`; los cambios de esta reorganización siguen en el working tree y esta entrada no representa un commit nuevo.
+
+| Comprobación | Resultado observado |
+|---|---|
+| `cd Web-Desktop && .venv/bin/python -m pytest -q` | **209 passed**, un aviso de deprecación de Starlette/AnyIO. |
+| `cd Web-Desktop && npm test` | **6/6 passed**. |
+| `cd relay && npm test` | **7/7 passed**. |
+| `python3 -m unittest discover -s tools/verificacion/tests -p 'test_*.py'` | **14 tests passed**. |
+| `cd Web-Desktop && .venv/bin/ramplint --no-django dshalev/templates` | **24 archivos comprobados**, todos pasan. |
+| `python3 -m compileall -q tools Web-Desktop/dshalev Web-Desktop/tests`; `bash -n` de wrappers/scripts | **OK**. |
+| Parseo YAML de `.github/workflows/*.yml`, enlaces Markdown locales y `git diff --check HEAD` | **OK**: 4 workflows válidos, 0 enlaces locales rotos y diff limpio. |
+| Android Gradle / iOS Swift | **Pendientes**: no hay Java/JAVA_HOME para Gradle ni Swift/Xcode en este entorno. No se declara build ni test móvil. |
+
+La validación cubre las rutas reorganizadas y las suites disponibles de escritorio/herramientas; no sustituye las compilaciones de Android/iOS. Los directorios `.venv/` y `node_modules/` usados para las pruebas están ignorados por git.
+
+## Depuración documental y de artefactos — 2026-11-13
+
+**Rama:** `arena/7904f1fb-shalev`. **HEAD base:** `67592b0bbd2efdaf071a3e4d57a7affa9c6f9ab6`; esta entrada describe el working tree, no un commit nuevo.
+
+| Comprobación | Resultado observado |
+|---|---|
+| Suites Python de herramientas | **14 tests passed** (`tools/verificacion/tests`). |
+| Escritorio | **209 pytest passed** (un aviso de deprecación Starlette/AnyIO), **6/6 Node passed** y **24 plantillas** pasan ramplint. |
+| Relay | **7/7 Node passed**. |
+| Integridad de capturas | **137 métodos `@Test`** y 137 IDs; cada tema tiene **137 PNG**, sin faltantes ni huérfanos. No se regeneraron las capturas. |
+| Diagramas | Se generaron los **7 SVG** desde `tools/manual/iconos.json`; todos parsean, no tienen espacios finales y el mapa 01 refleja las cinco secciones actuales, incluida la llave inglesa de Herramientas. |
+| Manual PDF | Regenerado con `tools/requirements.txt`: **32 páginas, 66 marcadores, 7 diagramas vectoriales y 20 capítulos**. Contiene la corrección de locales. |
+| Enlaces locales | **55 Markdown** y **153 destinos Markdown/HTML** comprobados; 0 destinos rotos. |
+| Sintaxis y diff | `compileall` de `tools`/DShalev, `bash -n` de scripts y `git diff --check HEAD`: **OK**. No quedan usos operativos de los pipelines retirados; las menciones restantes son notas históricas explícitas. |
+| Android / iOS | No se compilaron ni ejecutaron pruebas móviles: faltan JDK/Android SDK y Swift/Xcode. No se modificó lógica Android; el único cambio de interfaz es el texto de Ajustes → Local (los otros cambios Android son comentarios). |
+
+El generador del manual requería ReportLab, que no estaba declarado; se añadió `reportlab==4.4.10` y se comprobó la generación en un entorno temporal instalado desde `tools/requirements.txt`.
+
+---
+
 ## Auditoría Android — 2026-11-13 · cierre automatizado aprobado
 
 **Rama:** `arena/5d323d0e-shalev`, base `edde212323332cc97781fcf220c98a67641627b6`.
@@ -78,26 +115,25 @@ y [RELEASE.md](../RELEASE.md). **Cierre automatizado aprobado; la aceptación f�
 
 ## Correcciones de los informes de ventanas (2026-11-11, branch `arena/31f6e7e8-shalev`)
 
-- `cd DShalev && .venv/bin/python -m pytest -q`: **201 passed**, un aviso de deprecación de `starlette.testclient`/AnyIO. Incluye validaciones de nombres en formularios, exportación y comandos SPVI; retiro web/remoto auditable, historial CSV e integridad del respaldo; migración de esquema 9 a 10.
-- `cd DShalev && .venv/bin/python -m compileall -q dshalev tests`: OK. `git diff --check`: OK.
+- `cd Web-Desktop && .venv/bin/python -m pytest -q`: **201 passed**, un aviso de deprecación de `starlette.testclient`/AnyIO. Incluye validaciones de nombres en formularios, exportación y comandos SPVI; retiro web/remoto auditable, historial CSV e integridad del respaldo; migración de esquema 9 a 10.
+- `cd Web-Desktop && .venv/bin/python -m compileall -q dshalev tests`: OK. `git diff --check`: OK.
 - Android: se añadieron pruebas de lógica y Compose para el error de Perfil, y de ViewModel para el ajuste del carrito. **No se ejecutaron**: no hay Java/JDK ni Android SDK configurados en este entorno.
 - DShalev responsive: se ajustaron el encabezado y las acciones de Inventario, pero no fue posible ejecutar una comprobación automatizada del diseño a 375×667. El Chromium portátil probado no pudo iniciar porque el entorno carece de `libnspr4.so` y `libnss3.so`; no hay un navegador operativo. La ausencia de desbordamiento horizontal debe confirmarse en navegador antes de darla por verificada.
 - **Siguiente paso en un equipo real:** otra IA debe seguir [PRUEBAS_IA_SHALEV_DSHALEV.md](../PRUEBAS_IA_SHALEV_DSHALEV.md), en particular S-12/S-13 (Android), D-23/D-24/D-25 (DShalev en navegador real) y D-26 si existe un Android secundario de prueba. Los informes de ventanas fechados 2026-11-10 quedaron etiquetados como históricos y enlazan estas repruebas; no se debe presentar el resultado automatizado de Arena como validación de interfaz física.
 
 ## Auditoría IPV/POS: trazabilidad DShalev (2026-11-10, branch `arena/ddc0bb64-shalev`)
 
-- `cd DShalev && .venv/bin/python -m py_compile dshalev/app.py dshalev/sync_server.py dshalev/database.py dshalev/inventory.py`: OK.
-- `cd DShalev && .venv/bin/pytest -q`: **112 passed**, 1 aviso de deprecación Starlette/anyio. Incluye el contrato aditivo de `/api/v1/catalog` (alias `stock` heredado + milésimas enteras), migración 8→9, ledger append-only y CSV, POS con replay de idempotencia tras recrear la app/base, anulación, comandos después de 520 claves y ledger de ventas/correcciones/anulaciones móviles.
-- `cd DShalev && npm test`: **6/6 passed** (carrito, restauración de borrador, cambio de precios, conflicto que rota/limpia clave y tema).
+- `cd Web-Desktop && .venv/bin/python -m py_compile dshalev/app.py dshalev/sync_server.py dshalev/database.py dshalev/inventory.py`: OK.
+- `cd Web-Desktop && .venv/bin/pytest -q`: **112 passed**, 1 aviso de deprecación Starlette/anyio. Incluye el contrato aditivo de `/api/v1/catalog` (alias `stock` heredado + milésimas enteras), migración 8→9, ledger append-only y CSV, POS con replay de idempotencia tras recrear la app/base, anulación, comandos después de 520 claves y ledger de ventas/correcciones/anulaciones móviles.
+- `cd Web-Desktop && npm test`: **6/6 passed** (carrito, restauración de borrador, cambio de precios, conflicto que rota/limpia clave y tema).
 - **Room (validación estática complementaria):** se recalcularon y coincidieron los `identityHash` de v16 (`60860bf80b0491be9b7e65e74bbeb425`) y v17 (`6d91036960030585952d618266030876`). Aplicar `MIGRACION_16_17` con SQLite de Python deja el mismo esquema que `17.json` según `PRAGMA` (21 entidades); esto no reemplaza la validación de Room/KSP.
 - **Android/iOS no compilados:** `./gradlew :data:testDebugUnitTest` se intentó y no pudo iniciar: falta `java`/JDK; tampoco están definidos `ANDROID_HOME` ni `ANDROID_SDK_ROOT`. Android añade recibos idempotentes Room v17 y pruebas instrumentadas de migración/reinicio/contenido/concurrencia, aún sin ejecutar. Se confirmó estáticamente que el filtro Android compara nombre, categoría y descripción; se amplió su test JVM, también pendiente de ejecución. iOS solo tuvo corrección del texto de búsqueda; `swift` y `xcodebuild` tampoco están instalados. No se declara compilación móvil verificada.
 - `git diff --check`: **OK** en el diff final; también se comprobó que los cinco archivos nuevos no contienen espacios finales.
 - Pruebas locales/loopback no validan Windows, navegador real, teléfonos ni redes físicas. Sin afirmar cumplimiento PCI. Las compras/recepción, SKU/barcode, roles/ubicaciones y conteo ciego siguen fuera de esta implementación.
-- Pruebas locales/loopback no validan Windows, navegador real, teléfonos ni redes físicas. Sin afirmar cumplimiento PCI. Las compras/recepción, SKU/barcode, roles/ubicaciones y conteo ciego siguen fuera de esta implementación.
 
 ## DShalev web/sync (2026-11-08, branch `arena/526d8508-shalev`)
 
-- `cd DShalev && .venv/bin/pytest -q`: **25 passed**, 1 aviso de deprecación Starlette/anyio. Incluye flujos web de inventario/POS, recetas e insumos fraccionarios, turnos/caja, clientes, reportes y exportes, respaldo cifrado de base+fotos+APK, SPVI en loopback, aprobaciones, cancelación/corrección simple y transferencia de medios.
+- `cd Web-Desktop && .venv/bin/pytest -q`: **25 passed**, 1 aviso de deprecación Starlette/anyio. Incluye flujos web de inventario/POS, recetas e insumos fraccionarios, turnos/caja, clientes, reportes y exportes, respaldo cifrado de base+fotos+APK, SPVI en loopback, aprobaciones, cancelación/corrección simple y transferencia de medios.
 - Exportaciones: XLSX de ventas (hojas resumen y detalle), inventario y clientes; además CSV. El XLSX nuevo se abrió con OpenPyXL y se confirmó que texto iniciado con `=` sigue siendo texto, no fórmula.
 - `.venv/bin/python -m compileall -q dshalev tests`: OK; `git diff --check`: OK. `WRANGLER_SEND_METRICS=false npm test --prefix relay`: **7/7** OK (incluye Miniflare/workerd local).
 - Límites expresos: ni las pruebas loopback ni las del Worker prueban teléfonos o redes físicas; no se validó Windows EXE/DPAPI entre equipos ni la firma de APK. El relay no está conectado a DShalev ni desplegado en Cloudflare. Licencia GL/sub-token comercial no implementados. Corrección móvil limitada a ventas simples de productos. No declarar paridad completa.
@@ -116,14 +152,14 @@ y [RELEASE.md](../RELEASE.md). **Cierre automatizado aprobado; la aceptación f�
 - `./gradlew shalevTests`: no se pudo iniciar, falta Java y no hay SDK Android en este entorno.
 - `git diff --check`: sin errores. Pendientes compilación, tests, pruebas en dispositivo y regrabación/revisión de capturas por los cambios visuales.
 
-> **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Última actualización Android: **2026-10-31**. La app principal sigue siendo Android. El antiguo Flutter/iOS y la web de escritorio se retiraron; la nueva contraparte SwiftUI vive en `IShalev/` y tiene una sección de verificación independiente al final de este documento.
+> **Fuente única de verdad** del estado de verificación: solo se considera medido lo anotado aquí. Esta entrada describe el estado del **2026-11-01**; la actualización Android más reciente está en la auditoría del **2026-11-13** al comienzo de este documento. La app principal sigue siendo Android. El antiguo Flutter/iOS y la web de escritorio se retiraron; la nueva contraparte SwiftUI vive en `iOS/` y tiene una sección de verificación independiente al final de este documento.
 
 ## 2026-10-31 — Acciones con iconos, navegación, filas y OCR Android
 
 Se implementaron iconos de acción accesibles y se retiró de Android el lector documental de Venta y su dependencia ML Kit Text. También cambiaron la navegación de Inicio/Ajustes, la disposición de Vender/Caja, las filas, logos bancarios, Skeleton y contacto de soporte. En iOS se cambiaron las flechas textuales de los spinners y el stepper por SF Symbols; el OCR documental iOS permanece y el lector QR Android sigue presente.
 
 - **Gradle y tests:** `shalevTests`, `shalevCheck`, `assembleDebug` y `verifyRoborazziDebug` **no ejecutados**: este entorno no tiene Java/JDK ni Android SDK (`java: command not found`, `ANDROID_HOME`/`ANDROID_SDK_ROOT` vacíos). No se declara compilación ni tests en verde.
-- **Swift/iOS:** `swift test --package-path IShalev` tampoco se ejecutó: no hay toolchain Swift/Xcode (`swift: command not found`). No se declara compilación iOS en verde.
+- **Swift/iOS:** `swift test --package-path iOS` tampoco se ejecutó: no hay toolchain Swift/Xcode (`swift: command not found`). No se declara compilación iOS en verde.
 - **Revisión estática:** Tree-sitter no encontró errores de sintaxis en los 21 archivos Kotlin modificados ni en el archivo Swift editado; el detector de imports duplicados, `bash -n tools/verificacion/verificar.sh`, la validación XML de manifiesto/diagrama y `git diff --check` pasaron. Esto no sustituye a compilar ni verificar tipos.
 - **Capturas:** pendientes de revisar y regenerar en entorno Android por los cambios visuales, especialmente Inicio, Ajustes, botones y pantallas afectadas por el límite de tres líneas.
 - **Dispositivo:** pendiente verificar visualmente los logos BPA/BANDEC/BANMET, el orden de accesos en Inicio, TalkBack de acciones iconográficas, el regreso desde Ajustes y la ausencia del escáner documental en Venta.
@@ -141,10 +177,10 @@ Auditoría de las dos apps contra la guía UI/UX/IX adjunta por el dueño (alcan
   - `AyudaSoporteTest > manualBreveYCompleto`: un paso de ayuda de **136 caracteres** cuando el test exige ≤ 110 (`app/ayuda/AyudaContenido.kt:173`). Reescrito a 110 conservando la etiqueta real del botón y las tres redes. El CI posterior ya no lo reporta.
   - `ProcesoActualizarTest > initializationError`: `sinConexionNoSeCierraSolo()` devolvía un valor (su última expresión es `withTimeout { first { … } }`), así que el método no era `void` y JUnit 4 rechazaba **la clase entera**: sus cuatro tests no corrían desde 1.0.1. Arreglado con `runBlocking<Unit>`. Tras el arreglo el job pasa, o sea que los cuatro se inicializan y corren en verde. Se rastreó el mismo patrón en todos los tests JVM e instrumentados: no hay otro caso.
 - **CI iOS + Appetize + `IShalev.ipa` (2026-10-28):** tras cinco runs en `macos-15` (`arm64`) que no consiguieron runner por saturación de la cola Apple Silicon de GitHub, se migró `.github/workflows/ios-build.yml` a **`macos-15-intel`** (Xcode 16.4, cola inmediata). Los runs [`40735858971`](https://github.com/rmdvcd/Shalev/actions/runs/40735858971) (`47a0dc4`) y [`40740036716`](https://github.com/rmdvcd/Shalev/actions/runs/40740036716) (`8e7f7da`, con todos los pendientes `IX-013`, `IX-012` y `UX-014`) pasaron **en verde de principio a fin**:
-  1. `swift test --package-path IShalev` en verde.
+  1. `swift test --package-path iOS` en verde.
   2. `xcodebuild` universal (`ARCHS="arm64 x86_64"`) para `generic/platform=iOS Simulator`, empaquetado como `IShalev-iOS-Simulator.zip` y subido automáticamente a Appetize.io → [`https://appetize.io/app/w3nz2pnc4iwdzjao2evosl7dci`](https://appetize.io/app/w3nz2pnc4iwdzjao2evosl7dci) (Appetize exige un `.app` de simulador comprimido y rechaza `.ipa` de dispositivo).
   3. `xcodebuild` Release sin firma para `generic/platform=iOS`, empaquetado como **`IShalev.ipa` (4,1 MB)** y publicado en el artefacto `IShalev-iOS-IPA` (verifica también las ramas `#if !targetEnvironment(simulator)`).
-- **Capturas Roborazzi pendientes:** `app/capturas/claro/07g_ayuda.png` y `app/capturas/oscuro/07g_ayuda.png` hay que regrabarlas con `./gradlew :app:recordRoborazziDebug` porque cambia el texto de Ayuda; **ya estaban pendientes** por los textos de 1.0.1. El CI no verifica capturas, así que no lo pone en rojo.
+- **Capturas Roborazzi pendientes:** `Android/app/capturas/claro/07g_ayuda.png` y `Android/app/capturas/oscuro/07g_ayuda.png` hay que regrabarlas con `./gradlew :app:recordRoborazziDebug` porque cambia el texto de Ayuda; **ya estaban pendientes** por los textos de 1.0.1. El CI no verifica capturas, así que no lo pone en rojo.
 - **Lo que no se probó en dispositivo real:** sesión interactiva con VoiceOver/TalkBack reales y comprobación manual visual en categoría `AX5` en iPhone físico (disponible en el simulador web de Appetize).
 
 ## Vinculación por datos móviles, cierre del cuadro de Actualizar e insumos en estadísticas (2026-10-27, 1.0.1)
@@ -177,7 +213,7 @@ Se aplicaron las correcciones de la auditoría del repositorio completo. Salen t
 Ocho pedidos del dueño en un lote: barra de avance, el fondo lo escribe quien abre el turno, conteo parcial por categoría, retirada de «Design system» y «Generar datos de prueba», sonidos propios, **fuera los datos móviles**, sin sincronización automática y **las fotos hacia la app secundaria**.
 
 - `./gradlew shalevTests` (2026-10-21): **883 casos JVM en verde** (19 `:core` + 114 `:licencia` + 229 `:domain` + **93** `:data` + 34 `:designsystem` + **394** `:app`). Son 25 menos que los 905 del 2026-10-19: se retiraron las 22 pruebas del seed y del catálogo, las de `FondoSyncTest`/`FondoAsignadoTest` y las de «asignar fondo», y se añadieron `Sync32Test` (4), `FondoEnTurnoTest` (3) y 2 casos de avance en `FondoAperturaTest`.
-- `./gradlew shalevCheck` (2026-10-21): **OK** (tests JVM + `lintDebug` + `assembleDebug` + `shalevPermisos`). La primera pasada falló al empaquetar por una **ruta vieja** de `domain/build` (la carpeta se movió de `SPVI/` a `Shalev/`): se borró `domain/build` y `core|licencia|designsystem/build` y repetida quedó en verde.
+- `./gradlew shalevCheck` (2026-10-21): **OK** (tests JVM + `lintDebug` + `assembleDebug` + `shalevPermisos`). La primera pasada falló al empaquetar por una **ruta vieja** de `Android/domain/build` (la carpeta se movió de `SPVI/` a `Shalev/`): se borró `Android/domain/build`, junto con `Android/core/build`, `Android/licencia/build` y `Android/designsystem/build`, y repetida quedó en verde.
 - **Sin cambio de esquema de base de datos:** las columnas `empleado.fondoAsignadoCent/fondoAsignadoEn/aperturaSolicitadaEn` se conservan (quedan sin uso) y el conteo añade un campo **opcional** `categoria` en la línea del DTO (los conteos anteriores se leen igual). No hay migración ni `14.json`.
 - Protocolo: sigue en **v1** y todos los campos son opcionales (`ignoreUnknownKeys = true`): una principal o secundaria anteriores se siguen entendiendo. Se retiran los campos del fondo y se añaden `Instantanea.fotos`, `PedirFoto` y `BloqueFoto`.
 - Teléfono 4bc9f8f3 (Android 15, API 35), APK debug `app-arm64-v8a-debug.apk` instalado: la app **arranca sin fallos** (nada en `logcat -b crash`), Ajustes ya **no** muestra «Design system» ni «Generar datos de prueba», y «Apps vinculadas» abre con la lista de secundarias («Secundarias (2 de 5)», red local activa) sin las filas de fondo. Los **cuatro canales de notificación** quedan creados con su sonido: `sync_conectada` → `android.resource://…/2131689472`, `sync_desconectada` → `…973`, `sync_terminada` → `…974` y `sync_progreso` **sin sonido** (comprobado con `dumpsys notification`).
@@ -211,20 +247,20 @@ Por decisión del dueño se eliminó el escáner OCR de inventario: no quedan c�
 «Generar datos de prueba» deja de sembrar sin foto: los 30 productos (los 2 Elaborados no admiten foto) y los 8 servicios llevan una foto real, copiada del propio APK, sin red en tiempo de ejecución.
 
 - Origen y licencias: **Wikimedia Commons**, solo dominio público / CC0 / CC BY / CC BY-SA (ninguna NC ni ND). Se bajaron 4 candidatas por artículo y se eligieron **mirando** hojas de contactos; el primer paso automático falló en ~25 de 38 (un lince como «desodorante», una planta como «galletas», autopistas de Salt Lake City como «sal»). Detalle con autoría y enlace de cada una en `docs/CREDITOS_FOTOS_SEED.md`.
-- Las 38 imágenes viven en `app/src/debug/assets/seed/fotos/<clave>.jpg` (solo depuración; el release no las lleva) a ≤512 px JPEG: **1,5 MB** en total. `app/src/debug/assets/seed/fotos/CREDITOS.md` viaja con ellas.
+- Las 38 imágenes viven en `Android/app/src/debug/assets/seed/fotos/<clave>.jpg` (solo depuración; el release no las lleva) a ≤512 px JPEG: **1,5 MB** en total. `Android/app/src/debug/assets/seed/fotos/CREDITOS.md` viaja con ellas.
 - `./gradlew shalevTests` (2026-10-19): **922 casos JVM en verde**, contados en los XML de los seis tasks (19 `:core` + 114 `:licencia` + **250** `:domain` + 91 `:data` + 34 `:designsystem` + 414 `:app`). Los 2 nuevos de `:domain` son de este lote y se vieron en **rojo** antes del arreglo, y se comprobó con una mutación temporal que fallan si la foto no se asigna.
 - `./gradlew shalevCheck` (2026-10-19): **OK** (tests JVM + `lintDebug` + `assembleDebug` + `shalevPermisos`).
 - Assets fusionados por variante (`mergeDebugAssets` / `mergeReleaseAssets`): **38** `.jpg` en debug y **0** en release (allí solo quedan los modelos de ML Kit). El código devuelve `Err` y siembra sin foto si el asset no existe.
 - CI (2026-10-19): [run `39198204810`](https://github.com/rmdvcd/Shalev/actions/runs/39198204810) sobre `a1743cb`: **verde** (permisos del manifiesto, API mínima 26, lint, tests JVM y compilación de instrumentados, release R8 y APK debug).
 - Teléfono 4bc9f8f3 (Android 15, API 35), APK debug `app-arm64-v8a-debug.apk` instalado: Ajustes › «Generar datos de prueba» › «Seed listo.»; **Inventario** (43 filas) y **Servicios** (8 filas) muestran las fotos elegidas, los Elaborados «Dulce de coco» y «Pan con lechón» salen sin foto, y `run-as cu.shalev.app.debug ls files/fotos` devuelve **38 archivos**.
 - Lo que **no** se probó: la vista de la foto en la ficha del producto (misma imagen ya verificada en la lista) y que un release sin assets siembre igual —el código devuelve `Err` y siembra sin foto, cubierto por el test `unaFotoQueFaltaNoAbortaElSeed`—. Tampoco entra en el respaldo ni en la sincronización LAN: las fotos siguen siendo locales, como antes.
-- **Actualización (2026-10-21):** la función «Generar datos de prueba» y sus 38 imágenes se retiraron de la app: `app/src/debug/assets/seed/`, `docs/CREDITOS_FOTOS_SEED.md` y `FotoRepository.importarIncluida` ya no existen. La medición de arriba queda como registro histórico de aquel lote.
+- **Actualización (2026-10-21):** la función «Generar datos de prueba» y sus 38 imágenes se retiraron de la app: `Android/app/src/debug/assets/seed/`, `docs/CREDITOS_FOTOS_SEED.md` y `FotoRepository.importarIncluida` ya no existen. La medición de arriba queda como registro histórico de aquel lote.
 
 ## Escáner OCR completo y geometría ajustada en el teléfono (2026-10-18, `6959eb1`, CI verde)
 
 Fases del escáner (lógica pura, ViewModel, pantalla y documentación) y las reglas de geometría corregidas con lo medido en el teléfono.
 
-- `./gradlew shalevTests` (2026-10-18): **920 casos JVM en verde**, contados en los XML de los seis tasks (19 `:core` + 114 `:licencia` + 248 `:domain` + 91 `:data` + 34 `:designsystem` + 414 `:app`). Los 414 de `:app` son los 385 anteriores + los 19 tests del escáner del merge #44 (existían, pero el merge no compilaba) + 5 nuevos de esta revisión. **Cifra corregida el 2026-10-19**: aquí se anotó «1057 / 551», que contaba los 137 `@Test` de `app/src/test/.../capturas/` — `shalevTests` **no** los ejecuta, los graba `recordRoborazziDebug` (`app/build.gradle.kts` excluye `**/capturas/**` salvo en tareas Roborazzi).
+- `./gradlew shalevTests` (2026-10-18): **920 casos JVM en verde**, contados en los XML de los seis tasks (19 `:core` + 114 `:licencia` + 248 `:domain` + 91 `:data` + 34 `:designsystem` + 414 `:app`). Los 414 de `:app` son los 385 anteriores + los 19 tests del escáner del merge #44 (existían, pero el merge no compilaba) + 5 nuevos de esta revisión. **Cifra corregida el 2026-10-19**: aquí se anotó «1057 / 551», que contaba los 137 `@Test` de `Android/app/src/test/.../capturas/` — `shalevTests` **no** los ejecuta, los graba `recordRoborazziDebug` (`Android/app/build.gradle.kts` excluye `**/capturas/**` salvo en tareas Roborazzi).
 - `./gradlew shalevCheck` (2026-10-18): **OK** (tests JVM + `lintDebug` + `assembleDebug` + `shalevPermisos`).
 - `./gradlew verifyRoborazziDebug` (2026-10-18): **527 capturas en verde**, ninguna cambia.
 - CI (2026-10-18): [run `39176254439`](https://github.com/rmdvcd/Shalev/actions/runs/39176254439) sobre `6959eb1`: **verde** (permisos del manifiesto, API mínima 26, lint, tests JVM y compilación de instrumentados, release R8 y APK debug). Es la primera corrida verde desde el fallo de `84afc87`; los tests instrumentados en emulador no corren de forma ordinaria.
@@ -276,7 +312,7 @@ Alerta de Inicio → Inventario filtrado, botón «Ver la venta» centrado en la
   - **Movimientos (turno cerrado)**: ese mismo movimiento, ya con el turno cerrado, **no ofrece** «Editar ajuste» en la ficha.
   - **Transferencias (turno cerrado)**: la ficha solo ofrece «Ver la venta»; no aparecen las acciones de la venta.
   - **Transferencias (turno abierto)**: la ficha ofrece «Modificar venta», «Anular venta» y «Ver la venta»; desde «Modificar venta» se cambiaron la cantidad (190.00 → 380.00 CUP) y el nº de transacción (TRANS12345 → TRANS99999) con motivo obligatorio, y Registros muestra la transferencia nueva con el importe y el nº corregidos. El diálogo «Anular venta» avisa de que era una transferencia (se canceló, no se anuló).
-- Versión rotulada **0.31.0**; el cambio quedó commiteado como `54c85f9`, que además versiona `data/schemas/cu.shalev.data.db.ShalevDatabase/13.json` (pieza que faltaba del cierre con conteo). La corrida de CI de la rama sigue pendiente.
+- Versión rotulada **0.31.0**; el cambio quedó commiteado como `54c85f9`, que además versiona `Android/data/schemas/cu.shalev.data.db.ShalevDatabase/13.json` (pieza que faltaba del cierre con conteo). La corrida de CI de la rama sigue pendiente.
 
 ## Cambio en curso: cierre con conteo (2026-10-17, `arena/5c955caa-shalev`)
 
@@ -319,7 +355,7 @@ Detalle de esa corrida, anterior a la corrección en esta rama:
 | Release/debug | Compilaron; R8 no reportó clases ausentes y se publicaron los APKs sin firma como artefactos de CI |
 | Instrumentados en emulador | Omitidos en esa corrida |
 
-En esta rama, `app/build.gradle.kts` prepara el SDK instrumentado de Robolectric mediante Gradle y lo pasa en modo offline a **todos los tests JVM de `:app`**, no solo a las capturas Roborazzi. Esta corrección está **pendiente de CI**; localmente `shalevTests` pasa en verde (2026-10-17) con ese SDK preparado por Gradle.
+En esta rama, `Android/app/build.gradle.kts` prepara el SDK instrumentado de Robolectric mediante Gradle y lo pasa en modo offline a **todos los tests JVM de `:app`**, no solo a las capturas Roborazzi. Esta corrección está **pendiente de CI**; localmente `shalevTests` pasa en verde (2026-10-17) con ese SDK preparado por Gradle.
 
 ## 3. Verificaciones pendientes
 
@@ -352,9 +388,9 @@ Añadir a esta tabla cada nueva corrida con fecha, SHA, resultado por job y cual
 
 ## Contraparte nativa iOS `IShalev` — avance (2026-10-24)
 
-- Proyecto Xcode/SwiftUI separado en `IShalev/` (iOS 17+). Incluye onboarding y selección global de módulos; flujo GL con anclas públicas cotejadas literalmente contra Android; bloqueo con autenticación del dispositivo; perfiles de empleados con permisos locales por módulo/acción; fotografías desde la fototeca; pegado/análisis manual de SMS de Transfermóvil; corrección/anulación de ventas del turno abierto; PDF/CSV; respaldo propio cifrado `.shalev-ios`; guía, soporte y consulta de versiones `ios-v*`.
+- Proyecto Xcode/SwiftUI separado en `iOS/` (iOS 17+). Incluye onboarding y selección global de módulos; flujo GL con anclas públicas cotejadas literalmente contra Android; bloqueo con autenticación del dispositivo; perfiles de empleados con permisos locales por módulo/acción; fotografías desde la fototeca; pegado/análisis manual de SMS de Transfermóvil; corrección/anulación de ventas del turno abierto; PDF/CSV; respaldo propio cifrado `.shalev-ios`; guía, soporte y consulta de versiones `ios-v*`.
 - `.github/workflows/ios-build.yml` compila una app de simulador en `macos-15`, la empaqueta para Appetize y publica el ZIP de Actions durante siete días. Si están configurados `APPETIZE_API_KEY` (y opcionalmente `APPETIZE_PUBLIC_KEY`), el job intenta subir/actualizar la app de Appetize.
-- **CI iOS (2026-10-24):** [run `40112292578`](https://github.com/rmdvcd/Shalev/actions/runs/40112292578), commit `94e5287`: **verde**. `swift test --package-path IShalev` ejecutó las nuevas pruebas de reglas/derivación del PIN, bloqueo por intentos y compatibilidad de perfiles antiguos; después `xcodebuild` compiló la app para iOS Simulator y publicó el ZIP (retención de 7 días).
+- **CI iOS (2026-10-24):** [run `40112292578`](https://github.com/rmdvcd/Shalev/actions/runs/40112292578), commit `94e5287`: **verde**. `swift test --package-path iOS` ejecutó las nuevas pruebas de reglas/derivación del PIN, bloqueo por intentos y compatibilidad de perfiles antiguos; después `xcodebuild` compiló la app para iOS Simulator y publicó el ZIP (retención de 7 días).
 - **CI Android (2026-10-24):** [run `40112292573`](https://github.com/rmdvcd/Shalev/actions/runs/40112292573), mismo commit: **verde** (tests JVM y compilación de instrumentados, lint, permisos, API mínima y APKs). El job de pruebas instrumentadas en emulador quedó omitido según la configuración ordinaria.
 - **Appetize verificado (2026-10-26):** `APPETIZE_API_KEY` ya está disponible para el workflow. Los runs `40155048824` (`f82be0a`) y `40155895866` (`c2a6cef`) subieron la app y anotaron la URL en el resumen del job. La build de `c2a6cef` está en [appetize.io/app/kczay4chapvuf53xy6w62fyy7a](https://appetize.io/app/kczay4chapvuf53xy6w62fyy7a) y carga como `IShalev` v1.0.0 sobre iPhone 14 Pro con iOS 17.2; la versión incrustable responde en `appetize.io/embed/kczay4chapvuf53xy6w62fyy7a`. El simulador queda a la espera de **Tap to Start**: el arranque de la sesión y la interacción ocurren en el navegador, no en el runner de CI. Sin `APPETIZE_PUBLIC_KEY`, cada run crea una app nueva (las builds `oxa2…` y `kczay…` son de runs distintos); configura ese secreto con la clave pública para actualizar una sola app. El ZIP sigue en los artefactos del run para subirlo a mano.
 - **Alineación visual iOS/Android (2026-10-26):** se corrigieron Inicio, Venta y Ajustes de IShalev para que sigan la estructura de la app Android (bloque fijo con turno/período/banner, dos botones flotantes, venta a pantalla completa por pasos y lista única de Ajustes). Runs verdes de `Compilación iOS de IShalev`: `40252507437`/`40252507416` (Inicio, `a1b67b5`), `40252841474`/`40252841481` (Venta, `8dac2a3`) y `40253094544`/`40253094427` (Ajustes, `88093c8`). No se hizo sesión interactiva; el repaso visual queda pendiente en Appetize o en un iPhone.
@@ -374,7 +410,7 @@ Añadir a esta tabla cada nueva corrida con fecha, SHA, resultado por job y cual
 - SQLite en memoria: SQL real de migración 14→15 ejecutado; comprobada conservación de
   una fila previa, inserción de las tres ubicaciones demo y selección independiente por ventana.
 - `./gradlew shalevTests`: no ejecutable; Gradle aborta por falta de Java/JAVA_HOME.
-- Pendiente: generar el esquema `data/schemas/cu.shalev.data.db.ShalevDatabase/15.json`
+- Pendiente: generar el esquema `Android/data/schemas/cu.shalev.data.db.ShalevDatabase/15.json`
   con Room/KSP (p. ej. `./gradlew :data:kspDebugKotlin`), `shalevCheck`, instrumentados,
   pruebas de UI y ejecución de `SeedActivity` en una instalación debug. El seed se actualizó
   en código; no se ha ejecutado sobre una instalación Android en este entorno.

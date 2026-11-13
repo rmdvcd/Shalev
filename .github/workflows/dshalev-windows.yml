@@ -3,11 +3,11 @@ name: DShalev Windows portable
 on:
   push:
     paths:
-      - 'DShalev/**'
+      - 'Web-Desktop/**'
       - '.github/workflows/dshalev-windows.yml'
   pull_request:
     paths:
-      - 'DShalev/**'
+      - 'Web-Desktop/**'
       - '.github/workflows/dshalev-windows.yml'
   workflow_dispatch:
 
@@ -28,23 +28,23 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r DShalev/requirements-dev.txt
-          python -m pytest DShalev/tests -q
+          python -m pip install -r Web-Desktop/requirements-dev.txt
+          python -m pytest Web-Desktop/tests -q
       - name: Accesibilidad de las plantillas (ramplint)
         shell: pwsh
-        run: ramplint --no-django DShalev/dshalev/templates
+        run: ramplint --no-django Web-Desktop/dshalev/templates
       - name: Probar interacción del punto de venta
-        working-directory: DShalev
+        working-directory: Web-Desktop
         run: |
           npm ci
           npm test
       - name: Crear ejecutable portable
         shell: pwsh
-        working-directory: DShalev
+        working-directory: Web-Desktop
         run: .\build_windows.ps1
       - name: Probar el ejecutable portable
         shell: pwsh
-        working-directory: DShalev
+        working-directory: Web-Desktop
         run: |
           $ErrorActionPreference = 'Stop'
           $exe = (Resolve-Path .\dist\DShalev.exe).Path
@@ -71,6 +71,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DShalev-Windows-x64
-          path: DShalev/dist/DShalev.exe
+          path: Web-Desktop/dist/DShalev.exe
           if-no-files-found: error
           retention-days: 14

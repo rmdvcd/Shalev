@@ -7,7 +7,7 @@ Copia el bloque de abajo tal cual en OpenCode (CLI o Desktop) **en tu PC**, con 
 Genera y prepara las fotos del seed de depuración de Shalev siguiendo FOTOS_SEED.md:
 
 1. Lee primero FOTOS_SEED.md, el catálogo real en
-   data/src/debug/kotlin/cu/shalev/data/seed/Sembrador.kt y tools/seed_demo/
+   Android/data/src/debug/kotlin/cu/shalev/data/seed/Sembrador.kt y tools/seed_demo/
    (descargar_fotos.py, fotos_wikipedia.py, generar_fotos.py, CREDITOS.md).
 
 2. Verifica el mapeo y el estado actual:

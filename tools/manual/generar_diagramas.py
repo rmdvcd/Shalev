@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Genera los 7 diagramas vectoriales SVG del Manual de Usuario de Shalev.
 
-Usa los iconos vectoriales reales de Shalev (tools/capturas/iconos.json) y la paleta
-oficial del Design System (:designsystem) con contraste verificado WCAG AA.
+Usa los iconos vectoriales reales de Shalev (tools/manual/iconos.json) y la paleta
+oficial del Design System (`Android/designsystem`) con contraste verificado WCAG AA.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-ICONS_PATH = ROOT / "tools" / "capturas" / "iconos.json"
+ICONS_PATH = ROOT / "tools" / "manual" / "iconos.json"
 OUT_DIR = ROOT / "docs" / "manual" / "diagramas"
 
 ICONS: dict[str, list[str]] = json.loads(ICONS_PATH.read_text(encoding="utf-8"))
@@ -67,8 +67,8 @@ def icon_svg(name: str, cx: float, cy: float, r: float = 18, bg: str = C_PRI, fg
     ty = cy - 12 * s
     p_str = "".join(f'<path d="{d}" fill="{fg}"/>' for d in paths)
     circle = f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}" fill="{bg}"/>' if r > 0 else ""
-    return f"""  {circle}
-  <g transform="translate({tx:.2f}, {ty:.2f}) scale({s:.3f})">{p_str}</g>"""
+    prefix = f"  {circle}\n" if circle else ""
+    return f"{prefix}  <g transform=\"translate({tx:.2f}, {ty:.2f}) scale({s:.3f})\">{p_str}</g>"
 
 
 def card(
@@ -145,7 +145,7 @@ def diag_01_navegacion() -> str:
         ("Inventory2", "2. Inventario", "Artículos, insumos,", "recetas y exportar", False),
         ("ManoRecibe", "3. Servicios", "Trabajos, tarifas", "e insumos usados", False),
         ("History", "4. Registros", "Ventas, clientes,", "caja y turnos", False),
-        ("Settings", "5. Ajustes", "Perfil, licencia,", "empleados y copia", False),
+        ("Build", "5. Herramientas", "Fichas de costo,", "inventario y cambio", False),
     ]
     tw, th = 154, 128
     gap = 16
@@ -197,7 +197,7 @@ def diag_01_navegacion() -> str:
         w,
         h,
         "Mapa de navegación y botones de Shalev",
-        "Estructura principal de 5 secciones y significado de los botones de acción rápida",
+        "Cinco secciones y acceso a Ajustes desde Inicio; guía rápida de navegación y botones.",
         "\n".join(parts),
     )
 

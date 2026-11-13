@@ -1,8 +1,8 @@
 # Shalev — reglas para agentes (OpenCode)
 
-App Android de punto de venta e inventario para pequeños negocios en Cuba. La app principal se mantiene en Android; `IShalev/` es una contraparte nueva, nativa en SwiftUI, con proyecto Xcode separado y alcance de paridad descrito en `IShalev/README.md`. Los antiguos proyectos Flutter/iOS y web se retiraron el 2026-10-15. **Versión Android declarada 1.0.1 (`versionCode 54`)**; la Release `v1.0` (`versionCode 53`) se publicó el 2026-10-22; el número de trabajo anterior era 0.32.0/52 (nunca publicado con ese número, y la 0.30.0/51 tampoco). El contrato de licencias GL vigente está resumido en `LICENSE_CLIENT.md` §10–§11. Paquete Android `cu.shalev.app`. Las reglas específicas de Kotlin/Gradle de este archivo se aplican al código Android; el proyecto iOS se compila con Xcode. Todo el texto de las interfaces, los comentarios y la documentación están en **español**; responde en español.
+La app Android de punto de venta e inventario para pequeños negocios en Cuba tiene su proyecto Gradle completo en `Android/`. Las contrapartes independientes están en `Web-Desktop/` (DShalev, Python/web) e `iOS/` (IShalev, SwiftUI/Xcode; alcance de paridad en `iOS/README.md`). Los antiguos proyectos Flutter/iOS y web se retiraron el 2026-10-15. **Versión Android declarada 1.0.1 (`versionCode 54`)**; la Release `v1.0` (`versionCode 53`) se publicó el 2026-10-22; el número de trabajo anterior era 0.32.0/52 (nunca publicado con ese número, y la 0.30.0/51 tampoco). El contrato de licencias GL vigente está resumido en `LICENSE_CLIENT.md` §10–§11. Paquete Android `cu.shalev.app`. Las reglas específicas de Kotlin/Gradle de este archivo se aplican al proyecto Android; el proyecto iOS se compila con Xcode. Todo el texto de las interfaces, los comentarios y la documentación están en **español**; responde en español.
 
-**Empieza por `Contexto.md`** (resumen del proyecto), `Pendiente.md` (lo que falta) y `Pruebas.md` (qué probar y en qué orden). La referencia visual es `Shalev_0.26.0_capturas_y_exportaciones.pdf` (raíz; no se sube a git). Guía para compilar con OpenCode Desktop (herramienta de desarrollo; no es una app Shalev): `docs/OPENCODE_DESKTOP.md`. Lee los demás documentos solo cuando la tarea los necesite:
+**Empieza por** `README.md` (visión general), `Android/README.md` (estructura y compilación Android) y `Pruebas.md` (qué probar y en qué orden). Las referencias visuales vigentes son `Android/app/capturas/claro/` y `Android/app/capturas/oscuro/` (137 imágenes por tema; ver `CAPTURAS.md`). El PDF `Shalev_0.26.0_capturas_y_exportaciones.pdf` es una entrega histórica excluida de git y no está en este checkout; no usarlo como referencia visual actual. Lee los demás documentos solo cuando la tarea los necesite:
 - arquitectura, compilación y novedades: `README.md`;
 - release firmado y pruebas en el teléfono: `RELEASE.md`;
 - archivos que escribe la app (respaldo, PDF, Excel, PNG): `FORMATOS.md`;
@@ -14,7 +14,7 @@ App Android de punto de venta e inventario para pequeños negocios en Cuba. La a
 
 ## Pila
 
-Kotlin 2.0.21 · AGP 8.7.3 · Gradle 8.11.1 (wrapper) · JDK 17 · compileSdk/targetSdk 35 · minSdk 26 · Compose BOM 2025.06.01 (ui/ATF 1.8.3 alineados) (Material 3) · Hilt 2.52 (KSP) · Room 2.6.1 + SQLCipher 4.6.1 · OkHttp + kotlinx.serialization · fastexcel · ML Kit (QR de vinculación) · Robolectric 4.14.1 + Roborazzi 1.38.0. Versiones en `gradle/libs.versions.toml`.
+Kotlin 2.0.21 · AGP 8.7.3 · Gradle 8.11.1 (wrapper) · JDK 17 · compileSdk/targetSdk 35 · minSdk 26 · Compose BOM 2025.06.01 (ui/ATF 1.8.3 alineados) (Material 3) · Hilt 2.52 (KSP) · Room 2.6.1 + SQLCipher 4.6.1 · OkHttp + kotlinx.serialization · fastexcel · ML Kit (QR de vinculación) · Robolectric 4.14.1 + Roborazzi 1.38.0. Versiones en `Android/gradle/libs.versions.toml`.
 
 ## Módulos (Clean Architecture)
 
@@ -37,7 +37,7 @@ Reutiliza repositorios y casos de uso existentes; no metas lógica de negocio en
 ./gradlew shalevCheck                    # antes de entregar: tests + lintDebug + assembleDebug + shalevPermisos
 ./gradlew :app:recordRoborazziDebug    # capturas reales (claro y oscuro)
 ./gradlew shalevInstrumentedTests        # emulador o teléfono API 26+
-./gradlew shalevRelease                  # AAB + APK firmados (requiere keystore.properties, ver RELEASE.md)
+./gradlew shalevRelease                  # AAB + APK firmados (requiere Android/keystore.properties, ver RELEASE.md)
 ```
 
 Un solo test: `./gradlew :domain:test --tests "cu.shalev.domain.Version025Test"`. Sin Android SDK queda `bash tools/verificacion/verificar.sh` (descarga kotlinc y compila sin Gradle; ~15 min).
@@ -66,7 +66,7 @@ Un solo test: `./gradlew :domain:test --tests "cu.shalev.domain.Version025Test"`
 
 ## Estado de verificación
 
-El estado medido y la separación entre corridas históricas se mantienen en [docs/VERIFICACION.md](docs/VERIFICACION.md). La auditoría Android del 2026-11-13 usa CI real: el checkout Arena no tiene JDK/SDK Android funcional y no debe atribuirse a este entorno la instalación física ni los 883 tests históricos de otro equipo. El cierre automatizado de la auditoría está aprobado en CI `43349968643`, código `44cf495` (991 JVM y 205 instrumentados sin fallos ni omisiones; los seis trabajos verdes). Lint conserva 102 avisos, sin errores ni baseline que los oculte; las comprobaciones físicas no se atribuyen al emulador.
+El estado medido y la separación entre corridas históricas se mantienen en [docs/VERIFICACION.md](docs/VERIFICACION.md), con fecha y SHA. No atribuyas a este checkout builds, pruebas ni comprobaciones físicas que no se hayan ejecutado aquí; consulta la entrada más reciente y distingue compilación de instrumentados de su ejecución.
 
 Los instrumentados se ejecutan en emulador API 35 por programación semanal, `workflow_dispatch` o un commit publicado con `[instrumentados]`. Compilar `androidTest` por sí solo no valida Room/Compose. Las capturas Roborazzi, dos teléfonos reales, revisión visual/TalkBack y actualización de producción firmada siguen siendo comprobaciones independientes; antes de publicar, seguir `Pruebas.md`, `PRUEBAS_DISPOSITIVO.md` y `RELEASE.md`.
 
