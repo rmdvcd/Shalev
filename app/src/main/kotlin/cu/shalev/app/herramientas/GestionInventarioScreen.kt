@@ -31,11 +31,7 @@ fun GestionInventarioScreen(onBack: () -> Unit, vm: GestionInventarioViewModel =
     val articulos by vm.articulos.collectAsStateWithLifecycle()
     val recepciones by vm.recepciones.collectAsStateWithLifecycle()
     val lotes by vm.lotes.collectAsStateWithLifecycle()
-    LaunchedEffect(articulos) {
-        val anterior = vm.articulo
-        val actual = articulos.firstOrNull { it.id == anterior?.id && it.entidad == anterior.entidad } ?: articulos.firstOrNull()
-        if (actual != null) vm.elegir(actual) else vm.articulo = null
-    }
+    LaunchedEffect(articulos) { vm.actualizarCatalogo(articulos) }
     var seccion by rememberSaveable { mutableStateOf("Recepción") }
     var salir by rememberSaveable { mutableStateOf(false) }
     val volver = { if (!vm.ocupado) { if (vm.tieneDatos) salir = true else onBack() } }

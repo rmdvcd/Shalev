@@ -36,6 +36,20 @@ class CostosAdicionalesFormTest {
         assertEquals("1.25", ServicioFormLogic.desde(servicio, lineas, emptyMap()).costoAdicional)
         assertEquals("8.25", ServicioFormLogic.desde(servicio, lineas, emptyMap()).importe)
     }
+    @Test fun costosFueraDeLongSeMuestranComoErrorDeFormularioNoComoExcepcion() {
+        val linea = LineaRecetaForm(1, "Material", "u", Cup(Long.MAX_VALUE), "2")
+        val f = ProductoForm(categoria = Categorias.ELABORADO, nombre = "Extremo", precioVenta = "1", receta = listOf(linea))
+        assertNull(ProductoFormLogic.costoReceta(f.receta))
+        assertTrue(ProductoFormLogic.validar(f).containsKey(Campos.RECETA))
+        assertNull(ProductoFormLogic.aProducto(f, ahora))
+        val conAdicional = f.copy(receta = listOf(linea.copy(cantidad = "1")), costoAdicional = "0.01")
+        assertNull(ProductoFormLogic.costoElaborado(conAdicional))
+        val servicio = ServicioForm(nombre = "Extremo", tipo = "General", importe = "1", insumos = conAdicional.receta, costoAdicional = "0.01")
+        assertNull(ServicioFormLogic.costo(servicio))
+        assertTrue(ServicioFormLogic.validar(servicio).containsKey(CamposServicio.INSUMOS))
+        assertNull(ServicioFormLogic.aServicio(servicio, ahora))
+    }
+
     @Test fun costosAdicionalesNegativosOConTresDecimalesSeMarcanAntesDeGuardar() {
         assertTrue(ServicioFormLogic.validar(ServicioForm(costoAdicional = "-0.01")).containsKey(CamposServicio.COSTO_ADICIONAL))
         assertTrue(ProductoFormLogic.validar(ProductoForm(categoria = Categorias.ELABORADO, costoAdicional = "1.001")).containsKey(Campos.COSTO_ADICIONAL))

@@ -60,11 +60,20 @@ object ProductoFormLogic {
     /** Costo de UNA unidad del Elaborado según la receta; null si alguna cantidad no es válida o no hay líneas. */
     fun costoReceta(lineas: List<LineaRecetaForm>): Cup? {
         if (lineas.isEmpty()) return null
-        return lineas.fold(Cup.ZERO) { acc, l ->
-            val c = Cantidad.parse(l.cantidad)?.takeIf { it > Cantidad.ZERO } ?: return null
-            acc + l.precio.porMilesimas(c.milesimas)
-        }
+        return try {
+            lineas.fold(Cup.ZERO) { acc, l ->
+                val c = Cantidad.parse(l.cantidad)?.takeIf { it > Cantidad.ZERO } ?: return null
+                acc + l.precio.porMilesimas(c.milesimas)
+            }
+        } catch (_: ArithmeticException) { null }
     }
+
+    /** Null también si el costo completo desborda centavos; se muestra como error, no se cae Compose. */
+    fun costoElaborado(f: ProductoForm): Cup? = try {
+        val material = costoReceta(f.receta)
+        val adicional = Money.parse(f.costoAdicional)
+        if (material == null || adicional == null) null else material + adicional
+    } catch (_: ArithmeticException) { null }
 
     /**
      * Todos los errores del formulario (campo → mensaje). Primero los de formato (lo que se teclea); después,
@@ -73,7 +82,7 @@ object ProductoFormLogic {
     fun validar(f: ProductoForm): Map<String, String> {
         val e = linkedMapOf<String, String>()
         if (f.esElaborado && Money.parse(f.costoAdicional)?.let { it >= Cup.ZERO } != true) e[Campos.COSTO_ADICIONAL] = "Escribe un costo adicional de 0 o más, con hasta dos decimales."
-        val costo = if (f.esElaborado) costoReceta(f.receta)?.plus(Money.parse(f.costoAdicional) ?: Cup.ZERO) ?: Cup.ZERO else Money.parse(f.precioCosto)
+        val costo = if (f.esElaborado) costoElaborado(f) else Money.parse(f.precioCosto)
         if (!f.esElaborado) {
             when {
                 f.precioCosto.isBlank() -> e[Campos.PRECIO_COSTO] = "Escribe el precio de costo."
@@ -95,6 +104,7 @@ object ProductoFormLogic {
             if (f.nivelCritico.isNotBlank() && entero(f.nivelCritico) == null) e[Campos.NIVEL_CRITICO] = FORMATO_ENTERO
         }
         if (f.esElaborado) {
+            if (costo == null && Campos.COSTO_ADICIONAL !in e) e[Campos.RECETA] = "El costo completo está fuera de rango. Reduce cantidades o costos."
             when {
                 f.receta.isEmpty() -> e[Campos.RECETA] = "Agrega al menos un insumo a la receta."
                 f.receta.any { l -> Cantidad.parse(l.cantidad)?.let { it > Cantidad.ZERO } != true } ->
@@ -109,7 +119,7 @@ object ProductoFormLogic {
     /** Producto listo para guardar, o null si el formulario tiene errores. */
     fun aProducto(f: ProductoForm, ahora: Instant): Pair<Producto, Receta?>? {
         if (validar(f).isNotEmpty()) return null
-        val costo = if (f.esElaborado) costoReceta(f.receta)!! + Money.parse(f.costoAdicional)!! else Money.parse(f.precioCosto)!!
+        val costo = if (f.esElaborado) costoElaborado(f)!! else Money.parse(f.precioCosto)!!
         val p = producto(f, costo, Money.parse(f.precioVenta)!!, if (f.esElaborado) 0 else entero(f.cantidad)!!, f.creadoEn ?: ahora)
         val receta = if (f.esElaborado) Receta(f.id, f.receta.map { RecetaLinea(it.insumoId, Cantidad.parse(it.cantidad)!!) }) else null
         return p to receta

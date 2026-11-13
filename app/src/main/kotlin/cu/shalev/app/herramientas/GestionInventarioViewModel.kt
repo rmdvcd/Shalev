@@ -62,7 +62,17 @@ class GestionInventarioViewModel @Inject constructor(
     var esSalida by mutableStateOf(true)
     var motivoAjuste by mutableStateOf(MotivoMovimiento.CORRECCION)
     private var uuid = UUID.randomUUID().toString()
-    val tieneDatos get() = lineas.isNotEmpty() || proveedor.isNotBlank() || cantidad.isNotBlank()
+    val tieneDatos get() = lineas.isNotEmpty() || proveedor.isNotBlank() || comprobante.isNotBlank() || motivo.isNotBlank() ||
+        cantidad.isNotBlank() || codigoLote.isNotBlank() || caducidad.isNotBlank() ||
+        (costo.isNotBlank() && (articulo == null || costo != Money.editar(articulo!!.costo)))
+
+    /** Un cambio de existencias/costos no debe sustituir el costo de compra que se está escribiendo. */
+    fun actualizarCatalogo(actuales: List<ArticuloGestion>) {
+        val seleccionado = articulo
+        val mismo = actuales.firstOrNull { it.id == seleccionado?.id && it.entidad == seleccionado.entidad }
+        if (mismo != null) articulo = mismo
+        else actuales.firstOrNull()?.let(::elegir) ?: run { articulo = null }
+    }
 
     fun elegir(a: ArticuloGestion) { articulo = a; costo = Money.editar(a.costo) }
     fun agregarLinea() {

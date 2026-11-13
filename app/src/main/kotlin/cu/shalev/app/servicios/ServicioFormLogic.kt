@@ -50,6 +50,8 @@ object ServicioFormLogic {
         if (f.insumos.any { l -> Cantidad.parse(l.cantidad)?.let { it > Cantidad.ZERO } != true }) {
             e[CamposServicio.INSUMOS] = "Cada insumo necesita una cantidad mayor que 0 (hasta 3 decimales)."
         }
+        if (costo(f) == null && CamposServicio.COSTO_ADICIONAL !in e && CamposServicio.INSUMOS !in e)
+            e[CamposServicio.INSUMOS] = "El costo completo está fuera de rango. Reduce cantidades o costos."
         Validadores.servicio(servicio(f, importe ?: Cup(1), Instant.EPOCH), lineasValidas(f))
             .forEach { v -> if (v.campo !in e) mensaje(v)?.let { e[v.campo] = it } }
         return e
@@ -71,7 +73,11 @@ object ServicioFormLogic {
     )
 
     /** Costo de los insumos de UNA vez; null si alguna cantidad no es válida. Cero si no gasta insumos. */
-    fun costo(f: ServicioForm): Cup? = (if (f.insumos.isEmpty()) Cup.ZERO else ProductoFormLogic.costoReceta(f.insumos))?.plus(Money.parse(f.costoAdicional) ?: Cup.ZERO)
+    fun costo(f: ServicioForm): Cup? = try {
+        val material = if (f.insumos.isEmpty()) Cup.ZERO else ProductoFormLogic.costoReceta(f.insumos)
+        val adicional = Money.parse(f.costoAdicional)
+        if (material == null || adicional == null) null else material + adicional
+    } catch (_: ArithmeticException) { null }
 
     fun mensaje(e: AppError): String? = when (e) {
         is AppError.Validacion -> when (e.campo) {

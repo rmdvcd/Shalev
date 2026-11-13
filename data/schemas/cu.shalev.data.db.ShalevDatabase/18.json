@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 18,
-    "identityHash": "c9bc95f184590d92e607b8556f4b371e",
+    "identityHash": "253eed1e5ebf08c8c1af388abc12e5cb",
     "entities": [
       {
         "tableName": "producto",
@@ -2174,7 +2174,7 @@
       },
       {
         "tableName": "lote_consumo",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `ventaId` INTEGER NOT NULL, `loteId` TEXT NOT NULL, `cantidadMil` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `ventaId` INTEGER, `loteId` TEXT NOT NULL, `cantidadMil` INTEGER NOT NULL, `movimientoId` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -2186,7 +2186,7 @@
             "fieldPath": "ventaId",
             "columnName": "ventaId",
             "affinity": "INTEGER",
-            "notNull": true
+            "notNull": false
           },
           {
             "fieldPath": "loteId",
@@ -2199,6 +2199,12 @@
             "columnName": "cantidadMil",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "movimientoId",
+            "columnName": "movimientoId",
+            "affinity": "INTEGER",
+            "notNull": false
           }
         ],
         "primaryKey": {
@@ -2225,6 +2231,15 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_lote_consumo_loteId` ON `${TABLE_NAME}` (`loteId`)"
+          },
+          {
+            "name": "index_lote_consumo_movimientoId",
+            "unique": false,
+            "columnNames": [
+              "movimientoId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_lote_consumo_movimientoId` ON `${TABLE_NAME}` (`movimientoId`)"
           }
         ],
         "foreignKeys": []
@@ -2348,12 +2363,32 @@
         },
         "indices": [],
         "foreignKeys": []
+      },
+      {
+        "tableName": "migracion_local",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`clave` TEXT NOT NULL, PRIMARY KEY(`clave`))",
+        "fields": [
+          {
+            "fieldPath": "clave",
+            "columnName": "clave",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "clave"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c9bc95f184590d92e607b8556f4b371e')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '253eed1e5ebf08c8c1af388abc12e5cb')"
     ]
   }
 }

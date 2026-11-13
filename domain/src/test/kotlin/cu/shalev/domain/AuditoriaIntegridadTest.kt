@@ -115,6 +115,18 @@ class AuditoriaIntegridadTest {
         assertTrue(cu.shalev.domain.service.Recetas.costo(r, mapOf(1L to insumos.obtener(1)!!)) is AppResult.Err)
     }
 
+    @Test fun costoAdicionalExtremoDaErrorTipadoAlGuardarYNoRompeLasListas() = runBlocking {
+        val i = insumo(1, "Harina").copy(precio = Cup(Long.MAX_VALUE))
+        insumos.put(i)
+        val p = producto(9, "Pan", categoria = Categorias.ELABORADO).copy(costoAdicional = Cup(1), precioVenta = Cup(Long.MAX_VALUE))
+        val receta = Receta(9, listOf(RecetaLinea(1, Cantidad(1_000))))
+        val resultado = GuardarProducto(productos, insumos, clock)(p, receta)
+        assertEquals(AppResult.Err(AppError.Validacion("precioCosto", AppError.Regla.RANGO)), resultado)
+        assertNull(InsumosFiltro.disponible(p, receta, mapOf(1L to i)).costoUnidad)
+        val servicio = Servicio(nombre = "Trabajo", tipo = "General", importe = Cup(1), costoAdicional = Cup(1), creadoEn = clock.now())
+        assertNull(ServiciosFiltro.disponible(servicio, receta.lineas, mapOf(1L to i)).costo)
+    }
+
     @Test fun recepcionesExigenDatosDeOrigenYCantidadesCompatibles() {
         val linea = LineaRecepcion(TipoEntidad.PRODUCTO, 1, Cantidad(1_000), Cup(125), "L-1")
         val r = NuevaRecepcion("identificador", "Proveedor", "C-1", "Compra inicial", listOf(linea))

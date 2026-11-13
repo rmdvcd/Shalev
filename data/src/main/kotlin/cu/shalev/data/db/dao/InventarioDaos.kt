@@ -153,6 +153,9 @@ interface MovimientoDao {
      * 0.31.0: al corregir la cantidad de un ajuste, la existencia resultante de los movimientos posteriores de esa
      * entidad se desplaza lo mismo, para que el libro siga cuadrando.
      */
+    @Query("SELECT EXISTS(SELECT 1 FROM movimiento WHERE entidad = :entidad AND entidadId = :entidadId AND id > :id AND typeof(existencia + :delta) != 'integer')")
+    suspend fun desplazarDesborda(entidad: String, entidadId: Long, id: Long, delta: Long): Boolean
+
     @Query("UPDATE movimiento SET existencia = existencia + :delta WHERE entidad = :entidad AND entidadId = :entidadId AND id > :id")
     suspend fun desplazarExistencia(entidad: String, entidadId: Long, id: Long, delta: Long)
 

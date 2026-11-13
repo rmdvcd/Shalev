@@ -62,7 +62,7 @@ data class ProductoFormUiState(
         val id = ProductoFormLogic.errorIdentidad(form.id, form.nombre, form.descripcion, otros, "producto") ?: return visibles
         return visibles + (Campos.DESCRIPCION to id)
     }
-    val costoReceta get() = ProductoFormLogic.costoReceta(form.receta)?.let { material -> cu.shalev.core.money.Money.parse(form.costoAdicional)?.let { material + it } }
+    val costoReceta get() = ProductoFormLogic.costoElaborado(form)
     /** Insumos que aún no están en la receta (para la hoja "Agregar insumo"). */
     val insumosDisponibles: List<Insumo> get() = insumos.filter { i -> form.receta.none { it.insumoId == i.id } }
 }

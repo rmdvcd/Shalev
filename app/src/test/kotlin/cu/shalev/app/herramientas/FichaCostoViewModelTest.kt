@@ -56,6 +56,15 @@ class FichaCostoViewModelTest {
         runCurrent()
         assertTrue(vm.fichas.isEmpty()) // la observación sigue viva después de recuperarse
     }
+    @Test fun unaTasaSolaTambienEsUnBorradorSinGuardar() = runTest {
+        val vm = FichaCostoViewModel(Repo().apply { fallar = false })
+        assertFalse(vm.sinGuardar)
+        vm.tasaCupPorUsd = "300.25"
+        assertTrue(vm.sinGuardar)
+        vm.nueva()
+        assertFalse(vm.sinGuardar)
+    }
+
     @Test fun editarUnaFichaExistenteTambienSeConsideraCambioSinGuardar() = runTest {
         val repo = Repo().apply { fallar = false }
         val vm = FichaCostoViewModel(repo)

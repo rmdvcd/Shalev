@@ -7,7 +7,8 @@ ksp = "2.0.21-1.0.28"
 hilt = "2.52"
 hiltNavigationCompose = "1.2.0"
 # --- AndroidX / Compose ---
-composeBom = "2024.12.01"
+# 1.8.3: misma familia para runtime y ATF. Mezclar ui 1.7 con ui-test 1.9 compila pero falla en dispositivo.
+composeBom = "2025.06.01"
 coreKtx = "1.15.0"
 activity = "1.9.3"
 lifecycle = "2.8.7"
@@ -104,8 +105,8 @@ androidx-test-runner = { module = "androidx.test:runner", version.ref = "android
 androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestExtJunit" }
 compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 # Plan UI/UX/IX 2026-11 (SK-1): checks ATF de accesibilidad sobre el árbol de composición. La versión la fija
-# el POM de compose-test-integration; no puede ir en la BOM porque ui-test-junit4-accessibility no está en ella.
-compose-ui-test-junit4-accessibility = { module = "androidx.compose.ui:ui-test-junit4-accessibility", version = "1.9.5" }
+# la familia ui 1.8.3 del BOM; accessibility no está en la BOM. Actualizar ambas juntas y ejecutar emulador.
+compose-ui-test-junit4-accessibility = { module = "androidx.compose.ui:ui-test-junit4-accessibility", version = "1.8.3" }
 compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 robolectric-android-all = { module = "org.robolectric:android-all-instrumented", version.ref = "robolectricAndroidAll" }

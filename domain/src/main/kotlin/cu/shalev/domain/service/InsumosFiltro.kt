@@ -59,7 +59,7 @@ object InsumosFiltro {
                 porUnidad = l.cantidad, disponible = i?.cantidad ?: cu.shalev.core.quantity.Cantidad.ZERO, existe = i != null,
             )
         }
-        val costo = receta?.takeIf { it.lineas.isNotEmpty() }?.let { (Recetas.costo(it, insumos) as? AppResult.Ok)?.value }
-        return ElaboradoDisponible(p, lineas, costo?.plus(p.costoAdicional))
+        val costo = receta?.takeIf { it.lineas.isNotEmpty() }?.let { (Recetas.costo(it, insumos, p.costoAdicional) as? AppResult.Ok)?.value }
+        return ElaboradoDisponible(p, lineas, costo)
     }
 }

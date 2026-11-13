@@ -14,7 +14,7 @@ App Android de punto de venta e inventario para pequeños negocios en Cuba. La a
 
 ## Pila
 
-Kotlin 2.0.21 · AGP 8.7.3 · Gradle 8.11.1 (wrapper) · JDK 17 · compileSdk/targetSdk 35 · minSdk 26 · Compose BOM 2024.12.01 (Material 3) · Hilt 2.52 (KSP) · Room 2.6.1 + SQLCipher 4.6.1 · OkHttp + kotlinx.serialization · fastexcel · ML Kit (QR de vinculación) · Robolectric 4.14.1 + Roborazzi 1.38.0. Versiones en `gradle/libs.versions.toml`.
+Kotlin 2.0.21 · AGP 8.7.3 · Gradle 8.11.1 (wrapper) · JDK 17 · compileSdk/targetSdk 35 · minSdk 26 · Compose BOM 2025.06.01 (ui/ATF 1.8.3 alineados) (Material 3) · Hilt 2.52 (KSP) · Room 2.6.1 + SQLCipher 4.6.1 · OkHttp + kotlinx.serialization · fastexcel · ML Kit (QR de vinculación) · Robolectric 4.14.1 + Roborazzi 1.38.0. Versiones en `gradle/libs.versions.toml`.
 
 ## Módulos (Clean Architecture)
 
@@ -60,7 +60,7 @@ Un solo test: `./gradlew :domain:test --tests "cu.shalev.domain.Version025Test"`
 - KSP: si falla Room/Hilt de forma rara, borra `build/generated/ksp` del módulo y repite.
 - Categoría de elaborados: `Categorias.ELABORADO = "Elaborado"` (singular).
 - Excel: el formato de importe es `#,##0.00 \C\U\P` (con comillas fastexcel genera un `styles.xml` inválido).
-- Base de datos v12 (`MIGRACION_11_12` añade `empleado.device` para el sub-token de las secundarias; esquema `data/schemas/cu.shalev.data.db.ShalevDatabase/12.json`); respaldo DTO v4 (importa v3); archivo `.shalev` v4 (lee v3). Un cambio de esquema exige migración + esquema exportado + test. **El `12.json` lo escribe Room al compilar**: si falta, `tools/verificacion/` y el CI lo avisan; no se inventa a mano.
+- Base de datos de trabajo **v18** (`MIGRACION_17_18`: locales estables, fichas, costo adicional, gestión/lotes/revisiones y metadatos locales de migración); respaldo **DTO v5** (importa v3–v5); contenedor `.shalev` **v4** (lee v3/v4). Un cambio de esquema exige migración + esquema exportado + test. **El JSON lo genera Room/KSP al compilar**; no se inventa a mano. Las ventas de insumos continúan enteras por decisión del dueño; recetas/recepción admiten milésimas.
 - Firma de los sub-tokens: clave P-256 propia de la principal (`FirmanteLicenciaAndroid`, Keystore `PURPOSE_SIGN`, alias `spvi_licencia_firma_v1`), distinta de la clave ECDH del equipo y que **nunca** se borra (tampoco al desvincular).
 - La firma de release debe ser **siempre la misma** (el `deviceId` de la licencia depende de ella).
 

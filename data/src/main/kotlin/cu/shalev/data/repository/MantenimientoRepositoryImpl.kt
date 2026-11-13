@@ -56,7 +56,7 @@ class MantenimientoRepositoryImpl @Inject constructor(
                     context.getSharedPreferences("fichas_costo", Context.MODE_PRIVATE).edit().clear().commit().also { check(it) }
                     ds.put("sync.secundaria.v1", null); ds.put("sync.tipo", null); ds.put("sync.negocio", null)
                     // 0.25.0: también el APK de actualización guardado o a medio recibir.
-                    listOf(File(context.filesDir, "fotos"), File(context.cacheDir, "compartir"), File(context.filesDir, "actualizacion"), File(context.cacheDir, "actualizacion"), File(context.filesDir, "respaldo_actualizacion")).forEach { it.deleteRecursively() }
+                    listOf(File(context.filesDir, "fotos"), File(context.cacheDir, "compartir"), File(context.filesDir, "actualizacion"), File(context.cacheDir, "actualizacion"), File(context.filesDir, "respaldo_actualizacion")).forEach { check(!it.exists() || it.deleteRecursively()) { "No se pudo eliminar un archivo privado." } }
                     AppResult.Ok(Unit)
                 } catch (e: CancellationException) {
                     throw e

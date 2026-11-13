@@ -88,7 +88,7 @@ La versión publicada es la **1.0 (`versionCode 53`)**: la primera versión púb
 - **Gradle 8.11.1**: lo descarga el wrapper (`gradlew`).
 - Teléfono o emulador con **Android 8.0 (API 26)** o superior. La cámara es opcional (`android.hardware.camera.any`, `required=false`).
 
-Versiones principales (`gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 8.7.3, Compose BOM 2024.12.01, Hilt 2.52, Room 2.6.1, SQLCipher 4.6.1, DataStore 1.1.1, Navigation 2.8.5, CameraX 1.4.1, ML Kit barcode 17.3.0 (empaquetado, sin descargas), OkHttp 4.12.0, Coil 3.0.4, fastexcel 0.18.4, ZXing core 3.5.3, kotlinx.serialization 1.7.3, coroutines 1.9.0.
+Versiones principales (`gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 8.7.3, Compose BOM 2025.06.01, Hilt 2.52, Room 2.6.1, SQLCipher 4.6.1, DataStore 1.1.1, Navigation 2.8.5, CameraX 1.4.1, ML Kit barcode 17.3.0 (empaquetado, sin descargas), OkHttp 4.12.0, Coil 3.0.4, fastexcel 0.18.4, ZXing core 3.5.3, kotlinx.serialization 1.7.3, coroutines 1.9.0.
 
 ## Configuración
 
@@ -333,7 +333,7 @@ El manual para el usuario final, sin tecnicismos, está en [MANUAL_USUARIO.md](M
 
 - **La contraseña del respaldo no se puede recuperar.** Sin ella el archivo `.shalev` no se abre.
 - **Importar reemplaza TODOS los datos:** inventario, insumos, turnos, ventas y configuración. Los respaldos de versiones anteriores a la 0.13.0 (formato v1/v2) ya no se abren.
-- **Las fotos de los productos no van en el respaldo.** El respaldo guarda la ruta de la foto, pero no la imagen; en otro teléfono los productos aparecen sin foto.
+- **Fotos:** DTO v5 incluye imágenes privadas disponibles, verificadas por SHA-256 y remapeadas al importar (4 MiB/foto, 48 MiB sumados). Los respaldos antiguos solo tienen rutas y no recuperan archivos que nunca contenían.
 - **La licencia no va en el respaldo.** Cada teléfono necesita la suya (`deviceId` distinto). Desde la 0.25.0 el respaldo lleva su ID para **recuperarla** gratis en otro teléfono (MANUAL §9).
 - **Borrar los datos de la app o reinstalarla** destruye la base de datos (su clave vive en el Keystore del teléfono) y la licencia instalada. Haz un respaldo antes. El `deviceId` suele mantenerse si el APK está firmado con la misma clave, así que el desarrollador puede volver a emitir la licencia.
 - **El PDF de configuración y las exportaciones de Registros no llevan contraseña.** Las de Transferencias incluyen nombre, carné y teléfono de clientes.
@@ -341,7 +341,7 @@ El manual para el usuario final, sin tecnicismos, está en [MANUAL_USUARIO.md](M
 - **QR de Transfermóvil sin importe:** el formato oficial no lo admite; el cliente escribe el total que Shalev muestra bajo el QR.
 - **SMS de licencia:** la solicitud ocupa unos 780 caracteres (varios SMS) y la licencia, unos 340 (3 SMS) o 216 si GL manda solo el código. WhatsApp es el canal recomendado.
 - **Valores fijos:** el tema sigue al sistema, el aviso de caducidad salta 7 días antes y la red espera 5 s. Son constantes, no preferencias (P17).
-- **Pruebas en este entorno:** la suite se compiló y los tests JVM pasaron fuera de Gradle. Gradle, lint, R8, Room KSP y los tests instrumentados no se han ejecutado nunca. Confirma con `./gradlew shalevCheck shalevInstrumentedTests` y la prueba de humo de [RELEASE.md](RELEASE.md) antes de distribuir.
+- **Pruebas:** el estado medido por SHA se registra en [docs/VERIFICACION.md](docs/VERIFICACION.md); no se extrapola del CI de `main` ni de una compilación a la ejecución en teléfono. Confirma también la prueba de humo de [RELEASE.md](RELEASE.md) antes de distribuir.
 - **Debug y release no comparten licencia:** cada uno tiene su propio paquete (`cu.shalev.app.debug` frente a `cu.shalev.app`) y su propia firma, así que su `deviceId` es distinto. Lo mismo pasa entre el APK distribuido a mano y uno publicado en Google Play con *Play App Signing*.
 
 ## Licencia del código

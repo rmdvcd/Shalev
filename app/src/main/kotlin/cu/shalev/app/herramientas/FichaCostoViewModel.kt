@@ -43,7 +43,7 @@ class FichaCostoViewModel @Inject constructor(private val repo: FichaCostoReposi
         private set
     var error by mutableStateOf<String?>(null)
         private set
-    val tieneDatos: Boolean get() = nombre.isNotBlank() || margen.isNotBlank() || partidas.isNotEmpty()
+    val tieneDatos: Boolean get() = nombre.isNotBlank() || margen.isNotBlank() || partidas.isNotEmpty() || tasaCupPorUsd.isNotBlank() || unidadMargen != UnidadMargen.PORCENTAJE
 
     private val intento = MutableStateFlow(0)
     private var original: FichaCostoGuardada? = null

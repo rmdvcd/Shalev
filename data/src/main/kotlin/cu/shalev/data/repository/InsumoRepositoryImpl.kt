@@ -65,11 +65,14 @@ class InsumoRepositoryImpl @Inject constructor(
                 val p = productos.obtener(pid)?.takeUnless { it.eliminado } ?: continue
                 val receta = recetas.lineas(pid).toReceta(pid)
                 val mapa = insumos.obtenerVarios(receta.lineas.map { it.insumoId }).associate { it.id to it.toDomain() }
-                val material = (cu.shalev.domain.service.Recetas.costo(receta, mapa) as? AppResult.Ok)?.value ?: continue
-                productos.actualizar(p.copy(precioCostoCent = (material + cu.shalev.core.money.Cup(p.costoAdicionalCent)).centavos))
+                val completo = when (val costo = cu.shalev.domain.service.Recetas.costo(receta, mapa, cu.shalev.core.money.Cup(p.costoAdicionalCent))) {
+                    is AppResult.Ok -> costo.value
+                    is AppResult.Err -> abortar(costo.error)
+                }
+                productos.actualizar(p.copy(precioCostoCent = completo.centavos))
             }
         }
-        val delta = i.cantidad.milesimas - viejo.cantidadMil
+        val delta = Math.subtractExact(i.cantidad.milesimas, viejo.cantidadMil)
         if (delta != 0L) mov(TipoMovimiento.AJUSTE, i.id, i.nombre, delta, i.cantidad.milesimas, "Edición")
     }
 

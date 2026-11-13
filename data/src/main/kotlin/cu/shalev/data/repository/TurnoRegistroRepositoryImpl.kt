@@ -119,7 +119,13 @@ class TurnoRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         if (m.motivo == cu.shalev.domain.model.MotivoMovimiento.COMPRA || !CorreccionMovimiento.puede(m.tipo, m.turnoId, t.id)) {
             abortar(AppError.Validacion("movimiento", AppError.Regla.NO_PERMITIDO))
         }
-        val diff = CorreccionMovimiento.diferencia(m.delta, delta)
+        if (delta > 0 && m.motivo in setOf(cu.shalev.domain.model.MotivoMovimiento.MERMA, cu.shalev.domain.model.MotivoMovimiento.CONSUMO_INTERNO))
+            abortar(AppError.Validacion("cantidad", AppError.Regla.NO_PERMITIDO))
+        val diff = try { CorreccionMovimiento.diferencia(m.delta, delta) }
+        catch (_: ArithmeticException) { abortar(AppError.Validacion("cantidad", AppError.Regla.RANGO)) }
+        val existenciaNueva = try { Math.addExact(e.existencia, diff) }
+        catch (_: ArithmeticException) { abortar(AppError.Validacion("cantidad", AppError.Regla.RANGO)) }
+        if (movimientos.desplazarDesborda(e.entidad, e.entidadId, e.id, diff)) abortar(AppError.Validacion("cantidad", AppError.Regla.RANGO))
         if (diff != 0L) {
             val filas = when (m.entidad) {
                 TipoEntidad.PRODUCTO -> db.productoDao().sumarStock(m.entidadId, diff, ahora)
@@ -132,10 +138,10 @@ class TurnoRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         }
         db.gestionDao().insertarRevision(cu.shalev.data.db.entity.MovimientoRevisionEntity(
             movimientoId = e.id, fecha = ahora, deltaAnterior = e.delta, deltaNuevo = delta,
-            existenciaAnterior = e.existencia, existenciaNueva = Math.addExact(e.existencia, diff),
+            existenciaAnterior = e.existencia, existenciaNueva = existenciaNueva,
             hechoPor = t.abiertoPor.orEmpty().ifBlank { "Principal" }, motivo = motivo.trim(), local = e.local,
         ))
-        movimientos.actualizar(e.copy(delta = delta, existencia = e.existencia + diff, nota = CorreccionMovimiento.nota(m.nota, motivo)))
+        movimientos.actualizar(e.copy(delta = delta, existencia = existenciaNueva, nota = CorreccionMovimiento.nota(m.nota, motivo)))
         Unit
     }
 

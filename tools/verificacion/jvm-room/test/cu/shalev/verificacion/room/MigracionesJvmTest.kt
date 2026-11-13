@@ -205,7 +205,7 @@ class MigracionesJvmTest {
                 assertTrue(it.moveToFirst()); assertEquals("85010112345", it.getString(0)); assertEquals(0, it.getInt(1))
             }
             db.query("SELECT COUNT(*) FROM cliente_fijo").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
-            db.query("PRAGMA user_version").use { it.moveToFirst(); assertEquals(10, it.getInt(0)) }
+            db.query("PRAGMA user_version").use { it.moveToFirst(); assertEquals(ShalevDatabase.VERSION, it.getInt(0)) }
         }
     }
 

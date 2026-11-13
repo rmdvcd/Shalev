@@ -33,7 +33,7 @@ def main():
             if problemas:
                 modulos[modulo][1] += 1
                 texto = (problemas[0].text or problemas[0].get("message", "")).strip()
-                fallos.append(f"{caso.get('classname')}.{caso.get('name')}: {texto[:1800]}")
+                fallos.append((modulo, f"{caso.get('classname')}.{caso.get('name')}", texto))
             if caso.find("skipped") is not None:
                 modulos[modulo][2] += 1
     total = sum(v[0] for v in modulos.values())
@@ -47,8 +47,17 @@ def main():
         if casos - omitidos <= 0:
             anotar("error", f"Instrumentados {requerido}: no se ejecutó ningún caso; no se valida solo con el otro módulo.")
             incompleto = True
-    for fallo in fallos[:25]:
-        anotar("error", fallo)
+    # GitHub solo guarda las primeras 10 anotaciones error por paso. Agrupar fallos idénticos evita
+    # que 100 casos con la misma dependencia rota tapen los fallos de SQLite/negocio del otro módulo.
+    grupos = {}
+    for modulo, caso, texto in sorted(fallos, key=lambda f: (f[0] != "data", f[0], f[1])):
+        clave = (modulo, texto.splitlines()[0] if texto else "")
+        grupos.setdefault(clave, []).append((caso, texto))
+    for (modulo, _), casos in list(grupos.items())[:10]:
+        caso, texto = casos[0]
+        anotar("error", f"{modulo}: {caso} ({len(casos)} con el mismo tipo de fallo): {texto[:2400]}")
+    if len(grupos) > 10:
+        anotar("notice", f"Quedan {len(grupos) - 10} tipos de fallo en los XML del artefacto informes-instrumentados.")
     if sum(v[0] - v[2] for v in modulos.values()) == 0:
         anotar("error", "Instrumentados: todos los casos fueron omitidos.")
         return 1

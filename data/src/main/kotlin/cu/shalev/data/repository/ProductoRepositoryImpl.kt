@@ -71,7 +71,7 @@ class ProductoRepositoryImpl @Inject constructor(
         validarRecetaLocal(receta)
         recetas.borrarDe(p.id)
         receta?.let { recetas.insertarTodas(it.toEntities(p.id)) }
-        val delta = p.cantidad - viejo.cantidad
+        val delta = Math.subtractExact(p.cantidad, viejo.cantidad)
         if (delta != 0L) mov(TipoMovimiento.AJUSTE, p.id, p.nombreCompleto, delta, p.cantidad, "Edición")
     }
 

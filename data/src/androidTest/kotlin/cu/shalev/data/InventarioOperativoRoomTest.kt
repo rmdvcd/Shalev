@@ -137,6 +137,9 @@ class InventarioOperativoRoomTest {
         ok(gestion.ajustar(TipoEntidad.PRODUCTO, p, Cantidad.enteras(-4), MotivoMovimiento.MERMA, "Envases rotos", "Ana"))
         val m = db.movimientoDao().ultimoDe("PRODUCTO", p)!!
         assertEquals(2_000L, gestion.lotes().first().single().disponible.milesimas)
+        assertTrue(turnos.corregirMovimiento(m.id, 1, "Una merma no es entrada", ahora.toEpochMilli()) is AppResult.Err)
+        assertEquals(2L, productos.obtener(p)!!.cantidad)
+        assertTrue(db.gestionDao().revisiones().isEmpty())
         ok(turnos.corregirMovimiento(m.id, -2, "Solo eran dos", ahora.toEpochMilli()))
         assertEquals(4L, productos.obtener(p)!!.cantidad)
         assertEquals(4_000L, gestion.lotes().first().single().disponible.milesimas)
@@ -183,6 +186,21 @@ class InventarioOperativoRoomTest {
         assertTrue(productos.ajustarStock(p, 1, "No cabe en Long") is AppResult.Err)
         assertEquals(Long.MAX_VALUE, productos.obtener(p)!!.cantidad)
         assertTrue(db.movimientoDao().todos().isEmpty())
+    }
+
+    @Test fun corregirNoPermiteDesbordarNiDiferenciaNiSaldosHistoricos() = runBlocking {
+        val p = producto(5)
+        ok(turnos.abrir(ahora, "Ana"))
+        ok(productos.ajustarStock(p, 1, "Entrada manual"))
+        val m = db.movimientoDao().ultimoDe("PRODUCTO", p)!!
+        assertEquals(AppResult.Err(AppError.Validacion("cantidad", AppError.Regla.RANGO)), turnos.corregirMovimiento(m.id, Long.MIN_VALUE, "No cabe diferencia", 0))
+        ok(productos.ajustarStock(p, -1, "Salida posterior"))
+        val posterior = db.movimientoDao().ultimoDe("PRODUCTO", p)!!
+        db.movimientoDao().actualizar(posterior.copy(existencia = Long.MAX_VALUE))
+        assertEquals(AppResult.Err(AppError.Validacion("cantidad", AppError.Regla.RANGO)), turnos.corregirMovimiento(m.id, 2, "Desborda historial", 0))
+        assertEquals(5L, productos.obtener(p)!!.cantidad)
+        assertEquals(Long.MAX_VALUE, db.movimientoDao().obtener(posterior.id)!!.existencia)
+        assertTrue(db.gestionDao().revisiones().isEmpty())
     }
 
     @Test fun recepcionQueCubreSaldoNegativoNoCreaDisponibilidadFicticiaDeLote() = runBlocking {
