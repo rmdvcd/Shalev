@@ -179,6 +179,8 @@ dependencies {
     androidTestImplementation(libs.compose.ui.test.junit4.accessibility)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    // Teclado y Atrás del sistema en los flujos reales de diálogo; ui-test no exporta Espresso core.
+    androidTestImplementation(libs.androidx.test.espresso.core)
     // Prompt 15 — integración: Room en memoria con los repositorios reales de :data.
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.room.runtime)
