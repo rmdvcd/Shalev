@@ -25,6 +25,8 @@ data class Producto(
     val creadoEn: Instant,
     val actualizadoEn: Instant = creadoEn,
     val eliminado: Boolean = false,
+    /** Mano de obra, gastos directos e indirectos por unidad; no se pierden al recalcular la receta. */
+    val costoAdicional: Cup = Cup.ZERO,
 ) {
     val esElaborado: Boolean get() = Categorias.esElaborado(categoria)
     /** P29: fila de Inventario que en realidad es un insumo (ver [IdArticulo] y [comoProducto]). */

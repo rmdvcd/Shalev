@@ -1,5 +1,7 @@
 package cu.shalev.app.venta
 
+import cu.shalev.app.common.mensajeParaUsuario
+
 import cu.shalev.domain.model.nombreCompleto
 import cu.shalev.app.common.mensajeSync
 import cu.shalev.core.quantity.Cantidad
@@ -412,11 +414,13 @@ object TextosVenta {
         is AppError.StockInsuficiente -> "No alcanza: ${e.faltantes.joinToString(", ")}. Ajusta las cantidades."
         AppError.NoEncontrado -> "Algo de la venta ya no existe. Vuelve a elegir."
         is AppError.Validacion -> when (e.campo) {
+            "cotizacion" -> "Cambió la cotización. Revisa el nuevo comprobante antes de cobrar; no se registró la venta."
             "receta" -> "Un elaborado no tiene receta: no se puede vender."
             "lineas" -> if (e.regla == AppError.Regla.NO_PERMITIDO) "Vende los servicios aparte de los productos." else CARRITO_VACIO_TITULO + "."
             "precioVenta" -> "Revisa los precios en Inventario y los descuentos: el precio de venta debe superar el costo."
             else -> "Revisa los datos marcados."
         }
+        is AppError.Duplicado -> if (e.campo == "numeroTransaccion") "Ese número de transacción ya se usó en otra venta válida. Verifica el cobro; no se registró otra venta." else e.mensajeParaUsuario()
         else -> mensajeSync(e) ?: ERROR
     }
 

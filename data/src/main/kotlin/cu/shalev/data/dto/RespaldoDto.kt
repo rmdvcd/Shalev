@@ -40,6 +40,12 @@ data class RespaldoDto(
     /** 0.27.0 (N2): clientes fijos (campo opcional: el formato sigue en v4). */
     val clientesFijos: List<ClienteFijoDto> = emptyList(),
     val almacenesLocales: List<AlmacenLocalDto> = emptyList(),
+    val fichasCosto: List<FichaLocalDto> = emptyList(),
+    val recepciones: List<RecepcionDto> = emptyList(),
+    val lotes: List<LoteInventarioDto> = emptyList(),
+    val consumosLotes: List<ConsumoLoteDto> = emptyList(),
+    val revisionesMovimiento: List<RevisionMovimientoDto> = emptyList(),
+    val fotos: List<FotoRespaldoDto> = emptyList(),
 ) {
     companion object {
         const val FORMATO = "spvi-respaldo"
@@ -72,6 +78,7 @@ data class ProductoDto(
     val creadoEn: Long, val actualizadoEn: Long, val eliminado: Boolean = false,
     /** v16: local dueño del artículo ("" en respaldos anteriores → local activo al restaurar). */
     val local: String = "",
+    val costoAdicionalCent: Long = 0,
 )
 
 @Serializable data class RecetaLineaDto(val insumoId: Long, val cantidadMil: Long)
@@ -92,6 +99,7 @@ data class InsumoDto(
 data class EmpleadoRespaldoDto(
     val id: Long, val nombre: String, val permisos: List<String> = emptyList(), val creadoEn: Long,
     val tarjetaId: Long? = null, val telefonoId: Long? = null,
+    val localId: String? = null,
 )
 
 /** P29: servicio con los insumos que gasta por vez. */
@@ -102,6 +110,7 @@ data class ServicioDto(
     val insumos: List<RecetaLineaDto> = emptyList(),
     /** v16: local que ofrece el servicio. */
     val local: String = "",
+    val costoAdicionalCent: Long = 0,
 )
 
 @Serializable
@@ -148,6 +157,7 @@ data class TransaccionDto(
     val tarjetaCobro: String? = null, val telefonoCobro: String? = null,
     /** 0.27.0 (N2): «Cliente fijo» marcado (false en respaldos y apps anteriores). */
     val clienteFijo: Boolean = false,
+    val referenciaDuplicada: Boolean = false,
 )
 
 /** 0.27.0 (N2): cliente fijo en el respaldo (lista vacía en respaldos anteriores). */
@@ -210,4 +220,4 @@ data class PreferenciasDto(
 )
 
 @Serializable
-data class AlmacenLocalDto(val nombre: String, val inventario: Boolean = false, val servicios: Boolean = false)
+data class AlmacenLocalDto(val nombre: String, val inventario: Boolean = false, val servicios: Boolean = false, val id: String = "")

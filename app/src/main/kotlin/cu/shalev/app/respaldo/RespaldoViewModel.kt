@@ -33,13 +33,14 @@ data class RespaldoUiState(
     val resultado: ResultadoRespaldo? = null,
     /** Paso 3 de exportar («Respaldo listo»): texto con el archivo creado. null = asistente en los pasos 1–2. */
     val exportado: String? = null,
+    val hayCopiaPrevia: Boolean = false,
 ) {
     val ocupado: Boolean get() = progreso != null
 }
 
 sealed interface EventoRespaldo {
     /** Abrir "Guardar como" del sistema con este nombre sugerido (respaldo .shalev). */
-    data class ElegirDestino(val nombre: String) : EventoRespaldo
+    data class ElegirDestino(val nombre: String, val copiaPrevia: Boolean = false) : EventoRespaldo
     data class Mensaje(val texto: String) : EventoRespaldo
 }
 
@@ -60,10 +61,11 @@ class RespaldoViewModel @Inject constructor(
     private val respaldoRepo: RespaldoRepository,
     private val archivos: ArchivosApp,
     private val clock: Clock,
+    private val copiaPrevia: cu.shalev.app.actualizacion.RespaldoPrevio,
 ) : ViewModel() {
 
     private val zona: ZoneId = ZoneId.systemDefault()
-    private val _state = MutableStateFlow(RespaldoUiState())
+    private val _state = MutableStateFlow(RespaldoUiState(hayCopiaPrevia = copiaPrevia.existe))
     val state: StateFlow<RespaldoUiState> = _state.asStateFlow()
     private val _eventos = Channel<EventoRespaldo>(Channel.BUFFERED)
     val eventos: Flow<EventoRespaldo> = _eventos.receiveAsFlow()
@@ -89,8 +91,21 @@ class RespaldoViewModel @Inject constructor(
     }
 
     /** Destino elegido en el selector del sistema (null = cancelado: no pasa nada). */
-    fun destinoElegido(uri: String?) {
+    fun guardarCopiaPrevia() {
+        if (!_state.value.ocupado && copiaPrevia.existe) _eventos.trySend(EventoRespaldo.ElegirDestino("Shalev_recuperacion_previa.shalev", copiaPrevia = true))
+    }
+
+    fun destinoElegido(uri: String?, previa: Boolean = false) {
         if (uri == null) return
+        if (previa) {
+            ejecutar(EtapasRespaldo.progreso(EtapaRespaldo.ESCRIBIENDO)) {
+                when (val r = exportador.aDestino(uri) { copiaPrevia.copiarA(it) }) {
+                    is AppResult.Ok -> mensaje("Copia previa guardada, sin contraseña. No incluye operaciones posteriores. Haz primero un respaldo actual y usa Importar solo si necesitas recuperar esta copia.")
+                    is AppResult.Err -> mensaje(mensajeRespaldo(r.error))
+                }
+            }
+            return
+        }
         val nombre = nombre()
         val con = _state.value.export.conContrasena
         ejecutar(EtapasRespaldo.progreso(EtapaRespaldo.PREPARANDO)) {

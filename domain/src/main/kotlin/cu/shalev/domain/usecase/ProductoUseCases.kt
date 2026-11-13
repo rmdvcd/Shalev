@@ -51,7 +51,7 @@ class GuardarProducto @Inject constructor(
             Validadores.receta(receta).toResult().let { if (it is AppResult.Err) return it }
             r = receta!!.copy(productoId = p.id)
             val costo = Recetas.costo(r, insumos.obtenerVarios(r.lineas.map { it.insumoId }).associateBy { it.id })
-            p = p.copy(precioCosto = (costo as? AppResult.Ok)?.value ?: return costo as AppResult.Err)
+            p = p.copy(precioCosto = ((costo as? AppResult.Ok)?.value ?: return costo as AppResult.Err) + p.costoAdicional)
         } else {
             r = null
         }

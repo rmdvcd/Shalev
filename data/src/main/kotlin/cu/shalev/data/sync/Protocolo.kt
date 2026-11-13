@@ -196,6 +196,7 @@ data class Comando(
     val accion: Accion,
     /** 0.21.7 (P-e): identificador único de la acción (UUID); el reenvío lleva la misma. null = secundaria anterior. */
     val clave: String? = null,
+    val localId: String? = null,
 ) : Mensaje
 
 /** [error] = código de [ErroresRemotos] (null = bien). [valor] = id nuevo al crear, existencia al ajustar… */
@@ -230,7 +231,7 @@ data class CajaSync(val uuid: String, val turnoUuid: String, val mov: Movimiento
 
 /** Turno de la secundaria (con su resumen congelado si ya cerró). */
 @Serializable
-data class TurnoSync(val uuid: String, val turno: TurnoDto)
+data class TurnoSync(val uuid: String, val turno: TurnoDto, val localId: String? = null)
 
 /** Venta + sus movimientos de inventario (salidas y consumos de insumos) tal como se hicieron en la secundaria. */
 @Serializable
@@ -265,6 +266,7 @@ data class Instantanea(
     val fotos: List<FotoCatalogoDto> = emptyList(),
     /** v16: local cuyo catálogo contiene esta instantánea. Vacío en clientes anteriores a este campo. */
     val local: String = "",
+    val localId: String? = null,
 )
 
 @Serializable

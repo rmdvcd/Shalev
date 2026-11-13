@@ -786,7 +786,7 @@ private fun LazyListScope.graficosPeriodo(
     when (estado) {
         EstadoCarga.Idle, EstadoCarga.Cargando -> {
             item(key = "ventas") { CardGrafico("Ventas", InicioTags.VENTAS, ac) { Cargando() } }
-            item(key = "ganancia") { CardGrafico("Ganancia Neta", InicioTags.GANANCIA, ac) { Cargando() } }
+            item(key = "ganancia") { CardGrafico("Ganancia bruta", InicioTags.GANANCIA, ac) { Cargando() } }
         }
         is EstadoCarga.Error -> item(key = "graficos_error") { CardError(estado.mensaje, onReintentar) }
         is EstadoCarga.Vacio -> {
@@ -797,7 +797,7 @@ private fun LazyListScope.graficosPeriodo(
                     Vacio(TextosInicio.SIN_VENTAS)
                 }
             }
-            item(key = "ganancia") { CardGrafico("Ganancia Neta", InicioTags.GANANCIA, ac) { Vacio(TextosInicio.SIN_VENTAS) } }
+            item(key = "ganancia") { CardGrafico("Ganancia bruta", InicioTags.GANANCIA, ac) { Vacio(TextosInicio.SIN_VENTAS) } }
         }
         is EstadoCarga.Exito -> {
             val g = estado.datos
@@ -834,7 +834,7 @@ private fun VentasCard(g: GraficosPeriodo, opcion: OpcionPeriodo, zona: ZoneId, 
 private fun GananciaCard(g: GraficosPeriodo, ac: AcordeonesInicio) {
     val colores = ShalevTheme.colors.chart
     val puntos = g.serie.puntos
-    CardGrafico("Ganancia Neta", InicioTags.GANANCIA, ac, subtitle = resumenGanancia(g)) {
+    CardGrafico("Ganancia bruta", InicioTags.GANANCIA, ac, subtitle = resumenGanancia(g)) {
         // P24/P28: dos columnas del mismo ancho (Costo y Ganancia); el importe se reduce si no cabe, nunca se parte.
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             // P28: sin «Venta»: es el mismo total que muestra la tarjeta Ventas justo encima.
@@ -873,10 +873,10 @@ private fun LazyListScope.resumenCon(r: ResumenGeneral, ac: AcordeonesInicio) {
     item(key = "inventario") {
         CardGrafico("Inventario", InicioTags.INVENTARIO, ac, subtitle = resumenInventario(r)) {
             if (r.categorias.isEmpty()) Vacio(TextosInicio.SIN_INVENTARIO) else {
-                // 0.27.0 (N1): valores en milésimas (productos e insumos, cada uno en su medida) → números sin unidad.
-                val slices = porcionesUi(r.categorias) { cantidadInventario(it) }
+                // Valor al costo en una medida común: centavos CUP.
+                val slices = porcionesUi(r.categorias) { Money.format(Cup(it)) }
                 Subtitulo(TextosInicio.EXISTENCIAS_POR_CATEGORIA)
-                ShalevDonutChart(slices, descripcionDona("inventario por categorías", slices), centerText = cantidadInventario(r.categorias.sumOf { it.valor }))
+                ShalevDonutChart(slices, descripcionDona("inventario por categorías", slices), centerText = Money.format(Cup(r.categorias.sumOf { it.valor })))
             }
         }
     }

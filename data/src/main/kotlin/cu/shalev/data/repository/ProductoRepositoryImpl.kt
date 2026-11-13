@@ -23,6 +23,7 @@ import cu.shalev.domain.repository.ProductoRepository
 import cu.shalev.domain.service.Stock
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -39,7 +40,13 @@ class ProductoRepositoryImpl @Inject constructor(
     private val turnos = db.turnoDao()
     private val locales = db.almacenLocalDao()
 
-    override fun observarTodos(): Flow<List<Producto>> = productos.observarActivos().map { l -> l.map { it.toDomain() } }
+    override suspend fun fotosEnUso(): Set<String> = productos.todos().filterNot { it.eliminado }.mapNotNull { it.fotoUri }.toSet()
+
+    override fun observarTodos(): Flow<List<Producto>> = kotlinx.coroutines.flow.flow {
+        val local = kotlinx.coroutines.currentCoroutineContext()[OrigenMovimiento]?.local
+        if (local != null) emit(productos.todos().filter { it.local == local && !it.eliminado }.map { it.toDomain() })
+        else emitAll(productos.observarActivos().map { l -> l.map { it.toDomain() } })
+    }
     override fun observar(id: Long): Flow<Producto?> = productos.observar(id).map { it?.toDomain() }.distinctUntilChanged()
     override suspend fun obtener(id: Long) = productos.obtener(id)?.toDomain()
     override suspend fun obtenerVarios(ids: Collection<Long>) =
@@ -47,7 +54,8 @@ class ProductoRepositoryImpl @Inject constructor(
     override suspend fun categoriasEnUso() = productos.categorias()
 
     override suspend fun crear(producto: Producto, receta: Receta?): AppResult<Long> = db.tx {
-        val id = productos.insertar(producto.toEntity().copy(id = 0, eliminado = false, local = locales.localActivo()))
+        val id = productos.insertar(producto.toEntity().copy(id = 0, eliminado = false, local = locales.localOperacion()))
+        validarRecetaLocal(receta)
         receta?.let { recetas.insertarTodas(it.toEntities(id)) }
         if (producto.cantidad != 0L) mov(TipoMovimiento.ALTA, id, producto.nombreCompleto, producto.cantidad, producto.cantidad)
         id
@@ -57,8 +65,10 @@ class ProductoRepositoryImpl @Inject constructor(
 
     override suspend fun actualizar(producto: Producto, receta: Receta?, cantidadLeida: Long?): AppResult<Unit> = db.tx {
         val viejo = productos.obtener(producto.id)?.takeUnless { it.eliminado } ?: abortar(AppError.NoEncontrado)
+        if (viejo.local != locales.localOperacion()) abortar(AppError.SinPermiso)
         val p = producto.copy(cantidad = Stock.cantidadAlGuardar(cantidadLeida, producto.cantidad, viejo.cantidad))
         productos.actualizar(p.toEntity().copy(creadoEn = viejo.creadoEn, eliminado = false, local = viejo.local))
+        validarRecetaLocal(receta)
         recetas.borrarDe(p.id)
         receta?.let { recetas.insertarTodas(it.toEntities(p.id)) }
         val delta = p.cantidad - viejo.cantidad
@@ -67,6 +77,7 @@ class ProductoRepositoryImpl @Inject constructor(
 
     override suspend fun eliminar(id: Long): AppResult<Unit> = db.tx {
         val p = productos.obtener(id)?.takeUnless { it.eliminado } ?: abortar(AppError.NoEncontrado)
+        if (p.local != locales.localOperacion()) abortar(AppError.SinPermiso)
         productos.actualizar(p.copy(eliminado = true, cantidad = 0, actualizadoEn = clock.now().toEpochMilli()))
         recetas.borrarDe(id)
         if (p.cantidad != 0L) mov(TipoMovimiento.BAJA, id, Identificacion.nombreCompleto(p.nombre, p.descripcion), -p.cantidad, 0)
@@ -74,6 +85,7 @@ class ProductoRepositoryImpl @Inject constructor(
 
     override suspend fun ajustarStock(id: Long, delta: Long, nota: String?): AppResult<Long> = db.tx {
         val p = productos.obtener(id)?.takeUnless { it.eliminado } ?: abortar(AppError.NoEncontrado)
+        if (p.local != locales.localOperacion()) abortar(AppError.SinPermiso)
         if (productos.sumarStock(id, delta, clock.now().toEpochMilli()) == 0) abortar(AppError.StockInsuficiente(listOf(Identificacion.nombreCompleto(p.nombre, p.descripcion))))
         val nueva = productos.cantidad(id) ?: 0
         mov(TipoMovimiento.AJUSTE, id, Identificacion.nombreCompleto(p.nombre, p.descripcion), delta, nueva, nota)
@@ -82,7 +94,12 @@ class ProductoRepositoryImpl @Inject constructor(
 
     override suspend fun actualizarPrecios(nuevos: Map<Long, Cup>): AppResult<Unit> = db.tx {
         val ahora = clock.now().toEpochMilli()
-        nuevos.forEach { (id, precio) -> if (productos.actualizarPrecio(id, precio.centavos, ahora) == 0) abortar(AppError.NoEncontrado) }
+        nuevos.forEach { (id, precio) ->
+            val p = productos.obtener(id) ?: abortar(AppError.NoEncontrado)
+            if (p.local != locales.localOperacion()) abortar(AppError.SinPermiso)
+            if (precio <= cu.shalev.core.money.Cup.ZERO) abortar(AppError.Validacion("precioVenta", AppError.Regla.RANGO))
+            if (productos.actualizarPrecio(id, precio.centavos, ahora) == 0) abortar(AppError.NoEncontrado)
+        }
     }
 
     override suspend fun receta(productoId: Long): Receta? =
@@ -100,9 +117,17 @@ class ProductoRepositoryImpl @Inject constructor(
             MovimientoEntity(
                 fecha = clock.now().toEpochMilli(), tipo = tipo.name, entidad = entidad.name, entidadId = entidadId,
                 nombre = nombre, delta = delta, existencia = existencia, turnoId = turnos.turnoParaMovimiento(), ventaId = null, nota = nota,
-                hechoPor = hechoPorActual(), local = locales.localActivo(),
+                hechoPor = hechoPorActual(), local = locales.localOperacion(),
             ),
         )
+    }
+
+    private suspend fun validarRecetaLocal(receta: Receta?) {
+        val local = locales.localOperacion()
+        for (l in receta?.lineas.orEmpty()) {
+            val insumo = db.insumoDao().obtener(l.insumoId) ?: abortar(AppError.NoEncontrado)
+            if (insumo.local != local) abortar(AppError.SinPermiso)
+        }
     }
 
     private companion object {

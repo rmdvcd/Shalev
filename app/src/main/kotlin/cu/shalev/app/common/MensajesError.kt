@@ -15,7 +15,12 @@ import cu.shalev.core.result.AppError
  * vinculación rechazada, que viaja por la red y pasa por [esTextoParaUsuario] antes de mostrarse.
  */
 fun AppError.mensajeParaUsuario(): String = when (this) {
-    is AppError.Validacion -> "Revisa los datos marcados e inténtalo de nuevo."
+    is AppError.Validacion -> when (campo) {
+        "comandoPendiente" -> "Hay una operación sin confirmar. Conecta con la principal y reintenta antes de enviar otra distinta."
+        "comandoRecuperado" -> "Se recuperó la confirmación de la operación anterior. Revisa el catálogo antes de hacer otro cambio."
+        "actualizarPrincipal" -> "Actualiza la app principal para enviar cambios con confirmación segura."
+        else -> "Revisa los datos marcados e inténtalo de nuevo."
+    }
     AppError.NoEncontrado -> "Eso ya no existe. Actualiza la lista e inténtalo de nuevo."
     is AppError.Duplicado -> "Ya existe uno igual. Cambia el dato repetido e inténtalo de nuevo."
     is AppError.EnUso -> detalle.takeIf { esTextoParaUsuario(it) }

@@ -20,9 +20,8 @@ import javax.inject.Singleton
  * 1. [crear] se llama justo antes de abrir el instalador: guarda un respaldo completo (el mismo formato `.shalev`, sin
  *    contraseña) en la carpeta PRIVADA de la app y anota qué versión estaba instalada. Si no se puede crear, no se
  *    actualiza.
- * 2. [restaurarSiCorresponde] se llama al abrir la app: si la versión instalada ya no es la anotada, la actualización
- *    terminó y se restaura el respaldo; después se borra. Si la versión es la misma (se canceló la instalación) el
- *    respaldo sobra y se borra.
+ * 2. [restaurarSiCorresponde] ya NO importa al abrir una versión nueva: Room migra normalmente. La copia
+ *    se conserva para recuperación explícita desde Respaldo y nunca pisa operaciones posteriores a su creación.
  *
  * Es un respaldo interno: no cuenta como «respaldo exportado» para el recordatorio mensual de Inicio, ni deja una
  * licencia «recuperable» en el estado de la app. Nunca sale del teléfono ni va a los registros.
@@ -33,7 +32,7 @@ class RespaldoPrevio(
     private val importar: ImportarRespaldo,
     private val estadoApp: EstadoAppRepository,
 ) {
-    enum class Restauracion { NADA_QUE_RESTAURAR, RESTAURADO, FALLO }
+    enum class Restauracion { NADA_QUE_RESTAURAR, CONSERVADO, RESTAURADO, FALLO }
 
     private val archivo get() = File(dir, "previo.shalev")
     private val marca get() = File(dir, "previo.version")
@@ -53,34 +52,28 @@ class RespaldoPrevio(
         intentar { estadoApp.editar { it.copy(ultimoRespaldo = ultimo) } }
         if (resultado !is AppResult.Ok) { tmp.delete(); return false }
         val listo = runCatching {
-            archivo.delete()
-            tmp.renameTo(archivo) && run { marca.writeText(version); true }
+            java.nio.file.Files.move(tmp.toPath(), archivo.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+            marca.writeText(version)
+            true
         }.getOrDefault(false)
         if (!listo) descartar()
         return listo
     }
 
-    /** Restaura el respaldo si la app acaba de actualizarse. [version] = la versión instalada ahora. */
+    /** Apertura normal: no se restaura NUNCA automáticamente, aunque haya cambiado la versión. */
     suspend fun restaurarSiCorresponde(version: String): Restauracion {
         if (!archivo.exists()) return Restauracion.NADA_QUE_RESTAURAR
-        val anterior = runCatching { marca.readText().trim() }.getOrNull()
-        if (anterior.isNullOrEmpty() || anterior == version) {
-            descartar() // la instalación no se hizo: el respaldo ya no hace falta
-            return Restauracion.NADA_QUE_RESTAURAR
-        }
-        val recuperable = intentar { estadoApp.actual().licenciaRecuperable }
-        val resultado = intentar { archivo.inputStream().use { importar(it, CharArray(0)) } }
-        // Importar guarda la licencia del respaldo como «recuperable»; aquí la licencia ya está instalada.
-        intentar { estadoApp.editar { it.copy(licenciaRecuperable = recuperable) } }
-        return if (resultado is AppResult.Ok) {
-            descartar()
-            Restauracion.RESTAURADO
-        } else {
-            Restauracion.FALLO // el archivo se conserva y se reintenta al abrir otra vez; la base de datos no se tocó
-        }
+        return Restauracion.CONSERVADO
     }
 
-    /** Borra el respaldo previo (instalación cancelada o ya restaurado). */
+    /** Copia de recuperación a una ubicación elegida explícitamente. Importarla usa el asistente normal de Respaldo. */
+    suspend fun copiarA(destino: java.io.OutputStream): AppResult<Unit> = try {
+        archivo.inputStream().use { it.copyTo(destino) }; destino.flush()
+        AppResult.Ok(Unit)
+    } catch (e: CancellationException) { throw e }
+    catch (_: Exception) { AppResult.Err(cu.shalev.core.result.AppError.Almacenamiento) }
+
+    /** Descarte explícito o borrado total del negocio. */
     fun descartar() {
         runCatching { archivo.delete() }
         runCatching { marca.delete() }

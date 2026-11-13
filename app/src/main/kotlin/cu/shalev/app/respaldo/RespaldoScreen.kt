@@ -89,6 +89,7 @@ class AccionesRespaldo(
     val onCancelarImport: () -> Unit,
     val onCerrarResultado: () -> Unit = {},
     val onNuevoRespaldo: () -> Unit = {},
+    val onGuardarCopiaPrevia: () -> Unit = {},
 )
 
 /**
@@ -102,10 +103,11 @@ fun RespaldoScreen(onBack: () -> Unit, viewModel: RespaldoViewModel = hiltViewMo
     SecureWindow()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    var copiaPrevia by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     // Gestor de archivos del dispositivo, enraizado en el almacenamiento interno (Descargas). Si el
     // dispositivo no resuelve esa ubicación, el selector abre donde pueda: igual lo elige el usuario.
     val guardar = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == Activity.RESULT_OK) viewModel.destinoElegido(it.data?.data?.toString())
+        if (it.resultCode == Activity.RESULT_OK) viewModel.destinoElegido(it.data?.data?.toString(), previa = copiaPrevia)
         else viewModel.destinoElegido(null)
     }
     // "*/*": algunos gestores no conservan un MIME reconocible para .shalev.
@@ -116,7 +118,7 @@ fun RespaldoScreen(onBack: () -> Unit, viewModel: RespaldoViewModel = hiltViewMo
     LaunchedEffect(viewModel) {
         viewModel.eventos.collect { e ->
             when (e) {
-                is EventoRespaldo.ElegirDestino -> guardar.launch(crearDocumento(e.nombre))
+                is EventoRespaldo.ElegirDestino -> { copiaPrevia = e.copiaPrevia; guardar.launch(crearDocumento(e.nombre)) }
                 is EventoRespaldo.Mensaje -> snackbar.showSnackbar(e.texto)
             }
         }
@@ -132,6 +134,7 @@ fun RespaldoScreen(onBack: () -> Unit, viewModel: RespaldoViewModel = hiltViewMo
             onCancelarImport = viewModel::cancelarImport,
             onCerrarResultado = viewModel::cerrarResultado,
             onNuevoRespaldo = viewModel::nuevoRespaldo,
+            onGuardarCopiaPrevia = viewModel::guardarCopiaPrevia,
         ),
         snackbar = snackbar,
     )
@@ -191,6 +194,10 @@ fun RespaldoContent(
                 ShalevSecondaryText(TextosRespaldo.SIN_LICENCIA)
             }
 
+            if (state.hayCopiaPrevia) ShalevCard(title = "Copia previa a la actualización") {
+                ShalevSecondaryText("La app conserva la base migrada; esta copia NO se restaura automáticamente. Puede no contener las últimas operaciones. Guárdala solo para una recuperación y haz antes un respaldo actual.")
+                ShalevSecondaryButton("Guardar copia previa", acciones.onGuardarCopiaPrevia, ShalevIcons.Exportar, enabled = !state.ocupado, mostrarTexto = true)
+            }
             ShalevCard(title = "Exportar") {
                 Text(TextosRespaldo.CONTENIDO, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 val e = state.export

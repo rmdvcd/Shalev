@@ -2,14 +2,14 @@ package cu.shalev.domain.repository
 
 import kotlinx.coroutines.flow.Flow
 
-/** Ubicación general; no asigna ni filtra artículos. Historial compartido local al equipo. */
+/** Catálogo, caja e historial independientes por local. El id es inmutable, el nombre es editable. */
 interface LocalRepository {
     fun observar(): Flow<List<Local>>
     suspend fun seleccionar(nombre: String)
     suspend fun guardar(nombre: String, anterior: String? = null)
 }
 
-data class Local(val nombre: String, val seleccionado: Boolean = false)
+data class Local(val nombre: String, val seleccionado: Boolean = false, val id: String = "")
 
 /** Evita nombres vacíos, saltos de línea y duplicados por espacios o mayúsculas. */
 object NombresLocal {

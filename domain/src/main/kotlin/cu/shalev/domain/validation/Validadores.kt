@@ -33,6 +33,7 @@ object Validadores {
     val RANGO_AJUSTE = -9_000..10_000 // -90 % … +100 %
 
     fun producto(p: Producto): List<Validacion> = buildList {
+        if (p.costoAdicional < Cup.ZERO) add(Validacion("costoAdicional", Regla.RANGO))
         texto("nombre", p.nombre, MAX_NOMBRE)?.let(::add)
         texto("categoria", p.categoria, MAX_CATEGORIA)?.let(::add)
         if (Categorias.esInsumos(p.categoria)) add(Validacion("categoria", Regla.NO_PERMITIDO)) // P29: reservada

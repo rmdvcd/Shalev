@@ -43,12 +43,18 @@ data class DatosSecundaria(
     val cierreSolicitado: Boolean = false,
     /** 0.21.0 (C6): el dueño rechazó la solicitud (aviso en Inicio hasta que el empleado lo cierre). */
     val avisoRechazo: Boolean = false,
+    val localId: String? = null,
+    /** Antes de enviar, se persiste cifrado; se conserva hasta obtener un recibo definitivo. */
+    val comandoPendiente: ComandoPendiente? = null,
 ) {
     val permisosEmpleado: Set<PermisoEmpleado> get() = PermisoEmpleado.deNombres(permisos)
     val licenciaPrincipal: LicenciaPrincipal? get() = licencia?.aDominio()
 
     override fun toString(): String = "DatosSecundaria(empleado=$empleadoId)" // nunca la clave en logs
 }
+
+@Serializable
+data class ComandoPendiente(val clave: String, val accion: Accion, val localId: String? = null)
 
 fun LicenciaDto.aDominio(): LicenciaPrincipal? {
     val c = LicenciaPrincipal.Clase.entries.firstOrNull { it.name == clase } ?: return null

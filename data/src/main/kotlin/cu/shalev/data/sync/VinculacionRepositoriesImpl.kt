@@ -3,6 +3,7 @@ package cu.shalev.data.sync
 import cu.shalev.core.result.AppError
 import cu.shalev.core.result.AppResult
 import cu.shalev.core.time.Clock
+import cu.shalev.data.db.dao.idActivo
 import cu.shalev.data.db.tx
 import cu.shalev.data.db.abortar
 import cu.shalev.data.dto.conteoDeJson
@@ -134,7 +135,7 @@ class PrincipalRepositoryImpl @Inject constructor(
         if (!Vinculacion.puedeAgregar(actuales.size, limiteSecundarias())) return AppResult.Err(AppError.SinPermiso)
         val id = sync.insertarEmpleado(
             EmpleadoEntity(
-                nombre = nombre.trim(), permisos = permisos.csv(), creadoEn = clock.now().toEpochMilli(),
+                nombre = nombre.trim(), permisos = permisos.csv(), creadoEn = clock.now().toEpochMilli(), localId = db.almacenLocalDao().idActivo(),
                 vinculadoEn = null, ultimaSincronizacion = null, clave = null, codigoToken = null, codigoVence = null, activo = true,
             ),
         )

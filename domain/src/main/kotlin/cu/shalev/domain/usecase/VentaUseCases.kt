@@ -73,7 +73,7 @@ class CotizarVenta @Inject constructor(
             insumosLeidos = insumos.obtenerVarios(recetas.values.flatMap { r -> r.lineas.map { it.insumoId } }.toSet()).map(devueltos::aplicar).associateBy { it.id }
             recetas.forEach { (id, r) ->
                 alcanza[id] = Recetas.maxUnidades(r, insumosLeidos)
-                (Recetas.costo(r, insumosLeidos) as? AppResult.Ok)?.let { costos[id] = it.value }
+                (Recetas.costo(r, insumosLeidos) as? AppResult.Ok)?.let { costos[id] = it.value + mapa.getValue(id).costoAdicional }
             }
         }
         return PlanificadorVenta.cotizar(lineas, mapa, metodo, precios.preajustesActivos(), alcanza, costos)
@@ -101,9 +101,9 @@ class CotizarVenta @Inject constructor(
             val tope = r?.let { Recetas.maxUnidades(it, insumosLeidos) } ?: SIN_TOPE
             val costo = r?.let { (Recetas.costo(it, insumosLeidos) as? AppResult.Ok)?.value } ?: Cup.ZERO
             alcanza[s.id] = tope
-            costos[s.id] = costo
+            costos[s.id] = costo + s.costoAdicional
             s.id to Producto(
-                id = s.id, categoria = s.tipo, nombre = s.nombreCompleto, precioCosto = costo, precioVenta = s.importe,
+                id = s.id, categoria = s.tipo, nombre = s.nombreCompleto, precioCosto = costo + s.costoAdicional, precioVenta = s.importe,
                 cantidad = tope, creadoEn = s.creadoEn,
             )
         }
@@ -183,7 +183,10 @@ class RegistrarVenta @Inject constructor(
     private val perfil: PerfilRepository,
     private val clock: Clock,
 ) {
-    suspend operator fun invoke(lineas: List<LineaSolicitada>, metodo: MetodoPago, transferencia: DatosTransferencia? = null): AppResult<Long> {
+    suspend operator fun invoke(
+        lineas: List<LineaSolicitada>, metodo: MetodoPago, transferencia: DatosTransferencia? = null,
+        aceptada: cu.shalev.domain.service.Cotizacion? = null,
+    ): AppResult<Long> {
         val turno = turnos.activo() ?: return AppResult.Err(AppError.TurnoCerrado)
 
         val cliente = when (val r = validarTransferencia(metodo, transferencia)) {
@@ -196,6 +199,9 @@ class RegistrarVenta @Inject constructor(
             is AppResult.Ok -> r.value
         }
         val cot = plan.cotizacion
+        if (aceptada != null && aceptada != cot) {
+            return AppResult.Err(AppError.Validacion("cotizacion", AppError.Regla.NO_PERMITIDO))
+        }
         val elaborados = when (val r = plan.elaborados()) {
             is AppResult.Err -> return r
             is AppResult.Ok -> r.value

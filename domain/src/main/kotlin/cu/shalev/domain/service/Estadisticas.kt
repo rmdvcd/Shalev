@@ -57,7 +57,7 @@ object Estadisticas {
         }
     }
 
-    /** Serie continua (incluye cubos vacíos) para Ventas (barras) y Ganancia Neta (área). */
+    /** Serie continua (incluye cubos vacíos) para Ventas (barras) y Ganancia bruta (área). */
     fun serie(ventas: List<Venta>, desde: Instant, hasta: Instant, zone: ZoneId): Serie {
         val g = granularidad(desde, hasta)
         fun cubo(i: Instant): ZonedDateTime = i.atZone(zone).let {
@@ -88,24 +88,17 @@ object Estadisticas {
         return Serie(g, puntos)
     }
 
-    /**
-     * Dona Inventario: existencias por categoría (artículos activos; P26: los Elaborados no tienen existencias).
-     *
-     * 0.27.0 (N1): los insumos cuentan en la porción «Insumos», cada uno en su propia medida (kg, L, u…). Para poder
-     * sumarlos, los valores van en **milésimas** (un producto con 3 unidades aporta 3000; un insumo con 2,5 kg, 2500).
-     * La pantalla los muestra como números sin unidad («12,5»).
-     */
+    /** Valor del inventario al costo en centavos CUP: no se suman kg, litros y unidades. */
     fun distribucionCategorias(productos: List<Producto>, insumos: List<Insumo> = emptyList()): List<Porcion> {
         val porCategoria = productos.filterNot { it.eliminado || it.esElaborado }.groupBy { it.categoria }
-            .mapValues { (_, ps) -> ps.sumOf { it.cantidad.coerceAtLeast(0) * MILESIMAS } }.toMutableMap()
-        val enInsumos = insumos.sumOf { it.cantidad.milesimas.coerceAtLeast(0) }
+            .mapValues { (_, ps) -> ps.fold(Cup.ZERO) { suma, p -> suma + p.precioCosto * p.cantidad.coerceAtLeast(0) }.centavos }.toMutableMap()
+        val enInsumos = insumos.fold(Cup.ZERO) { suma, i -> suma + i.precio.porMilesimas(i.cantidad.milesimas.coerceAtLeast(0)) }.centavos
         if (enInsumos > 0) porCategoria[CATEGORIA_INSUMOS] = (porCategoria[CATEGORIA_INSUMOS] ?: 0L) + enInsumos
         return porciones(porCategoria)
     }
 
     /** 0.27.0 (N1): nombre de la porción de los insumos en la dona Inventario. */
     const val CATEGORIA_INSUMOS = "Insumos"
-    private const val MILESIMAS = 1000L
 
     /** Dona Métodos de pago: importe cobrado por método. */
     fun distribucionMetodos(ventas: List<Venta>): List<Porcion> =

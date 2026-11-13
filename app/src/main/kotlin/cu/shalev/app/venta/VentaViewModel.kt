@@ -366,11 +366,11 @@ class VentaViewModel @Inject constructor(
 
     private fun registrarVenta(t: DatosTransferencia?) {
         val s = state.value
-        if (local.value.trabajando || s.lineas.isEmpty()) return
+        if (local.value.trabajando || s.lineas.isEmpty() || s.cotizacion == null) return
         if (s.bloqueada) { emitir(EventoVenta.Mensaje(TextosVenta.mensaje(AppError.TurnoCerrado))); return }
         local.update { it.copy(trabajando = true, error = null) }
         viewModelScope.launch {
-            val r = seguro { registrar(Carrito.solicitud(s.lineas), s.metodo, t) }
+            val r = seguro { registrar(Carrito.solicitud(s.lineas), s.metodo, t, aceptada = s.cotizacion) }
             when (r) {
                 is AppResult.Ok -> {
                     val total = s.total
@@ -383,7 +383,7 @@ class VentaViewModel @Inject constructor(
                     val msg = TextosVenta.mensaje(r.error)
                     // Stock/receta: hay que cambiar el carrito → se vuelve a él con el error a la vista.
                     val alCarrito = r.error is AppError.StockInsuficiente || r.error == AppError.NoEncontrado ||
-                        (r.error as? AppError.Validacion)?.campo == "receta"
+                        (r.error as? AppError.Validacion)?.campo in setOf("receta", "cotizacion")
                     local.update {
                         it.copy(
                             trabajando = false, error = msg,

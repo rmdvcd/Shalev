@@ -92,7 +92,7 @@ class EntornoIntegracion(licencia: LicenseState = LicenseState.Trial(5)) {
     val archivos = FakeArchivos()
     val entrada = EntradaCompartida()
     val estadoApp = cu.shalev.app.EstadoAppRepo()
-    val respaldo = RespaldoRepositoryImpl(db, prefs, clock, Dispatchers.IO, this.licencia, estadoApp)
+    val respaldo = RespaldoRepositoryImpl(db, prefs, clock, Dispatchers.IO, this.licencia, estadoApp, ApplicationProvider.getApplicationContext())
 
     fun cerrar() = db.close()
 
@@ -133,7 +133,10 @@ class EntornoIntegracion(licencia: LicenseState = LicenseState.Trial(5)) {
 
     fun respaldoVm() = RespaldoViewModel(
         ExportarRespaldo(respaldo), ImportarRespaldo(respaldo), respaldo,
-        archivos, clock,
+        archivos, clock, cu.shalev.app.actualizacion.RespaldoPrevio(
+            java.io.File(ApplicationProvider.getApplicationContext<android.content.Context>().filesDir, "copia_previa_integracion"),
+            ExportarRespaldo(respaldo), ImportarRespaldo(respaldo), estadoApp,
+        ),
     )
 
     fun licenciaVm() = LicenciaViewModel(

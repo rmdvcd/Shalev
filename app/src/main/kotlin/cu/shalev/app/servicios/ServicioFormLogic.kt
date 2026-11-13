@@ -23,6 +23,7 @@ data class ServicioForm(
     val fotoUri: String? = null,
     /** Insumos que gasta UNA vez el servicio (misma línea de edición que la receta de un Elaborado). */
     val insumos: List<LineaRecetaForm> = emptyList(),
+    val costoAdicional: Cup = Cup.ZERO,
 )
 
 /** Coinciden con los campos de [Validadores.servicio]. */
@@ -60,6 +61,7 @@ object ServicioFormLogic {
 
     fun desde(s: Servicio, lineas: List<RecetaLinea>, insumos: Map<Long, Insumo>) = ServicioForm(
         id = s.id, creadoEn = s.creadoEn, nombre = s.nombre, tipo = s.tipo, importe = ProductoFormLogic.decimal(s.importe),
+        costoAdicional = s.costoAdicional,
         descripcion = s.descripcion.orEmpty(), fotoUri = s.fotoUri,
         insumos = lineas.mapNotNull { l ->
             insumos[l.insumoId]?.let { LineaRecetaForm(it.id, it.nombre, it.unidad.simbolo, it.precio, Cantidad.format(l.cantidad)) }
@@ -67,7 +69,7 @@ object ServicioFormLogic {
     )
 
     /** Costo de los insumos de UNA vez; null si alguna cantidad no es válida. Cero si no gasta insumos. */
-    fun costo(f: ServicioForm): Cup? = if (f.insumos.isEmpty()) Cup.ZERO else ProductoFormLogic.costoReceta(f.insumos)
+    fun costo(f: ServicioForm): Cup? = (if (f.insumos.isEmpty()) Cup.ZERO else ProductoFormLogic.costoReceta(f.insumos))?.plus(f.costoAdicional)
 
     fun mensaje(e: AppError): String? = when (e) {
         is AppError.Validacion -> when (e.campo) {
@@ -94,5 +96,6 @@ object ServicioFormLogic {
         descripcion = f.descripcion.trim().ifEmpty { null },
         fotoUri = f.fotoUri,
         creadoEn = creado,
+        costoAdicional = f.costoAdicional,
     )
 }

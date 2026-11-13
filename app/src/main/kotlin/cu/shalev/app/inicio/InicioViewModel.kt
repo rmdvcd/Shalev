@@ -186,7 +186,7 @@ class InicioViewModel @Inject constructor(
                 if (guardado != null && saved.get<String>(KEY_PERIODO) == null) saved[KEY_PERIODO] = guardado
             }
         }
-        val inventario = productosRepo.observarTodos().map { it.size to it.sumOf { p -> p.cantidad } }.distinctUntilChanged()
+        val inventario = obtenerResumen.cambios()
         val turnoId = turno.map { it?.id to it?.abierto }.distinctUntilChanged()
         viewModelScope.launch {
             combine(opcion, turnoId, inventario, refresco) { o, _, _, _ -> o }.collectLatest { cargarGraficos(it) }

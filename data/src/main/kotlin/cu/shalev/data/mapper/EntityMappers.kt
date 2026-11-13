@@ -65,6 +65,7 @@ fun ProductoEntity.toDomain() = Producto(
     precioCosto = Cup(precioCostoCent), precioVenta = Cup(precioVentaCent), cantidad = cantidad,
     nivelBajo = nivelBajo, nivelCritico = nivelCritico,
     creadoEn = creadoEn.instant(), actualizadoEn = actualizadoEn.instant(), eliminado = eliminado,
+    costoAdicional = Cup(costoAdicionalCent),
 )
 
 fun Producto.toEntity() = ProductoEntity(
@@ -72,6 +73,7 @@ fun Producto.toEntity() = ProductoEntity(
     fechaCaducidad = fechaCaducidad?.toEpochDay(), precioCostoCent = precioCosto.centavos,
     precioVentaCent = precioVenta.centavos, cantidad = cantidad, nivelBajo = nivelBajo, nivelCritico = nivelCritico,
     creadoEn = creadoEn.ms(), actualizadoEn = actualizadoEn.ms(), eliminado = eliminado,
+    costoAdicionalCent = costoAdicional.centavos,
 )
 
 fun List<RecetaLineaEntity>.toReceta(productoId: Long) =
@@ -97,11 +99,13 @@ fun Insumo.toEntity() = InsumoEntity(
 fun ServicioEntity.toDomain() = Servicio(
     id = id, nombre = nombre, tipo = tipo, importe = Cup(importeCent), descripcion = descripcion, fotoUri = fotoUri,
     creadoEn = creadoEn.instant(), actualizadoEn = actualizadoEn.instant(), eliminado = eliminado,
+    costoAdicional = Cup(costoAdicionalCent),
 )
 
 fun Servicio.toEntity() = ServicioEntity(
     id = id, nombre = nombre, tipo = tipo, importeCent = importe.centavos, descripcion = descripcion, fotoUri = fotoUri,
     creadoEn = creadoEn.ms(), actualizadoEn = actualizadoEn.ms(), eliminado = eliminado,
+    costoAdicionalCent = costoAdicional.centavos,
 )
 
 fun ServicioInsumoEntity.toDomain() = RecetaLinea(insumoId = insumoId, cantidad = Cantidad(cantidadMil))
@@ -166,12 +170,14 @@ fun TransaccionEntity.toDomain() = Transaccion(
     id = id, ventaId = ventaId, fecha = fecha.instant(), importe = Cup(importeCent), numero = numero,
     cliente = DatosCliente(clienteNombre, clienteCi, clienteTelefono), tarjetaCobro = tarjetaCobro, telefonoCobro = telefonoCobro,
     clienteFijo = clienteFijo,
+    referenciaDuplicada = referenciaDuplicada,
 )
 
 fun Transaccion.toEntity(ventaId: Long) = TransaccionEntity(
     id = id, ventaId = ventaId, fecha = fecha.ms(), importeCent = importe.centavos, numero = numero,
     clienteNombre = cliente.nombreApellidos, clienteCi = cliente.ci, clienteTelefono = cliente.telefono,
     tarjetaCobro = tarjetaCobro, telefonoCobro = telefonoCobro, clienteFijo = clienteFijo,
+    referenciaDuplicada = referenciaDuplicada,
 )
 
 fun VentaCompleta.toDomain() = Venta(

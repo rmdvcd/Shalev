@@ -59,6 +59,9 @@ jobs:
       - name: Resumen del fallo
         if: failure()
         run: bash tools/verificacion/resumen_fallos.sh /tmp/salida.log
+      - name: Esquemas nuevos generados por Room
+        if: always()
+        run: python3 tools/verificacion/publicar_esquemas.py
       - name: Resultado legible (tests)
         if: success()
         run: python3 tools/verificacion/resumen_ok.py tests

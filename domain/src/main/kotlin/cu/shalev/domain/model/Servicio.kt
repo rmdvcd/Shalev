@@ -20,6 +20,8 @@ data class Servicio(
     val creadoEn: Instant,
     val actualizadoEn: Instant = creadoEn,
     val eliminado: Boolean = false,
+    /** Mano de obra, gastos directos e indirectos por unidad; no se pierden al recalcular la receta. */
+    val costoAdicional: Cup = Cup.ZERO,
 )
 
 /** Insumo que gasta UNA vez el servicio, resuelto con nombre, unidad y existencias para la UI. */

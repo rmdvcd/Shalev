@@ -19,11 +19,14 @@ import cu.shalev.domain.model.TipoMovimiento
 import cu.shalev.domain.model.Venta
 import cu.shalev.domain.repository.VentaRepository
 import java.time.Instant
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : VentaRepository {
+
+    override fun observarCambios() = db.ventaDao().observarCambios().map { Unit }
 
     private val ventas = db.ventaDao()
     private val servicios = db.servicioDao()
@@ -52,6 +55,9 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         val turno = turnos.obtener(venta.turnoId)
         if (turno == null || turno.cerradoEn != null) abortar(AppError.TurnoCerrado)
 
+        venta.transaccion?.let {
+            if (ventas.referenciaUsada(it.numero)) abortar(AppError.Duplicado("numeroTransaccion"))
+        }
         // P37: id global para que la principal no la duplique al sincronizar.
         // 0.25.0: una venta corregida en la principal dentro del turno de una secundaria es de ese empleado y se le envía.
         val deSecundaria = turno.empleadoId != null
@@ -161,6 +167,7 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
                 ),
             )
         }
+        ventas.recalcularReferenciasDuplicadas()
         return v
     }
 

@@ -42,7 +42,7 @@ object ServiciosFiltro {
         }
         val costo = if (lineas.isEmpty()) cu.shalev.core.money.Cup.ZERO
         else (Recetas.costo(Receta(s.id, lineas), insumos) as? AppResult.Ok)?.value
-        return ServicioDisponible(s, ls, costo)
+        return ServicioDisponible(s, ls, costo?.plus(s.costoAdicional))
     }
 
     fun aplicar(

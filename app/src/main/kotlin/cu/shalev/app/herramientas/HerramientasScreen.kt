@@ -1,7 +1,5 @@
 package cu.shalev.app.herramientas
 
-import android.app.Application
-import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,8 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cu.shalev.designsystem.component.CardTone
 import cu.shalev.designsystem.component.FiltroEntrada
 import cu.shalev.designsystem.component.IconActionStyle
@@ -45,34 +41,14 @@ import cu.shalev.designsystem.component.ShalevTopBar
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.core.money.Cup
-import cu.shalev.core.quantity.Cantidad
-import cu.shalev.core.result.AppResult
-import cu.shalev.core.time.Clock
 import cu.shalev.domain.fichacosto.CalculoFichaCosto
 import cu.shalev.domain.fichacosto.CategoriaCosto
 import cu.shalev.domain.fichacosto.MonedaCosto
 import cu.shalev.domain.fichacosto.PartidaCosto
 import cu.shalev.domain.fichacosto.UnidadMargen
-import cu.shalev.domain.model.Categorias
-import cu.shalev.domain.model.Insumo
-import cu.shalev.domain.model.Producto
-import cu.shalev.domain.model.Receta
-import cu.shalev.domain.model.RecetaLinea
-import cu.shalev.domain.model.Servicio
-import cu.shalev.domain.model.UnidadMedida
-import cu.shalev.domain.repository.InsumoRepository
-import cu.shalev.domain.repository.ProductoRepository
-import cu.shalev.domain.repository.ServicioRepository
-import cu.shalev.domain.usecase.GuardarInsumo
-import cu.shalev.domain.usecase.GuardarProducto
-import cu.shalev.domain.usecase.GuardarServicio
-import dagger.hilt.android.lifecycle.HiltViewModel
 import java.math.BigDecimal
 import java.math.RoundingMode
-import javax.inject.Inject
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
 
 @Composable
 fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit) {
@@ -96,198 +72,7 @@ fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit) {
     if (ayuda) cu.shalev.app.ayuda.DialogoAyudaPestana(cu.shalev.app.ayuda.PestanaAyuda.HERRAMIENTAS, modulos, { ayuda = false }) { ayuda = false; onVerManual() }
 }
 
-data class FichaCostoGuardada(
-    val id: Long,
-    val nombre: String,
-    val margen: String,
-    val unidadMargen: UnidadMargen,
-    val tasaCupPorUsd: String,
-    val partidas: List<PartidaCosto>,
-)
-
-internal object FichasCostoCodec {
-    fun encode(fichas: List<FichaCostoGuardada>): String = JSONArray().apply {
-        fichas.forEach { ficha -> put(JSONObject().apply {
-            put("id", ficha.id); put("nombre", ficha.nombre); put("margen", ficha.margen)
-            put("unidadMargen", ficha.unidadMargen.name); put("tasa", ficha.tasaCupPorUsd)
-            put("partidas", JSONArray().apply { ficha.partidas.forEach { p -> put(JSONObject().apply {
-                put("descripcion", p.descripcion); put("categoria", p.categoria.name); put("cantidad", p.cantidad.toPlainString())
-                put("unidad", p.unidad); put("costo", p.costoUnitario.toPlainString()); put("moneda", p.moneda.name)
-            }) } })
-        }) }
-    }.toString()
-
-    fun decode(text: String?): List<FichaCostoGuardada> = runCatching {
-        val array = JSONArray(text ?: "[]")
-        (0 until array.length()).map { i -> array.getJSONObject(i).let { f ->
-            val partidasJson = f.optJSONArray("partidas") ?: JSONArray()
-            FichaCostoGuardada(
-                f.getLong("id"), f.getString("nombre"), f.optString("margen"),
-                UnidadMargen.valueOf(f.optString("unidadMargen", UnidadMargen.PORCENTAJE.name)), f.optString("tasa"),
-                (0 until partidasJson.length()).map { j -> partidasJson.getJSONObject(j).let { p ->
-                    PartidaCosto(p.getString("descripcion"), CategoriaCosto.valueOf(p.getString("categoria")),
-                        p.getString("cantidad").toBigDecimal(), p.getString("unidad"), p.getString("costo").toBigDecimal(), MonedaCosto.valueOf(p.getString("moneda")))
-                } },
-            )
-        } }
-    }.getOrDefault(emptyList())
-}
-
-@HiltViewModel
-class FichaCostoViewModel @Inject constructor(
-    @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context,
-    private val insumos: InsumoRepository,
-    private val productos: ProductoRepository,
-    private val servicios: ServicioRepository,
-    private val guardarInsumo: GuardarInsumo,
-    private val guardarProducto: GuardarProducto,
-    private val guardarServicio: GuardarServicio,
-    private val clock: Clock,
-) : androidx.lifecycle.ViewModel() {
-    private val prefs = context.getSharedPreferences("fichas_costo", Context.MODE_PRIVATE)
-    var nombre by mutableStateOf("")
-    var margen by mutableStateOf("")
-    var unidadMargen by mutableStateOf(UnidadMargen.PORCENTAJE)
-    var tasaCupPorUsd by mutableStateOf("")
-    var partidas by mutableStateOf<List<PartidaCosto>>(emptyList())
-    var fichas by mutableStateOf(FichasCostoCodec.decode(prefs.getString("lista", null)))
-    var idEdicion by mutableStateOf<Long?>(null)
-    val tieneDatos: Boolean get() = nombre.isNotBlank() || margen.isNotBlank() || partidas.isNotEmpty()
-
-    fun guardarPartida(indice: Int?, partida: PartidaCosto) { partidas = if (indice == null) partidas + partida else partidas.mapIndexed { i, p -> if (i == indice) partida else p } }
-    fun eliminarPartida(indice: Int) { partidas = partidas.filterIndexed { i, _ -> i != indice } }
-    fun guardarFicha(): Boolean {
-        if (nombre.isBlank() || partidas.isEmpty()) return false
-        val ficha = FichaCostoGuardada(idEdicion ?: System.currentTimeMillis(), nombre.trim(), margen, unidadMargen, tasaCupPorUsd, partidas)
-        fichas = fichas.filterNot { it.id == ficha.id } + ficha
-        idEdicion = ficha.id
-        persistir(); return true
-    }
-    fun abrir(f: FichaCostoGuardada) { idEdicion = f.id; nombre = f.nombre; margen = f.margen; unidadMargen = f.unidadMargen; tasaCupPorUsd = f.tasaCupPorUsd; partidas = f.partidas }
-    fun nueva() { idEdicion = null; nombre = ""; margen = ""; unidadMargen = UnidadMargen.PORCENTAJE; tasaCupPorUsd = ""; partidas = emptyList() }
-    fun eliminarFicha(id: Long) { fichas = fichas.filterNot { it.id == id }; if (idEdicion == id) nueva(); persistir() }
-    private fun persistir() { prefs.edit().putString("lista", FichasCostoCodec.encode(fichas)).apply() }
-
-    /** Convierte la unidad de una partida a la unidad de insumo más cercana. */
-    private fun parseUnidad(texto: String): UnidadMedida {
-        val t = texto.trim().lowercase()
-        return when {
-            t == "kg" || t.contains("kilogram") || t == "kilo" || t == "kilos" -> UnidadMedida.KILOGRAMO
-            t == "g" || t == "gr" || t.contains("gramo") -> UnidadMedida.GRAMO
-            t == "ml" || t.contains("mililitro") -> UnidadMedida.MILILITRO
-            t == "l" || t == "lt" || t.contains("litro") -> UnidadMedida.LITRO
-            else -> UnidadMedida.UNIDAD
-        }
-    }
-
-    private fun precioCupDe(partida: PartidaCosto, tasa: BigDecimal?): BigDecimal? {
-        return if (partida.moneda == MonedaCosto.CUP) partida.costoUnitario
-        else tasa?.let { partida.costoUnitario.multiply(it) }
-    }
-
-    private suspend fun asegurarInsumos(ficha: FichaCostoGuardada, tasa: BigDecimal?): Result<List<RecetaLinea>> {
-        val existentes = insumos.todos().associateBy { it.nombre.lowercase() }
-        val lineas = mutableListOf<RecetaLinea>()
-        val creados = mutableMapOf<String, Insumo>()
-        val partidasMaterias = ficha.partidas.filter { it.categoria == CategoriaCosto.MATERIAS }
-        if (partidasMaterias.isEmpty()) return Result.failure(IllegalStateException("Agrega al menos una partida con categoría \"Materias primas y materiales\" para exportar."))
-        for (p in partidasMaterias) {
-            val clave = p.descripcion.trim().lowercase()
-            var insumo = existentes[clave] ?: creados[clave]
-            if (insumo == null) {
-                val precioBd = precioCupDe(p, tasa) ?: return Result.failure(IllegalStateException("Falta la tasa CUP por USD"))
-                val precio = Cup.of(precioBd)
-                val unidad = parseUnidad(p.unidad)
-                val nuevo = Insumo(
-                    id = 0,
-                    nombre = p.descripcion.trim().take(80),
-                    unidad = unidad,
-                    precio = precio,
-                    cantidad = Cantidad.ZERO,
-                    creadoEn = clock.now(),
-                    precioVenta = null,
-                )
-                when (val r = guardarInsumo(nuevo)) {
-                    is AppResult.Ok -> {
-                        val id = r.value
-                        insumo = insumos.obtener(id) ?: return Result.failure(IllegalStateException("No se pudo leer el insumo creado"))
-                        creados[clave] = insumo
-                    }
-                    is AppResult.Err -> return Result.failure(IllegalStateException("No se pudo crear el insumo «${p.descripcion}»: ${r.error}"))
-                }
-            }
-            val cantidadMilli = p.cantidad.multiply(BigDecimal(1000)).setScale(0, RoundingMode.HALF_UP).longValueExact()
-            if (cantidadMilli <= 0) return Result.failure(IllegalStateException("Cantidad inválida en «${p.descripcion}»"))
-            lineas.add(RecetaLinea(insumo.id, Cantidad(cantidadMilli)))
-        }
-        return Result.success(lineas)
-    }
-
-    /** Exporta la ficha como producto Elaborado con su receta de insumos. */
-    suspend fun exportarAInventario(ficha: FichaCostoGuardada): Result<String> {
-        val necesitaTasa = ficha.partidas.any { it.moneda == MonedaCosto.USD }
-        val tasa = CalculoFichaCosto.numero(ficha.tasaCupPorUsd)
-        if (necesitaTasa && tasa == null) return Result.failure(IllegalStateException("Escribe la tasa CUP por 1 USD antes de exportar."))
-        val total = totalCup(ficha) ?: return Result.failure(IllegalStateException("Escribe la tasa CUP por 1 USD antes de exportar."))
-        val costoBd = CalculoFichaCosto.calcular(ficha.partidas).let { t -> t.costoTotal.getValue(MonedaCosto.CUP) + t.costoTotal.getValue(MonedaCosto.USD).multiply(tasa ?: BigDecimal.ZERO) }
-        val costoCup = Cup.of(costoBd)
-        val precioCup = Cup.of(total)
-        val precioVenta = if (precioCup.centavos <= costoCup.centavos) Cup(costoCup.centavos + 100) else precioCup
-
-        val lineasResult = asegurarInsumos(ficha, tasa)
-        if (lineasResult.isFailure) return Result.failure(lineasResult.exceptionOrNull()!!)
-        val lineas = lineasResult.getOrThrow()
-
-        val producto = Producto(
-            id = 0,
-            categoria = Categorias.ELABORADO,
-            nombre = ficha.nombre.trim().take(80),
-            descripcion = null,
-            fotoUri = null,
-            fechaCaducidad = null,
-            precioCosto = costoCup,
-            precioVenta = precioVenta,
-            cantidad = 0,
-            nivelBajo = null,
-            nivelCritico = null,
-            creadoEn = clock.now(),
-        )
-        val receta = Receta(producto.id, lineas)
-        return when (val r = guardarProducto(producto, receta)) {
-            is AppResult.Ok -> Result.success("Ficha exportada al Inventario como Elaborado con ${lineas.size} insumos.")
-            is AppResult.Err -> Result.failure(IllegalStateException(r.error.toString()))
-        }
-    }
-
-    /** Exporta la ficha como servicio con sus insumos asociados. */
-    suspend fun exportarAServicio(ficha: FichaCostoGuardada): Result<String> {
-        val necesitaTasa = ficha.partidas.any { it.moneda == MonedaCosto.USD }
-        val tasa = CalculoFichaCosto.numero(ficha.tasaCupPorUsd)
-        if (necesitaTasa && tasa == null) return Result.failure(IllegalStateException("Escribe la tasa CUP por 1 USD antes de exportar."))
-        val total = totalCup(ficha) ?: return Result.failure(IllegalStateException("Escribe la tasa CUP por 1 USD antes de exportar."))
-        val importe = Cup.of(total)
-
-        val lineasResult = asegurarInsumos(ficha, tasa)
-        if (lineasResult.isFailure) return Result.failure(lineasResult.exceptionOrNull()!!)
-        val lineas = lineasResult.getOrThrow()
-
-        val servicio = Servicio(
-            id = 0,
-            nombre = ficha.nombre.trim().take(80),
-            tipo = "General",
-            importe = importe,
-            descripcion = null,
-            fotoUri = null,
-            creadoEn = clock.now(),
-        )
-        return when (val r = guardarServicio(servicio, lineas)) {
-            is AppResult.Ok -> Result.success("Ficha exportada a Servicios con ${lineas.size} insumos.")
-            is AppResult.Err -> Result.failure(IllegalStateException(r.error.toString()))
-        }
-    }
-}
-
-private fun enteroDinero(valor: BigDecimal): String = valor.abs().setScale(0, RoundingMode.HALF_UP).toPlainString()
+private fun enteroDinero(valor: BigDecimal): String = valor.setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
 private fun totalCup(ficha: FichaCostoGuardada): BigDecimal? {
     val totales = CalculoFichaCosto.calcular(ficha.partidas, CalculoFichaCosto.numero(ficha.margen), ficha.unidadMargen)
     val tasa = CalculoFichaCosto.numero(ficha.tasaCupPorUsd)
@@ -312,6 +97,7 @@ fun FichaCostoScreen(
     var aviso by rememberSaveable { mutableStateOf<String?>(null) }
     var fichasExpandidas by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var totalesExpandidos by rememberSaveable { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(vm.error) { vm.error?.let { aviso = it; vm.descartarError() } }
     val margen = CalculoFichaCosto.numero(vm.margen)
     val totales = CalculoFichaCosto.calcular(vm.partidas, margen, vm.unidadMargen)
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -341,14 +127,14 @@ fun FichaCostoScreen(
                                 val r = vm.exportarAInventario(ficha)
                                 aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
                             }
-                        }, enabled = total != null)
+                        }, enabled = total != null && !vm.trabajando)
                         ShalevIconAction(ShalevIcons.Servicios, "Exportar a Servicios", onClick = {
                             scope.launch {
                                 val r = vm.exportarAServicio(ficha)
                                 aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
                             }
-                        }, enabled = total != null)
-                        ShalevIconAction(ShalevIcons.Eliminar, "Eliminar ${ficha.nombre}", onClick = { vm.eliminarFicha(ficha.id) })
+                        }, enabled = total != null && !vm.trabajando)
+                        ShalevIconAction(ShalevIcons.Eliminar, "Eliminar ${ficha.nombre}", onClick = { scope.launch { aviso = vm.eliminarFicha(ficha.id).exceptionOrNull()?.message } })
                     }
                 }
             }
@@ -394,7 +180,7 @@ fun FichaCostoScreen(
                 val precio = totales.precioEstimado
                 if (precio != null) Text("Precio estimado: ${enteroDinero(precio.getValue(MonedaCosto.CUP))} CUP · ${enteroDinero(precio.getValue(MonedaCosto.USD))} USD")
             }
-            item { ShalevPrimaryButton("Guardar ficha", { aviso = if (vm.guardarFicha()) "Ficha guardada." else "Escribe un nombre y agrega al menos una partida." }, ShalevIcons.Guardar, Modifier.fillMaxWidth(), mostrarTexto = true) }
+            item { ShalevPrimaryButton("Guardar ficha", { scope.launch { val r = vm.guardarFicha(); aviso = r.getOrNull() ?: r.exceptionOrNull()?.message } }, ShalevIcons.Guardar, Modifier.fillMaxWidth(), mostrarTexto = true) }
             aviso?.let { item { Text(it, color = MaterialTheme.colorScheme.primary) } }
         }
     }

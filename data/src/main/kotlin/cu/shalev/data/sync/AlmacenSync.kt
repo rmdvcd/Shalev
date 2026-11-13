@@ -3,6 +3,8 @@ package cu.shalev.data.sync
 import cu.shalev.data.dto.conteoDeJson
 import cu.shalev.data.dto.aJson
 import cu.shalev.data.db.dao.registrar
+import cu.shalev.core.result.AppError
+import cu.shalev.data.db.abortar
 import cu.shalev.core.result.AppResult
 import cu.shalev.core.time.Clock
 import cu.shalev.core.util.aHex
@@ -68,7 +70,8 @@ class AlmacenSync @Inject constructor(
         val perfilDao = db.perfilDao()
         val perfil = perfilDe(perfilDao.obtener(), perfilDao.tarjetas(), perfilDao.telefonos())
         // v16: la secundaria recibe solo el catálogo del local activo; el suyo (un único local) lo sustituye entero.
-        val local = db.almacenLocalDao().localActivo()
+        val ubicacion = localDeEmpleado(empleado.id)
+        val local = ubicacion.nombre
         val productos = db.productoDao().todos().filter { it.local == local }
         val insumos = db.insumoDao().todos().filter { it.local == local }
         val idsInsumos = insumos.map { it.id }.toSet()
@@ -104,8 +107,18 @@ class AlmacenSync @Inject constructor(
                 productos.filterNot { it.eliminado }.map { Triple("producto", it.id, it.fotoUri) } +
                     db.servicioDao().todos().filter { it.local == local && !it.eliminado }.map { Triple("servicio", it.id, it.fotoUri) },
             ),
-            local = local,
+            local = local, localId = ubicacion.id,
         )
+    }
+
+    /** La asignación se fija una vez; el selector de la principal no cambia el origen del empleado. */
+    private suspend fun localDeEmpleado(empleadoId: Long): cu.shalev.data.db.entity.AlmacenLocalEntity {
+        val e = sync.empleado(empleadoId) ?: abortar(AppError.NoEncontrado)
+        if (e.localId != null) return db.almacenLocalDao().porId(e.localId) ?: abortar(AppError.SinPermiso)
+        val nombre = db.almacenLocalDao().localActivo()
+        val local = db.almacenLocalDao().porNombre(nombre)!!
+        sync.actualizarEmpleado(e.copy(localId = local.id))
+        return local
     }
 
     /**
@@ -127,16 +140,18 @@ class AlmacenSync @Inject constructor(
     /** Aplica el lote de una secundaria. Devuelve lo que quedó guardado (la secundaria solo marca eso como enviado). */
     suspend fun aplicarLote(empleadoId: Long, lote: Lote): AppResult<Recibidos> = db.tx {
         val ahora = clock.now().toEpochMilli()
-        // v16: lo que llega de una secundaria es del local activo de la principal (la secundaria copia ese catálogo).
-        val local = db.almacenLocalDao().localActivo()
+        val ubicacion = localDeEmpleado(empleadoId)
+        val local = ubicacion.nombre
         val turnos = mutableListOf<TurnoRecibido>()
         val cerradosAhora = mutableListOf<Long>()
         for (ts in lote.turnos) {
+            if (ts.localId != null && ts.localId != ubicacion.id) abortar(AppError.SinPermiso)
             val recibido = ts.turno.toDomain()
             val conteo = recibido.conteoCierre?.copy(aprobadoPor = null, aprobadoEn = null)
             if (conteo != null && (!conteo.valido() || recibido.contado != conteo.efectivo)) continue
             val nuevo = recibido.copy(conteoCierre = conteo).toEntity().copy(id = 0, uuid = ts.uuid, empleadoId = empleadoId, sincronizado = true, local = local)
             val existente = sync.turnoPorUuid(ts.uuid)
+            if (existente != null && (existente.empleadoId != empleadoId || existente.local != local)) abortar(AppError.SinPermiso)
             val autorizado = existente?.conteoCierreJson?.conteoDeJson()?.takeIf { it.aprobadoEn != null }
             if (autorizado != null && (conteo != autorizado.copy(aprobadoPor = null, aprobadoEn = null) || recibido.contado != autorizado.efectivo))
                 cu.shalev.data.db.abortar(cu.shalev.core.result.AppError.Validacion("conteoCambió"))
@@ -166,9 +181,25 @@ class AlmacenSync @Inject constructor(
         val ventas = mutableListOf<String>()
         val ventaDao = db.ventaDao()
         for (vs in lote.ventas) {
-            if (sync.ventaPorUuid(vs.uuid) != null) { ventas += vs.uuid; continue }
+            ventaDao.porUuid(vs.uuid)?.let {
+                if (it.empleadoId != empleadoId || it.local != local) abortar(AppError.SinPermiso)
+                ventas += vs.uuid
+            }
+            if (vs.uuid in ventas) continue
             val turno = sync.turnoPorUuid(vs.turnoUuid)?.takeIf { it.empleadoId == empleadoId } ?: continue
+            if (turno.local != local) abortar(AppError.SinPermiso)
             val venta = vs.venta.toDomain().copy(turnoId = turno.id)
+            if (venta.detalles.isEmpty() || venta.detalles.any { it.cantidad <= 0 || it.precioUnitario.centavos < 0 || it.costoUnitario.centavos < 0 })
+                abortar(AppError.Validacion("detalles"))
+            if (venta.transaccion?.importe?.let { it != venta.total } == true) abortar(AppError.Validacion("importe"))
+            for (d in venta.detalles) {
+                val propietario = when (d.clase) {
+                    cu.shalev.domain.model.ClaseArticulo.PRODUCTO -> db.productoDao().obtener(d.productoId)?.local
+                    cu.shalev.domain.model.ClaseArticulo.INSUMO -> db.insumoDao().obtener(d.productoId)?.local
+                    cu.shalev.domain.model.ClaseArticulo.SERVICIO -> db.servicioDao().obtener(d.productoId)?.local
+                }
+                if (propietario != local) abortar(AppError.SinPermiso)
+            }
             val ventaId = ventaDao.insertarVenta(venta.toEntity().copy(id = 0, uuid = vs.uuid, empleadoId = empleadoId, sincronizado = true, local = local))
             ventaDao.insertarDetalles(venta.detalles.map { it.toEntity(ventaId).copy(id = 0) })
             venta.transaccion?.let { ventaDao.insertarTransaccion(it.toEntity(ventaId).copy(id = 0, local = local)) }
@@ -177,6 +208,13 @@ class AlmacenSync @Inject constructor(
                 db.clienteFijoDao().registrar(t.cliente.nombreApellidos, t.cliente.ci, t.cliente.telefono, venta.fecha.toEpochMilli())
             }
             for (m in vs.movimientos) {
+                if (m.delta >= 0 || m.tipo !in setOf("VENTA", "CONSUMO")) abortar(AppError.Validacion("movimiento"))
+                val propietario = when (m.entidad) {
+                    TipoEntidad.PRODUCTO.name -> db.productoDao().obtener(m.entidadId)?.local
+                    TipoEntidad.INSUMO.name -> db.insumoDao().obtener(m.entidadId)?.local
+                    else -> null
+                }
+                if (propietario != local) abortar(AppError.SinPermiso)
                 val existencia = if (m.entidad == TipoEntidad.PRODUCTO.name) {
                     sync.forzarStockProducto(m.entidadId, m.delta, ahora)
                     db.productoDao().cantidad(m.entidadId) ?: 0
@@ -213,6 +251,7 @@ class AlmacenSync @Inject constructor(
         }
         // 0.25.0: el resumen de un turno que llega cerrado se recalcula AQUÍ, con las ventas que la principal tiene por
         // válidas (pudo anular alguna que la secundaria aún no sabía) y la caja ya recibida. El conteo es el del empleado.
+        ventaDao.recalcularReferenciasDuplicadas()
         cerradosAhora.forEach { recalcularCierre(it) }
         sync.marcarSincronizado(empleadoId, ahora)
         Recibidos(turnos, ventas, caja)
@@ -277,7 +316,10 @@ class AlmacenSync @Inject constructor(
             val tu = uuidTurno.getOrPut(m.turnoId) { db.turnoDao().obtener(m.turnoId)?.uuid ?: return@mapNotNull null }
             CajaSync(m.uuid!!, tu, MovimientoCajaDto(0, 0, m.fecha, m.tipo, m.importeCent, m.motivo, m.hechoPor, m.uuid))
         }
-        return Lote(turnos.map { TurnoSync(it.uuid!!, it.toDomain().toDto()) }, ventasSync, caja)
+        val turnosSync = turnos.map { t ->
+            TurnoSync(t.uuid!!, t.toDomain().toDto().copy(local = t.local), db.almacenLocalDao().porNombre(t.local)?.id)
+        }
+        return Lote(turnosSync, ventasSync, caja)
     }
 
     /**
@@ -332,7 +374,21 @@ class AlmacenSync @Inject constructor(
     }
 
     private suspend fun reemplazarCatalogo(inst: Instantanea) {
-        val local = db.almacenLocalDao().localActivo()
+        val locales = db.almacenLocalDao()
+        val nombre = inst.local.takeIf { it.isNotBlank() } ?: locales.localActivo()
+        val existente = inst.localId?.let { locales.porId(it) } ?: locales.porNombre(nombre)
+        val activo = db.turnoDao().activo()
+        if (activo != null && activo.local != nombre && activo.local != existente?.nombre) abortar(AppError.TurnoYaAbierto)
+        if (existente != null && existente.nombre != nombre) {
+            locales.renombrar(existente.nombre, nombre)
+            listOf("producto", "insumo", "servicio", "turno", "venta", "transaccion", "movimiento", "movimiento_revision").forEach {
+                db.openHelper.writableDatabase.execSQL("UPDATE `$it` SET local = ? WHERE local = ?", arrayOf(nombre, existente.nombre))
+            }
+        }
+        if (existente == null) locales.insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(nombre, id = inst.localId ?: java.util.UUID.randomUUID().toString()))
+        else if (inst.localId != null && existente.id != inst.localId) locales.identidad(nombre, inst.localId)
+        locales.inventario(nombre); locales.servicios(nombre)
+        val local = nombre
         val m = db.mantenimientoDao()
         m.borrarRecetas(); m.borrarServicioInsumos(); m.borrarPreajusteServicios(); m.borrarPreajusteProductos(); m.borrarPreajustes()
         m.borrarServicios(); m.borrarProductos(); m.borrarInsumos(); m.borrarTarjetas(); m.borrarTelefonos(); m.borrarPerfil()

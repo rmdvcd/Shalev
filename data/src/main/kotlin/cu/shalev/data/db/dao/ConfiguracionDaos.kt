@@ -75,7 +75,7 @@ interface MantenimientoDao {
     @Query("DELETE FROM telefono") suspend fun borrarTelefonos()
     @Query("DELETE FROM perfil") suspend fun borrarPerfil()
     @Query("DELETE FROM cliente_fijo") suspend fun borrarClientesFijos()
-    /** Los recibos se invalidan al restaurar otra versión de los datos de negocio. */
+    /** Solo borrado total: restaurar una copia no debe habilitar la repetición de un comando ya confirmado. */
     @Query("DELETE FROM comando_recibo") suspend fun borrarRecibosComandos()
 
     suspend fun borrarOperacion() {
@@ -86,7 +86,6 @@ interface MantenimientoDao {
     @Query("DELETE FROM almacen_local") suspend fun borrarAlmacenesLocales()
 
     suspend fun borrarConfiguracion() {
-        borrarRecibosComandos()
         borrarAlmacenesLocales()
         borrarPreajusteServicios(); borrarPreajusteProductos(); borrarPreajustes(); borrarTarjetas(); borrarTelefonos(); borrarPerfil(); borrarClientesFijos()
     }

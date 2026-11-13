@@ -48,6 +48,9 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         PreajusteProductoEntity::class, PreajusteServicioEntity::class, ServicioEntity::class, ServicioInsumoEntity::class, EmpleadoEntity::class,
         MovimientoCajaEntity::class, ClienteFijoEntity::class, cu.shalev.data.db.entity.AlmacenLocalEntity::class,
         cu.shalev.data.db.entity.ReciboComandoEntity::class,
+        cu.shalev.data.db.entity.FichaCostoEntity::class, cu.shalev.data.db.entity.RecepcionEntity::class,
+        cu.shalev.data.db.entity.LoteInventarioEntity::class, cu.shalev.data.db.entity.LoteConsumoEntity::class,
+        cu.shalev.data.db.entity.MovimientoRevisionEntity::class, cu.shalev.data.db.entity.ConfiguracionNegocioEntity::class,
     ],
     version = ShalevDatabase.VERSION,
     exportSchema = true,
@@ -67,6 +70,8 @@ abstract class ShalevDatabase : RoomDatabase() {
     abstract fun cajaDao(): CajaDao
     abstract fun clienteFijoDao(): ClienteFijoDao
 
+    abstract fun gestionDao(): cu.shalev.data.db.dao.GestionDao
+
     abstract fun almacenLocalDao(): cu.shalev.data.db.dao.AlmacenLocalDao
 
     companion object {
@@ -74,7 +79,35 @@ abstract class ShalevDatabase : RoomDatabase() {
          * v3 (P17): esquema consolidado, sin `tasa_cambio` ni `caducidad_codigo`. Es la base de las migraciones
          * futuras: cada versión nueva añade una `Migration(3, 4)`… explícita (regla: nunca borrar datos de usuarios).
          */
-        const val VERSION = 17
+        const val VERSION = 18
+        /** v18: identidad estable de locales, costo completo, fichas y trazabilidad de inventario. Sin borrado. */
+        val MIGRACION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) { SQL_17_18.forEach(db::execSQL) }
+        }
+        internal val SQL_17_18 = listOf(
+            "ALTER TABLE `almacen_local` ADD COLUMN `id` TEXT NOT NULL DEFAULT ''",
+            "UPDATE `almacen_local` SET `id` = lower(hex(randomblob(16))) WHERE id = ''",
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_almacen_local_id` ON `almacen_local` (`id`)",
+            "ALTER TABLE `empleado` ADD COLUMN `localId` TEXT",
+            "UPDATE `empleado` SET localId = (SELECT id FROM almacen_local WHERE nombre = COALESCE((SELECT local FROM turno WHERE turno.empleadoId = empleado.id AND cerradoEn IS NULL LIMIT 1), (SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1)))",
+            "ALTER TABLE `transaccion` ADD COLUMN `referenciaDuplicada` INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE `producto` ADD COLUMN `costoAdicionalCent` INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE `servicio` ADD COLUMN `costoAdicionalCent` INTEGER NOT NULL DEFAULT 0",
+            "CREATE TABLE IF NOT EXISTS `configuracion_negocio` (`id` INTEGER NOT NULL, `preferenciasJson` TEXT NOT NULL, PRIMARY KEY(`id`))",
+            "CREATE TABLE IF NOT EXISTS `ficha_costo` (`id` INTEGER NOT NULL, `localId` TEXT NOT NULL, `nombre` TEXT NOT NULL, `margen` TEXT NOT NULL, `unidadMargen` TEXT NOT NULL, `tasa` TEXT NOT NULL, `partidasJson` TEXT NOT NULL, `actualizadoEn` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+            "CREATE INDEX IF NOT EXISTS `index_ficha_costo_localId` ON `ficha_costo` (`localId`)",
+            "CREATE TABLE IF NOT EXISTS `recepcion` (`uuid` TEXT NOT NULL, `localId` TEXT NOT NULL, `fecha` INTEGER NOT NULL, `proveedor` TEXT NOT NULL, `comprobante` TEXT NOT NULL, `motivo` TEXT NOT NULL, `hechoPor` TEXT NOT NULL, `totalCent` INTEGER NOT NULL, PRIMARY KEY(`uuid`))",
+            "CREATE INDEX IF NOT EXISTS `index_recepcion_localId_fecha` ON `recepcion` (`localId`, `fecha`)",
+            "CREATE TABLE IF NOT EXISTS `lote_inventario` (`id` TEXT NOT NULL, `recepcionId` TEXT NOT NULL, `localId` TEXT NOT NULL, `entidad` TEXT NOT NULL, `entidadId` INTEGER NOT NULL, `nombre` TEXT NOT NULL, `unidad` TEXT NOT NULL, `codigo` TEXT NOT NULL, `cantidadInicialMil` INTEGER NOT NULL, `disponibleMil` INTEGER NOT NULL, `costoUnitarioCent` INTEGER NOT NULL, `caducidad` INTEGER, PRIMARY KEY(`id`))",
+            "CREATE INDEX IF NOT EXISTS `index_lote_inventario_recepcionId` ON `lote_inventario` (`recepcionId`)",
+            "CREATE INDEX IF NOT EXISTS `index_lote_inventario_localId_entidad_entidadId` ON `lote_inventario` (`localId`, `entidad`, `entidadId`)",
+            "CREATE TABLE IF NOT EXISTS `lote_consumo` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `ventaId` INTEGER NOT NULL, `loteId` TEXT NOT NULL, `cantidadMil` INTEGER NOT NULL)",
+            "CREATE INDEX IF NOT EXISTS `index_lote_consumo_ventaId` ON `lote_consumo` (`ventaId`)",
+            "CREATE INDEX IF NOT EXISTS `index_lote_consumo_loteId` ON `lote_consumo` (`loteId`)",
+            "CREATE TABLE IF NOT EXISTS `movimiento_revision` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `movimientoId` INTEGER NOT NULL, `fecha` INTEGER NOT NULL, `deltaAnterior` INTEGER NOT NULL, `deltaNuevo` INTEGER NOT NULL, `existenciaAnterior` INTEGER NOT NULL, `existenciaNueva` INTEGER NOT NULL, `hechoPor` TEXT NOT NULL, `motivo` TEXT NOT NULL, `local` TEXT NOT NULL)",
+            "CREATE INDEX IF NOT EXISTS `index_movimiento_revision_movimientoId` ON `movimiento_revision` (`movimientoId`)",
+            "CREATE INDEX IF NOT EXISTS `index_movimiento_revision_local_fecha` ON `movimiento_revision` (`local`, `fecha`)",
+        )
         /**
          * v17: recibos persistentes de comandos idempotentes de las secundarias. No se podan: se conservan para que
          * un reintento tardío nunca vuelva a aplicar una acción ya confirmada.
@@ -331,7 +364,7 @@ abstract class ShalevDatabase : RoomDatabase() {
             System.loadLibrary("sqlcipher")
             return Room.databaseBuilder(context, ShalevDatabase::class.java, NOMBRE)
                 .openHelperFactory(SupportOpenHelperFactory(passphrase))
-                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14, MIGRACION_14_15, MIGRACION_15_16, MIGRACION_16_17)
+                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14, MIGRACION_14_15, MIGRACION_15_16, MIGRACION_16_17, MIGRACION_17_18)
                 .fallbackToDestructiveMigrationFrom(*DESARROLLO)
                 .build()
         }

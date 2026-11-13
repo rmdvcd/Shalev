@@ -46,7 +46,7 @@ class RespaldoRoomTest {
     private val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), ShalevDatabase::class.java).build()
     private val prefs = PrefsEnMemoria()
     private val estadoApp = EstadoAppEnMemoria()
-    private val respaldo = RespaldoRepositoryImpl(db, prefs, clock, Dispatchers.IO, LicenciaFija(), estadoApp)
+    private val respaldo = RespaldoRepositoryImpl(db, prefs, clock, Dispatchers.IO, LicenciaFija(), estadoApp, ApplicationProvider.getApplicationContext())
     private val productos = ProductoRepositoryImpl(db, clock)
     private val turnos = TurnoRepositoryImpl(db)
     private val ventas = VentaRepositoryImpl(db)

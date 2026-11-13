@@ -77,7 +77,7 @@ class ResolverPeriodo @Inject constructor(
 }
 
 /**
- * Ventas (barras) y Ganancia Neta (área costo vs venta) del período. Un turno abierto se mide hasta "ahora".
+ * Ventas (barras) y Ganancia bruta (área costo vs venta) del período. Un turno abierto se mide hasta "ahora".
  * [pedidoTurno] = el usuario eligió TURNO: si el período resultó ser un rango es que aún no hay turnos.
  */
 class ObtenerGraficosPeriodo @Inject constructor(
@@ -122,6 +122,11 @@ class ObtenerResumenGeneral @Inject constructor(
     private val clock: Clock,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) {
+    /** No se reduce a size/suma de cantidades: también precio, costo, receta y servicios sin insumos. */
+    fun cambios(): kotlinx.coroutines.flow.Flow<Unit> = kotlinx.coroutines.flow.combine(
+        productos.observarTodos(), insumos.observarTodos(), servicios.observarTodos(), ventas.observarCambios(),
+    ) { _, _, _, _ -> Unit }.flowOn(io)
+
     /** 0.30.0 (F1): consulta de 30 días y cinco agregaciones: fuera del hilo de UI, igual que [ObtenerGraficosPeriodo]. */
     suspend operator fun invoke(zone: ZoneId = ZoneId.systemDefault()): ResumenGeneral = withContext(io) {
         val manana = clock.now().atZone(zone).toLocalDate().plusDays(1) // 0.21.6: por fecha (cambio de hora a las 00:00)

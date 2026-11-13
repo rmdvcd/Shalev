@@ -1,5 +1,12 @@
 package cu.shalev.data.respaldo
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import cu.shalev.data.foto.FotosLocal
+import cu.shalev.data.repository.migrarFichasAntiguas
+import cu.shalev.data.db.entity.ConfiguracionNegocioEntity
+import cu.shalev.data.dto.*
+import java.util.Base64
 import cu.shalev.data.db.entity.ServicioInsumoEntity
 import cu.shalev.domain.model.RecetaLinea
 import cu.shalev.domain.model.Servicio
@@ -62,9 +69,8 @@ import kotlinx.serialization.SerializationException
 /**
  * Respaldo portable y siempre completo (P17: un solo tipo): base de datos + preferencias.
  * NO incluye la licencia ni claves (atadas al dispositivo, C5). 0.25.0 (v4): sí lleva los datos públicos de la
- * licencia (ID, tipo, secundarias, vencimiento y carné) para pedir su recuperación en el teléfono nuevo. El DataStore de preferencias se restaura después de la transacción
- * de Room (dos almacenes distintos); si fallara, los datos de Room ya están íntegros y solo quedarían las
- * preferencias anteriores.
+ * licencia (ID, tipo, secundarias, vencimiento y carné) para pedir su recuperación en el teléfono nuevo.
+ * Room restaura datos y preferencias en un solo commit. Las fotos se preparan con nombres nuevos antes del commit.
  */
 @Singleton
 class RespaldoRepositoryImpl @Inject constructor(
@@ -76,9 +82,11 @@ class RespaldoRepositoryImpl @Inject constructor(
     private val licencias: LicenciaRepository,
     /** 0.25.0: recordatorio mensual (último respaldo exportado) y licencia recuperable tras importar. */
     private val estadoApp: EstadoAppRepository,
+    @ApplicationContext private val context: Context,
 ) : RespaldoRepository {
 
     private val cipher = BackupCipher()
+    private val fotos = FotosLocal(context, clock)
 
     /** Contenido de dominio de un respaldo (independiente de Room y del JSON). */
     private data class Contenido(
@@ -101,6 +109,13 @@ class RespaldoRepositoryImpl @Inject constructor(
         /** 0.27.0 (N2): clientes fijos. */
         val clientesFijos: List<cu.shalev.data.dto.ClienteFijoDto> = emptyList(),
         val almacenesLocales: List<cu.shalev.data.dto.AlmacenLocalDto> = emptyList(),
+        val fichasCosto: List<FichaLocalDto> = emptyList(),
+        val recepciones: List<RecepcionDto> = emptyList(),
+        val lotes: List<LoteInventarioDto> = emptyList(),
+        val consumosLotes: List<ConsumoLoteDto> = emptyList(),
+        val revisiones: List<RevisionMovimientoDto> = emptyList(),
+        val imagenes: List<FotoRespaldoDto> = emptyList(),
+        val prefs: PreferenciasDto? = null,
         /** v16: local de cada fila (vacío en respaldos anteriores → el local activo al restaurar). */
         val locales: LocalFilas = LocalFilas(),
     )
@@ -124,6 +139,8 @@ class RespaldoRepositoryImpl @Inject constructor(
         contrasena: CharArray, destino: OutputStream, progreso: (EtapaRespaldo) -> Unit,
     ): AppResult<ResumenRespaldo> {
         progreso(EtapaRespaldo.PREPARANDO)
+        val migracion = withContext(io) { guard { migrarFichasAntiguas(context, db, clock) } }
+        if (migracion is AppResult.Err) return migracion
         val c = when (val r = db.tx { leer() }) {
             is AppResult.Ok -> r.value
             is AppResult.Err -> return r
@@ -145,7 +162,7 @@ class RespaldoRepositoryImpl @Inject constructor(
                     },
                     movimientos = c.movimientos.map { it.toDto().copy(local = c.locales.movimientos[it.id].orEmpty()) },
                     perfil = c.perfil?.toDto(), preajustes = c.preajustes.map { it.toDto() },
-                    preferencias = preferencias.preferencias.first().toDto(),
+                    preferencias = c.prefs ?: preferencias.preferencias.first().toDto(),
                     servicios = c.servicios.map { (s, l) ->
                         s.toDto(l).copy(local = c.locales.servicios[s.id].orEmpty())
                     },
@@ -153,10 +170,14 @@ class RespaldoRepositoryImpl @Inject constructor(
                     caja = c.caja,
                     clientesFijos = c.clientesFijos,
                     almacenesLocales = c.almacenesLocales,
+                    fichasCosto = c.fichasCosto, recepciones = c.recepciones, lotes = c.lotes,
+                    consumosLotes = c.consumosLotes, revisionesMovimiento = c.revisiones,
+                    fotos = exportarFotos(c),
                     licencia = bloqueLicencia(c.perfil?.ci.orEmpty()),
                 )
                 val plano = ShalevJson.encodeToString(RespaldoDto.serializer(), dto).toByteArray(Charsets.UTF_8)
                 try {
+                    if (plano.size.toLong() > BackupCipher.MAX_PLANO) throw BackupCipher.FormatoException("respaldo demasiado grande")
                     progreso(EtapaRespaldo.CIFRANDO)
                     val cifrado = cipher.cifrar(plano, contrasena, dto.creadoEn)
                     progreso(EtapaRespaldo.ESCRIBIENDO)
@@ -220,11 +241,15 @@ class RespaldoRepositoryImpl @Inject constructor(
                     empleados = dto.empleados,
                     caja = dto.caja,
                     clientesFijos = dto.clientesFijos.distinctBy { it.ci },
+                    fichasCosto = dto.fichasCosto, recepciones = dto.recepciones, lotes = dto.lotes,
+                    consumosLotes = dto.consumosLotes, revisiones = dto.revisionesMovimiento,
+                    imagenes = dto.fotos, prefs = dto.preferencias,
                     almacenesLocales = dto.almacenesLocales.map {
                         it.copy(nombre = cu.shalev.domain.repository.NombresLocal.validar(it.nombre))
                     }.also { xs ->
                         require(xs.count { it.inventario } <= 1 && xs.count { it.servicios } <= 1)
                         require(xs.map { it.nombre.lowercase(java.util.Locale.ROOT) }.distinct().size == xs.size)
+                        require(xs.map { it.id }.filter { it.isNotBlank() }.let { it.distinct().size == it.size })
                     },
                     locales = LocalFilas(
                         productos = dto.productos.associate { it.id to it.local },
@@ -245,12 +270,29 @@ class RespaldoRepositoryImpl @Inject constructor(
             is AppResult.Err -> return parsed
         }
         progreso(EtapaRespaldo.IMPORTANDO)
-        return when (val r = db.tx { escribir(c) }) {
-            is AppResult.Err -> r
+        // Primero se preparan archivos con nombres NUEVOS. Nunca se sobrescriben fotos que aún usa la base actual.
+        val preparadas = withContext(io) { guard { prepararFotos(c) } }
+        val uris = when (preparadas) { is AppResult.Ok -> preparadas.value; is AppResult.Err -> return preparadas }
+        val listo = c.copy(
+            productos = c.productos.map { it.copy(fotoUri = it.fotoUri?.let { uri -> fotos.nombreDe(uri)?.let(uris::get) }) },
+            servicios = c.servicios.map { (s, l) -> s.copy(fotoUri = s.fotoUri?.let { uri -> fotos.nombreDe(uri)?.let(uris::get) }) to l },
+        )
+        val resultado = try {
+            db.tx {
+                escribir(listo)
+                // Mismo commit de Room: catálogo, historial, fichas y preferencias del negocio.
+                c.prefs?.let { db.gestionDao().guardarConfiguracion(ConfiguracionNegocioEntity(preferenciasJson = ShalevJson.encodeToString(PreferenciasDto.serializer(), it))) }
+                db.ventaDao().recalcularReferenciasDuplicadas()
+            }
+        } catch (e: CancellationException) {
+            withContext(kotlinx.coroutines.NonCancellable + io) { uris.values.forEach { uri -> borrarFotoPreparada(uri) } }
+            throw e
+        }
+        return when (resultado) {
+            is AppResult.Err -> { withContext(io) { uris.values.forEach { borrarFotoPreparada(it) } }; resultado }
             is AppResult.Ok -> {
-                prefs?.let { preferencias.reemplazar(it) }
                 recordarLicencia(recuperable)
-                AppResult.Ok(resumen(c))
+                AppResult.Ok(resumen(listo))
             }
         }
     }
@@ -269,6 +311,12 @@ class RespaldoRepositoryImpl @Inject constructor(
         val servicioEntities = db.servicioDao().todos()
         val movimientoEntities = db.movimientoDao().todos()
         return Contenido(
+            fichasCosto = db.gestionDao().fichas().map { it.toDto() },
+            recepciones = db.gestionDao().recepciones().map { it.toDto() },
+            lotes = db.gestionDao().lotes().map { it.toDto() },
+            consumosLotes = db.gestionDao().consumos().map { it.toDto() },
+            revisiones = db.gestionDao().revisiones().map { it.toDto() },
+            prefs = db.gestionDao().configuracion()?.preferenciasJson?.let { ShalevJson.decodeFromString(PreferenciasDto.serializer(), it) },
             productos = productoEntities.map { it.toDomain() },
             recetas = db.recetaDao().todas().groupBy { it.productoId }.map { (id, l) -> l.toReceta(id) },
             insumos = insumoEntities.map { it.toDomain() },
@@ -297,7 +345,7 @@ class RespaldoRepositoryImpl @Inject constructor(
                 MovimientoCajaDto(m.id, m.turnoId, m.fecha, m.tipo, m.importeCent, m.motivo, m.hechoPor, m.uuid, m.sincronizado)
             },
             almacenesLocales = db.almacenLocalDao().todos().map {
-                cu.shalev.data.dto.AlmacenLocalDto(it.nombre, it.inventario, it.servicios)
+                cu.shalev.data.dto.AlmacenLocalDto(it.nombre, it.inventario, it.servicios, it.id)
             },
             clientesFijos = db.clienteFijoDao().todos().map { e ->
                 cu.shalev.data.dto.ClienteFijoDto(e.nombreApellidos, e.ci, e.telefono, e.creadoEn, e.actualizadoEn)
@@ -305,7 +353,7 @@ class RespaldoRepositoryImpl @Inject constructor(
             empleados = db.syncDao().empleados().map { e ->
                 EmpleadoRespaldoDto(
                     id = e.id, nombre = e.nombre, permisos = e.permisos.split(',').filter { it.isNotBlank() },
-                    creadoEn = e.creadoEn, tarjetaId = e.tarjetaId, telefonoId = e.telefonoId,
+                    creadoEn = e.creadoEn, tarjetaId = e.tarjetaId, telefonoId = e.telefonoId, localId = e.localId,
                 )
             },
         )
@@ -313,11 +361,12 @@ class RespaldoRepositoryImpl @Inject constructor(
 
     private suspend fun escribir(c: Contenido) {
         val m = db.mantenimientoDao()
+        db.gestionDao().apply { borrarConsumos(); borrarLotes(); borrarRecepciones(); borrarRevisiones(); borrarFichas(); borrarConfiguracion() }
         m.borrarOperacion()
         m.borrarConfiguracion()
         // v16: los locales primero; su nombre identifica el catálogo y el historial que se restaura.
         c.almacenesLocales.forEach {
-            db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(it.nombre, it.inventario, it.servicios))
+            db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(it.nombre, it.inventario, it.servicios, it.id.ifBlank { java.util.UUID.randomUUID().toString() }))
         }
         val activo = db.almacenLocalDao().localActivo()
         val validos = c.almacenesLocales.map { it.nombre }.toSet()
@@ -361,6 +410,12 @@ class RespaldoRepositoryImpl @Inject constructor(
                 nombreApellidos = d.nombreApellidos, ci = d.ci, telefono = d.telefono, creadoEn = d.creadoEn, actualizadoEn = d.actualizadoEn,
             )
         })
+        db.gestionDao().apply {
+            importarFichas(c.fichasCosto.map { it.toEntity() })
+            c.recepciones.forEach { insertarRecepcion(it.toEntity()) }
+            insertarLotes(c.lotes.map { it.toEntity() }); importarConsumos(c.consumosLotes.map { it.toEntity() })
+            importarRevisiones(c.revisiones.map { it.toEntity() })
+        }
         restaurarEmpleados(c.empleados, c.perfil)
         // Un preajuste puede referirse a productos eliminados (borrado lógico): solo se enlazan los vigentes.
         val existentes = c.productos.filterNot { it.eliminado }.map { it.id }.toSet()
@@ -395,7 +450,7 @@ class RespaldoRepositoryImpl @Inject constructor(
                 nombre = nombre, permisos = PermisoEmpleado.deNombres(e.permisos).map { it.name }.sorted().joinToString(","),
                 creadoEn = e.creadoEn, vinculadoEn = null, ultimaSincronizacion = null, clave = null, codigoToken = null,
                 codigoVence = null, activo = true,
-                tarjetaId = e.tarjetaId?.takeIf { it in tarjetas }, telefonoId = e.telefonoId?.takeIf { it in telefonos },
+                tarjetaId = e.tarjetaId?.takeIf { it in tarjetas }, telefonoId = e.telefonoId?.takeIf { it in telefonos }, localId = e.localId,
             )
             actuales += nuevo.copy(id = sync.insertarEmpleado(nuevo))
         }
@@ -409,6 +464,23 @@ class RespaldoRepositoryImpl @Inject constructor(
     /** Rechaza respaldos incoherentes ANTES de borrar nada (las FK fallarían a mitad de la restauración). */
     private fun validarIntegridad(c: Contenido) {
         fun check(ok: Boolean, que: String) { if (!ok) throw BackupCipher.FormatoException("referencias rotas: $que") }
+        val locales = c.almacenesLocales.map { it.id }.filter { it.isNotBlank() }.toSet()
+        check(c.fichasCosto.all { it.localId in locales && cu.shalev.domain.fichacosto.ReglasFichaCosto.validar(it.ficha.toDomain()) }, "fichas de costo")
+        check(c.fichasCosto.map { it.ficha.id }.distinct().size == c.fichasCosto.size, "fichas repetidas")
+        check(c.recepciones.map { it.uuid }.distinct().size == c.recepciones.size && c.recepciones.all { it.localId in locales && it.totalCent >= 0 }, "recepciones")
+        val recepciones = c.recepciones.associateBy { it.uuid }
+        check(c.lotes.map { it.id }.distinct().size == c.lotes.size && c.lotes.all { it.localId in locales && recepciones[it.recepcionId]?.localId == it.localId && it.cantidadInicialMil >= 0 && it.disponibleMil in 0..it.cantidadInicialMil && it.costoUnitarioCent >= 0 }, "lotes")
+        val lotes = c.lotes.map { it.id }.toSet()
+        check(c.consumosLotes.all { it.loteId in lotes && it.ventaId in c.ventas.map { v -> v.id }.toSet() && it.cantidadMil > 0 }, "consumos de lotes")
+        check(c.revisiones.all { it.movimientoId in c.movimientos.map { m -> m.id }.toSet() && it.motivo.isNotBlank() }, "revisiones")
+        check(c.imagenes.map { it.nombre }.distinct().size == c.imagenes.size, "fotos repetidas")
+        var bytesFotos = 0L
+        for (f in c.imagenes) {
+            check(cu.shalev.data.foto.AlmacenFotos.NOMBRE_OK.matches(f.nombre) && f.datos.length <= 6 * 1024 * 1024, "foto inválida")
+            val bytes = Base64.getDecoder().decode(f.datos)
+            bytesFotos += bytes.size
+            check(bytes.size <= 4 * 1024 * 1024 && bytesFotos <= 48L * 1024 * 1024 && fotos.sha256De(bytes) == f.sha256, "foto dañada")
+        }
         c.perfil?.let { p ->
             check(p.tarjetas.map { it.id }.let { it.all { id -> id > 0 } && it.distinct().size == it.size }, "tarjetas")
             check(p.telefonos.map { it.id }.let { it.all { id -> id > 0 } && it.distinct().size == it.size }, "teléfonos")
@@ -448,6 +520,31 @@ class RespaldoRepositoryImpl @Inject constructor(
         val r = LicenciaRecuperable(l.id, l.tipo, l.secundarias, l.venceEn?.let(Instant::ofEpochMilli), l.ci)
         runCatching { estadoApp.editar { it.copy(licenciaRecuperable = r) } }
     }
+
+    private fun exportarFotos(c: Contenido): List<FotoRespaldoDto> {
+        val nombres = (c.productos.mapNotNull { it.fotoUri } + c.servicios.mapNotNull { it.first.fotoUri }).mapNotNull(fotos::nombreDe).distinct()
+        var total = 0L
+        return nombres.mapNotNull { nombre ->
+            val tamano = fotos.tamano(nombre) ?: return@mapNotNull null
+            total += tamano
+            if (tamano > 4 * 1024 * 1024 || total > 48L * 1024 * 1024) throw BackupCipher.FormatoException("respaldo de fotos demasiado grande")
+            val bytes = fotos.bloque(nombre, 0, tamano.toInt()) ?: throw java.io.IOException()
+            FotoRespaldoDto(nombre, Base64.getEncoder().encodeToString(bytes), fotos.sha256De(bytes))
+        }
+    }
+
+    private fun prepararFotos(c: Contenido): Map<String, String> {
+        val mapa = mutableMapOf<String, String>()
+        try {
+            for (f in c.imagenes) {
+                val nombre = java.util.UUID.randomUUID().toString() + ".jpg"
+                mapa[f.nombre] = fotos.guardar(nombre, Base64.getDecoder().decode(f.datos)) ?: throw java.io.IOException()
+            }
+            return mapa
+        } catch (e: Exception) { mapa.values.forEach(::borrarFotoPreparada); throw e }
+    }
+
+    private fun borrarFotoPreparada(uri: String) { java.io.File(java.net.URI(uri)).delete() }
 
     private fun resumen(c: Contenido) =
         ResumenRespaldo(c.productos.count { !it.eliminado }, c.insumos.size, c.ventas.size, c.movimientos.size)

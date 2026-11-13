@@ -48,7 +48,7 @@ class ComandosPersistenciaTest {
 
     private fun ejecutor(db: ShalevDatabase) = EjecutorComandos(
         db, ProductoRepositoryImpl(db, clock), InsumoRepositoryImpl(db, clock), ServicioRepositoryImpl(db, clock),
-        PreciosRepositoryImpl(db),
+        PreciosRepositoryImpl(db), clock,
     )
 
     private suspend fun producto(db: ShalevDatabase): Long {

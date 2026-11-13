@@ -128,6 +128,11 @@ class TurnoRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
             if (filas == 0) abortar(AppError.StockInsuficiente(listOf(m.nombre)))
             movimientos.desplazarExistencia(e.entidad, e.entidadId, e.id, diff)
         }
+        db.gestionDao().insertarRevision(cu.shalev.data.db.entity.MovimientoRevisionEntity(
+            movimientoId = e.id, fecha = ahora, deltaAnterior = e.delta, deltaNuevo = delta,
+            existenciaAnterior = e.existencia, existenciaNueva = Math.addExact(e.existencia, diff),
+            hechoPor = t.abiertoPor.orEmpty().ifBlank { "Principal" }, motivo = motivo.trim(), local = e.local,
+        ))
         movimientos.actualizar(e.copy(delta = delta, existencia = e.existencia + diff, nota = CorreccionMovimiento.nota(m.nota, motivo)))
         Unit
     }
@@ -163,7 +168,7 @@ internal fun ArqueoRow.toArqueo(): Arqueo? = fondoCent?.let { f ->
 }
 
 @Singleton
-class RegistroRepositoryImpl @Inject constructor(db: ShalevDatabase) : RegistroRepository {
+class RegistroRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : RegistroRepository {
     private val ventas = db.ventaDao()
     private val movimientos = db.movimientoDao()
 
@@ -185,7 +190,12 @@ class RegistroRepositoryImpl @Inject constructor(db: ShalevDatabase) : RegistroR
     override fun vendedores(): Flow<List<String>> = ventas.nombresVendedores().map { l -> l.map { it.trim() }.distinctBy { it.lowercase() } }
 
     override fun movimientos(filtro: FiltroRegistro): Flow<List<MovimientoInventario>> = with(filtro) {
-        movimientos.filtrar(desde?.toEpochMilli(), hasta?.toEpochMilli(), textoLike()).map { l -> l.map { it.toDomain() } }
+        movimientos.filtrar(desde?.toEpochMilli(), hasta?.toEpochMilli(), textoLike()).map { l ->
+            val revisiones = db.gestionDao().revisiones().groupBy { it.movimientoId }
+            l.map { m -> m.toDomain().copy(revisiones = revisiones[m.id].orEmpty().map { r ->
+                cu.shalev.domain.model.RevisionMovimiento(java.time.Instant.ofEpochMilli(r.fecha), r.deltaAnterior, r.deltaNuevo, r.existenciaAnterior, r.existenciaNueva, r.hechoPor, r.motivo)
+            }) }
+        }
     }
 
     /**

@@ -11,9 +11,9 @@ import org.junit.Test
 class MoneyTest {
     @Test fun `formato oficial de Shalev`() {
         assertEquals("1,450 CUP", Money.format(Cup.ofPesos(1450)))
-        assertEquals("0 CUP", Money.format(Cup(5)))
-        assertEquals("1,234,568 CUP", Money.format(Cup(123_456_789)))
-        assertEquals("13 CUP", Money.format(Cup(-1250)))
+        assertEquals("0.05 CUP", Money.format(Cup(5)))
+        assertEquals("1,234,567.89 CUP", Money.format(Cup(123_456_789)))
+        assertEquals("-12.5 CUP", Money.format(Cup(-1250)))
         assertEquals("90,000 CUP", Money.cup(90_000))
     }
 
@@ -38,6 +38,14 @@ class MoneyTest {
     @Test fun `importe por milesimas`() {
         assertEquals(Cup(3_125), Cup(12_500).porMilesimas(250))  // 125.00 × 0.25 = 31.25
         assertEquals(Cup(1), Cup(3).porMilesimas(333))           // 0.03 × 0.333 = 0.00999 → 0.01
+    }
+
+    @Test fun formatoYEdicionConservanCadaCentavoYElSigno() {
+        listOf(0L, 1L, -1L, 2550L, -2550L, Long.MAX_VALUE, Long.MIN_VALUE).forEach { centavos ->
+            val importe = Cup(centavos)
+            assertEquals(importe, Money.parse(Money.format(importe)))
+            assertEquals(importe, Money.parse(Money.editar(importe)))
+        }
     }
 
     @Test fun porcentajes() {

@@ -75,7 +75,7 @@ class SincronizacionRoomTest {
     private val productosP = ProductoRepositoryImpl(dbP, clock)
     private val insumosP = InsumoRepositoryImpl(dbP, clock)
     private val turnosP = TurnoRepositoryImpl(dbP)
-    private val ejecutor = EjecutorComandos(dbP, productosP, insumosP, ServicioRepositoryImpl(dbP, clock), PreciosRepositoryImpl(dbP))
+    private val ejecutor = EjecutorComandos(dbP, productosP, insumosP, ServicioRepositoryImpl(dbP, clock), PreciosRepositoryImpl(dbP), clock)
 
     private val dbS = bd()
     private val prefsS = RespaldoRoomTest.PrefsEnMemoria()

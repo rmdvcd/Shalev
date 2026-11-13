@@ -260,7 +260,7 @@ private fun LazyListScope.resumen(d: DetalleTurno, zona: ZoneId, ahora: Instant)
             ShalevListItem(title = "Unidades vendidas", value = r.unidades.toString(), indicatorColor = null)
             ShalevListItem(title = "Costo", value = Money.format(r.costo), indicatorColor = null)
             ShalevListItem(
-                title = "Ganancia neta", value = Money.format(r.ganancia), indicatorColor = null,
+                title = "Ganancia bruta", value = Money.format(r.ganancia), indicatorColor = null,
                 valueColor = if (r.ganancia.centavos < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
             )
         }

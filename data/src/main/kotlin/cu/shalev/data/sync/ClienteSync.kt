@@ -91,6 +91,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
 
     private val conectando = Mutex()
     private val ronda = Mutex()
+    private val comandos = Mutex()
     /**
      * Sesión vigente. 0.21.7 (P-e, punto 1): quien ve un error cierra SOLO la sesión que usó (compare-and-set, ver
      * [cerrarSesion]); antes cerraba la que hubiera en ese momento, que podía ser una nueva y sana de otra corrutina.
@@ -168,7 +169,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
                     avisoRechazo = x.avisoRechazo || (r.cierreRechazado && x.cierreSolicitado),
                 )
                 if (inst == null) base else base.copy(
-                    hash = r.hash, nombreNegocio = inst.nombreNegocio, nombreEmpleado = inst.empleado.nombre,
+                    hash = r.hash, nombreNegocio = inst.nombreNegocio, nombreEmpleado = inst.empleado.nombre, localId = inst.localId,
                     permisos = inst.empleado.permisos,
                     // 0.31.0 (mitigación 7): la licencia solo se guarda si trae un permiso que cubra a esta app.
                     licencia = inst.licencia?.let(permisos::verificar),
@@ -270,14 +271,28 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
     }
 
     /** Acción remota sobre el catálogo de la principal. Ok(valor) = id creado, existencia… */
-    suspend fun comando(accion: Accion): AppResult<Long?> {
-        val d = config.secundariaActual() ?: return AppResult.Err(AppError.NoEncontrado)
-        val r = enviarComando(d, accion) ?: return AppResult.Err(AppError.SinPrincipal(almacen.pendientes()))
-        val error = r.error
-        if (error != null) return AppResult.Err(EjecutorComandos.error(error))
-        // Trae el catálogo ya cambiado para que la pantalla lo muestre al volver.
+    suspend fun comando(accion: Accion): AppResult<Long?> = comandos.withLock {
+        var d = config.secundariaActual() ?: return@withLock AppResult.Err(AppError.NoEncontrado)
+        val anterior = d.comandoPendiente
+        if (anterior != null && (HuellaComando.calcular(anterior.accion) != HuellaComando.calcular(accion) || anterior.localId != d.localId)) {
+            val resuelto = enviarComando(d, anterior) ?: return@withLock AppResult.Err(AppError.Validacion("comandoPendiente"))
+            config.editarSecundaria { it.copy(comandoPendiente = null) }
+            _cambiosPendientes.value = true
+            sincronizar()
+            // No se apilan una acción incierta y otra distinta sin que el usuario revise el resultado recuperado.
+            return@withLock AppResult.Err(AppError.Validacion(if (resuelto.error == null) "comandoRecuperado" else "comandoPendiente"))
+        }
+        val pendiente = anterior ?: ComandoPendiente(UUID.randomUUID().toString(), accion, d.localId).also { nuevo ->
+            config.editarSecundaria { it.copy(comandoPendiente = nuevo) }
+        }
+        d = config.secundariaActual() ?: return@withLock AppResult.Err(AppError.NoEncontrado)
+        val r = enviarComando(d, pendiente) ?: return@withLock AppResult.Err(AppError.SinPrincipal(almacen.pendientes()))
+        config.editarSecundaria { it.copy(comandoPendiente = null) }
+        r.error?.let { return@withLock AppResult.Err(EjecutorComandos.error(it)) }
+        // Un fallo posterior de refresco NO convierte un comando confirmado en un fallo reintentable.
+        _cambiosPendientes.value = true
         sincronizar()
-        return AppResult.Ok(r.valor)
+        AppResult.Ok(r.valor)
     }
 
     /**
@@ -333,13 +348,13 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
      * sesión nueva: si ya se había aplicado, la principal devuelve el recibo persistente sin repetir la acción. Con una
      * principal anterior no se reenvía (podría aplicarse dos veces) y se informa del fallo, como antes. null = sin principal.
      */
-    private suspend fun enviarComando(d: DatosSecundaria, accion: Accion): ResultadoComando? {
-        val clave = UUID.randomUUID().toString()
+    private suspend fun enviarComando(d: DatosSecundaria, pendiente: ComandoPendiente): ResultadoComando? {
         var intento = 0
         while (true) {
             val s = sesionAbierta(d) ?: return null
             try {
-                return s.pedir({ id -> Comando(id, accion, clave.takeIf { s.comandosUnicos }) }) as? ResultadoComando
+                if (!s.comandosUnicos) return ResultadoComando(0, error = ErroresRemotos.VALIDACION + "actualizarPrincipal:FORMATO")
+                return s.pedir({ id -> Comando(id, pendiente.accion, pendiente.clave, pendiente.localId) }) as? ResultadoComando
                     ?: throw ProtocoloException("respuesta inesperada")
             } catch (e: CancellationException) {
                 throw e

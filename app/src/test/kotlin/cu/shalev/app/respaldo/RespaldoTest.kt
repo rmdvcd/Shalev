@@ -88,7 +88,9 @@ class RespaldoTest {
 
     private fun vm() = RespaldoViewModel(
         ExportarRespaldo(repo), ImportarRespaldo(repo), repo,
-        archivos, RelojFijo(),
+        archivos, RelojFijo(), cu.shalev.app.actualizacion.RespaldoPrevio(
+            java.io.File(System.getProperty("java.io.tmpdir"), "copia_previa_test_inexistente"), ExportarRespaldo(repo), ImportarRespaldo(repo), cu.shalev.app.EstadoAppRepo(),
+        ),
     )
 
     // ---------- lógica

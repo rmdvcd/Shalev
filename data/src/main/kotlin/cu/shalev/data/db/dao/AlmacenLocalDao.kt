@@ -9,6 +9,14 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AlmacenLocalDao {
+    @Query("UPDATE almacen_local SET id = :id WHERE nombre = :nombre")
+    suspend fun identidad(nombre: String, id: String)
+    @Query("SELECT * FROM almacen_local WHERE id = :id LIMIT 1")
+    suspend fun porId(id: String): AlmacenLocalEntity?
+    @Query("SELECT * FROM almacen_local WHERE nombre = :nombre LIMIT 1")
+    suspend fun porNombre(nombre: String): AlmacenLocalEntity?
+    @Query("UPDATE almacen_local SET nombre = :nuevo WHERE nombre = :anterior")
+    suspend fun renombrar(anterior: String, nuevo: String)
     /** Local activo (el único marcado para Inventario). Lo usan las consultas por local. */
     @Query("SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1")
     suspend fun activo(): String?
@@ -42,3 +50,6 @@ suspend fun AlmacenLocalDao.localActivo(): String {
     servicios(nombre)
     return nombre
 }
+
+/** Identidad estable del local seleccionado. */
+suspend fun AlmacenLocalDao.idActivo(): String = porNombre(localActivo())!!.id

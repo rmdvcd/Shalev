@@ -212,7 +212,7 @@ class GestorActualizacion @Inject constructor(
         if (comprobado) return
         comprobado = true
         scope.launch {
-            // Primero se restaura el respaldo guardado antes de actualizar (si la app acaba de actualizarse).
+            // Room conserva y migra la base actual; el respaldo previo solo se ofrece para recuperación explícita.
             when (seguro { respaldoPrevio.restaurarSiCorresponde(RespaldoPrevio.clave(info)) }) {
                 RespaldoPrevio.Restauracion.RESTAURADO -> mensajes.trySend(TextosActualizacion.RESPALDO_RESTAURADO)
                 RespaldoPrevio.Restauracion.FALLO -> mensajes.trySend(TextosActualizacion.RESPALDO_NO_RESTAURADO)

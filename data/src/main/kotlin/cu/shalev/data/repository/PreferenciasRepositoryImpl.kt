@@ -1,5 +1,8 @@
 package cu.shalev.data.repository
 
+import cu.shalev.data.db.ShalevDatabase
+import cu.shalev.data.db.entity.ConfiguracionNegocioEntity
+import androidx.room.withTransaction
 import cu.shalev.data.dto.PreferenciasDto
 import cu.shalev.data.dto.toDomain
 import cu.shalev.data.dto.toDto
@@ -25,12 +28,14 @@ import cu.shalev.domain.model.Modulo
  * Sustituye a EncryptedSharedPreferences (deprecada en security-crypto 1.1.0-alpha07).
  */
 @Singleton
-class PreferenciasRepositoryImpl @Inject constructor(private val ds: SecureDataStore) : PreferenciasRepository {
+class PreferenciasRepositoryImpl @Inject constructor(private val ds: SecureDataStore, private val db: ShalevDatabase) : PreferenciasRepository {
 
     private val mutex = Mutex()
 
-    private val dto: Flow<PreferenciasDto> = ds.observe(K_PREF).map { raw ->
-        raw?.let { runCatching { ShalevJson.decodeFromString(PreferenciasDto.serializer(), it) }.getOrNull() } ?: PreferenciasDto()
+    private val dto: Flow<PreferenciasDto> = combine(ds.observe(K_PREF), db.gestionDao().observarConfiguracion()) { antiguo, fila ->
+        (fila?.preferenciasJson ?: antiguo)?.let {
+            ShalevJson.decodeFromString(PreferenciasDto.serializer(), it)
+        } ?: PreferenciasDto()
     }
 
     override val onboardingCompletado: Flow<Boolean> = ds.observe(K_ONBOARDING).map { it == "1" }.distinctUntilChanged()
@@ -50,7 +55,9 @@ class PreferenciasRepositoryImpl @Inject constructor(private val ds: SecureDataS
 
     private suspend fun editar(f: (Preferencias) -> Preferencias) = mutex.withLock {
         val actual = dto.first().toDomain()
-        ds.put(K_PREF, ShalevJson.encodeToString(PreferenciasDto.serializer(), f(actual).toDto()))
+        db.withTransaction {
+            db.gestionDao().guardarConfiguracion(ConfiguracionNegocioEntity(preferenciasJson = ShalevJson.encodeToString(PreferenciasDto.serializer(), f(actual).toDto())))
+        }
     }
 
     private companion object {

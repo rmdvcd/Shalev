@@ -32,4 +32,8 @@ data class MovimientoInventario(
     val nota: String? = null,
     /** 0.21.0 (C7): quién lo hizo (vendedor del turno, empleado que ajustó desde su app o el dueño). */
     val hechoPor: String = "",
+    val revisiones: List<RevisionMovimiento> = emptyList(),
 )
+
+/** Historial inmutable, además del valor vigente del movimiento. */
+data class RevisionMovimiento(val fecha: Instant, val anterior: Long, val nuevo: Long, val existenciaAnterior: Long, val existenciaNueva: Long, val autor: String, val motivo: String)
