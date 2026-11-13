@@ -290,6 +290,7 @@ class RespaldoRepositoryImpl @Inject constructor(
                 )
                 when (val resultado = db.tx {
                     escribir(listo)
+                    db.gestionDao().completarMigracion(cu.shalev.data.db.entity.MigracionLocalEntity("fichas.v1"))
                     db.gestionDao().guardarConfiguracion(ConfiguracionNegocioEntity(preferenciasJson = ShalevJson.encodeToString(PreferenciasDto.serializer(), prefs)))
                     db.ventaDao().recalcularReferenciasDuplicadas()
                 }) {

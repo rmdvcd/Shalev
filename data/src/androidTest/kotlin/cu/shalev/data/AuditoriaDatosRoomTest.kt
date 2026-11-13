@@ -204,6 +204,14 @@ class AuditoriaDatosRoomTest {
         assertArrayEquals(byteArrayOf(1, 2, 3, 4, 5), File(URI(uri)).readBytes())
     }
 
+    @Test fun importarUnRespaldoVacioNoReactivaLasFichasLegadasDelTelefono() = runBlocking {
+        val legado = ShalevJson.encodeToString(ListSerializer(FichaCostoDto.serializer()), listOf(ficha().toDto()))
+        prefsLegacy.edit().putString("lista", legado).commit()
+        ok(respaldo.importar(archivo(RespaldoDto(creadoEn = ahora.toEpochMilli())).inputStream(), CharArray(0)) {})
+        assertTrue(fichas.observar().first().isEmpty())
+        assertFalse(prefsLegacy.contains("lista"))
+    }
+
     @Test fun fotosConHashIncorrectoSeRechazanAntesDeCambiarElNegocio() = runBlocking {
         val p = producto(foto = foto(), cantidad = 7)
         val anterior = dto(exportar())
@@ -234,6 +242,8 @@ class AuditoriaDatosRoomTest {
         assertNull(config.secundariaActual())
         assertEquals(TipoApp.PRINCIPAL, config.tipo.first())
         assertFalse(prefsLegacy.contains("lista"))
+        // Simula caída/E/S antes de limpiar SharedPreferences: la marca Room impide resucitar datos borrados.
+        prefsLegacy.edit().putString("lista", ShalevJson.encodeToString(ListSerializer(FichaCostoDto.serializer()), listOf(ficha().toDto()))).commit()
         assertEquals(NivelesMinimos(), PreferenciasRepositoryImpl(ds, db).preferencias.first().niveles)
         assertTrue(fichas.observar().first().isEmpty())
     }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publica solo esquemas NUEVOS generados por Room para revisión desde CI, sin escribirlos a mano.
+"""Publica esquemas nuevos o modificados generados por Room para revisión desde CI, sin escribirlos a mano.
 
 La anotación comprimida es útil cuando el entorno de revisión no puede descargar
 artefactos de Actions. Contiene únicamente la estructura pública de la base, nunca datos.

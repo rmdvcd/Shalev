@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface GestionDao {
+    @Query("SELECT EXISTS(SELECT 1 FROM migracion_local WHERE clave = :clave)") suspend fun migracionCompletada(clave: String): Boolean
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun completarMigracion(marca: cu.shalev.data.db.entity.MigracionLocalEntity)
     @Query("SELECT * FROM configuracion_negocio WHERE id = 1") fun observarConfiguracion(): Flow<ConfiguracionNegocioEntity?>
     @Query("SELECT * FROM configuracion_negocio WHERE id = 1") suspend fun configuracion(): ConfiguracionNegocioEntity?
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun guardarConfiguracion(valor: ConfiguracionNegocioEntity)

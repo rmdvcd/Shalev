@@ -11,6 +11,20 @@
 9. Anotar en `docs/VERIFICACION.md` el SHA, comandos ejecutados y resultados observados. Diferenciar explícitamente pruebas que pasaron, fallaron, no se pudieron ejecutar o están pendientes.
 10. Para las repruebas de Perfil/cantidad Android y de nombres/retiro/responsive DShalev de la rama actual, seguir [PRUEBAS_IA_SHALEV_DSHALEV.md](PRUEBAS_IA_SHALEV_DSHALEV.md). `PRUEBAS_VENTANAS_ANDROID.md` y `PRUEBAS_VENTANAS_DSHALEV.md` contienen líneas base históricas, no validan los cambios posteriores.
 
+## Regresiones de la auditoría Android — 2026-11-13
+
+Consultar el SHA y resultados en [docs/VERIFICACION.md](docs/VERIFICACION.md), sin reutilizar resultados históricos de otra rama. La matriz de aceptación está en [docs/AUDITORIA_SHALEV_2026-11.md](docs/AUDITORIA_SHALEV_2026-11.md).
+
+- `AuditoriaIntegridadTest`, `MoneyTest`, formularios y escritores: centavos/signo, costo adicional, cotización cambiada antes del cobro/commit y modificación, desbordamientos, conversiones y reglas de recepción/motivos.
+- `BandejaComandosTest`: pérdida de respuesta, reinicio, misma clave, cancelación, rechazo, acción diferente y respuesta tardía de otra vinculación.
+- `InventarioOperativoRoomTest`: recepción/promedio/idempotencia/rollback, FEFO/anulación/devolución, merma/revisiones, deuda offline, costos completos y unidades/overflow.
+- `LocalesPermisosCobroRoomTest`: aislamiento de locales, renombrado/turno remoto, stock sin permiso de precio, referencias duplicadas locales y conflictos offline.
+- `AuditoriaDatosRoomTest`: migración de fichas/colisiones/reaparición, exportación atómica, costo vigente/conversión, respaldo/reset completo, fotos/hash/limpieza global y cancelación antes/después del commit.
+- `EsquemaTest`: abrir JSON generado y migraciones históricas hasta v18; 17→18 conserva datos y atribuye local estable al empleado.
+- Reintentos de ViewModels: mismo filtro y selección después de error, Fichas mantiene edición y puede reabrir su Flow.
+
+**Manual en teléfonos antes de publicar:** crear dos locales y dos empleados, vender/cambiar precios/recetas durante un cobro, desconectar tras enviar un comando y reconectar/reiniciar; anular/modificar una venta con lotes; importar copia con fotos en otro teléfono; actualizar con operaciones posteriores a crear la copia previa; confirmar que esta no las sobrescribe. Revisar nuevo formulario en claro/oscuro, teclado, TalkBack y pantallas pequeñas. Estas comprobaciones no se declaran hechas solo por ejecutar CI.
+
 ## En este entorno (checkout Arena, 2026-11-11)
 
 Este contenedor no tiene `java`/JDK, Android SDK ni Xcode; por tanto, `shalevTests`, `shalevCheck`, compilación/instrumentados Android y `swift test` no se ejecutaron aquí. La IA en el PC real debe comprobar su propio toolchain; los resultados de otros equipos no aplican automáticamente.

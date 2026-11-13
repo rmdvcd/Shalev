@@ -51,6 +51,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         cu.shalev.data.db.entity.FichaCostoEntity::class, cu.shalev.data.db.entity.RecepcionEntity::class,
         cu.shalev.data.db.entity.LoteInventarioEntity::class, cu.shalev.data.db.entity.LoteConsumoEntity::class,
         cu.shalev.data.db.entity.MovimientoRevisionEntity::class, cu.shalev.data.db.entity.ConfiguracionNegocioEntity::class,
+        cu.shalev.data.db.entity.MigracionLocalEntity::class,
     ],
     version = ShalevDatabase.VERSION,
     exportSchema = true,
@@ -85,6 +86,7 @@ abstract class ShalevDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) { SQL_17_18.forEach(db::execSQL) }
         }
         internal val SQL_17_18 = listOf(
+            "CREATE TABLE IF NOT EXISTS `migracion_local` (`clave` TEXT NOT NULL, PRIMARY KEY(`clave`))",
             "ALTER TABLE `almacen_local` ADD COLUMN `id` TEXT NOT NULL DEFAULT ''",
             "UPDATE `almacen_local` SET `id` = lower(hex(randomblob(16))) WHERE id = ''",
             "CREATE UNIQUE INDEX IF NOT EXISTS `index_almacen_local_id` ON `almacen_local` (`id`)",

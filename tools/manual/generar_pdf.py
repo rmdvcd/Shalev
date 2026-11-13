@@ -939,7 +939,7 @@ def draw_cover_page(page: pymupdf.Page, orbitron_font: Path, sans_reg: Path, san
 
     # Tres insignias de especificaciones en el hero
     specs = [
-        ("Versión 1.0", "#FADEC9", HEX_SEC),
+        ("Versión 1.0.1", "#FADEC9", HEX_SEC),
         ("Android 8.0 o superior", "#DCE3F5", HEX_PRI),
         ("100 % sin conexión", "#D3EBF0", HEX_TER),
     ]
@@ -1248,7 +1248,7 @@ def stamp_headers_footers_and_svgs(pdf_bytes: bytes) -> None:
         # Pie izquierdo y derecho
         page.insert_text(
             pymupdf.Point(MARGIN_L, PAGE_H - 22.0),
-            "Shalev v1.0 · Punto de Venta e Inventario sin conexión",
+            "Shalev v1.0.1 · Punto de Venta e Inventario sin conexión",
             fontname="HFReg",
             fontsize=8.0,
             color=hex_to_rgb01(HEX_MUTED),
@@ -1276,7 +1276,7 @@ def stamp_headers_footers_and_svgs(pdf_bytes: bytes) -> None:
     doc.set_toc(toc_entries)
     doc.set_metadata(
         {
-            "title": "Manual Oficial de Usuario · Shalev v1.0",
+            "title": "Manual Oficial de Usuario · Shalev v1.0.1",
             "author": "Ing. Ronnie Montero Duarte",
             "subject": "Manual de Usuario del sistema de punto de venta e inventario Shalev para Android",
             "keywords": "Shalev, Manual de Usuario, POS, Inventario, Cuba, CUP, Transfermóvil, Android",
@@ -1305,7 +1305,7 @@ def main() -> None:
         rightMargin=MARGIN_R,
         topMargin=MARGIN_T,
         bottomMargin=MARGIN_B,
-        title="Manual Oficial de Usuario · Shalev v1.0",
+        title="Manual Oficial de Usuario · Shalev v1.0.1",
         author="Ing. Ronnie Montero Duarte",
     )
     frame = Frame(MARGIN_L, MARGIN_B, CONTENT_W, PAGE_H - MARGIN_T - MARGIN_B, id="main", topPadding=0, bottomPadding=0, leftPadding=0, rightPadding=0)

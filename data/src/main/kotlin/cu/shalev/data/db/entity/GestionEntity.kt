@@ -82,3 +82,7 @@ data class MovimientoRevisionEntity(
 @Serializable
 @Entity(tableName = "configuracion_negocio")
 data class ConfiguracionNegocioEntity(@PrimaryKey val id: Int = 1, val preferenciasJson: String)
+
+/** Metadatos de migración de ESTE teléfono, no del respaldo del negocio. Evita resucitar JSON consumidos. */
+@Entity(tableName = "migracion_local")
+data class MigracionLocalEntity(@PrimaryKey val clave: String)

@@ -66,6 +66,17 @@ class LocalesPermisosCobroRoomTest {
         assertEquals(Cup(250), productos.obtener(p)!!.precioVenta)
     }
 
+    @Test fun crearConPrecioTambienExigePermisoDePrecioYSeAceptaAlConcederlo() = runBlocking {
+        val e = empleado()
+        val p = Producto(categoria = "Bebidas", nombre = "Nuevo", precioCosto = Cup(125), precioVenta = Cup(250), cantidad = 2, creadoEn = ahora)
+        assertEquals(ErroresRemotos.PERMISO, ejecutor.resultado(Comando(1, GuardarProducto(p.toDto()), "alta-no", e.localId), e).error)
+        assertTrue(db.productoDao().todos().isEmpty())
+        val autorizado = e.copy(permisos = "EDITAR_INVENTARIO,CAMBIAR_PRECIOS")
+        db.syncDao().actualizarEmpleado(autorizado)
+        assertNull(ejecutor.resultado(Comando(2, GuardarProducto(p.toDto()), "alta-si", e.localId), autorizado).error)
+        assertEquals(1, db.productoDao().todos().size)
+    }
+
     @Test fun empleadoSigueEnSuLocalAunqueElDuenoSeleccioneOtroYLoRenombre() = runBlocking {
         locales.guardar("A"); val a = producto("Solo A"); val e = empleado()
         locales.guardar("B"); locales.seleccionar("B"); val b = producto("Solo B")

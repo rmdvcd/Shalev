@@ -111,7 +111,7 @@ class AuditoriaIntegridadTest {
         assertTrue(cotizar(listOf(LineaSolicitada(1, Long.MAX_VALUE), LineaSolicitada(1, 1)), MetodoPago.EFECTIVO) is AppResult.Err)
         assertTrue(cotizar(listOf(LineaSolicitada(1, Long.MAX_VALUE)), MetodoPago.EFECTIVO) is AppResult.Err)
         val r = Receta(1, listOf(RecetaLinea(1, Cantidad(Long.MAX_VALUE))))
-        insumos.put(insumo(1, "Harina", precio = 10, cantidad = 10))
+        insumos.put(insumo(1, "Harina", precio = 20, cantidad = 10))
         assertTrue(cu.shalev.domain.service.Recetas.costo(r, mapOf(1L to insumos.obtener(1)!!)) is AppResult.Err)
     }
 

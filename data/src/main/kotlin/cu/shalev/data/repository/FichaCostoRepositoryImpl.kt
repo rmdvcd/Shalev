@@ -135,8 +135,10 @@ internal suspend fun migrarFichasAntiguas(context: Context, db: ShalevDatabase, 
     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val prefs = context.getSharedPreferences("fichas_costo", Context.MODE_PRIVATE)
         val texto = prefs.getString("lista", null) ?: return@withContext
-        val fichas = ShalevJson.decodeFromString(ListSerializer(FichaCostoDto.serializer()), texto).map { it.toDomain() }
         db.withTransaction {
+            // Volver a comprobar dentro de la transacción también serializa una restauración o borrado concurrente.
+            if (db.gestionDao().migracionCompletada("fichas.v1")) return@withTransaction
+            val fichas = ShalevJson.decodeFromString(ListSerializer(FichaCostoDto.serializer()), texto).map { it.toDomain() }
             val local = db.almacenLocalDao().idActivo()
             val existentes = db.gestionDao().fichas().map { it.aFicha() }.toMutableList()
             for (original in fichas) {
@@ -152,6 +154,7 @@ internal suspend fun migrarFichasAntiguas(context: Context, db: ShalevDatabase, 
                 db.gestionDao().guardarFicha(ficha.aEntity(local, clock.now().toEpochMilli()))
                 existentes += ficha
             }
+            db.gestionDao().completarMigracion(cu.shalev.data.db.entity.MigracionLocalEntity("fichas.v1"))
         }
         check(prefs.edit().remove("lista").commit()) { "No se pudo completar la migración de fichas." }
     }

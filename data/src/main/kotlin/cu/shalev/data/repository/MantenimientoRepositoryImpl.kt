@@ -43,6 +43,7 @@ class MantenimientoRepositoryImpl @Inject constructor(
                 db.gestionDao().apply { borrarConsumos(); borrarLotes(); borrarRecepciones(); borrarRevisiones(); borrarFichas(); borrarConfiguracion()
                     guardarConfiguracion(cu.shalev.data.db.entity.ConfiguracionNegocioEntity(preferenciasJson = cu.shalev.data.local.ShalevJson.encodeToString(cu.shalev.data.dto.PreferenciasDto.serializer(), cu.shalev.data.dto.PreferenciasDto())))
                 }
+                db.gestionDao().completarMigracion(cu.shalev.data.db.entity.MigracionLocalEntity("fichas.v1"))
                 m.borrarRecibosComandos()
                 db.openHelper.writableDatabase.execSQL("DELETE FROM empleado")
                 m.borrarOperacion()

@@ -1,6 +1,6 @@
 # Shalev — Formatos de respaldo y de exportación
 
-Formatos de archivo que la app Android Shalev escribe y lee (versión declarada **0.30.0**): contenedor `.shalev` v4 (lee v3 y v4) y contenido `RespaldoDto` v4 (importa v3 y v4).
+Formatos de archivo que la app Android Shalev escribe y lee (versión de trabajo **1.0.1**, revisión 2026-11-13): contenedor `.shalev` **v4** (lee v3/v4) y contenido `RespaldoDto` **v5** (importa v3–v5). Son versiones independientes; no existe un nuevo contenedor v5.
 
 | Formato | Extensión | Tipo MIME | Cifrado | Se importa |
 |---|---|---|---|---|
@@ -67,7 +67,7 @@ Desde la 0.27.0 se escribe la **v4**, que añade un byte indicador (con o sin co
 
 ### 1.2 Contenido (JSON)
 
-`RespaldoDto` (versión `4` desde la 0.25.0; se importan también los `3`), serializado con kotlinx.serialization. Es independiente del esquema Room: una migración de la base de datos no rompe los respaldos.
+`RespaldoDto` (versión `5` en esta revisión; se importan también `3` y `4`), serializado con kotlinx.serialization. Es independiente del esquema Room: una migración de la base de datos no rompe los respaldos.
 
 - Importes en **centavos**; cantidades de insumo en **milésimas**; instantes en **epoch ms**; fechas de calendario en ISO-8601 (`aaaa-mm-dd`); enums por nombre.
 - Los campos desconocidos se ignoran (`ignoreUnknownKeys`) y los nuevos siempre llevan valor por defecto. Así, añadir un campo en el futuro no obliga a cambiar de versión.
@@ -75,7 +75,7 @@ Desde la 0.27.0 se escribe la **v4**, que añade un byte indicador (con o sin co
 | Campo | Contenido |
 |---|---|
 | `formato` | `"spvi-respaldo"` |
-| `version` | `4` (0.25.0). Un respaldo `3` se importa igual: turnos sin arqueo, ventas válidas y sin bloque de licencia |
+| `version` | `5`. Un respaldo `3`/`4` omite los bloques nuevos: no se inventan recepciones, lotes, fichas ni fotos |
 | `creadoEn` | epoch ms |
 | `appVersion` | texto o `null` |
 | `perfil` | nombre, apellidos, CI, `tarjetas[]`, `telefonos[]`, tarjeta y teléfono elegidos para cobrar |
@@ -92,7 +92,25 @@ Desde la 0.27.0 se escribe la **v4**, que añade un byte indicador (con o sin co
 | `clientesFijos[]` | 0.27.0 (opcional; `[]` en respaldos anteriores, sin subir la versión): `nombreApellidos`, `ci` (único), `telefono`, `creadoEn`, `actualizadoEn`. Las transferencias llevan además `clienteFijo` (booleano, `false` por defecto) |
 | `licencia` | v4 (opcional): datos **públicos** de la licencia instalada: `id`, `tipo`, `secundarias`, `venceEn` (epoch ms; null = perpetua), `ci` del titular. **No** es la licencia (está atada a la clave del teléfono): solo rellena el campo «ID de la licencia anterior» para pedir la recuperación en otro teléfono |
 
-### Conteo de cierre (en desarrollo, 2026-10-17)
+### Contenido añadido en DTO v5 / Room v18
+
+- `almacenesLocales[]`: `nombre`, selectores `inventario`/`servicios` e `id` estable. Se conserva al renombrar. Las filas de catálogo/historial conservan `local` y los empleados llevan `localId`. Al leer un respaldo sin identidad se reutiliza la del mismo nombre si existe en el teléfono.
+- `fichasCosto[]`: ficha (`id`, nombre, margen, tipo de margen, tasa y partidas decimales CUP/USD), `localId`, `actualizadoEn`. Los borradores históricos se conservan aunque no sean exportables. La exportación al catálogo es transaccional y no forma parte del formato de imágenes promocionales.
+- `recepciones[]`: UUID idempotente, local, fecha, proveedor, comprobante de texto, motivo, autor y total en centavos. Inmutables; una corrección usa otro movimiento.
+- `lotes[]`: identidad, recepción/local, entidad/artículo, nombre/unidad congelados, código, cantidades inicial/disponible **en milésimas también para productos**, costo unitario y caducidad en días desde epoch. La parte de una recepción que cubre un saldo negativo no crea disponibilidad de lote.
+- `consumosLotes[]`: asignaciones FEFO con `ventaId` **o** `movimientoId` (solo uno), `loteId` y `cantidadMil`. Al anular una venta o reducir una salida manual se restituyen sus asignaciones, no las de otro movimiento.
+- `revisionesMovimiento[]`: bitácora append-only con movimiento, fecha, delta/existencia antes y después, autor, motivo y local. El movimiento conserva además `motivo` estructurado (Compra, Merma, Consumo interno, Corrección, Devolución).
+- `costoAdicionalCent` en productos elaborados y servicios: trabajo y costos no materiales por unidad/prestación. Se suma a la receta al cotizar, sin modificar los costos congelados de ventas anteriores.
+- `preferencias`: se toma del mismo snapshot Room que el negocio y se restaura en su mismo commit. Onboarding y claves siguen siendo del teléfono. Si falta en un respaldo antiguo, conserva la configuración actual.
+- `fotos[]`: nombre seguro, contenido Base64 y SHA-256 del archivo. Máximo **4 MiB por imagen, 48 MiB sumados**; límite de plano/archivo **128 MiB**. Solo fotos privadas con nombre válido. Se validan antes de tocar los datos; al importar se crean nombres UUID nuevos y se remapean las rutas. Si el commit falla se eliminan solo las fotos preparadas; si se confirma, no se borran por una cancelación posterior. Las fotos viejas no referenciadas se limpian por el mantenimiento normal.
+
+La importación sustituye el negocio, pero **no borra los recibos idempotentes de comandos ya ejecutados** ni las claves activas de empleados que siguen en este dispositivo. Borrar todo sí elimina esos recibos. Archivos, DataStore y Room no constituyen una sola transacción de sistema de archivos: Room+preferencias son atómicos y la fase final termina sin interrumpirse por cancelación; un fallo de E/S externo se informa sin prometer rollback del borrado total.
+
+Los comandos remotos añaden `localId` y una bandeja cifrada durable en la secundaria con la clave/acción pendiente antes de enviar. Respuestas definitivas limpian esa pendiente con compare-and-set de vinculación y comando. Un reintento usa la misma clave; no es una cola de ventas (sus UUID siguen en Room) ni un cambio de versión del contenedor `.shalev`.
+
+La copia previa a actualizar sigue usando `.shalev` v4/DTO v5 sin contraseña, en almacenamiento privado. **No se restaura automáticamente**. Guardarla e importarla son decisiones explícitas; importar reemplaza el estado actual.
+
+### Conteo de cierre (desde Room v13)
 
 `turnos[].conteoCierre` es opcional, `null` en datos antiguos, sin cambiar las versiones del contenedor ni del DTO:
 
@@ -101,7 +119,7 @@ Desde la 0.27.0 se escribe la **v4**, que añade un byte indicador (con o sin co
 - `inventario[]`: `entidad` (PRODUCTO/INSUMO), `id`, `nombre`, `unidad`, `esperado`, `contado`, `actualizadoEn`. Cantidades nativas: unidades para productos, milésimas para insumos. El nombre, la unidad y las cantidades son la instantánea del conteo, no se recalculan al exportar.
 - `motivo`: obligatorio con diferencias; `aprobadoPor` y `aprobadoEn` son nulos hasta que la principal aplica la conciliación. El efectivo calculado debe coincidir con `contadoCent`.
 
-Room v13 añade únicamente `turno.conteoCierreJson TEXT NULL` (migración 12→13). **`13.json` debe generarse con Room/KSP y verificarse antes de publicar; no se ha generado en este entorno sin JDK/SDK.**
+Room v13 añadió `turno.conteoCierreJson TEXT NULL` (migración 12→13). La versión de trabajo actual es **v18** y los JSON históricos se conservan para probar sus migraciones.
 
 En el protocolo LAN v1, el conteo viaja con el DTO del turno. La respuesta añade los campos opcionales `conteoAprobado` y `conteoTurnoUuid`: la secundaria solo acepta la aprobación si coincide el turno y la declaración completa. La principal ignora cualquier autorización que declare la propia secundaria y conserva la que ya otorgó ante reenvíos. Las dos apps deben estar actualizadas para el nuevo flujo.
 
@@ -112,7 +130,7 @@ El PDF/Excel del turno añade **Conteo de efectivo** (Denominación, Billetes, S
 - el estado de la app de la 0.25.0 (fecha del último respaldo, última consulta de actualizaciones, versión descartada);
 - el progreso del asistente de primera ejecución (es estado del dispositivo);
 - las claves de las apps secundarias y sus códigos QR (tabla `empleado`): tras restaurar, los empleados aparecen con sus permisos pero hay que volver a vincular cada app con un código nuevo;
-- **las imágenes de las fotos**: se guarda la ruta (`fotoUri`), pero no el archivo. En otro teléfono los productos aparecen sin foto.
+- archivos externos o fotos ausentes del álbum privado. Desde DTO v5 las imágenes disponibles **sí se incluyen**; en DTO v3/v4 solo hay rutas y no se pueden recuperar archivos que el respaldo nunca contenía.
 
 ### 1.3 Exportar
 
@@ -189,7 +207,7 @@ Todas las tablas salen de una misma fuente neutra, `TablaExport` (título, colum
 | Ficha de una venta | además, si está anulada: Estado («Anulada el …»), Motivo, Anulada por; y «Corrige: Venta #N» | — |
 | Caja de un turno (0.25.0, pestaña **Caja** del detalle del turno) | Arqueo: Fondo inicial, Ventas en efectivo, Entradas, Salidas, Esperado en caja, Contado, Sobrante/Faltante. Movimientos: Fecha, Tipo, Importe, Motivo, Hecho por | — |
 | Transferencias recibidas | Fecha, Nº transacción, Cliente, CI, Teléfono, Importe, Venta | Total |
-| Movimientos de inventario e insumos | Fecha, Tipo, Entidad, Nombre, Cambio, Existencia, Hecho por (0.21.0; vacío en los anteriores), Nota | — |
+| Movimientos de inventario e insumos | Fecha, Tipo, Entidad, Nombre, Cambio, Existencia, Hecho por, Nota; la ficha añade motivo estructurado e historial de correcciones | — |
 | Perfil | Dato, Valor (nombre y apellidos, carné, tarjetas/cuentas, teléfonos) | — |
 | Preajustes de precios | Nombre, Ajuste, Método, Importe mínimo, Productos, Activo | — |
 
@@ -245,24 +263,18 @@ No se generan archivos `.txt`: el escritor de texto plano (`TextoWriter`) se eli
 
 ### Entrada numérica en pantalla (09/10/2026)
 
-Los campos de dinero admiten punto o coma decimal y hasta dos decimales, sin separadores de miles; las cantidades decimales admiten hasta tres. Una entrada ambigua se rechaza conservando el texto anterior, sin cambiar los formatos de archivos exportados/importados. Tarjeta/cuenta: hasta 20 cifras en edición (validación final de 12 a 20). La venta debe superar el costo, incluso tras descuentos; no se cambian comprobantes históricos.
+Los campos de dinero admiten punto o coma decimal y hasta dos decimales, sin separadores de miles; las cantidades decimales admiten hasta tres. Una entrada ambigua se rechaza conservando el texto anterior, sin cambiar los formatos de archivos exportados/importados. Tarjeta/cuenta: hasta 20 cifras en edición (validación final de 12 a 20). El precio al crear/editar un producto debe superar su costo; una venta con descuento puede quedar al costo o por debajo, con advertencia. No se cambian comprobantes históricos.
 
 
-## Ficha de costo temporal
+## Fichas de costo y calculadora
 
-La ficha de costo y la calculadora de cambio no escriben archivos ni incluyen sus datos o tasas en los respaldos `.shalev`. No importan ni exportan `.ficha148`, PDF, CSV o Excel.
+Las fichas de costo Android se guardan por local en Room/SQLCipher y viajan en `fichasCosto[]` del respaldo DTO v5; se exportan al catálogo en la principal con insumos/receta/artículo en una transacción. No importan ni exportan `.ficha148`, PDF, CSV o Excel independientes. La calculadora conserva modo, moneda de origen y tasa en este teléfono, no sus importes ni datos en el respaldo del negocio. `migracion_local` es metadato privado de este teléfono para no reactivar fichas legadas ya migradas o descartadas por una importación/borrado; no se exporta.
 
-### Ubicaciones generales (Room v15)
+### Ubicaciones (introducidas en Room v15, ampliadas en v16/v18)
 
-La tabla `almacen_local` guarda `nombre` (clave primaria), `inventario` y `servicios`
-(marcas booleanas, por defecto falsas). El repositorio conserva los nombres y actualiza ambas marcas en una transacción al seleccionar un local común. Al editar un nombre conserva sus marcas. Si un respaldo antiguo tiene selecciones distintas, Inicio muestra la de Inventario hasta que se elija otra.
-La migración 14→15 solo crea esta tabla; las instalaciones existentes empiezan sin ubicación.
+La tabla `almacen_local` conserva `nombre` como clave primaria y añade `id` estable con índice único en v18. El repositorio selecciona Inventario y Servicios juntos en una transacción, y renombrar conserva la identidad y actualiza las filas del historial. Si un respaldo antiguo tiene selectores distintos, se prioriza Inventario. Cambiar de local se rechaza si hay cualquier turno abierto.
 
-El JSON de respaldo incorpora el campo opcional `almacenesLocales`, una lista de objetos
-`{nombre, inventario, servicios}`. No cambia la versión v4: un respaldo anterior se interpreta
-con lista vacía. La restauración valida nombres, duplicados y una selección como máximo
-por ventana antes de sustituir los datos. El vaciado de configuración elimina las ubicaciones.
-Estos valores son generales y locales; no se añaden a las líneas de venta ni al protocolo LAN.
+El JSON incorpora `almacenesLocales` con `{nombre, inventario, servicios, id}` y las filas del catálogo/historial llevan `local` desde v16. `empleados[].localId` viaja en el vínculo, instantáneas y comandos; se valida en la principal sin cambiar su selector visible. Los respaldos sin ID conservan la identidad local existente por nombre cuando es posible. Borrar todo elimina los locales; las fichas y lotes se borran en ese mismo commit.
 
 ### Transporte remoto de sincronización (piloto)
 
