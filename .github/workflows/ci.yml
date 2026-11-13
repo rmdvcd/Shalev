@@ -20,7 +20,7 @@ on:
   pull_request:
   workflow_dispatch: # a mano, para comprobar una rama suelta
   schedule:
-    # Los instrumentados (emulador) corren aquí y a mano, no en cada push: son lentos y el emulador es
+    # Los instrumentados (emulador) corren aquí, a mano o en un commit con [instrumentados], no en cada push: son lentos y el emulador es
     # el paso más frágil del CI. Auditoría 2026-10-14 (I-02): antes no corrían NUNCA en CI.
     - cron: "17 5 * * 1"
 
@@ -51,6 +51,8 @@ jobs:
           test -d "$ANDROID_HOME/build-tools/35.0.0" || { echo "Faltan build-tools 35.0.0"; exit 1; }
           echo "SDK: $ANDROID_HOME (android-35 y build-tools 35.0.0 presentes)"
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - name: Pruebas del resumen de instrumentados
+        run: python3 -m unittest discover -s tools/verificacion/tests -p 'test_*.py'
       - name: shalevTests + compilar androidTest
         run: |
           set -o pipefail
@@ -242,11 +244,11 @@ jobs:
         if: success()
         run: python3 tools/verificacion/resumen_ok.py api-min /tmp/salida.log
 
-  # Auditoría 2026-10-14 (I-02): los 145 tests instrumentados solo se COMPILABAN en CI; ahora también se
-  # ejecutan en emulador (semanal y a mano). Si el emulador falla por infraestructura, el resumen lo dice.
+  # Los instrumentados se ejecutan semanalmente, a mano o con [instrumentados] en el mensaje del push.
+  # La etiqueta permite verificarlos desde integraciones sin permiso Actions:write (sin ampliar el token).
   instrumentados:
     name: Tests instrumentados (emulador)
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[instrumentados]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:

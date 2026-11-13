@@ -18,10 +18,13 @@ def anotar(nivel, mensaje):
 def main():
     modulos = defaultdict(lambda: [0, 0, 0])
     fallos = []
+    incompleto = False
     for archivo in sorted(Path(".").glob("**/build/outputs/androidTest-results/connected/**/*.xml")):
         try:
             raiz = ET.parse(archivo).getroot()
         except (ET.ParseError, OSError):
+            anotar("error", f"Instrumentados: XML ilegible en {archivo}")
+            incompleto = True
             continue
         modulo = str(archivo).split("/build/")[0]
         for caso in raiz.iter("testcase"):
@@ -39,12 +42,17 @@ def main():
         return 1
     for modulo, (casos, errores, omitidos) in sorted(modulos.items()):
         anotar("notice", f"Instrumentados {modulo}: {casos} casos, {errores} con fallo, {omitidos} omitidos")
+    for requerido in ("app", "data"):
+        casos, _, omitidos = modulos[requerido]
+        if casos - omitidos <= 0:
+            anotar("error", f"Instrumentados {requerido}: no se ejecutó ningún caso; no se valida solo con el otro módulo.")
+            incompleto = True
     for fallo in fallos[:25]:
         anotar("error", fallo)
     if sum(v[0] - v[2] for v in modulos.values()) == 0:
         anotar("error", "Instrumentados: todos los casos fueron omitidos.")
         return 1
-    return 1 if fallos else 0
+    return 1 if fallos or incompleto else 0
 
 
 if __name__ == "__main__":

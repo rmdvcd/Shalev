@@ -13,7 +13,7 @@
 
 ## Regresiones de la auditoría Android — 2026-11-13
 
-Consultar el SHA y resultados en [docs/VERIFICACION.md](docs/VERIFICACION.md), sin reutilizar resultados históricos de otra rama. La matriz de aceptación está en [docs/AUDITORIA_SHALEV_2026-11.md](docs/AUDITORIA_SHALEV_2026-11.md).
+Consultar el SHA y resultados en [docs/VERIFICACION.md](docs/VERIFICACION.md), sin reutilizar resultados históricos de otra rama. La matriz de aceptación está en [docs/AUDITORIA_SHALEV_2026-11.md](docs/AUDITORIA_SHALEV_2026-11.md). El emulador de CI se activa con `workflow_dispatch` o añadiendo `[instrumentados]` al mensaje del commit publicado; no necesita ampliar permisos de Actions.
 
 - `AuditoriaIntegridadTest`, `MoneyTest`, formularios y escritores: centavos/signo, costo adicional, cotización cambiada antes del cobro/commit y modificación, desbordamientos, conversiones y reglas de recepción/motivos.
 - `BandejaComandosTest`: pérdida de respuesta, reinicio, misma clave, cancelación, rechazo, acción diferente y respuesta tardía de otra vinculación.
