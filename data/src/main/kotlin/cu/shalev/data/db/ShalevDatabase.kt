@@ -90,6 +90,7 @@ abstract class ShalevDatabase : RoomDatabase() {
             "CREATE UNIQUE INDEX IF NOT EXISTS `index_almacen_local_id` ON `almacen_local` (`id`)",
             "ALTER TABLE `empleado` ADD COLUMN `localId` TEXT",
             "UPDATE `empleado` SET localId = (SELECT id FROM almacen_local WHERE nombre = COALESCE((SELECT local FROM turno WHERE turno.empleadoId = empleado.id AND cerradoEn IS NULL LIMIT 1), (SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1)))",
+            "ALTER TABLE `movimiento` ADD COLUMN `motivo` TEXT",
             "ALTER TABLE `transaccion` ADD COLUMN `referenciaDuplicada` INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE `producto` ADD COLUMN `costoAdicionalCent` INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE `servicio` ADD COLUMN `costoAdicionalCent` INTEGER NOT NULL DEFAULT 0",

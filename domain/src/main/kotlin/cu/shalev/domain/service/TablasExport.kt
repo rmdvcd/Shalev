@@ -240,6 +240,7 @@ object TablasExport {
         val m = i.movimiento
         val u = if (m.entidad == TipoEntidad.INSUMO && i.simbolo.isNotBlank()) " ${i.simbolo}" else ""
         add("Tipo" to Estadisticas.etiqueta(m.tipo))
+        m.motivo?.let { add("Motivo del movimiento" to it.titulo) }
         add(entidad(m.entidad) to m.nombre)
         add("Cambio" to cantidad(m.entidad, m.delta, signo = true) + u)
         add("Existencia después" to cantidad(m.entidad, m.existenciaResultante) + u)

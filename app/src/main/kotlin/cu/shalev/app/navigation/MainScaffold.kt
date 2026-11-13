@@ -281,7 +281,8 @@ fun MainScaffold(snapshot: Licencia) {
             composable<Route.Registros> {
                 RegistrosScreen(onNavigate = nav::navigateTo)
             }
-            composable<Route.Herramientas> { cu.shalev.app.herramientas.HerramientasScreen(onAbrirFicha = { nav.navigateTo(Route.FichaCosto) }, onVerManual = { nav.navigateTo(Route.Ayuda) }) }
+            composable<Route.Herramientas> { cu.shalev.app.herramientas.HerramientasScreen(onAbrirFicha = { nav.navigateTo(Route.FichaCosto) }, onVerManual = { nav.navigateTo(Route.Ayuda) }, onGestionInventario = { nav.navigateTo(Route.GestionInventario) }) }
+            composable<Route.GestionInventario> { cu.shalev.app.herramientas.GestionInventarioScreen(onBack = { nav.popBackStack() }) }
             composable<Route.FichaCosto> {
                 cu.shalev.app.herramientas.FichaCostoScreen(
                     onBack = { nav.popBackStack() },

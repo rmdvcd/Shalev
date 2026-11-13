@@ -51,7 +51,7 @@ import java.math.RoundingMode
 import kotlinx.coroutines.launch
 
 @Composable
-fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit) {
+fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit, onGestionInventario: () -> Unit = {}) {
     var ayuda by remember { mutableStateOf(false) }
     var cambioAbierto by rememberSaveable { mutableStateOf(false) }
     val modulos = cu.shalev.app.common.LocalPermisosApp.current.modulos
@@ -62,6 +62,9 @@ fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit) {
         ) {
             ShalevCard(onClick = onAbrirFicha) {
                 ShalevListItem("Fichas de costo", subtitle = "Crea, guarda y exporta varias fichas", leading = { Icon(ShalevIcons.FichaCosto, null) }, trailing = { Icon(ShalevIcons.Abrir, null) }, indicatorColor = null)
+            }
+            if (!cu.shalev.app.common.LocalPermisosApp.current.esSecundaria && cu.shalev.app.common.LocalPermisosApp.current.verInventario) ShalevCard(onClick = onGestionInventario) {
+                ShalevListItem("Gestión de inventario", subtitle = "Recepciones, proveedores, lotes, caducidades y ajustes con motivo", leading = { Icon(ShalevIcons.Inventario, null) }, trailing = { Icon(ShalevIcons.Abrir, null) }, indicatorColor = null)
             }
             ShalevCard(onClick = { cambioAbierto = true }) {
                 ShalevListItem("Calculadora de cambio", subtitle = "Convertir CUP y USD o calcular una tasa", leading = { Icon(ShalevIcons.CalculadoraCambio, null) }, trailing = { Icon(ShalevIcons.Abrir, null) }, indicatorColor = null)
@@ -127,13 +130,13 @@ fun FichaCostoScreen(
                                 val r = vm.exportarAInventario(ficha)
                                 aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
                             }
-                        }, enabled = total != null && !vm.trabajando)
+                        }, enabled = total != null && !vm.trabajando && !cu.shalev.app.common.LocalPermisosApp.current.esSecundaria)
                         ShalevIconAction(ShalevIcons.Servicios, "Exportar a Servicios", onClick = {
                             scope.launch {
                                 val r = vm.exportarAServicio(ficha)
                                 aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
                             }
-                        }, enabled = total != null && !vm.trabajando)
+                        }, enabled = total != null && !vm.trabajando && !cu.shalev.app.common.LocalPermisosApp.current.esSecundaria)
                         ShalevIconAction(ShalevIcons.Eliminar, "Eliminar ${ficha.nombre}", onClick = { scope.launch { aviso = vm.eliminarFicha(ficha.id).exceptionOrNull()?.message } })
                     }
                 }

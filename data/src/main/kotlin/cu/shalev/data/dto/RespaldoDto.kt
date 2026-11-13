@@ -53,7 +53,7 @@ data class RespaldoDto(
          * v4 (0.25.0): arqueo de caja, ventas anuladas y bloque de licencia. Campos nuevos con valor por defecto: un v3
          * se importa igual (turnos sin arqueo, ventas válidas). Acompaña al formato de archivo «Shalev-BACKUP» v3.
          */
-        const val VERSION = 4
+        const val VERSION = 5
         /** Versión más antigua que se importa. */
         const val VERSION_MINIMA = 3
     }
@@ -187,6 +187,7 @@ data class MovimientoDto(
     val hechoPor: String = "",
     /** v16: local del movimiento. */
     val local: String = "",
+    val motivo: String? = null,
 )
 
 

@@ -31,6 +31,7 @@ sealed interface Route {
     @Serializable data object Registros : Route
     @Serializable data object Herramientas : Route
     @Serializable data object FichaCosto : Route
+    @Serializable data object GestionInventario : Route
     /** Registro de un turno (Registros → Turnos o "Ver" tras cerrar en Inicio). */
     @Serializable data class TurnoDetalle(val id: Long) : Route
     @Serializable data object Ajustes : Route

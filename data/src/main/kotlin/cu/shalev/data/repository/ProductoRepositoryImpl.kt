@@ -113,6 +113,7 @@ class ProductoRepositoryImpl @Inject constructor(
         tipo: TipoMovimiento, entidadId: Long, nombre: String, delta: Long, existencia: Long,
         nota: String? = null, entidad: TipoEntidad = TipoEntidad.PRODUCTO,
     ) {
+        if (delta < 0) db.consumirLotes(locales.localOperacion(), "PRODUCTO", entidadId, Math.multiplyExact(Math.negateExact(delta), 1000))
         movimientos.insertar(
             MovimientoEntity(
                 fecha = clock.now().toEpochMilli(), tipo = tipo.name, entidad = entidad.name, entidadId = entidadId,

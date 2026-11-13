@@ -179,21 +179,21 @@ class StockEstadisticasTest {
         val cats = Estadisticas.distribucionCategorias(listOf(producto(1, cantidad = 30, categoria = "A"), producto(2, cantidad = 10, categoria = "B"), producto(3, cantidad = 0, categoria = "C")))
         assertEquals(listOf("A", "B"), cats.map { it.etiqueta })
         assertEquals(0.75, cats[0].fraccion, 1e-9)
-        assertEquals(30_000L, cats[0].valor) // 0.27.0 (N1): en milésimas
+        assertEquals(180_000L, cats[0].valor) // 30 unidades × 60 CUP = 1800 CUP
         val met = Estadisticas.distribucionMetodos(listOf(venta(1, T0, Triple(1, 1, 300L to 0L)), venta(2, T0, Triple(1, 1, 100L to 0L), metodo = MetodoPago.TRANSFERENCIA)))
         assertEquals(listOf("Efectivo", "Transferencia"), met.map { it.etiqueta })
         assertTrue(Estadisticas.distribucionMetodos(emptyList()).isEmpty())
     }
 
     /** 0.27.0 (N1): los insumos entran en la dona Inventario, cada uno en su medida (milésimas). */
-    @Test fun `dona inventario con insumos en su medida`() {
+    @Test fun `dona inventario valora productos e insumos al costo sin mezclar medidas`() {
         val harina = cu.shalev.domain.model.Insumo(
-            id = 1, nombre = "Harina", unidad = cu.shalev.domain.model.UnidadMedida.KILOGRAMO, precio = cu.shalev.core.money.Cup(0),
+            id = 1, nombre = "Harina", unidad = cu.shalev.domain.model.UnidadMedida.KILOGRAMO, precio = cu.shalev.core.money.Cup.ofPesos(100),
             cantidad = cu.shalev.core.quantity.Cantidad(2_500), creadoEn = T0,
         )
         val cats = Estadisticas.distribucionCategorias(listOf(producto(1, cantidad = 5, categoria = "A")), listOf(harina))
         assertEquals(listOf("A", Estadisticas.CATEGORIA_INSUMOS), cats.map { it.etiqueta })
-        assertEquals(listOf(5_000L, 2_500L), cats.map { it.valor })
+        assertEquals(listOf(30_000L, 25_000L), cats.map { it.valor })
         assertTrue(Estadisticas.distribucionCategorias(emptyList(), listOf(harina.copy(cantidad = cu.shalev.core.quantity.Cantidad(0)))).isEmpty())
     }
 }

@@ -60,6 +60,6 @@ object InsumosFiltro {
             )
         }
         val costo = receta?.takeIf { it.lineas.isNotEmpty() }?.let { (Recetas.costo(it, insumos) as? AppResult.Ok)?.value }
-        return ElaboradoDisponible(p, lineas, costo)
+        return ElaboradoDisponible(p, lineas, costo?.plus(p.costoAdicional))
     }
 }

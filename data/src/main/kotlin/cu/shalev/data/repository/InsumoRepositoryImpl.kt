@@ -12,6 +12,7 @@ import cu.shalev.data.db.entity.MovimientoEntity
 import cu.shalev.data.db.tx
 import cu.shalev.data.mapper.toDomain
 import cu.shalev.data.mapper.toEntity
+import cu.shalev.data.mapper.toReceta
 import cu.shalev.domain.model.Insumo
 import cu.shalev.domain.model.TipoEntidad
 import cu.shalev.domain.model.TipoMovimiento
@@ -55,6 +56,15 @@ class InsumoRepositoryImpl @Inject constructor(
         if (viejo.local != locales.localOperacion()) abortar(AppError.SinPermiso)
         val i = insumo.copy(cantidad = Cantidad(Stock.cantidadAlGuardar(cantidadLeida?.milesimas, insumo.cantidad.milesimas, viejo.cantidadMil)))
         insumos.actualizar(i.toEntity().copy(creadoEn = viejo.creadoEn, local = viejo.local))
+        if (viejo.precioCent != i.precio.centavos) {
+            for (pid in recetas.productosQueUsan(i.id)) {
+                val p = productos.obtener(pid)?.takeUnless { it.eliminado } ?: continue
+                val receta = recetas.lineas(pid).toReceta(pid)
+                val mapa = insumos.obtenerVarios(receta.lineas.map { it.insumoId }).associate { it.id to it.toDomain() }
+                val material = (cu.shalev.domain.service.Recetas.costo(receta, mapa) as? AppResult.Ok)?.value ?: continue
+                productos.actualizar(p.copy(precioCostoCent = (material + cu.shalev.core.money.Cup(p.costoAdicionalCent)).centavos))
+            }
+        }
         val delta = i.cantidad.milesimas - viejo.cantidadMil
         if (delta != 0L) mov(TipoMovimiento.AJUSTE, i.id, i.nombre, delta, i.cantidad.milesimas, "Edición")
     }
@@ -81,6 +91,7 @@ class InsumoRepositoryImpl @Inject constructor(
     }
 
     private suspend fun mov(tipo: TipoMovimiento, id: Long, nombre: String, deltaMil: Long, existenciaMil: Long, nota: String? = null) {
+        if (delta < 0) db.consumirLotes(locales.localOperacion(), "INSUMO", id, Math.negateExact(delta))
         movimientos.insertar(
             MovimientoEntity(
                 fecha = clock.now().toEpochMilli(), tipo = tipo.name, entidad = TipoEntidad.INSUMO.name, entidadId = id,

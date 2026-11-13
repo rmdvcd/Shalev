@@ -136,11 +136,11 @@ fun MovimientoCajaDto.toDomain() = MovimientoCaja(
 )
 
 fun MovimientoInventario.toDto() = MovimientoDto(
-    id, fecha.ms(), tipo.name, entidad.name, entidadId, nombre, delta, existenciaResultante, turnoId, ventaId, nota, hechoPor,
+    id, fecha.ms(), tipo.name, entidad.name, entidadId, nombre, delta, existenciaResultante, turnoId, ventaId, nota, hechoPor, motivo = motivo?.name,
 )
 fun MovimientoDto.toDomain() = MovimientoInventario(
     id, fecha.instant(), enumStrict<TipoMovimiento>(tipo), enumStrict<TipoEntidad>(entidad), entidadId, nombre,
-    delta, existencia, turnoId, ventaId, nota, hechoPor,
+    delta, existencia, turnoId, ventaId, nota, hechoPor, motivo = motivo?.let { enumStrict<cu.shalev.domain.model.MotivoMovimiento>(it) },
 )
 
 fun Perfil.toDto() = PerfilDto(

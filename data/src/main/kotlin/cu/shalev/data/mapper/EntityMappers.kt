@@ -201,11 +201,13 @@ fun MovimientoEntity.toDomain() = MovimientoInventario(
     id = id, fecha = fecha.instant(), tipo = enumOr(tipo, TipoMovimiento.AJUSTE), entidad = enumOr(entidad, TipoEntidad.PRODUCTO),
     entidadId = entidadId, nombre = nombre, delta = delta, existenciaResultante = existencia,
     turnoId = turnoId, ventaId = ventaId, nota = nota, hechoPor = hechoPor,
+    motivo = motivo?.let { v -> cu.shalev.domain.model.MotivoMovimiento.entries.firstOrNull { it.name == v } },
 )
 
 fun MovimientoInventario.toEntity() = MovimientoEntity(
     id = id, fecha = fecha.ms(), tipo = tipo.name, entidad = entidad.name, entidadId = entidadId, nombre = nombre,
     delta = delta, existencia = existenciaResultante, turnoId = turnoId, ventaId = ventaId, nota = nota, hechoPor = hechoPor,
+    motivo = motivo?.name,
 )
 
 // ---------- Perfil ----------

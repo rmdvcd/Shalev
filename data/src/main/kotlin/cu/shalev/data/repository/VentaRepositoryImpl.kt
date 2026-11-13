@@ -62,6 +62,18 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         // 0.25.0: una venta corregida en la principal dentro del turno de una secundaria es de ese empleado y se le envía.
         val deSecundaria = turno.empleadoId != null
         val local = turno.local.ifEmpty { db.almacenLocalDao().localActivo() }
+        for (d in venta.detalles) {
+            val propietario = when (d.clase) {
+                ClaseArticulo.PRODUCTO -> productos.obtener(d.productoId)?.local
+                ClaseArticulo.INSUMO -> insumos.obtener(d.productoId)?.local
+                ClaseArticulo.SERVICIO -> servicios.obtener(d.productoId)?.local
+            }
+            if (propietario != local) abortar(AppError.SinPermiso)
+        }
+        for (e in elaborados) for (id in e.consumo.keys) {
+            if (insumos.obtener(id)?.local != local) abortar(AppError.SinPermiso)
+        }
+
         val ventaId = ventas.insertarVenta(
             venta.toEntity().copy(
                 id = 0, uuid = java.util.UUID.randomUUID().toString(), anuladaEn = null, motivoAnulacion = null, anuladaPor = null,
@@ -118,6 +130,10 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
             }
         }
         if (faltantes.isNotEmpty()) abortar(AppError.StockInsuficiente(faltantes))
+        for (m in db.syncDao().movimientosDeVentas(listOf(ventaId))) {
+            if (m.delta < 0) db.consumirLotes(local, m.entidad, m.entidadId,
+                if (m.entidad == TipoEntidad.PRODUCTO.name) Math.multiplyExact(Math.negateExact(m.delta), MIL) else Math.negateExact(m.delta), ventaId)
+        }
         return ventaId
     }
 
@@ -167,6 +183,7 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
                 ),
             )
         }
+        db.devolverLotes(ventaId)
         ventas.recalcularReferenciasDuplicadas()
         return v
     }

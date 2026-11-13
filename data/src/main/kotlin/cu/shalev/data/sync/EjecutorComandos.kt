@@ -15,6 +15,7 @@ import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.entity.EmpleadoEntity
 import cu.shalev.data.db.entity.ReciboComandoEntity
 import cu.shalev.data.db.tx
+import cu.shalev.data.mapper.toDomain
 import cu.shalev.data.dto.toDomain
 import cu.shalev.data.repository.InsumoRepositoryImpl
 import cu.shalev.data.repository.OrigenMovimiento

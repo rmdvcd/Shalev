@@ -244,6 +244,7 @@ data class MovimientoEntity(
     @androidx.room.ColumnInfo(defaultValue = "") val hechoPor: String = "",
     /** v16: local del movimiento (el del turno o el del artículo ajustado). */
     @ColumnInfo(defaultValue = "") val local: String = "",
+    val motivo: String? = null,
 )
 
 /** Fila única (id = 1). */

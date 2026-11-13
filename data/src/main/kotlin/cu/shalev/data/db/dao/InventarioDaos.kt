@@ -105,13 +105,16 @@ interface InsumoDao {
 
 @Dao
 interface MovimientoDao {
+    @Query("SELECT * FROM movimiento WHERE entidad = :entidad AND entidadId = :id ORDER BY id DESC LIMIT 1")
+    suspend fun ultimoDe(entidad: String, id: Long): MovimientoEntity?
+
     @Insert suspend fun insertar(m: MovimientoEntity): Long
     @Insert suspend fun insertarTodos(ms: List<MovimientoEntity>)
 
     @Query(
         """
         SELECT m.id, m.fecha, m.tipo, m.entidad, m.entidadId, m.nombre, m.delta, m.existencia, m.turnoId, m.ventaId, m.nota,
-               m.local,
+               m.local, m.motivo,
                COALESCE(NULLIF(m.hechoPor, ''), t.abiertoPor, NULLIF(TRIM(COALESCE(p.nombre, '') || ' ' || COALESCE(p.apellidos, '')), ''),
                         'Titular del dispositivo') AS hechoPor
         FROM movimiento m

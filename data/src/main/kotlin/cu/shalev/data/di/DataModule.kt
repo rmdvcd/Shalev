@@ -39,6 +39,7 @@ import kotlinx.coroutines.Dispatchers
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
+    @Binds abstract fun gestionInventario(impl: cu.shalev.data.repository.GestionInventarioRepositoryImpl): cu.shalev.domain.repository.GestionInventarioRepository
     @Binds abstract fun fichasCosto(impl: cu.shalev.data.repository.FichaCostoRepositoryImpl): cu.shalev.domain.fichacosto.FichaCostoRepository
     @Binds abstract fun almacenLocal(impl: cu.shalev.data.repository.LocalRepositoryImpl): cu.shalev.domain.repository.LocalRepository
     @Binds abstract fun licenseStore(impl: DataStoreLicenseStore): LicenseStore
