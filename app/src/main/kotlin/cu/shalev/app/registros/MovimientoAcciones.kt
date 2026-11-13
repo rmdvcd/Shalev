@@ -117,7 +117,7 @@ class MovimientoAccionesViewModel @Inject constructor(
             }
             _state.value = MovimientoAccionesUiState(
                 puede = tipoApp.tipo.value == TipoApp.PRINCIPAL &&
-                    CorreccionMovimiento.puede(i.movimiento.tipo, i.movimiento.turnoId, abierto),
+                    i.movimiento.motivo != cu.shalev.domain.model.MotivoMovimiento.COMPRA && CorreccionMovimiento.puede(i.movimiento.tipo, i.movimiento.turnoId, abierto),
             )
         }
     }

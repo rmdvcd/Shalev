@@ -27,6 +27,9 @@ interface VentaRepository {
      * Si un insumo ya no alcanza → StockInsuficiente(nombre del insumo) y rollback completo.
      */
     suspend fun registrar(venta: Venta, elaborados: List<ElaboradoEnVenta> = emptyList()): AppResult<Long>
+    /** La última comprobación de cotización se ejecuta DENTRO del mismo commit que la venta. */
+    suspend fun registrarVerificada(venta: Venta, elaborados: List<ElaboradoEnVenta>, verificar: suspend () -> AppResult<Unit>): AppResult<Long> =
+        when (val r = verificar()) { is AppResult.Err -> r; is AppResult.Ok -> registrar(venta, elaborados) }
     suspend fun obtener(id: Long): Venta?
     /** Ventas con detalle en [desde, hasta). */
     suspend fun entre(desde: Instant, hasta: Instant): List<Venta>

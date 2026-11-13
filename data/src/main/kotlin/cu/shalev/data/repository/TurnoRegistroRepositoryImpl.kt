@@ -116,7 +116,7 @@ class TurnoRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         val e = movimientos.obtener(movimientoId) ?: abortar(AppError.NoEncontrado)
         val m = e.toDomain()
         val t = turnos.activo() ?: abortar(AppError.TurnoCerrado)
-        if (!CorreccionMovimiento.puede(m.tipo, m.turnoId, t.id)) {
+        if (m.motivo == cu.shalev.domain.model.MotivoMovimiento.COMPRA || !CorreccionMovimiento.puede(m.tipo, m.turnoId, t.id)) {
             abortar(AppError.Validacion("movimiento", AppError.Regla.NO_PERMITIDO))
         }
         val diff = CorreccionMovimiento.diferencia(m.delta, delta)

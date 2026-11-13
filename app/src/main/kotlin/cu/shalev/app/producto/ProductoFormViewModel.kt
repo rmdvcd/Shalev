@@ -62,7 +62,7 @@ data class ProductoFormUiState(
         val id = ProductoFormLogic.errorIdentidad(form.id, form.nombre, form.descripcion, otros, "producto") ?: return visibles
         return visibles + (Campos.DESCRIPCION to id)
     }
-    val costoReceta get() = ProductoFormLogic.costoReceta(form.receta)
+    val costoReceta get() = ProductoFormLogic.costoReceta(form.receta)?.let { material -> cu.shalev.core.money.Money.parse(form.costoAdicional)?.let { material + it } }
     /** Insumos que aún no están en la receta (para la hoja "Agregar insumo"). */
     val insumosDisponibles: List<Insumo> get() = insumos.filter { i -> form.receta.none { it.insumoId == i.id } }
 }
@@ -152,6 +152,7 @@ class ProductoFormViewModel @Inject constructor(
     fun nombre(v: String) = editar(Campos.NOMBRE) { it.copy(nombre = v.take(80)) }
     fun descripcion(v: String) = editar(Campos.DESCRIPCION) { it.copy(descripcion = ProductoFormLogic.unaLinea(v).take(500)) }
     fun fecha(v: LocalDate?) = editar(null) { it.copy(fechaCaducidad = v) }
+    fun costoAdicional(v: String) = editar(Campos.COSTO_ADICIONAL) { it.copy(costoAdicional = v.take(16)) }
     fun precioCosto(v: String) = editar(Campos.PRECIO_COSTO) { it.copy(precioCosto = v.take(16)) }
     fun precioVenta(v: String) = editar(Campos.PRECIO_VENTA) { it.copy(precioVenta = v.take(16)) }
     fun cantidad(v: String) = editar(Campos.CANTIDAD) { it.copy(cantidad = v.take(9)) }

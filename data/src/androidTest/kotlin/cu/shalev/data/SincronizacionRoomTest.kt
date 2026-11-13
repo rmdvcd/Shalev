@@ -69,7 +69,9 @@ class SincronizacionRoomTest {
     private fun bd() = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), ShalevDatabase::class.java).build()
 
     private val dbP = bd()
-    private val prefsP = RespaldoRoomTest.PrefsEnMemoria()
+    private val contexto = ApplicationProvider.getApplicationContext<android.content.Context>()
+    private val ds = cu.shalev.data.local.SecureDataStore(contexto, cu.shalev.data.security.KeystoreAead(contexto))
+    private val prefsP = cu.shalev.data.repository.PreferenciasRepositoryImpl(ds, dbP)
     private val fotosP = cu.shalev.data.foto.FotosLocal(ApplicationProvider.getApplicationContext(), clock)
     private val almP = AlmacenSync(dbP, prefsP, clock, fotosP)
     private val productosP = ProductoRepositoryImpl(dbP, clock)
@@ -78,7 +80,7 @@ class SincronizacionRoomTest {
     private val ejecutor = EjecutorComandos(dbP, productosP, insumosP, ServicioRepositoryImpl(dbP, clock), PreciosRepositoryImpl(dbP), clock)
 
     private val dbS = bd()
-    private val prefsS = RespaldoRoomTest.PrefsEnMemoria()
+    private val prefsS = cu.shalev.data.repository.PreferenciasRepositoryImpl(ds, dbS)
     private val fotosS = cu.shalev.data.foto.FotosLocal(ApplicationProvider.getApplicationContext(), clock)
     private val almS = AlmacenSync(dbS, prefsS, clock, fotosS)
     private val productosS = ProductoRepositoryImpl(dbS, clock)
@@ -288,9 +290,7 @@ class SincronizacionRoomTest {
         val lote = almS.lotePendiente()
 
         ok(almP.aplicarLote(luis.id, lote))
-        val rec = ok(almP.aplicarLote(ana.id, lote))                         // mismo uuid desde otra app
-        assertTrue(rec.turnos.isEmpty())
-        assertEquals(lote.ventas.map { it.uuid }, rec.ventas)                // la venta ya estaba (de Luis): no se duplica
+        assertEquals(AppResult.Err(cu.shalev.core.result.AppError.SinPermiso), almP.aplicarLote(ana.id, lote)) // no se acepta ni se confirma el UUID de otra app
         assertEquals(luis.id, dbP.syncDao().turnoPorUuid(lote.turnos.single().uuid)!!.empleadoId)
         assertEquals(9L, productosP.obtener(p)!!.cantidad)
     }

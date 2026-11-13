@@ -147,9 +147,9 @@ class EjecutorComandos @Inject constructor(
     }
 
     private suspend fun validarAlcance(a: Accion, local: String) {
-        suspend fun producto(id: Long) { if (db.productoDao().obtener(id)?.local != local) abortar(AppError.SinPermiso) }
-        suspend fun insumo(id: Long) { if (db.insumoDao().obtener(id)?.local != local) abortar(AppError.SinPermiso) }
-        suspend fun servicio(id: Long) { if (db.servicioDao().obtener(id)?.local != local) abortar(AppError.SinPermiso) }
+        suspend fun producto(id: Long) { val fila = db.productoDao().obtener(id) ?: abortar(AppError.NoEncontrado); if (fila.local != local) abortar(AppError.SinPermiso) }
+        suspend fun insumo(id: Long) { val fila = db.insumoDao().obtener(id) ?: abortar(AppError.NoEncontrado); if (fila.local != local) abortar(AppError.SinPermiso) }
+        suspend fun servicio(id: Long) { val fila = db.servicioDao().obtener(id) ?: abortar(AppError.NoEncontrado); if (fila.local != local) abortar(AppError.SinPermiso) }
         suspend fun preajuste(id: Long) {
             val p = db.preciosDao().todos().firstOrNull { it.preajuste.id == id }?.toDomain() ?: abortar(AppError.NoEncontrado)
             p.productoIds.forEach { producto(it) }; p.servicioIds.forEach { servicio(it) }

@@ -93,6 +93,7 @@ class AccionesForm(
     val onFoto: (String) -> Unit = {},
     val onFecha: (java.time.LocalDate?) -> Unit = {},
     val onCosto: (String) -> Unit = {},
+    val onCostoAdicional: (String) -> Unit = {},
     val onVenta: (String) -> Unit = {},
     val onCantidad: (String) -> Unit = {},
     val onBajo: (String) -> Unit = {},
@@ -136,7 +137,7 @@ fun ProductoFormScreen(
             onElegirFoto = { elegirFoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onQuitarFoto = viewModel::quitarFoto, onFoto = { viewModel.fotoElegida(it) }, onFecha = viewModel::fecha, onCosto = viewModel::precioCosto,
             onVenta = viewModel::precioVenta, onCantidad = viewModel::cantidad, onBajo = viewModel::nivelBajo,
-            onCritico = viewModel::nivelCritico,
+            onCritico = viewModel::nivelCritico, onCostoAdicional = viewModel::costoAdicional,
             onMostrarInsumos = viewModel::mostrarInsumos, onAgregarInsumo = viewModel::agregarInsumo,
             onCantidadInsumo = viewModel::cantidadInsumo, onQuitarInsumo = viewModel::quitarInsumo,
             onGuardar = viewModel::guardar, onBack = onBack,
@@ -224,9 +225,11 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
         }
 
         if (f.esElaborado) {
+            ShalevTextField(f.costoAdicional, a.onCostoAdicional, label = "Mano de obra y otros costos (CUP)", filtro = FiltroEntrada.DINERO,
+                isError = Campos.COSTO_ADICIONAL in err, errorText = err[Campos.COSTO_ADICIONAL], supportingText = "Costo adicional de UNA unidad, además de los insumos")
             ShalevCard(tone = CardTone.Tonal) {
                 Text("Precio de costo: ${state.costoReceta?.let(Money::format) ?: "—"}", style = MaterialTheme.typography.bodyLarge)
-                ShalevSecondaryText("Sale de la receta")
+                ShalevSecondaryText("Receta + mano de obra y otros costos")
             }
         } else {
             ShalevTextField(

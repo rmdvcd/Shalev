@@ -49,6 +49,11 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         registrarEnTx(venta, elaborados)
     }
 
+    override suspend fun registrarVerificada(venta: Venta, elaborados: List<ElaboradoEnVenta>, verificar: suspend () -> AppResult<Unit>): AppResult<Long> = db.tx {
+        when (val r = verificar()) { is AppResult.Err -> abortar(r.error); is AppResult.Ok -> Unit }
+        registrarEnTx(venta, elaborados)
+    }
+
     /** Cuerpo de [registrar]; debe llamarse dentro de una transacción. */
     private suspend fun registrarEnTx(venta: Venta, elaborados: List<ElaboradoEnVenta>): Long {
         if (venta.detalles.isEmpty()) abortar(AppError.Validacion("detalles", AppError.Regla.REQUERIDO))

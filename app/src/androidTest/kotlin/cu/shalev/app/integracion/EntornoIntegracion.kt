@@ -86,7 +86,10 @@ class EntornoIntegracion(licencia: LicenseState = LicenseState.Trial(5)) {
             pagoTarjetaId = 1, pagoTelefonoId = 2,
         ),
     )
-    val prefs = PrefRepo(Preferencias(onboardingCompletado = true))
+    private val contexto = ApplicationProvider.getApplicationContext<android.content.Context>()
+    val prefs = cu.shalev.data.repository.PreferenciasRepositoryImpl(
+        cu.shalev.data.local.SecureDataStore(contexto, cu.shalev.data.security.KeystoreAead(contexto)), db,
+    ).also { kotlinx.coroutines.runBlocking { it.completarOnboarding() } }
     val licencia = LicMem(licencia, clock)
     val conf = ConfRepo()
     val archivos = FakeArchivos()

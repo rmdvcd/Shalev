@@ -67,7 +67,9 @@ class AlmacenSync @Inject constructor(
 
     // ================================================================== principal
 
-    suspend fun instantanea(empleado: EmpleadoEntity, nombreNegocio: String, licencia: LicenciaDto): AppResult<Instantanea> = db.tx {
+    suspend fun instantanea(empleado: EmpleadoEntity, nombreNegocio: String, licencia: LicenciaDto): AppResult<Instantanea> {
+        val pref = preferencias.preferencias.first().toDto()
+        return db.tx {
         val perfilDao = db.perfilDao()
         val perfil = perfilDe(perfilDao.obtener(), perfilDao.tarjetas(), perfilDao.telefonos())
         // v16: la secundaria recibe solo el catálogo del local activo; el suyo (un único local) lo sustituye entero.
@@ -102,7 +104,9 @@ class AlmacenSync @Inject constructor(
             // Solo lo necesario para cobrar por transferencia: ni nombre ni carné del dueño, y (0.20.0, H4) solo la
             // tarjeta y el teléfono con los que cobra ESTE empleado.
             perfil = perfil.paraEmpleado(empleado.tarjetaId, empleado.telefonoId, empleado.telefono).toDto().copy(nombre = "", apellidos = "", ci = ""),
-            preferencias = preferencias.preferencias.first().toDto(),
+            preferencias = db.gestionDao().configuracion()?.preferenciasJson?.let {
+                cu.shalev.data.local.ShalevJson.decodeFromString(cu.shalev.data.dto.PreferenciasDto.serializer(), it)
+            } ?: pref,
             // 0.32.0: las fotos del catálogo. Los bytes no van aquí: la secundaria los pide por bloques.
             fotos = fotosDe(
                 productos.filterNot { it.eliminado }.map { Triple("producto", it.id, it.fotoUri) } +
@@ -110,6 +114,7 @@ class AlmacenSync @Inject constructor(
             ),
             local = local, localId = ubicacion.id,
         )
+    }
     }
 
     /** La asignación se fija una vez; el selector de la principal no cambia el origen del empleado. */
@@ -361,19 +366,21 @@ class AlmacenSync @Inject constructor(
 
     /** Marca lo recibido y, si llegó catálogo nuevo, lo pone en lugar del local. */
     suspend fun aplicarEnSecundaria(r: Recibidos, inst: Instantanea?): AppResult<Unit> {
-        val res = db.tx {
+        val actual = preferencias.preferencias.first()
+        return db.tx {
             r.ventas.chunked(500).forEach { sync.marcarVentasRecibidas(it) }
             r.caja.chunked(500).forEach { db.cajaDao().marcarRecibidos(it) }
             r.turnos.forEach { sync.marcarTurnoRecibido(it.uuid, it.cerrado) }
             if (inst != null) reemplazarCatalogo(inst)
+            inst?.preferencias?.let { recibidas ->
+                val previa = db.gestionDao().configuracion()?.preferenciasJson?.let {
+                    cu.shalev.data.local.ShalevJson.decodeFromString(cu.shalev.data.dto.PreferenciasDto.serializer(), it).toDomain()
+                } ?: actual
+                val pref = previa.copy(niveles = recibidas.toDomain().niveles, modulos = recibidas.toDomain().modulos)
+                db.gestionDao().guardarConfiguracion(cu.shalev.data.db.entity.ConfiguracionNegocioEntity(preferenciasJson =
+                    cu.shalev.data.local.ShalevJson.encodeToString(cu.shalev.data.dto.PreferenciasDto.serializer(), pref.toDto())))
+            }
         }
-        if (res is AppResult.Ok && inst?.preferencias != null) {
-            val actual = preferencias.preferencias.first()
-            // 0.21.0 (C12): también los módulos del negocio (lo que el dueño no usa tampoco aparece aquí).
-            val recibidas = inst.preferencias.toDomain()
-            preferencias.reemplazar(actual.copy(niveles = recibidas.niveles, modulos = recibidas.modulos))
-        }
-        return res
     }
 
     private suspend fun reemplazarCatalogo(inst: Instantanea) {

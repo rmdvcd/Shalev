@@ -37,7 +37,7 @@ data class ProductoForm(
     val cantidad: String = "",
     val nivelBajo: String = "",
     val nivelCritico: String = "",
-    val costoAdicional: Cup = Cup.ZERO,
+    val costoAdicional: String = "0",
 ) {
     val esElaborado: Boolean get() = Categorias.esElaborado(categoria)
 }
@@ -47,6 +47,7 @@ object Campos {
     const val NOMBRE = "nombre"
     const val DESCRIPCION = "descripcion"
     const val RECETA = "receta"
+    const val COSTO_ADICIONAL = "costoAdicional"
     const val PRECIO_COSTO = "precioCosto"
     const val PRECIO_VENTA = "precioVenta"
     const val CANTIDAD = "cantidad"
@@ -71,7 +72,8 @@ object ProductoFormLogic {
      */
     fun validar(f: ProductoForm): Map<String, String> {
         val e = linkedMapOf<String, String>()
-        val costo = if (f.esElaborado) costoReceta(f.receta)?.plus(f.costoAdicional) ?: Cup.ZERO else Money.parse(f.precioCosto)
+        if (f.esElaborado && Money.parse(f.costoAdicional)?.let { it >= Cup.ZERO } != true) e[Campos.COSTO_ADICIONAL] = "Escribe un costo adicional de 0 o más, con hasta dos decimales."
+        val costo = if (f.esElaborado) costoReceta(f.receta)?.plus(Money.parse(f.costoAdicional) ?: Cup.ZERO) ?: Cup.ZERO else Money.parse(f.precioCosto)
         if (!f.esElaborado) {
             when {
                 f.precioCosto.isBlank() -> e[Campos.PRECIO_COSTO] = "Escribe el precio de costo."
@@ -107,7 +109,7 @@ object ProductoFormLogic {
     /** Producto listo para guardar, o null si el formulario tiene errores. */
     fun aProducto(f: ProductoForm, ahora: Instant): Pair<Producto, Receta?>? {
         if (validar(f).isNotEmpty()) return null
-        val costo = if (f.esElaborado) costoReceta(f.receta)!! + f.costoAdicional else Money.parse(f.precioCosto)!!
+        val costo = if (f.esElaborado) costoReceta(f.receta)!! + Money.parse(f.costoAdicional)!! else Money.parse(f.precioCosto)!!
         val p = producto(f, costo, Money.parse(f.precioVenta)!!, if (f.esElaborado) 0 else entero(f.cantidad)!!, f.creadoEn ?: ahora)
         val receta = if (f.esElaborado) Receta(f.id, f.receta.map { RecetaLinea(it.insumoId, Cantidad.parse(it.cantidad)!!) }) else null
         return p to receta
@@ -129,7 +131,7 @@ object ProductoFormLogic {
         cantidad = p.cantidad.toString(),
         nivelBajo = p.nivelBajo?.toString().orEmpty(),
         nivelCritico = p.nivelCritico?.toString().orEmpty(),
-        costoAdicional = p.costoAdicional,
+        costoAdicional = Money.editar(p.costoAdicional),
     )
 
     // ---------------- 0.24.0: Descripción e identificación ----------------
@@ -215,7 +217,7 @@ object ProductoFormLogic {
         nivelBajo = entero(f.nivelBajo).takeUnless { f.esElaborado },
         nivelCritico = entero(f.nivelCritico).takeUnless { f.esElaborado },
         creadoEn = creado,
-        costoAdicional = f.costoAdicional.takeIf { f.esElaborado } ?: Cup.ZERO,
+        costoAdicional = Money.parse(f.costoAdicional).takeIf { f.esElaborado } ?: Cup.ZERO,
     )
 
     /** Entero ≥ 0 (unidades). */

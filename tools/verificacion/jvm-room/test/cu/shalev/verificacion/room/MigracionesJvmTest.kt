@@ -23,7 +23,7 @@ class MigracionesJvmTest {
     private val archivo: File = JdbcOpenHelper.archivo(BD)
     private val esquema: JSONObject by lazy {
         val dir = System.getProperty("shalev.esquemas") ?: error("falta -Dshalev.esquemas=<data/schemas/cu.shalev.data.db.ShalevDatabase>")
-        JSONObject(File(dir, "${ShalevDatabase.VERSION}.json").readText()).getJSONObject("database")
+        JSONObject(File(dir, "12.json").readText()).getJSONObject("database")
     }
 
     @After fun limpiar() { archivo.delete() }
@@ -40,7 +40,7 @@ class MigracionesJvmTest {
 
     private fun <T> abrirConRoom(bloque: (SupportSQLiteDatabase) -> T): T {
         val room = Room.databaseBuilder(ApplicationProvider.getApplicationContext(), ShalevDatabase::class.java, archivo.absolutePath)
-            .addMigrations(ShalevDatabase.MIGRACION_3_4, ShalevDatabase.MIGRACION_4_5, ShalevDatabase.MIGRACION_5_6, ShalevDatabase.MIGRACION_6_7, ShalevDatabase.MIGRACION_7_8, ShalevDatabase.MIGRACION_8_9, ShalevDatabase.MIGRACION_9_10, ShalevDatabase.MIGRACION_10_11, ShalevDatabase.MIGRACION_11_12, ShalevDatabase.MIGRACION_12_13)
+            .addMigrations(ShalevDatabase.MIGRACION_3_4, ShalevDatabase.MIGRACION_4_5, ShalevDatabase.MIGRACION_5_6, ShalevDatabase.MIGRACION_6_7, ShalevDatabase.MIGRACION_7_8, ShalevDatabase.MIGRACION_8_9, ShalevDatabase.MIGRACION_9_10, ShalevDatabase.MIGRACION_10_11, ShalevDatabase.MIGRACION_11_12, ShalevDatabase.MIGRACION_12_13, ShalevDatabase.MIGRACION_13_14, ShalevDatabase.MIGRACION_14_15, ShalevDatabase.MIGRACION_15_16, ShalevDatabase.MIGRACION_16_17, ShalevDatabase.MIGRACION_17_18)
             .allowMainThreadQueries().build()
         try {
             return bloque(room.openHelper.writableDatabase) // abrir = migrar + validar

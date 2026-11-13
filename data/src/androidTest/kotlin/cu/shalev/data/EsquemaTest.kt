@@ -74,6 +74,26 @@ class EsquemaTest {
     }
 
     @Test
+    fun migracion17a18ConservaElNegocioYFijaIdentidadDelLocalDelEmpleado() {
+        helper.createDatabase(BD, 17).apply {
+            execSQL("INSERT INTO almacen_local(nombre,inventario,servicios) VALUES ('Tienda',1,1)")
+            execSQL("INSERT INTO producto(categoria,nombre,precioCostoCent,precioVentaCent,cantidad,creadoEn,actualizadoEn,eliminado,local) VALUES ('Bebidas','Refresco',125,250,7,0,0,0,'Tienda')")
+            execSQL("INSERT INTO empleado(id,nombre,permisos,creadoEn,activo) VALUES (3,'Ana','EDITAR_INVENTARIO',0,1)")
+            execSQL("INSERT INTO turno(abiertoEn,empleadoId,local) VALUES (0,3,'Tienda')")
+            close()
+        }
+        helper.runMigrationsAndValidate(BD, 18, true, ShalevDatabase.MIGRACION_17_18).use { db ->
+            db.query("SELECT cantidad,precioCostoCent,costoAdicionalCent FROM producto").use { c ->
+                assertTrue(c.moveToFirst()); assertEquals(7L,c.getLong(0)); assertEquals(125L,c.getLong(1)); assertEquals(0L,c.getLong(2))
+            }
+            db.query("SELECT e.localId = l.id, length(l.id) FROM empleado e JOIN almacen_local l ON l.nombre = 'Tienda'").use { c ->
+                assertTrue(c.moveToFirst()); assertEquals(1,c.getInt(0)); assertEquals(32,c.getInt(1))
+            }
+            db.query("SELECT COUNT(*) FROM ficha_costo").use { c -> assertTrue(c.moveToFirst()); assertEquals(0,c.getInt(0)) }
+        }
+    }
+
+    @Test
     fun migracion12a13ConservaCajaYAnadeConteoNulo() {
         helper.createDatabase(BD, 12).apply {
             execSQL("INSERT INTO turno (abiertoEn, abiertoPor, fondoCent, contadoCent) VALUES (1000, 'Ana', 10000, 12000)")

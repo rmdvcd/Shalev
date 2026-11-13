@@ -211,10 +211,16 @@ class RegistrarVenta @Inject constructor(
             val p = perfil.perfil.first()
             transaccion(t, now, cot.total, p.tarjetaPago?.numero, p.telefonoPago?.numero)
         }
-        return ventas.registrar(
+        return ventas.registrarVerificada(
             Venta(turnoId = turno.id, fecha = now, metodoPago = metodo, detalles = cot.detalles, transaccion = transaccion),
             elaborados,
-        )
+        ) {
+            when (val vigente = cotizar.planificar(lineas, metodo)) {
+                is AppResult.Err -> vigente
+                is AppResult.Ok -> if (vigente.value.cotizacion == cot && vigente.value.elaborados() == AppResult.Ok(elaborados)) AppResult.Ok(Unit)
+                    else AppResult.Err(AppError.Validacion("cotizacion", AppError.Regla.NO_PERMITIDO))
+            }
+        }
     }
 }
 
