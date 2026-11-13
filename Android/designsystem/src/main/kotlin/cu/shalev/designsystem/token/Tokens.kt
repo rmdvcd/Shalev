@@ -18,11 +18,16 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 
-/** Rejilla de 8dp: todo margen y separación es múltiplo de 8. */
+/** Escala Shalev de espaciado con base 4dp; se conservan los valores de los tokens existentes. */
 object ShalevSpacing {
+    val xxs = 4.dp
     val xs = 8.dp
+    val sm = 12.dp
     val md = 16.dp
     val lg = 24.dp
+    val xl = 32.dp
+    val xxl = 48.dp
+    val xxxl = 80.dp
 }
 
 object ShalevRadius {
@@ -122,6 +127,8 @@ object ShalevFontScale {
  * añaden un zoom sutil al fundido; las salidas siguen inmediatas con [muelle].
  */
 object ShalevMotion {
+    /** Guía visual: respuesta de pulsación inmediata, sin interpolar el estado de pointerdown. */
+    const val PRESS_SCALE = 0.97f
     const val FAST = 150
     const val SHORT = 200
     const val MEDIUM = 250

@@ -15,6 +15,10 @@ DShalev es un **servidor web local en Python** pensado para ejecutarse en Window
 
 Los locales independientes por arranque son una función inicial; el selector gráfico, la administración integral y la sincronización por local siguen pendientes. La paridad completa de gráficos, licencias y herramientas con Android también sigue pendiente.
 
+## Diseño visual y accesibilidad
+
+`dshalev/static/app.css` mantiene la paleta Shalev existente y expone tokens semánticos de superficie, texto, borde, acento y estados para los temas claro y oscuro. Los objetivos táctiles principales (botones, campos, enlaces de acción, controles desplegables y nav) miden al menos 44 px; los enlaces de texto usan el acento y subrayado. El foco de teclado conserva un contorno de 3 px y `prefers-reduced-motion` elimina las transiciones. Las pulsaciones usan una escala inmediata de 0.97. En tema oscuro, tarjetas y paneles se separan con superficies tonales, no con sombras negras. La escala base 4 está tokenizada en Web y Android; la geometría heredada fuera de ella se conserva sin migración automática. `blur-glass` y varios campos de la guía siguen vacíos, así que no se inventan. Tampoco se sustituyen la tipografía, los radios o el layout Shalev por los ejemplos de la plantilla.
+
 ## Inventario y ventas con trazabilidad
 
 - Las existencias, los niveles bajo/crítico y los consumos de recetas se calculan en enteros de milésimas. Las columnas decimales antiguas se conservan como compatibilidad de lectura; no se usan para las operaciones de stock. La migración normaliza los saldos existentes a 0.001, conserva el valor anterior en el motivo del movimiento de apertura y no inventa movimientos históricos que la base previa no guardaba.

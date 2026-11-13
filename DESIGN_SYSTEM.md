@@ -111,15 +111,20 @@ La escala es más pequeña que la de M3 por defecto: la interfaz es densa y de t
 - Todos los tamaños están en `sp`, así que respetan el tamaño de fuente que el usuario elija en el sistema.
 - **Letra grande:** `letraGrande()` es true cuando la escala de fuente del sistema es ≥ `ShalevFontScale.GRANDE` (1.3). Entonces los botones no tienen alto máximo y su etiqueta puede ocupar 2 líneas, y `ShalevListItem` pone el valor debajo del título.
 
-## 3. Espaciado: rejilla de 8dp
+## 3. Espaciado: escala base 4dp
 
-| Token | Valor | Uso |
-|---|---|---|
-| `ShalevSpacing.xs` | 8dp | Separación interna (icono–texto, entre chips) |
-| `ShalevSpacing.md` | 16dp | Padding de pantalla y de card, separación entre bloques |
-| `ShalevSpacing.lg` | 24dp | Pantallas completas (bloqueo, onboarding) |
+| Token | Valor |
+|---|---:|
+| `ShalevSpacing.xxs` | 4dp |
+| `ShalevSpacing.xs` | 8dp |
+| `ShalevSpacing.sm` | 12dp |
+| `ShalevSpacing.md` | 16dp |
+| `ShalevSpacing.lg` | 24dp |
+| `ShalevSpacing.xl` | 32dp |
+| `ShalevSpacing.xxl` | 48dp |
+| `ShalevSpacing.xxxl` | 80dp |
 
-No hay valores intermedios (4, 12, 20…).
+La escala Android se amplía según la guía. Los tokens existentes `xs`, `md` y `lg` conservan sus valores y usos; añadir los demás no migra automáticamente los espaciados ya aplicados en pantallas.
 
 ## 4. Radios, elevación, tamaños y motion
 
@@ -138,6 +143,8 @@ No hay valores intermedios (4, 12, 20…).
   - Botón: entre 40 y 48dp de alto (`buttonMin`/`buttonMax`).
   - Campo de texto: 56dp.
   - Área táctil: 48dp como mínimo.
+  - Pulsación: `ShalevMotion.PRESS_SCALE` = 0.97, aplicada directamente desde `PressInteraction` (sin interpolar el pointerdown); no cambia el área táctil.
+  - **Altura visual Android:** se conserva el mínimo de 40dp (rango 40–48dp) para botones con texto y el área táctil mínima de 48dp. Web usa 44px según la guía; se mantienen deliberadamente como criterios por plataforma.
   - Iconos: 24dp, o 18dp en la versión pequeña.
   - Logo: 72dp en bloqueo y onboarding. **0.27.0:** ya no aparece en la TopBar ni en diálogos u hojas.
   - `fotoFormulario` = 112dp (0.27.0): foto centrada al principio de Nuevo producto/servicio (`SelectorFoto`).
@@ -146,6 +153,7 @@ No hay valores intermedios (4, 12, 20…).
   - `fabClearance` = 88dp (hueco al final de las listas con FAB), `qr` = 240dp, `campoCantidad` = 112dp, `contentMaxWidth` = 600dp (ancho máximo de formularios, con `Modifier.shalevContentWidth()`).
   - Billete CUP del arqueo (plan UI/UX/IX 2026-11, SK-6): `ShalevRadius.billeteCup` = 6dp, `billeteCupAncho` = 88dp, `billeteCupAlto` = 40dp, `billeteCupBorde` = 0.8dp (antes literales en `CajaUi.kt`).
 - **Motion** (`ShalevMotion`). Los tokens reúnen las transiciones propias; Material también anima algunos componentes. Sin bucles con `delay(16)`: Compose sigue el refresco real y la escala de animación del sistema. Las ventanas centradas recorren media altura al entrar y al salir; los gráficos se funden al actualizar datos sin reiniciar su entrada.
+  - Pulsación inmediata: `PRESS_SCALE` = 0.97 desde `PressInteraction`; la escala se aplica directamente, sin bloquear ni interpolar el `pointerdown`.
   - Duraciones: `FAST` 150, `SHORT` 200, `MEDIUM` 250 y `LONG` 250 ms (antes 300).
   - `muelle()`: `spring(DampingRatioNoBouncy, StiffnessMediumLow)` para lo que cambia de tamaño o posición (botones con `loading`, barra inferior).
   - `ventanaEntra`/`ventanaSale` (N4): diálogos y hojas suben desde abajo hasta el centro con fundido (muelle) y, al cerrarse, bajan con fundido (200 ms); el velo aparece detrás.

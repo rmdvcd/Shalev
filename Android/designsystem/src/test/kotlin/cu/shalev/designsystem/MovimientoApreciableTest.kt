@@ -13,6 +13,10 @@ import org.junit.Test
  * nota es el desplazamiento lateral al deslizar entre secciones.
  */
 class MovimientoApreciableTest {
+    @Test fun laPulsacionUsaLaEscalaInmediataDeLaGuia() {
+        assertEquals(0.97f, ShalevMotion.PRESS_SCALE)
+    }
+
     @Test fun muelleDeEntradaBlandoConLeveAsentamiento() {
         val muelle = ShalevMotion.muelleEntrada<Float>()
         assertEquals(350f, muelle.stiffness)
