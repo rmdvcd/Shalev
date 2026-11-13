@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -62,12 +63,13 @@ class InventarioViewModelTest {
     private fun TestScope.vm(
         alerta: TipoAlerta? = null,
         saved: SavedStateHandle = SavedStateHandle(),
+        repo: cu.shalev.domain.repository.ProductoRepository = productos,
     ): InventarioViewModel {
         alerta?.let(AlertaPendiente::pedir)
         val vm = InventarioViewModel(
             saved = saved,
-            observarInventario = ObservarInventario(productos, insumosInv, prefs, reloj, Dispatchers.Unconfined),
-            productosRepo = productos,
+            observarInventario = ObservarInventario(repo, insumosInv, prefs, reloj, Dispatchers.Unconfined),
+            productosRepo = repo,
             obtenerFicha = ObtenerFichaProducto(productos, InsRepo(), prefs, reloj),
             eliminarProductos = EliminarProductos(productos),
             insumosRepo = insumosInv,
@@ -95,6 +97,27 @@ class InventarioViewModelTest {
             prod(2, "Galletas", cantidad = 3, categoria = "Dulces"),
             prod(3, "Café molido", cantidad = 0, categoria = "Víveres"),
         )
+    }
+
+    @Test fun reintentarElMismoFiltroRecuperaListaYSeleccionTrasUnError() = runTest {
+        cargar()
+        var fallar = true
+        val repo = object : cu.shalev.domain.repository.ProductoRepository by productos {
+            override fun observarTodos() = kotlinx.coroutines.flow.flow {
+                if (fallar) error("fallo de lectura simulado")
+                emitAll(productos.observarTodos())
+            }
+        }
+        val vm = vm(repo = repo)
+        assertTrue(vm.state.value.vista is EstadoCarga.Error)
+        val filtro = vm.state.value.filtro
+        fallar = false
+        vm.reintentar()
+        assertEquals(filtro, vm.state.value.filtro)
+        assertTrue(vm.state.value.vista is EstadoCarga.Exito)
+        vm.alternar(1)
+        assertEquals(setOf(1L), vm.state.value.seleccion)
+        assertEquals(1L, vm.state.value.elementosFijados.single().producto.id)
     }
 
     @Test fun vacioSinProductosYOrdenCronologico() = runTest {

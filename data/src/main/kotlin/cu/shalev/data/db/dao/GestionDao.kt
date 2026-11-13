@@ -47,6 +47,10 @@ interface GestionDao {
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun importarConsumos(consumos: List<LoteConsumoEntity>)
     @Query("SELECT * FROM lote_consumo WHERE ventaId = :ventaId") suspend fun consumosDe(ventaId: Long): List<LoteConsumoEntity>
     @Query("DELETE FROM lote_consumo WHERE ventaId = :ventaId") suspend fun borrarConsumosDe(ventaId: Long)
+    @Query("SELECT * FROM lote_consumo WHERE movimientoId = :movimientoId ORDER BY id DESC") suspend fun consumosDeMovimiento(movimientoId: Long): List<LoteConsumoEntity>
+    @Query("DELETE FROM lote_consumo WHERE id = :id") suspend fun borrarConsumo(id: Long)
+    @Update suspend fun actualizarConsumo(consumo: LoteConsumoEntity)
+    @Query("SELECT EXISTS(SELECT 1 FROM lote_inventario WHERE entidad = :entidad AND entidadId = :entidadId)") suspend fun tieneLotes(entidad: String, entidadId: Long): Boolean
     @Query("SELECT * FROM recepcion WHERE uuid = :uuid") suspend fun recepcion(uuid: String): RecepcionEntity?
     @Query("SELECT * FROM lote_inventario WHERE recepcionId = :uuid") suspend fun lotesDeRecepcion(uuid: String): List<LoteInventarioEntity>
     @Query("SELECT * FROM recepcion") suspend fun recepciones(): List<RecepcionEntity>

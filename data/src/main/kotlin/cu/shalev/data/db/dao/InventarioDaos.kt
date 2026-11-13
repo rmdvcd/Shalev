@@ -37,7 +37,7 @@ interface ProductoDao {
      * Suma condicional y atómica: 0 filas afectadas = no existe, eliminado o una resta que dejaría negativo.
      * Sumar siempre se permite (0.21.6: antes, con existencia negativa, una entrada también se rechazaba).
      */
-    @Query("UPDATE producto SET cantidad = cantidad + :delta, actualizadoEn = :ahora WHERE id = :id AND eliminado = 0 AND (:delta >= 0 OR cantidad + :delta >= 0)")
+    @Query("UPDATE producto SET cantidad = cantidad + :delta, actualizadoEn = :ahora WHERE id = :id AND eliminado = 0 AND (:delta >= 0 OR cantidad + :delta >= 0) AND typeof(cantidad + :delta) = 'integer'")
     suspend fun sumarStock(id: Long, delta: Long, ahora: Long): Int
 
     @Query("UPDATE producto SET precioVentaCent = :precioCent, actualizadoEn = :ahora WHERE id = :id AND eliminado = 0")
@@ -94,7 +94,7 @@ interface InsumoDao {
     suspend fun borrar(id: Long): Int
 
     /** Resta solo si alcanza; sumar siempre se permite (0.21.6). */
-    @Query("UPDATE insumo SET cantidadMil = cantidadMil + :deltaMil, actualizadoEn = :ahora WHERE id = :id AND (:deltaMil >= 0 OR cantidadMil + :deltaMil >= 0)")
+    @Query("UPDATE insumo SET cantidadMil = cantidadMil + :deltaMil, actualizadoEn = :ahora WHERE id = :id AND (:deltaMil >= 0 OR cantidadMil + :deltaMil >= 0) AND typeof(cantidadMil + :deltaMil) = 'integer'")
     suspend fun sumarStock(id: Long, deltaMil: Long, ahora: Long): Int
 
     @Query("SELECT cantidadMil FROM insumo WHERE id = :id")

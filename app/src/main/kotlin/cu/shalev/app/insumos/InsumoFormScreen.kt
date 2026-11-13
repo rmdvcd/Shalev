@@ -163,6 +163,7 @@ private fun Formulario(state: InsumoFormUiState, a: AccionesInsumoForm, modifier
             etiqueta = InsumoFormLogic::etiqueta, onSeleccion = a.onUnidad,
             tagOpcion = InsumoFormTags::unidad,
         )
+        err[CamposInsumo.UNIDAD]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         ShalevTextField(
             filtro = FiltroEntrada.DINERO,

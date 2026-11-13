@@ -47,6 +47,8 @@ interface VentaRepository {
      * queda con el motivo «Modificada → venta #N». Devuelve el id de la nueva.
      */
     suspend fun modificar(ventaId: Long, anulacion: Anulacion, nueva: Venta, elaborados: List<ElaboradoEnVenta>): AppResult<Long>
+    suspend fun modificarVerificada(ventaId: Long, anulacion: Anulacion, nueva: Venta, elaborados: List<ElaboradoEnVenta>, verificar: suspend () -> AppResult<Unit>): AppResult<Long> =
+        when (val r = verificar()) { is AppResult.Err -> r; is AppResult.Ok -> modificar(ventaId, anulacion, nueva, elaborados) }
 
     /** 0.25.0: salidas de existencias de una venta (para devolverlas al planificar una modificación). */
     suspend fun movimientosDe(ventaId: Long): List<MovimientoInventario>

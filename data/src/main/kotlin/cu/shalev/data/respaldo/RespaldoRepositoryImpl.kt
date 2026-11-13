@@ -63,6 +63,8 @@ import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 
@@ -274,6 +276,7 @@ class RespaldoRepositoryImpl @Inject constructor(
         // en Room para no reactivar accidentalmente un JSON antiguo del DataStore.
         val prefs = c.prefs ?: preferencias.preferencias.first().toDto()
         progreso(EtapaRespaldo.IMPORTANDO)
+        currentCoroutineContext().ensureActive()
         // Sección final indivisible frente a la cancelación: si se confirma Room, se conservan sus fotos.
         // Nunca se borran archivos por una cancelación recibida al regresar del dispatcher DESPUÉS del commit.
         return withContext(kotlinx.coroutines.NonCancellable + io) {
@@ -478,7 +481,11 @@ class RespaldoRepositoryImpl @Inject constructor(
         val recepciones = c.recepciones.associateBy { it.uuid }
         check(c.lotes.map { it.id }.distinct().size == c.lotes.size && c.lotes.all { it.localId in locales && recepciones[it.recepcionId]?.localId == it.localId && it.cantidadInicialMil >= 0 && it.disponibleMil in 0..it.cantidadInicialMil && it.costoUnitarioCent >= 0 }, "lotes")
         val lotes = c.lotes.map { it.id }.toSet()
-        check(c.consumosLotes.all { it.loteId in lotes && it.ventaId in c.ventas.map { v -> v.id }.toSet() && it.cantidadMil > 0 }, "consumos de lotes")
+        val ventasIds = c.ventas.map { it.id }.toSet()
+        val movimientosIds = c.movimientos.map { it.id }.toSet()
+        check(c.consumosLotes.map { it.id }.distinct().size == c.consumosLotes.size, "consumos repetidos")
+        check(c.consumosLotes.all { it.loteId in lotes && it.cantidadMil > 0 &&
+            ((it.ventaId in ventasIds && it.movimientoId == null) || (it.ventaId == null && it.movimientoId in movimientosIds)) }, "consumos de lotes")
         check(c.revisiones.all { it.movimientoId in c.movimientos.map { m -> m.id }.toSet() && it.motivo.isNotBlank() }, "revisiones")
         check(c.imagenes.map { it.nombre }.distinct().size == c.imagenes.size, "fotos repetidas")
         var bytesFotos = 0L

@@ -59,6 +59,41 @@ class AuditoriaIntegridadTest {
         assertEquals(Cup(2_001), ventas.obtener(id)!!.detalles.single().costoUnitario)
     }
 
+    @Test fun unCambioEntreLaPrimeraLecturaYElCommitDelCobroNoSeCuela() = runBlocking {
+        productos.put(producto(1, "Pan", cantidad = 10, venta = 30, costo = 20))
+        ok(AbrirTurno(turnos, UsuarioActual(perfil), clock)(Cup.ZERO))
+        val repo = object : cu.shalev.domain.repository.VentaRepository by ventas {
+            override suspend fun registrarVerificada(venta: Venta, elaborados: List<ElaboradoEnVenta>, verificar: suspend () -> AppResult<Unit>): AppResult<Long> {
+                productos.put(productos.obtener(1)!!.copy(precioVenta = Cup(3_001)))
+                return when (val r = verificar()) { is AppResult.Err -> r; is AppResult.Ok -> ventas.registrar(venta, elaborados) }
+            }
+        }
+        val registrar = RegistrarVenta(cotizar, turnos, repo, perfil, clock)
+        assertEquals(AppResult.Err(AppError.Validacion("cotizacion", AppError.Regla.NO_PERMITIDO)), registrar(listOf(LineaSolicitada(1, 1)), MetodoPago.EFECTIVO))
+        assertTrue(ventas.ventas.isEmpty())
+        assertEquals(10L, productos.obtener(1)!!.cantidad)
+    }
+
+    @Test fun modificarRevalidaLasLineasNuevasAntesDeAnularLaOriginal() = runBlocking {
+        productos.put(producto(1, "Pan", cantidad = 10, venta = 30, costo = 20))
+        productos.put(producto(2, "Otro", cantidad = 10, venta = 30, costo = 20))
+        ok(AbrirTurno(turnos, UsuarioActual(perfil), clock)(Cup.ZERO))
+        val id = ok(registrar(listOf(LineaSolicitada(1, 1)), MetodoPago.EFECTIVO))
+        val repo = object : cu.shalev.domain.repository.VentaRepository by ventas {
+            override suspend fun modificarVerificada(id: Long, anulacion: Anulacion, nueva: Venta, elaborados: List<ElaboradoEnVenta>, verificar: suspend () -> AppResult<Unit>): AppResult<Long> {
+                productos.put(productos.obtener(2)!!.copy(precioVenta = Cup(3_001)))
+                return when (val r = verificar()) { is AppResult.Err -> r; is AppResult.Ok -> ventas.modificar(id, anulacion, nueva, elaborados) }
+            }
+        }
+        val modificar = ModificarVenta(cotizar, repo, turnos, perfil, UsuarioActual(perfil), clock, SecundariaFake())
+        val resultado = modificar(id, listOf(LineaSolicitada(1, 1), LineaSolicitada(2, 1)), MetodoPago.EFECTIVO, null, "Agregar un artículo")
+        assertEquals(AppResult.Err(AppError.Validacion("cotizacion", AppError.Regla.NO_PERMITIDO)), resultado)
+        assertFalse(ventas.obtener(id)!!.anulada)
+        assertEquals(1, ventas.ventas.size)
+        assertEquals(9L, productos.obtener(1)!!.cantidad)
+        assertEquals(10L, productos.obtener(2)!!.cantidad)
+    }
+
     @Test fun elaboradoIncluyeManoDeObraYOtrosEnCotizacionYFicha() = runBlocking {
         val i = insumo(1, "Harina", precio = 10, cantidad = 10)
         insumos.put(i)
@@ -68,6 +103,16 @@ class AuditoriaIntegridadTest {
         productos.recetas[9] = receta
         assertEquals(Cup(2_525), ok(cotizar(listOf(LineaSolicitada(9, 1)), MetodoPago.EFECTIVO)).detalles.single().costoUnitario)
         assertEquals(Cup(2_525), InsumosFiltro.disponible(p, receta, mapOf(1L to i)).costoUnidad)
+    }
+
+    @Test fun cantidadesEImportesFueraDeLongDevuelvenErrorSinDesbordarse() = runBlocking {
+        val p = producto(1, "Pan", cantidad = 10, venta = 30, costo = 20).copy(cantidad = Long.MAX_VALUE)
+        productos.put(p)
+        assertTrue(cotizar(listOf(LineaSolicitada(1, Long.MAX_VALUE), LineaSolicitada(1, 1)), MetodoPago.EFECTIVO) is AppResult.Err)
+        assertTrue(cotizar(listOf(LineaSolicitada(1, Long.MAX_VALUE)), MetodoPago.EFECTIVO) is AppResult.Err)
+        val r = Receta(1, listOf(RecetaLinea(1, Cantidad(Long.MAX_VALUE))))
+        insumos.put(insumo(1, "Harina", precio = 10, cantidad = 10))
+        assertTrue(cu.shalev.domain.service.Recetas.costo(r, mapOf(1L to insumos.obtener(1)!!)) is AppResult.Err)
     }
 
     @Test fun recepcionesExigenDatosDeOrigenYCantidadesCompatibles() {
@@ -104,4 +149,13 @@ class AuditoriaIntegridadTest {
         assertEquals(Cup(15_013), ReglasFichaCosto.precio(f))
         assertNull(ReglasFichaCosto.precio(f.copy(tasaCupPorUsd = "")))
     }
+    private class SecundariaFake : cu.shalev.domain.repository.SecundariaRepository {
+        override val estado = kotlinx.coroutines.flow.MutableStateFlow(EstadoSecundaria())
+        override suspend fun vincular(contenidoQr: String, telefono: String) = AppResult.Ok(Unit)
+        override suspend fun solicitarCierre(contado: Cup) = AppResult.Ok(Unit)
+        override suspend fun sincronizarAhora() = AppResult.Ok(Unit)
+        override suspend fun desvincular() = AppResult.Ok(Unit)
+        override suspend fun descartarAvisoCierre() = Unit
+    }
+
 }

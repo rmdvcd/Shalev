@@ -57,6 +57,8 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
     /** Cuerpo de [registrar]; debe llamarse dentro de una transacción. */
     private suspend fun registrarEnTx(venta: Venta, elaborados: List<ElaboradoEnVenta>): Long {
         if (venta.detalles.isEmpty()) abortar(AppError.Validacion("detalles", AppError.Regla.REQUERIDO))
+        if (venta.detalles.any { it.cantidad <= 0 || it.precioBase.isNegative || it.precioUnitario.isNegative || it.costoUnitario.isNegative })
+            abortar(AppError.Validacion("detalles", AppError.Regla.RANGO))
         val turno = turnos.obtener(venta.turnoId)
         if (turno == null || turno.cerradoEn != null) abortar(AppError.TurnoCerrado)
 
@@ -98,7 +100,7 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         val faltantes = mutableListOf<String>()
         // P29: insumos vendidos sueltos (unidades enteras de su medida); los servicios no tienen existencias.
         venta.detalles.filter { it.clase == ClaseArticulo.INSUMO }.groupBy { it.productoId }.forEach { (insumoId, lineas) ->
-            val mil = lineas.sumOf { it.cantidad } * MIL
+            val mil = Math.multiplyExact(lineas.fold(0L) { suma, linea -> Math.addExact(suma, linea.cantidad) }, MIL)
             val nombre = lineas.first().nombre
             insumos.obtener(insumoId) ?: abortar(AppError.NoEncontrado)
             if (insumos.sumarStock(insumoId, -mil, fecha) == 0) {
@@ -116,7 +118,7 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         }
         // Agrupa por producto: dos líneas del mismo artículo se verifican contra el total.
         venta.detalles.filter { it.clase == ClaseArticulo.PRODUCTO && it.productoId !in idsElaborados }.groupBy { it.productoId }.forEach { (productoId, lineas) ->
-            val unidades = lineas.sumOf { it.cantidad }
+            val unidades = lineas.fold(0L) { suma, linea -> Math.addExact(suma, linea.cantidad) }
             val nombre = lineas.first().nombre
             // 0.21.9 (P59): un producto borrado mientras estaba en el carrito es «ya no existe», no «sin existencias»
             // (igual que los Elaborados y servicios en consumirInsumos).
@@ -157,6 +159,13 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         nuevaId
     }
 
+    override suspend fun modificarVerificada(
+        ventaId: Long, anulacion: Anulacion, nueva: Venta, elaborados: List<ElaboradoEnVenta>, verificar: suspend () -> AppResult<Unit>,
+    ): AppResult<Long> = db.tx {
+        when (val r = verificar()) { is AppResult.Err -> abortar(r.error); is AppResult.Ok -> Unit }
+        when (val r = modificar(ventaId, anulacion, nueva, elaborados)) { is AppResult.Err -> abortar(r.error); is AppResult.Ok -> r.value }
+    }
+
     /**
      * Marca la venta y devuelve sus salidas de existencias: un movimiento ANULACION (el contrario) por cada salida.
      * Las existencias se suman sin condición (devolver nunca deja negativo); un artículo ya borrado no se toca.
@@ -174,9 +183,11 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         for (m in sync.movimientosDeVentas(listOf(ventaId)).filter { it.delta < 0 && it.tipo != TipoMovimiento.ANULACION.name }) {
             val devuelto = -m.delta
             val existencia = if (m.entidad == TipoEntidad.PRODUCTO.name) {
+                productos.cantidad(m.entidadId)?.let { Math.addExact(it, devuelto) }
                 if (sync.forzarStockProducto(m.entidadId, devuelto, fecha) == 0) continue
                 productos.cantidad(m.entidadId) ?: 0
             } else {
+                insumos.cantidad(m.entidadId)?.let { Math.addExact(it, devuelto) }
                 if (sync.forzarStockInsumo(m.entidadId, devuelto, fecha) == 0) continue
                 insumos.cantidad(m.entidadId) ?: 0
             }

@@ -222,9 +222,11 @@ class AlmacenSync @Inject constructor(
                 }
                 if (propietario != local) abortar(AppError.SinPermiso)
                 val existencia = if (m.entidad == TipoEntidad.PRODUCTO.name) {
+                    db.productoDao().cantidad(m.entidadId)?.let { Math.addExact(it, m.delta) }
                     sync.forzarStockProducto(m.entidadId, m.delta, ahora)
                     db.productoDao().cantidad(m.entidadId) ?: 0
                 } else {
+                    db.insumoDao().cantidad(m.entidadId)?.let { Math.addExact(it, m.delta) }
                     sync.forzarStockInsumo(m.entidadId, m.delta, ahora)
                     db.insumoDao().cantidad(m.entidadId) ?: 0
                 }

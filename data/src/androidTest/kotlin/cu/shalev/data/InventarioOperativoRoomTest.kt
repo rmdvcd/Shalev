@@ -130,6 +130,43 @@ class InventarioOperativoRoomTest {
         assertTrue(m.nota!!.contains("Envases rotos"))
     }
 
+    @Test fun corregirUnaMermaRestituyeSoloLosLotesDeEsaSalidaYConservaTodasLasRevisiones() = runBlocking {
+        val p = producto()
+        ok(gestion.recibir(recepcion(linea(p, 6, "L-1")), "Ana"))
+        ok(turnos.abrir(ahora, "Ana"))
+        ok(gestion.ajustar(TipoEntidad.PRODUCTO, p, Cantidad.enteras(-4), MotivoMovimiento.MERMA, "Envases rotos", "Ana"))
+        val m = db.movimientoDao().ultimoDe("PRODUCTO", p)!!
+        assertEquals(2_000L, gestion.lotes().first().single().disponible.milesimas)
+        ok(turnos.corregirMovimiento(m.id, -2, "Solo eran dos", ahora.toEpochMilli()))
+        assertEquals(4L, productos.obtener(p)!!.cantidad)
+        assertEquals(4_000L, gestion.lotes().first().single().disponible.milesimas)
+        ok(turnos.corregirMovimiento(m.id, -3, "Quedó otro roto", ahora.toEpochMilli()))
+        assertEquals(3_000L, gestion.lotes().first().single().disponible.milesimas)
+        ok(turnos.corregirMovimiento(m.id, 0, "No había roturas", ahora.toEpochMilli()))
+        assertEquals(6L, productos.obtener(p)!!.cantidad)
+        assertEquals(6_000L, gestion.lotes().first().single().disponible.milesimas)
+        assertTrue(db.gestionDao().consumosDeMovimiento(m.id).isEmpty())
+        assertEquals(listOf(-4L, -2L, -3L), db.gestionDao().revisiones().map { it.deltaAnterior })
+    }
+
+    @Test fun unaRecepcionEsInmutableAunqueSeHayaHechoEnElTurnoAbierto() = runBlocking {
+        val p = producto()
+        ok(turnos.abrir(ahora, "Ana"))
+        ok(gestion.recibir(recepcion(linea(p, 3, "L-1")), "Ana"))
+        val m = db.movimientoDao().ultimoDe("PRODUCTO", p)!!
+        assertTrue(turnos.corregirMovimiento(m.id, 1, "Cantidad distinta", ahora.toEpochMilli()) is AppResult.Err)
+        assertEquals(3L, productos.obtener(p)!!.cantidad)
+        assertEquals(3_000L, gestion.lotes().first().single().disponible.milesimas)
+        assertTrue(db.gestionDao().revisiones().isEmpty())
+    }
+
+    @Test fun unidadDeUnInsumoConHistorialNoSeReinterpretaComoOtraMedida() = runBlocking {
+        val id = ok(insumos.crear(Insumo(nombre = "Harina", unidad = UnidadMedida.KILOGRAMO, precio = Cup(100), cantidad = Cantidad(1_000), creadoEn = ahora)))
+        val i = insumos.obtener(id)!!
+        assertEquals(AppResult.Err(AppError.Validacion("unidad", AppError.Regla.NO_PERMITIDO)), insumos.actualizar(i.copy(unidad = UnidadMedida.GRAMO)))
+        assertEquals(UnidadMedida.KILOGRAMO, insumos.obtener(id)!!.unidad)
+    }
+
     @Test fun recibirInsumosAdmiteMilesimasYRecalculaCostoCompletoDelElaborado() = runBlocking {
         val i = ok(insumos.crear(Insumo(nombre = "Harina", precio = Cup(100), cantidad = Cantidad(1_000), creadoEn = ahora)))
         val p = ok(productos.crear(Producto(categoria = Categorias.ELABORADO, nombre = "Pan", precioCosto = Cup(175),
@@ -138,6 +175,14 @@ class InventarioOperativoRoomTest {
         assertEquals(Cup(150), insumos.obtener(i)!!.precio)
         assertEquals(Cup(200), productos.obtener(p)!!.precioCosto) // 0.5 × 1.50 + 1.25
         assertEquals(Cantidad(2_000), insumos.obtener(i)!!.cantidad)
+    }
+
+    @Test fun desbordarExistenciasNoLasConvierteEnRealesNiDejaMovimientos() = runBlocking {
+        val p = producto()
+        db.syncDao().forzarStockProducto(p, Long.MAX_VALUE, ahora.toEpochMilli())
+        assertTrue(productos.ajustarStock(p, 1, "No cabe en Long") is AppResult.Err)
+        assertEquals(Long.MAX_VALUE, productos.obtener(p)!!.cantidad)
+        assertTrue(db.movimientoDao().todos().isEmpty())
     }
 
     @Test fun recepcionQueCubreSaldoNegativoNoCreaDisponibilidadFicticiaDeLote() = runBlocking {

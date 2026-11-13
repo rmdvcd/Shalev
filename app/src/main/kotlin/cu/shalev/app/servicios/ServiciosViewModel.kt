@@ -130,8 +130,8 @@ class ServiciosViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EstadoCarga.Cargando)
 
     /** Todos los activos: la selección sobrevive a búsquedas/filtros y se poda si se borran. */
-    private val todos: StateFlow<Map<Long, ServicioDisponible>> = observarServicios.disponibles()
-        .catch { emit(emptyMap()) }
+    private val todos: StateFlow<Map<Long, ServicioDisponible>> = intento.flatMapLatest { observarServicios.disponibles()
+        .catch { emit(emptyMap()) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     val state: StateFlow<ServiciosUiState> = combine(vista, filtro, seleccion, todos, local) { v, f, s, t, l ->

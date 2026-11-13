@@ -16,12 +16,18 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 typealias FichaCostoGuardada = cu.shalev.domain.fichacosto.FichaCostoGuardada
 
 /** Solo estado de edición; almacenamiento, conversión y transacciones pertenecen a data/domain. */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class FichaCostoViewModel @Inject constructor(private val repo: FichaCostoRepository) : ViewModel() {
     var nombre by mutableStateOf("")
@@ -39,25 +45,34 @@ class FichaCostoViewModel @Inject constructor(private val repo: FichaCostoReposi
         private set
     val tieneDatos: Boolean get() = nombre.isNotBlank() || margen.isNotBlank() || partidas.isNotEmpty()
 
+    private val intento = MutableStateFlow(0)
+    private var original: FichaCostoGuardada? = null
+    val sinGuardar: Boolean get() = original?.let { it != fichaActual(it.id) } ?: tieneDatos
+    private fun fichaActual(id: Long) = FichaCostoGuardada(id, nombre.trim(), margen, unidadMargen, tasaCupPorUsd, partidas)
+
     init {
         viewModelScope.launch {
-            repo.observar().catch { error = "No se pudieron cargar las fichas. No se borró la copia anterior." }.collect { fichas = it }
+            intento.flatMapLatest {
+                repo.observar().onEach { error = null }
+                    .catch { error = "No se pudieron cargar las fichas. No se borró la copia anterior." }
+            }.collect { fichas = it }
         }
     }
+    fun reintentarCarga() { error = null; intento.update { it + 1 } }
     fun descartarError() { error = null }
     fun guardarPartida(indice: Int?, partida: PartidaCosto) { partidas = if (indice == null) partidas + partida else partidas.mapIndexed { i, p -> if (i == indice) partida else p } }
     fun eliminarPartida(indice: Int) { partidas = partidas.filterIndexed { i, _ -> i != indice } }
 
     suspend fun guardarFicha(): Result<String> = ejecutar {
         val id = idEdicion ?: (UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE).coerceAtLeast(1)
-        val ficha = FichaCostoGuardada(id, nombre.trim(), margen, unidadMargen, tasaCupPorUsd, partidas)
+        val ficha = fichaActual(id)
         when (val r = repo.guardar(ficha)) {
             is AppResult.Err -> fallo(r.error)
-            is AppResult.Ok -> { idEdicion = id; Result.success("Ficha guardada.") }
+            is AppResult.Ok -> { idEdicion = id; original = ficha; Result.success("Ficha guardada.") }
         }
     }
-    fun abrir(f: FichaCostoGuardada) { idEdicion = f.id; nombre = f.nombre; margen = f.margen; unidadMargen = f.unidadMargen; tasaCupPorUsd = f.tasaCupPorUsd; partidas = f.partidas }
-    fun nueva() { idEdicion = null; nombre = ""; margen = ""; unidadMargen = UnidadMargen.PORCENTAJE; tasaCupPorUsd = ""; partidas = emptyList() }
+    fun abrir(f: FichaCostoGuardada) { original = f; idEdicion = f.id; nombre = f.nombre; margen = f.margen; unidadMargen = f.unidadMargen; tasaCupPorUsd = f.tasaCupPorUsd; partidas = f.partidas }
+    fun nueva() { original = null; idEdicion = null; nombre = ""; margen = ""; unidadMargen = UnidadMargen.PORCENTAJE; tasaCupPorUsd = ""; partidas = emptyList() }
     suspend fun eliminarFicha(id: Long): Result<String> = ejecutar {
         when (val r = repo.eliminar(id)) {
             is AppResult.Err -> fallo(r.error)

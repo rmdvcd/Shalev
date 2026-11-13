@@ -54,6 +54,10 @@ class InsumoRepositoryImpl @Inject constructor(
     override suspend fun actualizar(insumo: Insumo, cantidadLeida: Cantidad?): AppResult<Unit> = db.tx {
         val viejo = insumos.obtener(insumo.id) ?: abortar(AppError.NoEncontrado)
         if (viejo.local != locales.localOperacion()) abortar(AppError.SinPermiso)
+        if (viejo.unidad != insumo.unidad.name && (viejo.cantidadMil != 0L || movimientos.ultimoDe("INSUMO", insumo.id) != null ||
+            recetas.productosQueUsan(insumo.id).isNotEmpty() || servicios.serviciosQueUsan(insumo.id).isNotEmpty() || db.gestionDao().tieneLotes("INSUMO", insumo.id))) {
+            abortar(AppError.Validacion("unidad", AppError.Regla.NO_PERMITIDO))
+        }
         val i = insumo.copy(cantidad = Cantidad(Stock.cantidadAlGuardar(cantidadLeida?.milesimas, insumo.cantidad.milesimas, viejo.cantidadMil)))
         insumos.actualizar(i.toEntity().copy(creadoEn = viejo.creadoEn, local = viejo.local))
         if (viejo.precioCent != i.precio.centavos) {
@@ -91,13 +95,13 @@ class InsumoRepositoryImpl @Inject constructor(
     }
 
     private suspend fun mov(tipo: TipoMovimiento, id: Long, nombre: String, deltaMil: Long, existenciaMil: Long, nota: String? = null) {
-        if (deltaMil < 0) db.consumirLotes(locales.localOperacion(), "INSUMO", id, Math.negateExact(deltaMil))
-        movimientos.insertar(
+        val movimientoId = movimientos.insertar(
             MovimientoEntity(
                 fecha = clock.now().toEpochMilli(), tipo = tipo.name, entidad = TipoEntidad.INSUMO.name, entidadId = id,
                 nombre = nombre, delta = deltaMil, existencia = existenciaMil, turnoId = turnos.turnoParaMovimiento(), ventaId = null, nota = nota,
                 hechoPor = hechoPorActual(), local = locales.localOperacion(),
             ),
         )
+        if (deltaMil < 0) db.consumirLotes(locales.localOperacion(), "INSUMO", id, Math.negateExact(deltaMil), movimientoId = movimientoId)
     }
 }

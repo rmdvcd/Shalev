@@ -13,7 +13,8 @@ object Recetas {
     /** Costo de 1 unidad del Elaborado = Σ precio del insumo × cantidad (HALF_UP por línea). */
     fun costo(receta: Receta, insumos: Map<Long, Insumo>): AppResult<Cup> {
         val lineas = receta.lineas.map { l -> (insumos[l.insumoId] ?: return AppResult.Err(AppError.NoEncontrado)) to l.cantidad }
-        return AppResult.Ok(lineas.sumOfCup { (i, c) -> i.precio.porMilesimas(c.milesimas) })
+        return try { AppResult.Ok(lineas.sumOfCup { (i, c) -> i.precio.porMilesimas(c.milesimas) }) }
+        catch (_: ArithmeticException) { AppResult.Err(AppError.Validacion("precioCosto", AppError.Regla.RANGO)) }
     }
 
     fun consumo(receta: Receta, unidades: Long): Map<Long, Cantidad> =

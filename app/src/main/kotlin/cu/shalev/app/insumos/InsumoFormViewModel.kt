@@ -96,7 +96,7 @@ class InsumoFormViewModel @Inject constructor(
     fun nombre(v: String) = editar(CamposInsumo.NOMBRE) { it.copy(nombre = v.take(80)) }
     fun precio(v: String) = editar(CamposInsumo.PRECIO) { it.copy(precio = v.take(16)) }
     fun cantidad(v: String) = editar(CamposInsumo.CANTIDAD) { it.copy(cantidad = v.take(12)) }
-    fun unidad(u: UnidadMedida) = editar(null) { it.copy(unidad = u) }
+    fun unidad(u: UnidadMedida) = editar(CamposInsumo.UNIDAD) { it.copy(unidad = u) }
     fun precioVenta(v: String) = editar(CamposInsumo.PRECIO_VENTA) { it.copy(precioVenta = v.take(16)) }
     fun nivelBajo(v: String) = editar(CamposInsumo.NIVEL_BAJO) { it.copy(nivelBajo = v.take(12)) }
     fun nivelCritico(v: String) = editar(CamposInsumo.NIVEL_CRITICO) { it.copy(nivelCritico = v.take(12)) }

@@ -18,11 +18,17 @@ import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class GestionInventarioViewModel @Inject constructor(
     repo: GestionInventarioRepository,
@@ -32,9 +38,16 @@ class GestionInventarioViewModel @Inject constructor(
     var aviso by mutableStateOf<String?>(null)
     var ocupado by mutableStateOf(false)
         private set
-    val articulos = repo.articulos().catch { aviso = "No se pudo cargar el catálogo." }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val recepciones = repo.recepciones().catch { aviso = "No se pudieron cargar las recepciones." }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val lotes = repo.lotes().catch { aviso = "No se pudieron cargar los lotes." }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val intento = MutableStateFlow(0)
+    var hayErrorCarga by mutableStateOf(false)
+        private set
+    private fun <T> recuperable(mensaje: String, observar: () -> Flow<List<T>>) = intento.flatMapLatest {
+        observar().catch { hayErrorCarga = true; aviso = mensaje }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val articulos = recuperable("No se pudo cargar el catálogo.", repo::articulos)
+    val recepciones = recuperable("No se pudieron cargar las recepciones.", repo::recepciones)
+    val lotes = recuperable("No se pudieron cargar los lotes.", repo::lotes)
+    fun reintentarCarga() { hayErrorCarga = false; intento.update { it + 1 } }
     var articulo by mutableStateOf<ArticuloGestion?>(null)
     var proveedor by mutableStateOf("")
     var comprobante by mutableStateOf("")

@@ -54,7 +54,8 @@ import kotlinx.coroutines.launch
 fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit, onGestionInventario: () -> Unit = {}) {
     var ayuda by remember { mutableStateOf(false) }
     var cambioAbierto by rememberSaveable { mutableStateOf(false) }
-    val modulos = cu.shalev.app.common.LocalPermisosApp.current.modulos
+    val permisos = cu.shalev.app.common.LocalPermisosApp.current
+    val modulos = permisos.modulos
     Scaffold(topBar = { ShalevTopBar(title = "Herramientas", onAyuda = { ayuda = true }, ayudaDescripcion = "Ayuda de Herramientas") }) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(ShalevSpacing.md),
@@ -63,7 +64,7 @@ fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit, onGest
             ShalevCard(onClick = onAbrirFicha) {
                 ShalevListItem("Fichas de costo", subtitle = "Crea, guarda y exporta varias fichas", leading = { Icon(ShalevIcons.FichaCosto, null) }, trailing = { Icon(ShalevIcons.Abrir, null) }, indicatorColor = null)
             }
-            if (!cu.shalev.app.common.LocalPermisosApp.current.esSecundaria && cu.shalev.app.common.LocalPermisosApp.current.verInventario) ShalevCard(onClick = onGestionInventario) {
+            if (!permisos.esSecundaria && permisos.verInventario) ShalevCard(onClick = onGestionInventario) {
                 ShalevListItem("Gestión de inventario", subtitle = "Recepciones, proveedores, lotes, caducidades y ajustes con motivo", leading = { Icon(ShalevIcons.Inventario, null) }, trailing = { Icon(ShalevIcons.Abrir, null) }, indicatorColor = null)
             }
             ShalevCard(onClick = { cambioAbierto = true }) {
@@ -100,17 +101,23 @@ fun FichaCostoScreen(
     var aviso by rememberSaveable { mutableStateOf<String?>(null) }
     var fichasExpandidas by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var totalesExpandidos by rememberSaveable { mutableStateOf(false) }
-    androidx.compose.runtime.LaunchedEffect(vm.error) { vm.error?.let { aviso = it; vm.descartarError() } }
+    val principal = !cu.shalev.app.common.LocalPermisosApp.current.esSecundaria
     val margen = CalculoFichaCosto.numero(vm.margen)
     val totales = CalculoFichaCosto.calcular(vm.partidas, margen, vm.unidadMargen)
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val salir = { if (vm.tieneDatos && vm.idEdicion == null) confirmarSalida = true else onBack() }
+    val salir = { if (vm.sinGuardar) confirmarSalida = true else onBack() }
     BackHandler(enabled = !editorAbierto && indiceEliminar == null && !confirmarSalida && !cambioAbierto) { salir() }
 
     Scaffold(modifier = Modifier.imePadding(), topBar = {
         ShalevTopBar("Fichas de costo", onBack = salir, actions = { ShalevIconAction(ShalevIcons.CalculadoraCambio, "Calculadora de cambio", onClick = { cambioAbierto = true }) })
     }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(ShalevSpacing.md), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
+            vm.error?.let { mensaje -> item {
+                ShalevCard {
+                    Text(mensaje, color = MaterialTheme.colorScheme.error)
+                    ShalevSecondaryButton("Reintentar carga", vm::reintentarCarga, ShalevIcons.Reintentar, mostrarTexto = true)
+                }
+            } }
             item { ShalevTextField(busqueda, { busqueda = it }, label = "Buscar ficha", leadingIcon = ShalevIcons.Buscar, anchoCompleto = true) }
             val visibles = vm.fichas.filter { busqueda.isBlank() || it.nombre.contains(busqueda, ignoreCase = true) }
             if (visibles.isNotEmpty()) item { Text("Fichas guardadas", style = MaterialTheme.typography.titleMedium) }
@@ -130,13 +137,13 @@ fun FichaCostoScreen(
                                 val r = vm.exportarAInventario(ficha)
                                 aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
                             }
-                        }, enabled = total != null && !vm.trabajando && !cu.shalev.app.common.LocalPermisosApp.current.esSecundaria)
+                        }, enabled = total != null && !vm.trabajando && principal)
                         ShalevIconAction(ShalevIcons.Servicios, "Exportar a Servicios", onClick = {
                             scope.launch {
                                 val r = vm.exportarAServicio(ficha)
                                 aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
                             }
-                        }, enabled = total != null && !vm.trabajando && !cu.shalev.app.common.LocalPermisosApp.current.esSecundaria)
+                        }, enabled = total != null && !vm.trabajando && principal)
                         ShalevIconAction(ShalevIcons.Eliminar, "Eliminar ${ficha.nombre}", onClick = { scope.launch { aviso = vm.eliminarFicha(ficha.id).exceptionOrNull()?.message } })
                     }
                 }
@@ -190,7 +197,7 @@ fun FichaCostoScreen(
     if (cambioAbierto) CalculadoraCambio({ cambioAbierto = false })
     if (editorAbierto) EditorPartida(indiceEdicion?.let(vm.partidas::getOrNull), { editorAbierto = false }) { vm.guardarPartida(indiceEdicion, it); editorAbierto = false }
     indiceEliminar?.let { i -> ShalevDialog(title = "¿Eliminar partida?", text = "Se quitará de esta ficha.", onDismiss = { indiceEliminar = null }, onConfirm = { vm.eliminarPartida(i); indiceEliminar = null }, confirmDescription = "Eliminar", destructive = true) }
-    if (confirmarSalida) ShalevDialog(title = "¿Salir sin guardar?", text = "La ficha nueva y sus partidas se perderán.", onDismiss = { confirmarSalida = false }, onConfirm = onBack, confirmDescription = "Salir sin guardar", confirmIcon = ShalevIcons.Salir, destructive = true)
+    if (confirmarSalida) ShalevDialog(title = "¿Salir sin guardar?", text = "Los cambios de la ficha que no guardaste se perderán.", onDismiss = { confirmarSalida = false }, onConfirm = onBack, confirmDescription = "Salir sin guardar", confirmIcon = ShalevIcons.Salir, destructive = true)
 }
 
 @Composable

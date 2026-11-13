@@ -113,14 +113,14 @@ class ProductoRepositoryImpl @Inject constructor(
         tipo: TipoMovimiento, entidadId: Long, nombre: String, delta: Long, existencia: Long,
         nota: String? = null, entidad: TipoEntidad = TipoEntidad.PRODUCTO,
     ) {
-        if (delta < 0) db.consumirLotes(locales.localOperacion(), "PRODUCTO", entidadId, Math.multiplyExact(Math.negateExact(delta), 1000L))
-        movimientos.insertar(
+        val movimientoId = movimientos.insertar(
             MovimientoEntity(
                 fecha = clock.now().toEpochMilli(), tipo = tipo.name, entidad = entidad.name, entidadId = entidadId,
                 nombre = nombre, delta = delta, existencia = existencia, turnoId = turnos.turnoParaMovimiento(), ventaId = null, nota = nota,
                 hechoPor = hechoPorActual(), local = locales.localOperacion(),
             ),
         )
+        if (delta < 0) db.consumirLotes(locales.localOperacion(), "PRODUCTO", entidadId, Math.multiplyExact(Math.negateExact(delta), 1000L), movimientoId = movimientoId)
     }
 
     private suspend fun validarRecetaLocal(receta: Receta?) {

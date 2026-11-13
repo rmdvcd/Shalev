@@ -175,10 +175,10 @@ class InventarioViewModel @Inject constructor(
      * Todos los productos activos + los insumos (id negativo, P29): la selección sobrevive a búsquedas/filtros y se
      * poda si se borran.
      */
-    private val todos: StateFlow<Map<Long, Producto>> = combine(productosRepo.observarTodos(), insumosRepo.observarTodos()) { l, xs ->
+    private val todos: StateFlow<Map<Long, Producto>> = intento.flatMapLatest { combine(productosRepo.observarTodos(), insumosRepo.observarTodos()) { l, xs ->
         l.filterNot { it.eliminado }.associateBy { it.id } + xs.map { it.comoProducto() }.associateBy { it.id }
     }
-        .catch { emit(emptyMap()) }
+        .catch { emit(emptyMap()) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     val state: StateFlow<InventarioUiState> = combine(vista, filtro, seleccion, todos, local) { v, f, s, t, l ->

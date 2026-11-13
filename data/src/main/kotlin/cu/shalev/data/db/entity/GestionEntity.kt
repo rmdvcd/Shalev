@@ -51,14 +51,15 @@ data class LoteInventarioEntity(
     val caducidad: Long?,
 )
 
-/** Asignación de salidas a lotes para devolver exactamente los mismos al anular una venta. */
+/** Asignación de salidas a lotes; pertenece a una venta O a un movimiento manual, nunca a ambos. */
 @Serializable
-@Entity(tableName = "lote_consumo", indices = [Index("ventaId"), Index("loteId")])
+@Entity(tableName = "lote_consumo", indices = [Index("ventaId"), Index("loteId"), Index("movimientoId")])
 data class LoteConsumoEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val ventaId: Long,
+    val ventaId: Long? = null,
     val loteId: String,
     val cantidadMil: Long,
+    val movimientoId: Long? = null,
 )
 
 /** Bitácora append-only de correcciones; no sustituye ni trunca el antes/después de una corrección anterior. */

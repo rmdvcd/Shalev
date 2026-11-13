@@ -58,42 +58,47 @@ object PlanificadorVenta {
         /** productoId → costo por unidad según la receta actual (solo Elaborados; sin entrada = precioCosto). */
         costosReceta: Map<Long, Cup> = emptyMap(),
     ): AppResult<Cotizacion> {
-        if (lineas.isEmpty()) return AppResult.Err(AppError.Validacion("lineas", AppError.Regla.REQUERIDO))
-        if (lineas.any { it.cantidad <= 0 }) return AppResult.Err(AppError.Validacion("cantidad", AppError.Regla.RANGO))
+        try {
+            if (lineas.isEmpty()) return AppResult.Err(AppError.Validacion("lineas", AppError.Regla.REQUERIDO))
+            if (lineas.any { it.cantidad <= 0 }) return AppResult.Err(AppError.Validacion("cantidad", AppError.Regla.RANGO))
 
-        val agrupadas = lineas.groupBy { it.productoId }.mapValues { (_, l) -> l.sumOf { it.cantidad } }
-        val items = agrupadas.map { (id, cant) ->
-            val p = productos[id]?.takeUnless { it.eliminado } ?: return AppResult.Err(AppError.NoEncontrado)
-            p to cant
-        }
-        val elaborados = items.filter { it.first.esElaborado }.associate { (p, cant) -> p.id to cant }
-        val faltantes = items.filter { (p, cant) ->
-            cant > (if (p.esElaborado) alcanza[p.id] ?: 0 else p.cantidad)
-        }.map { it.first.nombreCompleto }
-        if (faltantes.isNotEmpty()) return AppResult.Err(AppError.StockInsuficiente(faltantes))
+            val agrupadas = lineas.groupBy { it.productoId }.mapValues { (_, l) -> l.fold(0L) { suma, linea -> Math.addExact(suma, linea.cantidad) } }
+            val items = agrupadas.map { (id, cant) ->
+                val p = productos[id]?.takeUnless { it.eliminado } ?: return AppResult.Err(AppError.NoEncontrado)
+                p to cant
+            }
+            val elaborados = items.filter { it.first.esElaborado }.associate { (p, cant) -> p.id to cant }
+            val faltantes = items.filter { (p, cant) ->
+                cant > (if (p.esElaborado) alcanza[p.id] ?: 0 else p.cantidad)
+            }.map { it.first.nombreCompleto }
+            if (faltantes.isNotEmpty()) return AppResult.Err(AppError.StockInsuficiente(faltantes))
 
-        val totalBase = items.sumOfCup { (p, cant) -> p.precioVenta * cant }
-        val aplicables = preajustes.filter { pa ->
-            pa.activo && (pa.metodoPago == null || pa.metodoPago == metodoPago)
-        }
-        val ajustes = mutableMapOf<Long, Int>()
-        val detalles = items.map { (p, cant) ->
-            val bp = aplicables.filter { p.id in it.productoIds }.sumOf { it.puntosBasicos }.coerceAtLeast(-10_000)
-            if (bp != 0) ajustes[p.id] = bp
-            DetalleVenta(
-                productoId = p.id,
-                nombre = p.nombreCompleto, // 0.24.0: «Nombre · Descripción» congelado en la venta
-                categoria = p.categoria,
-                cantidad = cant,
-                precioBase = p.precioVenta,
-                precioUnitario = if (bp == 0) p.precioVenta else p.precioVenta.ajustar(bp),
-                costoUnitario = if (p.esElaborado) costosReceta[p.id] ?: p.precioCosto else p.precioCosto,
-            )
-        }
-        // Auditoría 2026-10-14 (§6.1): antes esto devolvía un error y la venta NO se podía registrar (un descuento
-        // acumulado o una receta encarecida dejaban al vendedor sin salida). Ahora se cotiza y se advierten las
-        // líneas al costo o por debajo; la decisión es del vendedor y queda visible antes de confirmar.
-        val advertencias = detalles.filter { it.precioUnitario <= it.costoUnitario }.map { it.nombre }
-        return AppResult.Ok(Cotizacion(metodoPago, detalles, ajustes, elaborados, advertencias))
+            val totalBase = items.sumOfCup { (p, cant) -> p.precioVenta * cant }
+            val aplicables = preajustes.filter { pa ->
+                pa.activo && (pa.metodoPago == null || pa.metodoPago == metodoPago)
+            }
+            val ajustes = mutableMapOf<Long, Int>()
+            val detalles = items.map { (p, cant) ->
+                val bp = aplicables.filter { p.id in it.productoIds }.fold(0) { suma, ajuste -> Math.addExact(suma, ajuste.puntosBasicos) }.coerceAtLeast(-10_000)
+                if (bp != 0) ajustes[p.id] = bp
+                DetalleVenta(
+                    productoId = p.id,
+                    nombre = p.nombreCompleto, // 0.24.0: «Nombre · Descripción» congelado en la venta
+                    categoria = p.categoria,
+                    cantidad = cant,
+                    precioBase = p.precioVenta,
+                    precioUnitario = if (bp == 0) p.precioVenta else p.precioVenta.ajustar(bp),
+                    costoUnitario = if (p.esElaborado) costosReceta[p.id] ?: p.precioCosto else p.precioCosto,
+                )
+            }
+            // Auditoría 2026-10-14 (§6.1): antes esto devolvía un error y la venta NO se podía registrar (un descuento
+            // acumulado o una receta encarecida dejaban al vendedor sin salida). Ahora se cotiza y se advierten las
+            // líneas al costo o por debajo; la decisión es del vendedor y queda visible antes de confirmar.
+            val advertencias = detalles.filter { it.precioUnitario <= it.costoUnitario }.map { it.nombre }
+            val cotizacion = Cotizacion(metodoPago, detalles, ajustes, elaborados, advertencias)
+            // Las propiedades son calculadas: validar TODOS los totales antes de exponerlos a la UI.
+            cotizacion.total; cotizacion.costo
+            return AppResult.Ok(cotizacion)
+        } catch (_: ArithmeticException) { return AppResult.Err(AppError.Validacion("importe", AppError.Regla.RANGO)) }
     }
 }

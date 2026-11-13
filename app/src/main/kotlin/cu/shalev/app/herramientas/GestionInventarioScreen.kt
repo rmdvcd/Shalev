@@ -43,6 +43,7 @@ fun GestionInventarioScreen(onBack: () -> Unit, vm: GestionInventarioViewModel =
     val principal = !LocalPermisosApp.current.esSecundaria
     Scaffold(topBar = { ShalevTopBar("Gestión de inventario", onBack = volver) }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(ShalevSpacing.md), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
+            if (vm.hayErrorCarga) item { ShalevSecondaryButton("Reintentar carga", vm::reintentarCarga, ShalevIcons.Reintentar, mostrarTexto = true) }
             item { ShalevComboBox("Ver", listOf("Recepción", "Ajuste con motivo", "Lotes y caducidades", "Recepciones registradas"), seccion, { it }, { seccion = it }) }
             if (!principal) item { ShalevSecondaryText("Las recepciones, lotes y ajustes con motivo se gestionan en la app principal.") }
             else when (seccion) {

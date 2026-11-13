@@ -15,6 +15,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
@@ -33,29 +36,32 @@ class MantenimientoRepositoryImpl @Inject constructor(
 ) : MantenimientoRepository {
 
     override suspend fun borrarTodo(): AppResult<Unit> {
-        val bd = db.tx {
-            val m = db.mantenimientoDao()
-            db.gestionDao().apply { borrarConsumos(); borrarLotes(); borrarRecepciones(); borrarRevisiones(); borrarFichas(); borrarConfiguracion()
-                guardarConfiguracion(cu.shalev.data.db.entity.ConfiguracionNegocioEntity(preferenciasJson = cu.shalev.data.local.ShalevJson.encodeToString(cu.shalev.data.dto.PreferenciasDto.serializer(), cu.shalev.data.dto.PreferenciasDto())))
+        currentCoroutineContext().ensureActive()
+        return withContext(NonCancellable) {
+            val bd = db.tx {
+                val m = db.mantenimientoDao()
+                db.gestionDao().apply { borrarConsumos(); borrarLotes(); borrarRecepciones(); borrarRevisiones(); borrarFichas(); borrarConfiguracion()
+                    guardarConfiguracion(cu.shalev.data.db.entity.ConfiguracionNegocioEntity(preferenciasJson = cu.shalev.data.local.ShalevJson.encodeToString(cu.shalev.data.dto.PreferenciasDto.serializer(), cu.shalev.data.dto.PreferenciasDto())))
+                }
+                m.borrarRecibosComandos()
+                db.openHelper.writableDatabase.execSQL("DELETE FROM empleado")
+                m.borrarOperacion()
+                m.borrarConfiguracion()
             }
-            m.borrarRecibosComandos()
-            db.openHelper.writableDatabase.execSQL("DELETE FROM empleado")
-            m.borrarOperacion()
-            m.borrarConfiguracion()
-        }
-        if (bd is AppResult.Err) return bd
-        return withContext(io) {
-            try {
-                ds.put("pref.v1", null)
-                context.getSharedPreferences("fichas_costo", Context.MODE_PRIVATE).edit().clear().commit().also { check(it) }
-                ds.put("sync.secundaria.v1", null); ds.put("sync.tipo", null); ds.put("sync.negocio", null)
-                // 0.25.0: también el APK de actualización guardado o a medio recibir.
-                listOf(File(context.filesDir, "fotos"), File(context.cacheDir, "compartir"), File(context.filesDir, "actualizacion"), File(context.cacheDir, "actualizacion"), File(context.filesDir, "respaldo_actualizacion")).forEach { it.deleteRecursively() }
-                AppResult.Ok(Unit)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                AppResult.Err(AppError.Almacenamiento)
+            if (bd is AppResult.Err) return@withContext bd
+            withContext(io) {
+                try {
+                    ds.put("pref.v1", null)
+                    context.getSharedPreferences("fichas_costo", Context.MODE_PRIVATE).edit().clear().commit().also { check(it) }
+                    ds.put("sync.secundaria.v1", null); ds.put("sync.tipo", null); ds.put("sync.negocio", null)
+                    // 0.25.0: también el APK de actualización guardado o a medio recibir.
+                    listOf(File(context.filesDir, "fotos"), File(context.cacheDir, "compartir"), File(context.filesDir, "actualizacion"), File(context.cacheDir, "actualizacion"), File(context.filesDir, "respaldo_actualizacion")).forEach { it.deleteRecursively() }
+                    AppResult.Ok(Unit)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    AppResult.Err(AppError.Almacenamiento)
+                }
             }
         }
     }

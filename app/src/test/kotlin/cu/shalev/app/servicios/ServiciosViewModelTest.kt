@@ -22,6 +22,7 @@ import cu.shalev.domain.usecase.ObtenerFichaServicio
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -56,8 +57,8 @@ class ServiciosViewModelTest {
         servicios.lineas.value = s.associate { it.first.id to it.second }
     }
 
-    private fun vm(saved: SavedStateHandle = SavedStateHandle()) = ServiciosViewModel(
-        saved, ObservarServicios(servicios, insumos, Dispatchers.Unconfined), servicios, ObtenerFichaServicio(servicios, insumos),
+    private fun vm(saved: SavedStateHandle = SavedStateHandle(), repo: cu.shalev.domain.repository.ServicioRepository = servicios) = ServiciosViewModel(
+        saved, ObservarServicios(repo, insumos, Dispatchers.Unconfined), repo, ObtenerFichaServicio(servicios, insumos),
         EliminarServicios(servicios), ExportarTablas(FakeExportador()), FakeArchivos(), RelojFijo(), tablaPng, tarjetas, cu.shalev.app.FakeEstadoPantallas(),
     )
 
@@ -82,6 +83,28 @@ class ServiciosViewModelTest {
         vm.debounceBusqueda = 0
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect { } }
         return l
+    }
+
+    @Test fun reintentarElMismoFiltroRecuperaServiciosYSeleccionTrasUnError() = runTest {
+        poner(servicio(1, "Corte") to emptyList())
+        var fallar = true
+        val repo = object : cu.shalev.domain.repository.ServicioRepository by servicios {
+            override fun observarTodos() = kotlinx.coroutines.flow.flow {
+                if (fallar) error("fallo simulado")
+                emitAll(servicios.observarTodos())
+            }
+        }
+        val vm = vm(repo = repo)
+        eventos(vm)
+        assertTrue(vm.state.value.vista is EstadoCarga.Error)
+        val filtro = vm.state.value.filtro
+        fallar = false
+        vm.reintentar()
+        assertEquals(filtro, vm.state.value.filtro)
+        assertTrue(vm.state.value.vista is EstadoCarga.Exito)
+        vm.alternar(1)
+        assertEquals(setOf(1L), vm.state.value.seleccion)
+        assertEquals(1L, vm.state.value.elementosFijados.single().servicio.id)
     }
 
     @Test fun listaVaciaYLuegoConServiciosBuscablesYFiltrables() = runTest {

@@ -29,6 +29,9 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.ListSerializer
@@ -164,6 +167,41 @@ class AuditoriaDatosRoomTest {
         assertEquals(3L, preferencias.preferencias.first().niveles.productoBajo)
         assertEquals(uri, productos.obtener(p)!!.fotoUri)
         assertEquals(archivosAntes, File(context.filesDir, "fotos").list().orEmpty().toSet())
+    }
+
+    @Test fun cancelarAntesDeLaFaseFinalNoTocaDatosNiPreparaFotos() = runBlocking {
+        val p = producto(foto = foto(), cantidad = 7)
+        val copia = exportar()
+        ok(productos.ajustarStock(p, -2, "Cambio posterior"))
+        val archivosAntes = File(context.filesDir, "fotos").list().orEmpty().toSet()
+        val trabajo = launch(start = CoroutineStart.LAZY) {
+            respaldo.importar(copia.inputStream(), CharArray(0)) { etapa ->
+                if (etapa == cu.shalev.domain.repository.EtapaRespaldo.IMPORTANDO) coroutineContext[Job]!!.cancel()
+            }
+        }
+        trabajo.start(); trabajo.join()
+        assertTrue(trabajo.isCancelled)
+        assertEquals(5L, productos.obtener(p)!!.cantidad)
+        assertEquals(archivosAntes, File(context.filesDir, "fotos").list().orEmpty().toSet())
+    }
+
+    @Test fun cancelarDespuesDelCommitNoBorraLasFotosQueAhoraReferenciaRoom() = runBlocking {
+        val p = producto(foto = foto(), cantidad = 7)
+        val copia = archivo(dto(exportar()).copy(licencia = LicenciaRespaldoDto("licencia-prueba", "MENSUAL", 1)))
+        ok(productos.ajustarStock(p, -2, "Cambio posterior"))
+        lateinit var trabajo: Job
+        val base = EstadoAppEnMemoria()
+        val estado = object : cu.shalev.domain.repository.EstadoAppRepository by base {
+            override suspend fun editar(cambio: (EstadoApp) -> EstadoApp) { trabajo.cancel(); base.editar(cambio) }
+        }
+        val repo = RespaldoRepositoryImpl(db, preferencias, clock, Dispatchers.IO, LicenciaFija(), estado, context)
+        trabajo = launch(start = CoroutineStart.LAZY) { repo.importar(copia.inputStream(), CharArray(0)) {} }
+        trabajo.start(); trabajo.join()
+        assertTrue(trabajo.isCancelled)
+        assertEquals(7L, productos.obtener(p)!!.cantidad)
+        val uri = productos.obtener(p)!!.fotoUri!!
+        assertTrue(File(URI(uri)).isFile)
+        assertArrayEquals(byteArrayOf(1, 2, 3, 4, 5), File(URI(uri)).readBytes())
     }
 
     @Test fun fotosConHashIncorrectoSeRechazanAntesDeCambiarElNegocio() = runBlocking {
