@@ -51,13 +51,17 @@ def main():
     # que 100 casos con la misma dependencia rota tapen los fallos de SQLite/negocio del otro módulo.
     grupos = {}
     for modulo, caso, texto in sorted(fallos, key=lambda f: (f[0] != "data", f[0], f[1])):
-        clave = (modulo, texto.splitlines()[0] if texto else "")
+        lineas = texto.splitlines()
+        clase = caso.rsplit(".", 1)[0]
+        ubicacion = next((l for l in lineas if f"at {clase}" in l), "")
+        clave = (modulo, lineas[0] if lineas else "", ubicacion)
         grupos.setdefault(clave, []).append((caso, texto))
-    for (modulo, _), casos in list(grupos.items())[:10]:
+    for i, ((modulo, _, _), casos) in enumerate(grupos.items()):
         caso, texto = casos[0]
-        anotar("error", f"{modulo}: {caso} ({len(casos)} con el mismo tipo de fallo): {texto[:2400]}")
-    if len(grupos) > 10:
-        anotar("notice", f"Quedan {len(grupos) - 10} tipos de fallo en los XML del artefacto informes-instrumentados.")
+        nombres = ", ".join(c for c, _ in casos[:8])
+        # El exit code sigue en rojo aunque GitHub limite a diez anotaciones error por paso.
+        # Los demás diagnósticos se publican como notice, no se ocultan detrás de un contador.
+        anotar("error" if i < 10 else "notice", f"{modulo}: {caso} ({len(casos)} con el mismo tipo de fallo): {texto[:2200]}\nCasos: {nombres[:900]}")
     if sum(v[0] - v[2] for v in modulos.values()) == 0:
         anotar("error", "Instrumentados: todos los casos fueron omitidos.")
         return 1

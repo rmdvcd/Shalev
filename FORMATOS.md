@@ -174,7 +174,7 @@ Tras importar un respaldo v4 con bloque `licencia` en un teléfono sin licencia 
 
 ### 1.5 Respaldo previo a la actualización (0.30.1)
 
-Antes de abrir el instalador, la app escribe un `.shalev` **sin contraseña** con el formato normal en `filesDir/respaldo_actualizacion/previo.shalev`, más `previo.version` (`versionName/versionCode` instalada). Es privado de la app (no se comparte ni se exporta) y se borra al restaurarse o al cancelarse la instalación. Al abrir otra versión, `RespaldoPrevio` lo importa con la misma ruta que «Importar» y vuelve a dejar como estaban `ultimoRespaldo` y la licencia recuperable del estado de la app.
+Antes de abrir el instalador, la app escribe un `.shalev` **sin contraseña** con el formato normal en `filesDir/respaldo_actualizacion/previo.shalev`, más `previo.version` (`versionName/versionCode` instalada). La copia se reemplaza atómicamente; si falla su creación no se instala. No cuenta como exportación para el recordatorio mensual. Al abrir otra versión queda **CONSERVADO**, sin importar nada sobre la migración Room ni cambiar operaciones posteriores. Desde Respaldo, **Guardar copia previa** permite exportarla y recuperarla con el asistente normal: importar sí reemplaza el negocio. Se borra al descartar la instalación o borrar todo. Guardarla fuera del teléfono es una decisión explícita y el archivo no tiene confidencialidad sin contraseña.
 
 ## 3. Exportaciones
 

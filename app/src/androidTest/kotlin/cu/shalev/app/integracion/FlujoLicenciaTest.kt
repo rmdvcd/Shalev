@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import cu.shalev.app.licencia.LicenciaScreen
@@ -46,11 +47,13 @@ class FlujoLicenciaTest {
     private fun mostrarRaiz() {
         val root = env.rootVm()
         val licencia = env.licenciaVm()
+        val entrada = env.entradaVm()
+        val recuperacion = env.recuperacionVm()
         rule.setContent {
             ShalevTheme {
                 val s by root.state.collectAsStateWithLifecycle()
                 when (s) {
-                    is RootState.Bloqueo -> LicenciaScreen(onBack = null, bloqueada = true, viewModel = licencia)
+                    is RootState.Bloqueo -> LicenciaScreen(onBack = null, bloqueada = true, viewModel = licencia, entradaVm = entrada, recuperacionVm = recuperacion)
                     is RootState.Main -> Box(Modifier.testTag(MAIN)) { Text("Inicio") }
                     else -> Unit
                 }
@@ -61,7 +64,12 @@ class FlujoLicenciaTest {
     private fun esperar(tag: String) = rule.waitUntil(5_000) { rule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
 
     private fun pegarYActivar(mensaje: String) {
-        // 0.31.0 (P4): sin botón de llave: se avanza con «Paso siguiente» del asistente.
+        // El Perfil del entorno está incompleto: primero se dan los datos en la UI, no se salta su validación.
+        listOf("Nombre" to "Ana", "Apellidos" to "Pérez González", "Carné de identidad" to "85010112345", "Teléfono" to "52345678").forEach { (campo, texto) ->
+            rule.onNode(hasSetTextAction() and hasText(campo)).performScrollTo().performTextReplacement(texto)
+        }
+        androidx.test.espresso.Espresso.closeSoftKeyboard()
+        // Sin botón de llave: se avanza por los pasos de solicitud y activación.
         rule.onNodeWithContentDescription(ShalevStepperTextos.SIGUIENTE).performScrollTo().performClick()
         rule.onNodeWithContentDescription(ShalevStepperTextos.SIGUIENTE).performScrollTo().performClick()
         rule.onNode(hasSetTextAction() and hasText("Mensaje de licencia")).performScrollTo().performTextInput(mensaje)

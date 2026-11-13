@@ -32,6 +32,12 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class FlujoVentaTest {
     @get:Rule val rule = createComposeRule()
+    @org.junit.Before fun permisos() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            val i = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            i.uiAutomation.grantRuntimePermission(i.targetContext.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     private val env = EntornoIntegracion()
 
     @After fun fin() = env.cerrar()
@@ -45,11 +51,12 @@ class FlujoVentaTest {
 
     private fun mostrar(seleccion: List<Long>?, onTerminada: (String) -> Unit = {}) {
         val vm = env.ventaVm()
+        val caja = env.cajaVm()
         rule.setContent {
             ShalevTheme {
                 VentaScreen(
                     tipo = TipoVenta.VENTA, onBack = {}, onElegirProductos = { _, _ -> }, onTerminada = onTerminada,
-                    onConfigurarPago = {}, seleccion = seleccion, onSeleccionConsumida = {}, viewModel = vm,
+                    onConfigurarPago = {}, seleccion = seleccion, onSeleccionConsumida = {}, viewModel = vm, cajaVm = caja,
                 )
             }
         }
@@ -115,6 +122,8 @@ class FlujoVentaTest {
         assertTrue(runBlocking { env.turnos.activo() } == null)
 
         rule.onNodeWithTag(VentaTags.ABRIR_TURNO).performClick()
+        rule.onNodeWithTag(cu.shalev.app.caja.CajaTags.FONDO).performTextInput("0")
+        rule.onNodeWithTag(cu.shalev.app.caja.CajaTags.CONFIRMAR).performClick()
         rule.waitUntil(5_000) { runBlocking { env.turnos.activo() } != null }
         rule.waitUntil(5_000) { rule.onAllNodesWithTag(VentaTags.BLOQUEO).fetchSemanticsNodes().isEmpty() }
         assertEquals("Ana", runBlocking { env.turnos.activo()!!.abiertoPor })

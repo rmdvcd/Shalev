@@ -71,14 +71,15 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         val local = turno.local.ifEmpty { db.almacenLocalDao().localActivo() }
         for (d in venta.detalles) {
             val propietario = when (d.clase) {
-                ClaseArticulo.PRODUCTO -> productos.obtener(d.productoId)?.local
+                ClaseArticulo.PRODUCTO -> productos.obtener(d.productoId)?.takeUnless { it.eliminado }?.local
                 ClaseArticulo.INSUMO -> insumos.obtener(d.productoId)?.local
-                ClaseArticulo.SERVICIO -> servicios.obtener(d.productoId)?.local
-            }
+                ClaseArticulo.SERVICIO -> servicios.obtener(d.productoId)?.takeUnless { it.eliminado }?.local
+            } ?: abortar(AppError.NoEncontrado)
             if (propietario != local) abortar(AppError.SinPermiso)
         }
         for (e in elaborados) for (id in e.consumo.keys) {
-            if (insumos.obtener(id)?.local != local) abortar(AppError.SinPermiso)
+            val insumo = insumos.obtener(id) ?: abortar(AppError.NoEncontrado)
+            if (insumo.local != local) abortar(AppError.SinPermiso)
         }
 
         val ventaId = ventas.insertarVenta(

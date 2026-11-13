@@ -35,6 +35,24 @@ class ResumenInstrumentadosTest(unittest.TestCase):
         self.assertEqual(1, r.returncode)
         self.assertIn('Rollback incorrecto', r.stdout)
 
+    def test_fallos_repetidos_de_ui_no_ocultan_los_de_datos(self):
+        app = '<testsuite>' + ''.join(f'<testcase classname="cu.shalev.app.Ui" name="f{i}"><failure>Dependencia incompatible</failure></testcase>' for i in range(30)) + '</testsuite>'
+        data = '<testsuite><testcase classname="cu.shalev.data.RoomTest" name="rollback"><failure>Fallo de negocio</failure></testcase></testsuite>'
+        r = self.ejecutar({'app': app, 'data': data})
+        self.assertEqual(1, r.returncode)
+        self.assertLess(r.stdout.index('::error::data:'), r.stdout.index('::error::app:'))
+        self.assertEqual(2, r.stdout.count('::error::'))
+        self.assertIn('Fallo de negocio', r.stdout)
+
+    def test_mas_de_diez_tipos_conservan_diagnosticos_en_notices(self):
+        app = '<testsuite>' + ''.join(f'<testcase classname="Ui" name="f{i}"><failure>Distinto {i}</failure></testcase>' for i in range(15)) + '</testsuite>'
+        r = self.ejecutar({'app': app, 'data': OK})
+        self.assertEqual(1, r.returncode)
+        self.assertEqual(10, r.stdout.count('::error::'))
+        for i in range(15):
+            self.assertIn(f'Distinto {i}', r.stdout)
+        self.assertIn('Casos: Ui.f9', r.stdout)
+
     def test_dos_modulos_ejecutados_sin_fallos(self):
         self.assertEqual(0, self.ejecutar({'app': OK, 'data': OK}).returncode)
 

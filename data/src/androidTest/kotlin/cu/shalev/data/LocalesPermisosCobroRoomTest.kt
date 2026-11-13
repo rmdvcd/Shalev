@@ -110,6 +110,28 @@ class LocalesPermisosCobroRoomTest {
         assertEquals(10L, productos.obtener(b)!!.cantidad)
     }
 
+    @Test fun ausenteNoSeConfundeConOtroLocalEnServiciosRecetasYVentas() = runBlocking {
+        val servicios = ServicioRepositoryImpl(db, clock)
+        assertEquals(AppResult.Err(AppError.NoEncontrado), servicios.eliminar(404))
+        assertEquals(AppResult.Err(AppError.NoEncontrado), servicios.crear(
+            Servicio(nombre = "Impresión", tipo = "Oficina", importe = Cup(250), creadoEn = ahora),
+            listOf(RecetaLinea(404, cu.shalev.core.quantity.Cantidad.enteras(1))),
+        ))
+        assertTrue(db.servicioDao().todos().isEmpty()) // rollback del alta parcial
+        locales.guardar("A"); locales.guardar("B"); locales.seleccionar("B")
+        val s = ok(servicios.crear(Servicio(nombre = "Lavado", tipo = "Oficios", importe = Cup(250), creadoEn = ahora), emptyList()))
+        locales.seleccionar("A")
+        assertEquals(AppResult.Err(AppError.SinPermiso), servicios.eliminar(s))
+        assertFalse(servicios.obtener(s)!!.eliminado)
+        val t = ok(turnos.abrir(ahora, "Ana"))
+        ClaseArticulo.entries.forEach { clase ->
+            assertEquals(AppResult.Err(AppError.NoEncontrado), ventas.registrar(venta(t.id, 404, "REF-$clase").copy(
+                detalles = listOf(detalle(404).copy(clase = clase)),
+            )))
+        }
+        assertTrue(db.ventaDao().todas().isEmpty())
+    }
+
     @Test fun referenciaNormalizadaSeRechazaSinCambiosYSeLiberaAlAnular() = runBlocking {
         val p = producto(); val t = ok(turnos.abrir(ahora, "Ana"))
         val primera = ok(ventas.registrar(venta(t.id, p, "BR601ADLM8997")))

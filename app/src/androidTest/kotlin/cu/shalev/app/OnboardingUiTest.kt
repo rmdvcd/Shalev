@@ -2,7 +2,7 @@ package cu.shalev.app
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -93,7 +93,7 @@ class OnboardingUiTest {
         wizard(3)
         rule.onAllNodesWithText("Tienes 7 días de prueba gratis").onFirst().assertIsDisplayed()
         rule.onNodeWithText("Tus datos NO se borran", substring = true).performScrollTo().assertIsDisplayed()
-        rule.onNodeWithTag(OnboardingTags.SIGUIENTE).assertTextContains("Empezar a usar Shalev")
+        rule.onNodeWithTag(OnboardingTags.SIGUIENTE).assertContentDescriptionEquals("Empezar a usar Shalev")
     }
 
     // ---------- Ajustes ----------

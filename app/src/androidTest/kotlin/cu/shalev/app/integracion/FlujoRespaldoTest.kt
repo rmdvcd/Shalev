@@ -59,6 +59,8 @@ class FlujoRespaldoTest {
 
     /** Escribe la contraseña en la pantalla y "elige" el destino. */
     private fun exportar() {
+        // La contraseña es opcional y empieza desactivada: este flujo prueba explícitamente una copia protegida.
+        rule.onNodeWithTag(RespaldoTags.PROTEGER).performScrollTo().performClick()
         rule.onNodeWithTag(RespaldoTags.CONTRASENA).performScrollTo().performTextInput(clave)
         rule.onNodeWithTag(RespaldoTags.REPETIR).performScrollTo().performTextInput(clave)
         rule.runOnIdle { vm.destinoElegido(uri) }

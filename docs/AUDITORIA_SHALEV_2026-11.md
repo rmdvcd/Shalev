@@ -1,31 +1,51 @@
-# Auditoría y correcciones de Shalev Android — noviembre de 2026
+# Auditoría y correcciones de Shalev Android — 13/11/2026
 
-Alcance solicitado: completar el diagnóstico e implementar las correcciones sin reescribir la app ni modificar DShalev/IShalev.
+**Alcance:** diagnóstico e implementación sobre Shalev Android 1.0.1/54. Se reutilizan casos de uso, repositorios, Room/SQLCipher y componentes Shalev. No se reescriben módulos ni se modifica DShalev/IShalev. Esta edición de trabajo no es una nueva publicación firmada.
 
-## Matriz de trabajo
+## Diagnóstico concluido
 
-| Bloque | Hallazgo y criterio de aceptación | Estado |
-|---|---|---|
-| Dinero | Edición y exportación conservan centavos y signo; pérdidas visibles. | En implementación |
-| Cobro | Comparar cotización aceptada con la vigente; rechazar referencias ya usadas en ventas válidas; no perder ventas offline en caso de conflicto. | En implementación |
-| Locales | Identidad inmutable, atribución al origen, validación de artículos/recetas y bloqueo de cambio con turnos remotos. | En implementación |
-| Fotos | Limpieza considera todo el negocio; respaldo incluye archivos y remapea rutas. | En implementación |
-| Respaldo/actualización | No restaurar automáticamente una copia vieja sobre una migración correcta; restauración atómica de datos y preferencias. | En implementación |
-| Permisos | Validar cambios de precio y reglas completas en la principal, no solo el tipo de comando. | En implementación |
-| Fichas de costo | Persistencia cifrada, respaldo/borrado, exportación transaccional, unidades compatibles y costo completo. | En implementación |
-| Sincronización | Reintento durable de un comando incierto con la misma clave y aviso de catálogo pendiente. | En implementación |
-| Reactividad | Reintentar el mismo filtro después de un error; indicadores reaccionan a ventas de servicios y cambios del catálogo. | En implementación |
-| Inventario | Recepción con proveedor/costo/comprobante, lotes/caducidades, motivos y bitácora inmutable de correcciones. | En implementación |
-| Indicadores | «Ganancia bruta» y distribución por valor monetario, sin sumar unidades incompatibles. | En implementación |
+Los puntos más débiles eran **integridad de cobro y locales**, **respaldo/actualización**, **Fichas de costo** y **recuperación de sincronización**. Había problemas reproducibles (centavos perdidos, referencia de pago reutilizada, turno remoto invisible al selector, fotos omitidas) y riesgos de consistencia (cambios entre revisar y confirmar, escrituras separadas, reintentos con identidad nueva). Recepciones y lotes eran **ampliaciones operativas**, no errores de las reglas anteriores.
 
-## Decisiones que se preservan
+**Prioridades:** P0 = riesgo de mezclar/perder datos, cobro o autorización; P1 = cálculo, recuperación y trazabilidad; P2 = ampliación de operación. «Implementado» describe el código y sus regresiones; los resultados ejecutados, por SHA, se mantienen exclusivamente en [VERIFICACION.md](VERIFICACION.md).
 
-- Las ventas por debajo del costo siguen permitidas con advertencia; no se elimina esta capacidad.
-- La conciliación de ventas offline puede producir existencia negativa, con aviso y revisión del conteo: no es un error de transacción ni se deben descartar ventas reales.
-- Los preajustes no usan importe mínimo desde v14.
-- Los insumos se venden en unidades enteras de su medida por decisión previa del dueño; las recetas y recepciones sí admiten milésimas. No se cambia silenciosamente el significado de las cantidades históricas para introducir venta fraccionaria.
-- No se añaden permisos Android, telemetría, nube ni servicios de fondo nuevos.
+## Matriz de aceptación y trazabilidad
 
-## Verificación
+| Prioridad / clase | Hallazgo y criterio de aceptación | Corrección implementada | Regresión principal |
+|---|---|---|---|
+| P1 · Error | Edición y exportación conservan centavos y signo; no ocultar pérdidas. | `Money.editar`, cantidades decimales exactas, Excel con dos decimales, valores negativos visibles. Costos y sumas fuera de rango son errores, no Long desbordados ni REAL de SQLite. | `MoneyTest`, escritores, `CostosAdicionalesFormTest`, `AuditoriaIntegridadTest`, `InventarioOperativoRoomTest` |
+| P0 · Riesgo | La cotización aceptada puede cambiar antes del commit. | Replanificación y comparación dentro de la transacción al registrar y antes de anular una venta modificada. Las líneas anteriores mantienen precio/costo históricos; las nuevas usan los vigentes. Ningún descuento ni anulación si la revisión falla. | `AuditoriaIntegridadTest`: cambios de precio/costo y carreras registrar/modificar |
+| P0 · Error | Referencia de transferencia usada dos veces. | Normalización de espacios/mayúsculas y rechazo en ventas locales válidas; anular libera la referencia. Las ventas offline reales se conservan y sus conflictos quedan señalados en Registros, sin imponer UNIQUE que impida sincronizarlas. | `LocalesPermisosCobroRoomTest`: duplicado, anulación y replay offline |
+| P0 · Error/riesgo | El selector de la principal afecta al empleado; renombrado pierde atribución; turno remoto no bloquea. | ID estable del local en empleado, vínculo, instantánea y comando. Contexto autenticado por operación; comprobación de artículo y receta del mismo local. Renombrar conserva identidad/historia. Cambiar selector se bloquea con **cualquier** turno abierto. | `LocalesPermisosCobroRoomTest`, `EsquemaTest` 17→18 |
+| P0 · Autorización | «Guardar» permite colar un precio con solo permiso de stock. | La principal valida el precio/costo/adicional y las reglas de dominio, además del tipo de comando. Crear con precio también exige autorización. Local ausente devuelve NoEncontrado; otro local devuelve SinPermiso. | `LocalesPermisosCobroRoomTest`: stock sin precio y alta autorizada/no autorizada |
+| P0 · Error/riesgo | Fotos fuera del respaldo y limpieza limitada al local activo. | Todas las referencias del negocio participan en la limpieza. DTO v5 incluye fotos privadas disponibles, SHA-256 y nombres seguros; al importar se crean UUID nuevos y se remapean las rutas. Límites 4 MiB/foto, 48 MiB sumados, plano/archivo 128 MiB. | `AuditoriaDatosRoomTest`: ida/vuelta, hash, rollback y fotos de otro local |
+| P0 · Riesgo | Restaurar datos/preferencias por separado; importar una copia vieja automáticamente al actualizar. | Preferencias del negocio en Room, snapshot y commit compartidos con los datos. Fotos preparadas antes, eliminadas si falla y conservadas tras commit incluso con cancelación. Copia previa **conservada y exportable**, nunca importada automáticamente sobre una migración correcta. | `AuditoriaDatosRoomTest` pre/postcommit y reset, `RespaldoRoomTest`, tests de `RespaldoPrevio` |
+| P1 · Módulo incompleto | Fichas fuera de base/respaldo/reset; exportación parcial y costos incompletos. | CRUD cifrado por local y migración legada idempotente sin pérdida por colisiones. Marca local impide que un JSON reaparecido resucite datos después de restaurar/borrar. Exportación atómica insumos+receta+artículo, insumos nuevos a cero; conversiones exactas compatibles y costos vigentes. Trabajo/otros quedan como costo adicional editable. | `AuditoriaDatosRoomTest`, `AuditoriaIntegridadTest`, `FichaCostoViewModelTest`, `CostosAdicionalesFormTest` |
+| P1 · Riesgo | Una respuesta perdida permite repetir una operación remota como nueva. | Bandeja cifrada persistida **antes** de enviar, una operación incierta por vínculo y misma clave tras reinicio/reconexión. Mutex y compare-and-set impiden limpiar otra vinculación. Se recupera al conectar/sincronizar; el refresco posterior no convierte un éxito confirmado en fallo repetible. | `BandejaComandosTest` (pérdida de respuesta, reinicio, cancelación, rechazo, otra acción y respuesta tardía) |
+| P1 · Error/UX | Un Flow fallido no se reinicia con el mismo filtro; indicadores quedan desactualizados. | Reintento explícito de vistas y mapas auxiliares de Inventario/Servicios; Fichas y Gestión reabren sus observaciones. Inicio reacciona a ventas de servicios y catálogo. Se conservan filtro y edición; refrescar Gestión no reemplaza el costo de compra tecleado. Aviso antes de salir con borradores parciales o fichas existentes modificadas. | Tests de Inventario/Servicios, `FichaCostoViewModelTest`, `GestionInventarioViewModelTest` |
+| P2 · Ampliación | Falta recepción con origen/costo y seguimiento de lote/caducidad. | Asistente de tres pasos, proveedor, comprobante **de texto**, motivo/autor y líneas. UUID idempotente y contenido comprobado; stock/costo promedio/movimientos/lotes en un commit. Recepción confirmada inmutable. Asignación FEFO contable y restitución de los lotes propios al anular una venta o reducir una salida manual. La parte que cubre deuda offline no crea disponibilidad ficticia. | `InventarioOperativoRoomTest`: promedio, idempotencia, aislamiento, rollback, FEFO, anulación y deuda |
+| P1 · Trazabilidad | Reescribir una cantidad pierde el antes/después; unidad puede reinterpretar historial. | Motivos estructurados y revisiones append-only con autor, fecha y cantidades/saldos antes/después. Merma/Consumo no se convierten en entradas; una compra se corrige mediante ajuste nuevo. Unidad usada por stock, receta, historial o lotes no cambia: crear otro insumo. Diferencias/saldos históricos fuera de Long se rechazan. | `InventarioOperativoRoomTest`, `CorreccionMovimientoTest` |
+| P1 · Indicadores | «Ganancia neta» y suma de kg/L/unidades sugieren resultados engañosos. | **Ganancia bruta** (venta menos costo congelado; no gastos externos). Distribución del inventario por **valor al costo en CUP**, no mezcla de cantidades. | `StockEstadisticasTest`, tests de Inicio y tablas |
+| P1 · Verificación | CI compilaba instrumentados sin demostrar su ejecución y mezclaba versiones de Compose. | Emulador con `pipefail`, `--continue` y XML reales de **app y data**; falla sin casos, con todos omitidos o con fallos. Opt-in `[instrumentados]` en el commit sin ampliar permisos de Actions. Runtime/ATF alineados, sin retirar checks de accesibilidad; fallos agrupados para no ocultar los de datos. | `tools/verificacion/tests`, `AccessibilityTest`, trabajo de emulador CI |
 
-No confundir los resultados históricos de otros documentos ni el CI de la base con pruebas de estos cambios. Registrar aquí los comandos y resultados finales al completar la implementación. Este entorno no dispone de SDK Android; la verificación remota de la rama se usará cuando corresponda. Las pruebas físicas de instalación/actualización y sincronización entre teléfonos siguen siendo una comprobación separada.
+## Compatibilidad y arquitectura
+
+- **Room v18:** migración explícita y no destructiva 17→18. Esquema generado por Room/KSP, no escrito manualmente. `18.json`: SHA-256 `1f9882e5a0307afd1fbe4b508891b71819369567d76bd7450165ec1e54c90e09`, 28 entidades; incluye la atribución de consumos por venta **o** movimiento y el metadato local de migración. Ver validación ejecutada en VERIFICACION.
+- **Respaldo:** contenido DTO **v5** (importa v3–v5) dentro del contenedor **v4** de `.shalev` (lee v3/v4). No se confunden estas versiones ni se inventan imágenes que un respaldo viejo nunca contenía.
+- **Reglas:** negocio en domain/data, UI solo edición y navegación; operaciones agrupadas en transacciones existentes. CompositionLocal fuera del DSL de LazyColumn. README, formatos, ayuda y manual MD/PDF actualizados.
+- **Seguridad:** sin permisos Android, telemetría, servidores o servicios de fondo nuevos. Claves de dispositivo/licencia no viajan en el respaldo; una copia previa exportada sin contraseña contiene datos sensibles y debe custodiarse.
+
+## Decisiones preservadas y límites expresos
+
+1. Venta bajo costo permitida **con advertencia**, no eliminada por esta auditoría. Crear/editar el precio base de un producto mantiene sus validaciones.
+2. Conciliación offline puede producir stock negativo: se registra la venta real y se revisa el conteo; no se la descarta para maquillar existencias.
+3. Preajustes sin importe mínimo desde v14.
+4. **Venta suelta de insumos entera de su medida**, por decisión del dueño. Recetas/recepciones/existencias admiten milésimas. No se cambia silenciosamente el significado de las cantidades históricas para introducir fraccionamiento.
+5. FEFO **contable**, no escaneo de lote físico. No bloquea automáticamente lotes vencidos; revisar qué se entrega. En offline se asigna al sincronizar. Saldos antiguos y entradas sin recepción pueden no tener lote.
+6. Comprobante de compra como referencia escrita, **no** imagen/PDF adjunto. No se reintroduce el escáner/SKU retirado por el dueño.
+7. Un SMS reconocido o una referencia con formato válido **no** son confirmación bancaria. Shalev no consulta al banco.
+8. Room+preferencias son atómicos; archivos, Keystore y DataStore **no forman una transacción distribuida**. La fase final respeta el punto de no retorno frente a cancelación; una E/S fallida se informa, pero no se promete rollback de un borrado total ya confirmado.
+9. Emulador/JVM no equivalen a dos teléfonos reales, operadores móviles, instalación firmada o revisión visual/TalkBack. El plan previo a distribución está en [Pruebas.md](../Pruebas.md). No se declara «cero errores posibles» ni cumplimiento PCI.
+
+## Verificación y entrega
+
+Ver [VERIFICACION.md](VERIFICACION.md) para comandos, SHA, número de casos y resultados reales. El análisis está concluido y los hallazgos accionables están implementados; se continúa resolviendo los fallos que aparezcan en la ejecución final. No dar por aprobada la entrega hasta cerrar esa verificación. No publicar un APK firmado sin el procedimiento de RELEASE.md y la prueba física independiente.

@@ -39,7 +39,8 @@ class InicioUiTest {
 
     private val eventos = mutableListOf<Any>()
     private val acciones = AccionesInicio(
-        onNavigate = { eventos += it }, onTurno = { eventos += "turno:$it" }, onNuevaVenta = { eventos += "nuevaVenta" },
+        onNavigate = { eventos += it }, onVerAlerta = { eventos += it },
+        onTurno = { eventos += "turno:$it" }, onNuevaVenta = { eventos += "nuevaVenta" },
         onElegirVenta = { eventos += it }, onConfirmarCierre = {}, onCerrarDialogo = {}, onPeriodo = { eventos += it },
         onPago = { eventos += "pago" }, onReintentar = { eventos += "reintentar" },
     )
@@ -51,7 +52,7 @@ class InicioUiTest {
         mostrar(InicioUiState(banner = "Periodo de prueba restante: 5 días", alertas = listOf(AlertaUi(TipoAlerta.STOCK_CRITICO, 2))))
         rule.onNodeWithTag(InicioTags.BANNER).assertIsDisplayed()
         rule.onNodeWithTag(InicioTags.alerta(TipoAlerta.STOCK_CRITICO)).performClick()
-        assertEquals(Route.Inventario("STOCK_CRITICO"), eventos.last())
+        assertEquals(TipoAlerta.STOCK_CRITICO, eventos.last())
         rule.onNodeWithTag(InicioTags.alerta(TipoAlerta.STOCK_BAJO)).assertDoesNotExist()
     }
 
@@ -81,11 +82,17 @@ class InicioUiTest {
         mostrar(InicioUiState(resumen = EstadoCarga.Exito(r)))
         rule.onNode(hasTestTag(InicioTags.LISTA)).performScrollToNode(hasTestTag(InicioTags.top(TipoTop.MAS_VENDIDO)))
         rule.onNodeWithTag(InicioTags.top(TipoTop.MAS_VENDIDO)).assertIsDisplayed()
-        rule.onNodeWithText("Refresco", substring = true).assertDoesNotExist()
+        // La cabecera contraída sí resume «Refresco · 5 unidades». La fila completa solo vive dentro.
+        rule.onNodeWithText("Refresco").assertDoesNotExist()
         rule.onNodeWithTag(InicioTags.top(TipoTop.MAS_VENDIDO)).performClick()
-        rule.onNodeWithText("Refresco", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("Refresco").assertIsDisplayed()
+        // Son dos decisiones distintas, no un doble toque mecánico (guardia de 600 ms).
+        val desde = android.os.SystemClock.elapsedRealtime()
+        rule.waitUntil(2_000) {
+            android.os.SystemClock.elapsedRealtime() - desde >= cu.shalev.designsystem.component.GuardiaDobleToque.VENTANA_MS
+        }
         rule.onNodeWithTag(InicioTags.top(TipoTop.MAS_VENDIDO)).performClick()
-        rule.waitUntil(2_000) { rule.onAllNodesWithText("Refresco", substring = true).fetchSemanticsNodes().isEmpty() }
+        rule.waitUntil(2_000) { rule.onAllNodesWithText("Refresco").fetchSemanticsNodes().isEmpty() }
     }
 
     @Test fun dialogoNuevaVentaOfreceProductosYServicios() {

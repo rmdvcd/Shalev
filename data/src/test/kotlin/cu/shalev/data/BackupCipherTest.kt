@@ -14,6 +14,14 @@ class BackupCipherTest {
     private val cipher = BackupCipher(SecureRandom(), iteraciones = 10_000)
     private val datos = """{"formato":"spvi-respaldo","productos":[1,2,3]}""".repeat(200).toByteArray()
 
+    @Test fun limiteDePlanoYArchivoEsElMismoSinDesbordarLaCabecera() {
+        cu.shalev.data.respaldo.exigirTamanoRespaldo(BackupCipher.MAX_PLANO)
+        assertThrows(BackupCipher.FormatoException::class.java) {
+            cu.shalev.data.respaldo.exigirTamanoRespaldo(BackupCipher.MAX_PLANO + BackupCipher.CABECERA_V4)
+        }
+        assertThrows(BackupCipher.FormatoException::class.java) { cu.shalev.data.respaldo.exigirTamanoRespaldo(-1) }
+    }
+
     @Test fun `ida y vuelta con la contraseña correcta`() {
         val c = cipher.cifrar(datos, "clave segura".toCharArray())
         assertArrayEquals(datos, cipher.descifrar(c, "clave segura".toCharArray()))

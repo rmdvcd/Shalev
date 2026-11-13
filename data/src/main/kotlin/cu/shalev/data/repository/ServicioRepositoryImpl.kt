@@ -62,7 +62,8 @@ class ServicioRepositoryImpl @Inject constructor(
 
     /** Lógico: las ventas guardan nombre e importe congelados. Se sueltan sus insumos para poder borrarlos. */
     override suspend fun eliminar(id: Long): AppResult<Unit> = db.tx {
-        if (dao.obtener(id)?.local != locales.localOperacion()) abortar(AppError.SinPermiso)
+        val servicio = dao.obtener(id)?.takeUnless { it.eliminado } ?: abortar(AppError.NoEncontrado)
+        if (servicio.local != locales.localOperacion()) abortar(AppError.SinPermiso)
         if (dao.marcarEliminado(id, clock.now().toEpochMilli()) == 0) abortar(AppError.NoEncontrado)
         dao.borrarInsumosDe(id)
     }
@@ -73,7 +74,8 @@ class ServicioRepositoryImpl @Inject constructor(
     private suspend fun guardarInsumos(id: Long, insumos: List<RecetaLinea>) {
         val local = locales.localOperacion()
         for (l in insumos) {
-            if (db.insumoDao().obtener(l.insumoId)?.local != local) abortar(AppError.SinPermiso)
+            val insumo = db.insumoDao().obtener(l.insumoId) ?: abortar(AppError.NoEncontrado)
+            if (insumo.local != local) abortar(AppError.SinPermiso)
         }
         if (insumos.isNotEmpty()) dao.insertarInsumos(insumos.map { ServicioInsumoEntity(id, it.insumoId, it.cantidad.milesimas) })
     }

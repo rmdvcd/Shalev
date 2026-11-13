@@ -251,7 +251,7 @@ class AjustesPantallasUiTest {
         rule.onNodeWithText("Ing. Ronnie Montero Duarte").assertIsDisplayed()
         rule.onNodeWithText("91040922502").assertIsDisplayed()
         rule.onNodeWithText("51815604").assertIsDisplayed()
-        rule.onNodeWithText("Desarrollo de sistemas y aplicaciones multiplataforma").assertIsDisplayed()
+        rule.onNodeWithText("Desarrollo de sistemas y aplicaciones multiplataforma").performScrollTo().assertIsDisplayed()
         rule.onNodeWithContentDescription("Escribir por WhatsApp").performScrollTo().performClick()
         assertEquals(1, wa)
     }
