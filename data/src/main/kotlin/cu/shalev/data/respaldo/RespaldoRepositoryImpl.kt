@@ -141,6 +141,7 @@ class RespaldoRepositoryImpl @Inject constructor(
         progreso(EtapaRespaldo.PREPARANDO)
         val migracion = withContext(io) { guard { migrarFichasAntiguas(context, db, clock) } }
         if (migracion is AppResult.Err) return migracion
+        val prefsVigentes = preferencias.preferencias.first().toDto()
         val c = when (val r = db.tx { leer() }) {
             is AppResult.Ok -> r.value
             is AppResult.Err -> return r
@@ -162,7 +163,7 @@ class RespaldoRepositoryImpl @Inject constructor(
                     },
                     movimientos = c.movimientos.map { it.toDto().copy(local = c.locales.movimientos[it.id].orEmpty()) },
                     perfil = c.perfil?.toDto(), preajustes = c.preajustes.map { it.toDto() },
-                    preferencias = c.prefs ?: preferencias.preferencias.first().toDto(),
+                    preferencias = c.prefs ?: prefsVigentes,
                     servicios = c.servicios.map { (s, l) ->
                         s.toDto(l).copy(local = c.locales.servicios[s.id].orEmpty())
                     },
@@ -265,34 +266,39 @@ class RespaldoRepositoryImpl @Inject constructor(
                 contenido to dto.preferencias?.toDomain()
             }
         }
-        val (c, prefs) = when (parsed) {
+        val (c, _) = when (parsed) {
             is AppResult.Ok -> parsed.value
             is AppResult.Err -> return parsed
         }
+        // Los respaldos antiguos sin configuración conservan las preferencias actuales, pero también las sellan
+        // en Room para no reactivar accidentalmente un JSON antiguo del DataStore.
+        val prefs = c.prefs ?: preferencias.preferencias.first().toDto()
         progreso(EtapaRespaldo.IMPORTANDO)
-        // Primero se preparan archivos con nombres NUEVOS. Nunca se sobrescriben fotos que aún usa la base actual.
-        val preparadas = withContext(io) { guard { prepararFotos(c) } }
-        val uris = when (preparadas) { is AppResult.Ok -> preparadas.value; is AppResult.Err -> return preparadas }
-        val listo = c.copy(
-            productos = c.productos.map { it.copy(fotoUri = it.fotoUri?.let { uri -> fotos.nombreDe(uri)?.let(uris::get) }) },
-            servicios = c.servicios.map { (s, l) -> s.copy(fotoUri = s.fotoUri?.let { uri -> fotos.nombreDe(uri)?.let(uris::get) }) to l },
-        )
-        val resultado = try {
-            db.tx {
-                escribir(listo)
-                // Mismo commit de Room: catálogo, historial, fichas y preferencias del negocio.
-                c.prefs?.let { db.gestionDao().guardarConfiguracion(ConfiguracionNegocioEntity(preferenciasJson = ShalevJson.encodeToString(PreferenciasDto.serializer(), it))) }
-                db.ventaDao().recalcularReferenciasDuplicadas()
-            }
-        } catch (e: CancellationException) {
-            withContext(kotlinx.coroutines.NonCancellable + io) { uris.values.forEach { uri -> borrarFotoPreparada(uri) } }
-            throw e
-        }
-        return when (resultado) {
-            is AppResult.Err -> { withContext(io) { uris.values.forEach { borrarFotoPreparada(it) } }; resultado }
-            is AppResult.Ok -> {
-                recordarLicencia(recuperable)
-                AppResult.Ok(resumen(listo))
+        // Sección final indivisible frente a la cancelación: si se confirma Room, se conservan sus fotos.
+        // Nunca se borran archivos por una cancelación recibida al regresar del dispatcher DESPUÉS del commit.
+        return withContext(kotlinx.coroutines.NonCancellable + io) {
+            val preparadas = guard { prepararFotos(c) }
+            val uris = when (preparadas) { is AppResult.Ok -> preparadas.value; is AppResult.Err -> return@withContext preparadas }
+            var confirmado = false
+            try {
+                val listo = c.copy(
+                    productos = c.productos.map { it.copy(fotoUri = it.fotoUri?.let { uri -> fotos.nombreDe(uri)?.let(uris::get) }) },
+                    servicios = c.servicios.map { (s, l) -> s.copy(fotoUri = s.fotoUri?.let { uri -> fotos.nombreDe(uri)?.let(uris::get) }) to l },
+                )
+                when (val resultado = db.tx {
+                    escribir(listo)
+                    db.gestionDao().guardarConfiguracion(ConfiguracionNegocioEntity(preferenciasJson = ShalevJson.encodeToString(PreferenciasDto.serializer(), prefs)))
+                    db.ventaDao().recalcularReferenciasDuplicadas()
+                }) {
+                    is AppResult.Err -> resultado
+                    is AppResult.Ok -> {
+                        confirmado = true
+                        recordarLicencia(recuperable)
+                        AppResult.Ok(resumen(listo))
+                    }
+                }
+            } finally {
+                if (!confirmado) uris.values.forEach { borrarFotoPreparada(it) }
             }
         }
     }
@@ -360,13 +366,14 @@ class RespaldoRepositoryImpl @Inject constructor(
     }
 
     private suspend fun escribir(c: Contenido) {
+        val identidadesAnteriores = db.almacenLocalDao().todos().associate { it.nombre to it.id }
         val m = db.mantenimientoDao()
         db.gestionDao().apply { borrarConsumos(); borrarLotes(); borrarRecepciones(); borrarRevisiones(); borrarFichas(); borrarConfiguracion() }
         m.borrarOperacion()
         m.borrarConfiguracion()
         // v16: los locales primero; su nombre identifica el catálogo y el historial que se restaura.
         c.almacenesLocales.forEach {
-            db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(it.nombre, it.inventario, it.servicios, it.id.ifBlank { java.util.UUID.randomUUID().toString() }))
+            db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(it.nombre, it.inventario, it.servicios, it.id.ifBlank { identidadesAnteriores[it.nombre] ?: java.util.UUID.randomUUID().toString() }))
         }
         val activo = db.almacenLocalDao().localActivo()
         val validos = c.almacenesLocales.map { it.nombre }.toSet()
@@ -465,7 +472,7 @@ class RespaldoRepositoryImpl @Inject constructor(
     private fun validarIntegridad(c: Contenido) {
         fun check(ok: Boolean, que: String) { if (!ok) throw BackupCipher.FormatoException("referencias rotas: $que") }
         val locales = c.almacenesLocales.map { it.id }.filter { it.isNotBlank() }.toSet()
-        check(c.fichasCosto.all { it.localId in locales && cu.shalev.domain.fichacosto.ReglasFichaCosto.validar(it.ficha.toDomain()) }, "fichas de costo")
+        check(c.fichasCosto.all { it.localId in locales && it.ficha.toDomain().id > 0 }, "fichas de costo")
         check(c.fichasCosto.map { it.ficha.id }.distinct().size == c.fichasCosto.size, "fichas repetidas")
         check(c.recepciones.map { it.uuid }.distinct().size == c.recepciones.size && c.recepciones.all { it.localId in locales && it.totalCent >= 0 }, "recepciones")
         val recepciones = c.recepciones.associateBy { it.uuid }
@@ -570,6 +577,8 @@ class RespaldoRepositoryImpl @Inject constructor(
         // NUNCA e.message: enumValueOf/require lo rellenan con nombres y reglas internas («valor desconocido: X»)
         // que para la persona serían texto incomprensible. Detalle fijo, como en SerializationException.
         AppResult.Err(AppError.FormatoInvalido("contenido ilegible"))
+    } catch (e: ArithmeticException) {
+        AppResult.Err(AppError.FormatoInvalido("importe fuera de rango"))
     } catch (e: java.time.DateTimeException) {
         AppResult.Err(AppError.FormatoInvalido("fecha inválida"))
     } catch (e: java.io.IOException) {

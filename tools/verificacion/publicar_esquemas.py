@@ -6,6 +6,7 @@ artefactos de Actions. Contiene únicamente la estructura pública de la base, n
 """
 import base64
 import gzip
+import hashlib
 import pathlib
 import subprocess
 
@@ -14,5 +15,10 @@ for archivo in sorted((raiz / "data/schemas/cu.shalev.data.db.ShalevDatabase").g
     ruta = archivo.relative_to(raiz).as_posix()
     versionado = subprocess.run(["git", "ls-files", "--error-unmatch", ruta], cwd=raiz, capture_output=True).returncode == 0
     if not versionado:
-        comprimido = base64.b64encode(gzip.compress(archivo.read_bytes(), mtime=0)).decode("ascii")
-        print(f"::notice title=Esquema Room {archivo.stem} (gzip+base64)::{comprimido}")
+        datos = archivo.read_bytes()
+        comprimido = base64.b64encode(gzip.compress(datos, mtime=0)).decode("ascii")
+        huella = hashlib.sha256(datos).hexdigest()
+        # GitHub recorta cada mensaje a 4096 caracteres: trozos pequeños y hash del JSON completo.
+        partes = [comprimido[i:i + 2800] for i in range(0, len(comprimido), 2800)]
+        for numero, parte in enumerate(partes, 1):
+            print(f"::notice title=Esquema Room {archivo.stem} parte {numero}/{len(partes)}::{huella}:{parte}")

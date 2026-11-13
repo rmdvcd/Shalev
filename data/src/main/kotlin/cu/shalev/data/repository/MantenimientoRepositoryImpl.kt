@@ -35,7 +35,9 @@ class MantenimientoRepositoryImpl @Inject constructor(
     override suspend fun borrarTodo(): AppResult<Unit> {
         val bd = db.tx {
             val m = db.mantenimientoDao()
-            db.gestionDao().apply { borrarConsumos(); borrarLotes(); borrarRecepciones(); borrarRevisiones(); borrarFichas(); borrarConfiguracion() }
+            db.gestionDao().apply { borrarConsumos(); borrarLotes(); borrarRecepciones(); borrarRevisiones(); borrarFichas(); borrarConfiguracion()
+                guardarConfiguracion(cu.shalev.data.db.entity.ConfiguracionNegocioEntity(preferenciasJson = cu.shalev.data.local.ShalevJson.encodeToString(cu.shalev.data.dto.PreferenciasDto.serializer(), cu.shalev.data.dto.PreferenciasDto())))
+            }
             m.borrarRecibosComandos()
             db.openHelper.writableDatabase.execSQL("DELETE FROM empleado")
             m.borrarOperacion()
@@ -44,8 +46,8 @@ class MantenimientoRepositoryImpl @Inject constructor(
         if (bd is AppResult.Err) return bd
         return withContext(io) {
             try {
-                preferencias.reemplazar(Preferencias())
-                context.getSharedPreferences("fichas_costo", Context.MODE_PRIVATE).edit().clear().commit()
+                ds.put("pref.v1", null)
+                context.getSharedPreferences("fichas_costo", Context.MODE_PRIVATE).edit().clear().commit().also { check(it) }
                 ds.put("sync.secundaria.v1", null); ds.put("sync.tipo", null); ds.put("sync.negocio", null)
                 // 0.25.0: también el APK de actualización guardado o a medio recibir.
                 listOf(File(context.filesDir, "fotos"), File(context.cacheDir, "compartir"), File(context.filesDir, "actualizacion"), File(context.cacheDir, "actualizacion"), File(context.filesDir, "respaldo_actualizacion")).forEach { it.deleteRecursively() }

@@ -46,6 +46,8 @@ data class DatosSecundaria(
     val localId: String? = null,
     /** Antes de enviar, se persiste cifrado; se conserva hasta obtener un recibo definitivo. */
     val comandoPendiente: ComandoPendiente? = null,
+    /** null = sin aviso; true = confirmada; false = rechazada. No guarda mensajes ni datos sensibles del comando. */
+    val operacionRecuperada: Boolean? = null,
 ) {
     val permisosEmpleado: Set<PermisoEmpleado> get() = PermisoEmpleado.deNombres(permisos)
     val licenciaPrincipal: LicenciaPrincipal? get() = licencia?.aDominio()
@@ -96,6 +98,13 @@ class ConfigSync @Inject constructor(private val ds: SecureDataStore) {
     suspend fun editarSecundaria(f: (DatosSecundaria) -> DatosSecundaria) = mutex.withLock {
         val actual = secundaria.first() ?: return@withLock
         ds.put(K_SECUNDARIA, SyncJson.encodeToString(DatosSecundaria.serializer(), f(actual)))
+    }
+
+    internal suspend fun guardarPendiente(esperado: DatosSecundaria, pendiente: ComandoPendiente?, recuperada: Boolean?): Boolean = mutex.withLock {
+        val actual = secundariaActual() ?: return@withLock false
+        if (!mismaVinculacion(actual, esperado) || actual.comandoPendiente != esperado.comandoPendiente) return@withLock false
+        ds.put(K_SECUNDARIA, SyncJson.encodeToString(DatosSecundaria.serializer(), actual.copy(comandoPendiente = pendiente, operacionRecuperada = recuperada)))
+        true
     }
 
     /** Vuelve a PRINCIPAL y olvida la vinculación (la clave se borra). */

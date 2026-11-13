@@ -228,6 +228,8 @@ data class EstadoSecundaria(
     val cambiosPendientes: Boolean = false,
     /** 0.32.0: avance de la sincronización en curso (null = no hay ninguna). */
     val progreso: ProgresoSync? = null,
+    val operacionPendiente: Boolean = false,
+    val operacionRecuperada: Boolean? = null,
 )
 
 /** Lo que muestra la pantalla de vinculación en la principal. */

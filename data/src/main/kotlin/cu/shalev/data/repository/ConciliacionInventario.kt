@@ -76,7 +76,7 @@ internal suspend fun ShalevDatabase.aplicarConteo(turnoId: Long, usuario: String
             else insumoDao().sumarStock(l.id, delta, ahora)
         if (n != 1) abortar(AppError.NoEncontrado)
         if (delta < 0) consumirLotes(turno.local, l.entidad.name, l.id,
-            if (l.entidad == TipoEntidad.PRODUCTO) Math.multiplyExact(Math.negateExact(delta), 1000) else Math.negateExact(delta))
+            if (l.entidad == TipoEntidad.PRODUCTO) Math.multiplyExact(Math.negateExact(delta), 1000L) else Math.negateExact(delta))
         // La existencia es la actual tras el ajuste (puede no ser la contada: la principal pudo moverla después).
         val existencia = if (l.entidad == TipoEntidad.PRODUCTO) productoDao().cantidad(l.id) ?: 0
             else insumoDao().cantidad(l.id) ?: 0

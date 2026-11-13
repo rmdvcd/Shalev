@@ -271,6 +271,7 @@ class SecundariaRepositoryImpl @Inject constructor(
                     cierreSolicitado = d.cierreSolicitado, cierreRechazado = d.avisoRechazo, telefono = d.telefono,
                     apk = apk?.let { cu.shalev.domain.model.ApkEnPrincipal(it.nombre, it.code, it.bytes) },
                     cambiosPendientes = cambios, progreso = prog,
+                    operacionPendiente = d.comandoPendiente != null, operacionRecuperada = d.operacionRecuperada,
                 )
             }
         }.stateIn(scope, SharingStarted.Eagerly, EstadoSecundaria())

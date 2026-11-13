@@ -224,7 +224,7 @@ class AlmacenSync @Inject constructor(
                     db.insumoDao().cantidad(m.entidadId) ?: 0
                 }
                 db.consumirLotes(local, m.entidad, m.entidadId,
-                    if (m.entidad == TipoEntidad.PRODUCTO.name) Math.multiplyExact(Math.negateExact(m.delta), 1000) else Math.negateExact(m.delta), ventaId)
+                    if (m.entidad == TipoEntidad.PRODUCTO.name) Math.multiplyExact(Math.negateExact(m.delta), 1000L) else Math.negateExact(m.delta), ventaId)
                 db.movimientoDao().insertar(
                     MovimientoEntity(
                         fecha = m.fecha, tipo = m.tipo, entidad = m.entidad, entidadId = m.entidadId, nombre = m.nombre,

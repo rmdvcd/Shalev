@@ -91,7 +91,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
 
     private val conectando = Mutex()
     private val ronda = Mutex()
-    private val comandos = Mutex()
+    private val bandeja = BandejaComandos(config::secundariaActual, config::guardarPendiente)
     /**
      * Sesión vigente. 0.21.7 (P-e, punto 1): quien ve un error cierra SOLO la sesión que usó (compare-and-set, ver
      * [cerrarSesion]); antes cerraba la que hubiera en ese momento, que podía ser una nueva y sana de otra corrutina.
@@ -109,7 +109,10 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
             while (isActive) {
                 delay(espera)
                 val d = config.secundariaActual() ?: return@launch
-                if (sesionAbierta(d) != null) return@launch
+                if (sesionAbierta(d) != null) {
+                    if (d.comandoPendiente != null) sincronizar()
+                    return@launch
+                }
                 espera = (espera * 2).coerceAtMost(ESPERA_MAX_MS)
             }
         }
@@ -124,11 +127,21 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
      */
     suspend fun conectar() {
         val d = config.secundariaActual() ?: return
-        sesionAbierta(d)
+        if (sesionAbierta(d) != null && d.comandoPendiente != null) sincronizar()
     }
 
     /** Una ronda completa: envía lo pendiente, recibe lo guardado y, si cambió, el catálogo. */
-    suspend fun sincronizar(): AppResult<Unit> = ronda.withLock {        val d = config.secundariaActual() ?: return@withLock AppResult.Err(AppError.NoEncontrado)
+    suspend fun sincronizar(): AppResult<Unit> {
+        val recuperada = bandeja.recuperar(::enviarComando)
+        if (recuperada != null) {
+            if (!recuperada.confirmada) return AppResult.Err(AppError.Validacion("comandoPendiente"))
+            _cambiosPendientes.value = true
+        }
+        return sincronizarCatalogo()
+    }
+
+    private suspend fun sincronizarCatalogo(): AppResult<Unit> = ronda.withLock {
+        val d = config.secundariaActual() ?: return@withLock AppResult.Err(AppError.NoEncontrado)
         val s = sesionAbierta(d) ?: return@withLock AppResult.Err(AppError.SinPrincipal(almacen.pendientes()))
         try {
             val lote = almacen.lotePendiente()
@@ -271,28 +284,14 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
     }
 
     /** Acción remota sobre el catálogo de la principal. Ok(valor) = id creado, existencia… */
-    suspend fun comando(accion: Accion): AppResult<Long?> = comandos.withLock {
-        var d = config.secundariaActual() ?: return@withLock AppResult.Err(AppError.NoEncontrado)
-        val anterior = d.comandoPendiente
-        if (anterior != null && (HuellaComando.calcular(anterior.accion) != HuellaComando.calcular(accion) || anterior.localId != d.localId)) {
-            val resuelto = enviarComando(d, anterior) ?: return@withLock AppResult.Err(AppError.Validacion("comandoPendiente"))
-            config.editarSecundaria { it.copy(comandoPendiente = null) }
+    suspend fun comando(accion: Accion): AppResult<Long?> {
+        val entrega = bandeja.ejecutar(accion, ::enviarComando)
+        if (entrega.confirmada) {
             _cambiosPendientes.value = true
-            sincronizar()
-            // No se apilan una acción incierta y otra distinta sin que el usuario revise el resultado recuperado.
-            return@withLock AppResult.Err(AppError.Validacion(if (resuelto.error == null) "comandoRecuperado" else "comandoPendiente"))
+            // Un fallo de refresco posterior NO cambia el resultado definitivo de la operación.
+            sincronizarCatalogo()
         }
-        val pendiente = anterior ?: ComandoPendiente(UUID.randomUUID().toString(), accion, d.localId).also { nuevo ->
-            config.editarSecundaria { it.copy(comandoPendiente = nuevo) }
-        }
-        d = config.secundariaActual() ?: return@withLock AppResult.Err(AppError.NoEncontrado)
-        val r = enviarComando(d, pendiente) ?: return@withLock AppResult.Err(AppError.SinPrincipal(almacen.pendientes()))
-        config.editarSecundaria { it.copy(comandoPendiente = null) }
-        r.error?.let { return@withLock AppResult.Err(EjecutorComandos.error(it)) }
-        // Un fallo posterior de refresco NO convierte un comando confirmado en un fallo reintentable.
-        _cambiosPendientes.value = true
-        sincronizar()
-        AppResult.Ok(r.valor)
+        return entrega.resultado
     }
 
     /**

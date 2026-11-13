@@ -130,7 +130,7 @@ class InicioLogicTest {
             Serie(Granularidad.HORA, listOf(PuntoSerie(ahora, Cup.ofPesos(100), Cup.ofPesos(60)), PuntoSerie(ahora.plusSeconds(3600), Cup.ofPesos(300), Cup.ofPesos(140)))),
         )
         assertEquals("Gráfico de barras de ventas. Total 400 CUP. Mayor venta en 13:00: 300 CUP.", descripcionVentas(g, zona))
-        assertEquals("Gráfico de área. Ventas 400 CUP, costo 200 CUP, ganancia neta 200 CUP, margen 50 %.", descripcionGanancia(g))
+        assertEquals("Gráfico de área. Ventas 400 CUP, costo 200 CUP, ganancia bruta 200 CUP, margen 50 %.", descripcionGanancia(g))
     }
 
     @Test fun valoresDelTop3() {

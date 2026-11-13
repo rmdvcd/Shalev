@@ -408,6 +408,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.secundaria(
             )
         }
     }
+    if (sec.operacionPendiente) item {
+        ShalevStatusBanner(text = "Hay una operación sin confirmar. Se recuperará con la misma clave al conectar o sincronizar; no la registres por otra vía.", tone = BannerTone.Aviso, modifier = Modifier.padding(horizontal = ShalevSpacing.md))
+    }
+    sec.operacionRecuperada?.let { confirmada -> item {
+        ShalevStatusBanner(text = if (confirmada) "La principal confirmó la operación pendiente. Revisa el catálogo actualizado antes de repetirla." else "La principal rechazó la operación pendiente. Revisa sus permisos y los datos antes de intentarla de nuevo.", tone = BannerTone.Info, modifier = Modifier.padding(horizontal = ShalevSpacing.md))
+    } }
     item {
         // 0.32.0: barra de avance de la sincronización en curso.
         sec.progreso?.let { p ->

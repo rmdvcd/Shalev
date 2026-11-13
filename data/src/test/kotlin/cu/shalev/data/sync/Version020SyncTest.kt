@@ -69,7 +69,7 @@ class Version020SyncTest {
         val leido = ShalevJson.decodeFromString(RespaldoDto.serializer(), json)
         assertEquals("Luis", leido.empleados.single().nombre)
         assertEquals(2L, leido.empleados.single().tarjetaId)
-        assertEquals(4, RespaldoDto.VERSION)
+        assertEquals(5, RespaldoDto.VERSION)
         assertEquals(3, RespaldoDto.VERSION_MINIMA)
         // Respaldo anterior a 0.20.0: sin empleados.
         assertTrue(ShalevJson.decodeFromString(RespaldoDto.serializer(), "{\"creadoEn\":0}").empleados.isEmpty())

@@ -127,7 +127,7 @@ class TurnoRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
             }
             if (filas == 0) abortar(AppError.StockInsuficiente(listOf(m.nombre)))
             if (diff < 0) db.consumirLotes(e.local, e.entidad, e.entidadId,
-                if (m.entidad == TipoEntidad.PRODUCTO) Math.multiplyExact(Math.negateExact(diff), 1000) else Math.negateExact(diff))
+                if (m.entidad == TipoEntidad.PRODUCTO) Math.multiplyExact(Math.negateExact(diff), 1000L) else Math.negateExact(diff))
             movimientos.desplazarExistencia(e.entidad, e.entidadId, e.id, diff)
         }
         db.gestionDao().insertarRevision(cu.shalev.data.db.entity.MovimientoRevisionEntity(

@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.builtins.ListSerializer
 
 @Singleton
@@ -128,15 +129,30 @@ internal fun FichaCostoGuardada.aEntity(localId: String, ahora: Long) = FichaCos
 internal fun FichaCostoEntity.aFicha(): FichaCostoGuardada = ShalevJson.decodeFromString(FichaCostoDto.serializer(), partidasJson).toDomain()
 
 /** Una sola migración, idempotente y sin descartar el JSON original si hay un fallo. También se llama al respaldar. */
-internal suspend fun migrarFichasAntiguas(context: Context, db: ShalevDatabase, clock: Clock) {
-    val prefs = context.getSharedPreferences("fichas_costo", Context.MODE_PRIVATE)
-    val texto = prefs.getString("lista", null) ?: return
-    val fichas = ShalevJson.decodeFromString(ListSerializer(FichaCostoDto.serializer()), texto).map { it.toDomain() }
-    db.withTransaction {
-        val local = db.almacenLocalDao().idActivo()
-        for (f in fichas) if (db.gestionDao().ficha(f.id) == null) {
-            db.gestionDao().guardarFicha(f.aEntity(local, clock.now().toEpochMilli()))
+private val migracionFichas = kotlinx.coroutines.sync.Mutex()
+
+internal suspend fun migrarFichasAntiguas(context: Context, db: ShalevDatabase, clock: Clock) = migracionFichas.withLock {
+    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val prefs = context.getSharedPreferences("fichas_costo", Context.MODE_PRIVATE)
+        val texto = prefs.getString("lista", null) ?: return@withContext
+        val fichas = ShalevJson.decodeFromString(ListSerializer(FichaCostoDto.serializer()), texto).map { it.toDomain() }
+        db.withTransaction {
+            val local = db.almacenLocalDao().idActivo()
+            val existentes = db.gestionDao().fichas().map { it.aFicha() }.toMutableList()
+            for (original in fichas) {
+                // Puede haberse confirmado Room y fallado el borrado del legado: reconocer la ficha, no duplicarla.
+                if (existentes.any { it.copy(id = original.id) == original }) continue
+                val id = if (existentes.none { it.id == original.id }) original.id else {
+                    var candidato: Long
+                    do { candidato = (java.util.UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE).coerceAtLeast(1) }
+                    while (existentes.any { it.id == candidato })
+                    candidato
+                }
+                val ficha = original.copy(id = id)
+                db.gestionDao().guardarFicha(ficha.aEntity(local, clock.now().toEpochMilli()))
+                existentes += ficha
+            }
         }
+        check(prefs.edit().remove("lista").commit()) { "No se pudo completar la migración de fichas." }
     }
-    check(prefs.edit().remove("lista").commit()) { "No se pudo completar la migración de fichas." }
 }

@@ -39,7 +39,7 @@ class GestionInventarioRepositoryImpl @Inject constructor(
     private val clock: Clock,
 ) : GestionInventarioRepository {
     override fun articulos() = combine(productos.observarTodos(), insumos.observarTodos()) { ps, xs ->
-        ps.filterNot { it.esElaborado }.map { ArticuloGestion(TipoEntidad.PRODUCTO, it.id, it.nombreCompleto, UnidadMedida.UNIDAD, Cantidad(Math.multiplyExact(it.cantidad, 1000)), it.precioCosto) } +
+        ps.filterNot { it.esElaborado }.map { ArticuloGestion(TipoEntidad.PRODUCTO, it.id, it.nombreCompleto, UnidadMedida.UNIDAD, Cantidad(Math.multiplyExact(it.cantidad, 1000L)), it.precioCosto) } +
             xs.map { ArticuloGestion(TipoEntidad.INSUMO, it.id, it.nombre, it.unidad, it.cantidad, it.precio) }
     }
     override fun recepciones() = db.gestionDao().observarRecepciones().map { xs -> xs.map {
@@ -90,7 +90,7 @@ class GestionInventarioRepositoryImpl @Inject constructor(
                 }
                 total += l.costoUnitario.porMilesimas(mil)
                 // Parte de la entrada puede cubrir una existencia negativa conciliada de ventas offline.
-                val existenciaMil = if (l.entidad == TipoEntidad.PRODUCTO) Math.multiplyExact(existencia.coerceAtLeast(0), 1000) else existencia.coerceAtLeast(0)
+                val existenciaMil = if (l.entidad == TipoEntidad.PRODUCTO) Math.multiplyExact(existencia.coerceAtLeast(0), 1000L) else existencia.coerceAtLeast(0)
                 lotes += LoteInventarioEntity(UUID.randomUUID().toString(), recepcion.uuid, localId, l.entidad.name, l.id, nombre,
                     unidad, l.lote.trim(), mil, minOf(mil, existenciaMil), l.costoUnitario.centavos, l.caducidad?.toEpochDay())
             }
