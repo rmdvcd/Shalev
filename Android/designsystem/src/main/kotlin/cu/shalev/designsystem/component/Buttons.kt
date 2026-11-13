@@ -1,7 +1,8 @@
 package cu.shalev.designsystem.component
 
 import android.content.res.Configuration
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -32,9 +33,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
@@ -65,6 +68,17 @@ private fun Modifier.alturaBoton(soloIcono: Boolean): Modifier = when {
     soloIcono -> heightIn(min = ShalevSize.touchTarget).widthIn(min = ShalevSize.touchTarget)
     letraGrande() -> heightIn(min = ShalevSize.buttonMin)
     else -> heightIn(min = ShalevSize.buttonMin, max = ShalevSize.buttonMax)
+}
+
+/** Respuesta inmediata al pulsar; la transformación no cambia el área táctil de 48dp del componente. */
+@Composable
+private fun Modifier.feedbackPulsacion(interactionSource: MutableInteractionSource): Modifier {
+    val presionado by interactionSource.collectIsPressedAsState()
+    return graphicsLayer {
+        val escala = if (presionado) ShalevMotion.PRESS_SCALE else 1f
+        scaleX = escala
+        scaleY = escala
+    }
 }
 
 /** true si el usuario eligió letra grande en el sistema (≥ [ShalevFontScale.GRANDE]). */
@@ -100,12 +114,14 @@ fun ShalevPrimaryButton(
     mostrarTexto: Boolean = false,
 ) {
     val accion = rememberAccionUnica(onClick)
+    val interactionSource = remember { MutableInteractionSource() }
     val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
     val dibujarTexto = mostrarTexto || textoVentana != null
     Button(
         onClick = accion,
-        modifier = modifier.formaBoton(dibujarTexto).semantics { contentDescription = text },
+        modifier = modifier.formaBoton(dibujarTexto).feedbackPulsacion(interactionSource).semantics { contentDescription = text },
         enabled = enabled && !loading,
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(ShalevRadius.md),
         contentPadding = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp),
     ) {
@@ -125,12 +141,14 @@ fun ShalevSecondaryButton(
     mostrarTexto: Boolean = false,
 ) {
     val accion = rememberAccionUnica(onClick)
+    val interactionSource = remember { MutableInteractionSource() }
     val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
     val dibujarTexto = mostrarTexto || textoVentana != null
     OutlinedButton(
         onClick = accion,
-        modifier = modifier.formaBoton(dibujarTexto).semantics { contentDescription = text },
+        modifier = modifier.formaBoton(dibujarTexto).feedbackPulsacion(interactionSource).semantics { contentDescription = text },
         enabled = enabled && !loading,
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(ShalevRadius.md),
         contentPadding = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp),
         border = ButtonDefaults.outlinedButtonBorder(enabled),
@@ -150,12 +168,14 @@ fun ShalevTextButton(
     mostrarTexto: Boolean = false,
 ) {
     val accion = rememberAccionUnica(onClick)
+    val interactionSource = remember { MutableInteractionSource() }
     val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
     val dibujarTexto = mostrarTexto || textoVentana != null
     TextButton(
         onClick = accion,
-        modifier = modifier.formaBoton(dibujarTexto).semantics { contentDescription = text },
+        modifier = modifier.formaBoton(dibujarTexto).feedbackPulsacion(interactionSource).semantics { contentDescription = text },
         enabled = enabled,
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(ShalevRadius.md),
         contentPadding = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp),
     ) {
@@ -216,6 +236,7 @@ fun ShalevIconAction(
     repetible: Boolean = false,
 ) {
     val accion = rememberAccionUnica(onClick, activa = !repetible)
+    val interactionSource = remember { MutableInteractionSource() }
     val cs = MaterialTheme.colorScheme
     val (bg, fg) = when {
         selected -> cs.primary to cs.onPrimary
@@ -225,8 +246,6 @@ fun ShalevIconAction(
         style == IconActionStyle.Tonal -> cs.tertiaryContainer to cs.onTertiaryContainer
         else -> Color.Transparent to cs.onSurfaceVariant
     }
-    val animBg by animateColorAsState(bg, ShalevMotion.tween(), label = "iconActionBg")
-    val animFg by animateColorAsState(fg, ShalevMotion.tween(), label = "iconActionFg")
     val texto = etiqueta ?: contentDescription
     val textoVentana = if (LocalShalevVentana.current) {
         contentDescription.textoConservadoEnVentana() ?: etiqueta?.textoConservadoEnVentana()
@@ -235,6 +254,7 @@ fun ShalevIconAction(
     val dibujarTexto = mostrarTexto || textoVentana != null
     val base = modifier
         .formaBoton(dibujarTexto)
+        .feedbackPulsacion(interactionSource)
         .semantics {
             this.contentDescription = contentDescription
             if (selected) this.selected = true
@@ -252,7 +272,8 @@ fun ShalevIconAction(
             modifier = base,
             shape = RoundedCornerShape(ShalevRadius.md),
             contentPadding = relleno,
-            colors = ButtonDefaults.textButtonColors(contentColor = animFg),
+            interactionSource = interactionSource,
+            colors = ButtonDefaults.textButtonColors(contentColor = fg),
             content = contenido,
         )
     } else {
@@ -262,7 +283,8 @@ fun ShalevIconAction(
             modifier = base,
             shape = RoundedCornerShape(ShalevRadius.md),
             contentPadding = relleno,
-            colors = ButtonDefaults.buttonColors(containerColor = animBg, contentColor = animFg),
+            interactionSource = interactionSource,
+            colors = ButtonDefaults.buttonColors(containerColor = bg, contentColor = fg),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
             content = contenido,
         )
