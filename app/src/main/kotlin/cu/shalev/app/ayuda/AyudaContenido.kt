@@ -24,12 +24,9 @@ data class AyudaVentana(
     val categoria: CategoriaAyuda = CategoriaAyuda.INICIO
 )
 
-/** Contenuto de ayuda resumido organizado por ventana. */
+/** Contenido de ayuda resumido organizado por ventana. */
 object AyudaContenido {
     const val INTRO = "Elige la pantalla y abre un tema para ver los pasos."
-
-    /** Texto de introducción mostrado al inicio del manual. */
-    val textoIntro = "Manual de usuario resumido: cada ventana tiene su propia ayuda contextual."
 
     /** Ayuda para la pantalla de Inicio. */
     val inicio = AyudaVentana(
@@ -62,7 +59,7 @@ object AyudaContenido {
             "Toca + para agregar un nuevo servicio con nombre y tipo",
             "Escribe el importe en CUP que cobras por cada servicio",
             "Añade insumos que consume el servicio si corresponde",
-            "Guarda el servicio para disponerlo en el catálogo"
+            "Guarda el servicio para que aparezca en el catálogo"
         ),
         categoria = CategoriaAyuda.SERVICIOS
     )
@@ -158,7 +155,7 @@ object AyudaContenido {
             "En Ajustes → Soporte puedes escribir al desarrollador",
             "Usa WhatsApp o SMS para enviar tu consulta",
             "Incluye el ID de la licencia y el teléfono del negocio",
-            "El desarrollador responderá para ayudarte a continuar"
+            "El desarrollador responderá por el mismo canal"
         ),
         categoria = CategoriaAyuda.SOPORTE
     )

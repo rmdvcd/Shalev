@@ -1,5 +1,5 @@
 {% extends 'base.html' %}{% block title %}Inicio{% endblock %}{% block content %}
-<div class="page-heading"><div><p class="eyebrow">RESUMEN DEL NEGOCIO</p><h1>Inicio</h1><p class="muted">Una mirada rápida a la actividad de hoy.</p></div><div class="heading-actions"><a class="primary-button" href="/ventas">＋ Nueva venta</a></div></div>
+<div class="page-heading"><div><p class="eyebrow">RESUMEN DEL NEGOCIO</p><h1>Inicio</h1><p class="muted">Ventas de hoy, estado del turno y existencias por revisar.</p></div><div class="heading-actions"><a class="primary-button" href="/ventas">＋ Nueva venta</a></div></div>
 <div class="metric-grid">
   <article class="metric-card accent"><span class="metric-label">Ventas de hoy</span><strong>{{ today_total }}</strong><span class="metric-foot">{{ today_count }} operaciones</span></article>
   <article class="metric-card"><span class="metric-label">Turno</span><strong class="metric-state {% if shift %}good{% else %}neutral{% endif %}">{% if shift %}Abierto{% else %}Cerrado{% endif %}</strong><span class="metric-foot">{% if shift %}Desde {{ shift.opened_at|replace('T',' ')|truncate(16, True, '') }}{% else %}Sin turno activo{% endif %}</span></article>
