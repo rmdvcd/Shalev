@@ -24,7 +24,8 @@ import javax.inject.Singleton
  *    se conserva para recuperación explícita desde Respaldo y nunca pisa operaciones posteriores a su creación.
  *
  * Es un respaldo interno: no cuenta como «respaldo exportado» para el recordatorio mensual de Inicio, ni deja una
- * licencia «recuperable» en el estado de la app. Nunca sale del teléfono ni va a los registros.
+ * licencia «recuperable» en el estado de la app. Solo sale de esta carpeta al guardarla explícitamente desde
+ * Respaldo; no se envía por red ni se escribe su contenido en los registros.
  */
 class RespaldoPrevio(
     private val dir: File,

@@ -212,7 +212,7 @@ fun RespaldoContent(
                     modifier = Modifier.testTag(RespaldoTags.STEPPER),
                 )
                 if (paso == 1) {
-                    // 0.27.0 (T10): contraseña opcional, apagada por defecto.
+                    // S-01: contraseña opcional, ENCENDIDA por defecto; apagarla es una decisión explícita.
                     ShalevListItem(
                         title = TextosRespaldo.PROTEGER,
                         indicatorColor = null,

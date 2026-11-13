@@ -97,7 +97,8 @@ class FlujoVentaTest {
         rule.onNodeWithTag(VentaTags.CONTINUAR).performClick()
         rule.waitUntil(5_000) { rule.onAllNodesWithTag(VentaTags.QR).fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag(VentaTags.QR).assertIsDisplayed()
-        rule.onNodeWithTag(VentaTags.PAGO_RECIBIDO).performScrollTo().performClick()
+        // La acción permanece en el pie fijo; no pertenece al contenido desplazable del QR.
+        rule.onNodeWithTag(VentaTags.PAGO_RECIBIDO).assertIsDisplayed().performClick()
 
         rule.onNodeWithTag(VentaTags.campo(CampoCliente.NOMBRE)).performScrollTo().performTextInput("María Pérez")
         rule.onNodeWithTag(VentaTags.campo(CampoCliente.CI)).performScrollTo().performTextInput("85010112345")

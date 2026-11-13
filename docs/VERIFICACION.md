@@ -1,5 +1,74 @@
 # Shalev — Verificación real
 
+## Auditoría Android — 2026-11-13 · cierre en curso
+
+**Rama:** `arena/5d323d0e-shalev`, base `edde212323332cc97781fcf220c98a67641627b6`.
+**Versión:** 1.0.1/54; Room 18, DTO de respaldo 5 y contenedor 4.
+La matriz de hallazgos/correcciones está en [AUDITORIA_SHALEV_2026-11.md](AUDITORIA_SHALEV_2026-11.md).
+Las secciones antiguas de este archivo son históricas; no acreditan esta revisión ni su instalación física.
+
+### Última ejecución concluida: `808caf0b15e31234da852ccfe1494651fe04556b`
+
+[CI 43347828403](https://github.com/rmdvcd/Shalev/actions/runs/43347828403): **falló** por los casos UI
+indicados abajo. No confundir la compilación de `androidTest` con su ejecución.
+
+| Comprobación ejecutada | Resultado observado |
+|---|---|
+| `shalevTests` | **988 casos JVM, 0 fallos, 0 errores, 0 omitidos**. No incluye capturas Roborazzi. |
+| Compilar instrumentados app/data | **OK**, con Espresso core explícito en app. |
+| Instrumentados data, emulador API 35/x86_64 | **100 casos, 0 fallos, 0 omitidos**. Room/migraciones/rollback/locales/fotos/lotes incluidos. Muchas bases de prueba son Room en memoria, no todas SQLCipher. |
+| Instrumentados app, mismo emulador | **104 casos, 10 con fallo, 0 omitidos**. El cierre UI aún no está aprobado. |
+| API mínima 26 (análisis de bytecode) | **4016 clases, 0 llamadas no permitidas**. No equivale a un teléfono/emulador API 26. |
+| Permisos del manifiesto fusionado | **OK**; sin permisos nuevos por esta auditoría. |
+| Lint, baseline vacío | **0 errores, 102 avisos**. No se declara ausencia de avisos. |
+| `assembleRelease` + `assembleDebug`, R8 | **OK**, sin clases ausentes (`missing_rules.txt` no generado). Universal debug 60.8 MB; release 46.6 MB **sin firmar**. No instala/actualiza producción. |
+
+Fallos app: FlujoRespaldo (3), FlujoVenta (1), calculadora (1), Venta (1), Registros (2), Inicio (1),
+Soporte (1). Se revisan contra el comportamiento real, sin retirar aserciones de integridad ni la guardia
+anti-doble-toque. La UI de calculadora sí perdía centavos al redondear otra vez a entero. Los demás
+incluyen un interruptor de respaldo que el test apagaba pese a venir **encendido** desde S-01, un gesto
+sobre un pie no desplazable, selectores retirados/ambiguos y un toque al centro de la tarjeta expandida
+en vez de su cabecera. Las correcciones posteriores a este SHA todavía requieren su nueva ejecución.
+
+### Verificaciones locales de las correcciones posteriores
+
+```bash
+python3 -m unittest discover -s tools/verificacion/tests -p 'test_*.py'
+bash -n tools/verificacion/verificar_firma_apk.sh
+git diff --check
+```
+
+**14 tests Python aprobados** (7 del resumen XML y 7 del parser de firma con salidas simuladas), sintaxis
+shell y diff correctos. Estos tests **no** verifican la firma criptográfica de un APK real. El script
+conserva la huella vigente de RELEASE.md; no se cambió ninguna clave. La compilación Android local no
+se pudo ejecutar: este checkout no tiene JDK/SDK Android funcional; se usan los trabajos reales de CI,
+no se atribuyen a este contenedor los resultados históricos de otro equipo.
+
+El esquema 18 fue generado por Room/KSP y versionado, 74092 bytes, SHA-256
+`1f9882e5a0307afd1fbe4b508891b71819369567d76bd7450165ec1e54c90e09`. Además de la comprobación
+estática SQLite 17→18, esta corrida ya ejecutó `EsquemaTest` en el emulador. No se escribió el JSON a mano.
+
+### Corridas previas de esta auditoría (no son el resultado final)
+
+- `830ce93`, CI `43343789422`: 981 JVM verdes; emulador falló por mezcla de runtime Compose y ATF.
+- `0d035a3`, CI `43344932623`: fallo JVM de fixture scroll; app 99/17 fallidos y data 99/1. Se corrigió
+  también el defecto real NoEncontrado/SinPermiso en artículos ausentes, preservando el aislamiento.
+- `3629167`, CI `43347241166`: compilación androidTest fallida al faltar Espresso; corrida cancelada
+  tras publicar la dependencia en `808caf0`. No se le atribuye el verde de este último.
+
+### Límites y aceptación antes de distribuir
+
+**No se ejecutaron en esta revisión:** APK firmado con la clave de producción e instalación sobre v1.0,
+Roborazzi/capturas comparadas, revisión visual/TalkBack/letra grande en teléfonos, dos dispositivos
+físicos, recuperación con GL real ni redes/operadores móviles. El emulador sí ejecuta pruebas de Room,
+Compose y sockets locales, pero no sustituye esas validaciones. No se publicó una release ni se pidió
+ningún secreto. Seguir [Pruebas.md](../Pruebas.md), [PRUEBAS_DISPOSITIVO.md](../PRUEBAS_DISPOSITIVO.md)
+y [RELEASE.md](../RELEASE.md). **No declarar entrega automatizada final hasta aprobar el nuevo CI.**
+
+---
+
+## Registro histórico anterior (otros SHA, ramas y equipos)
+
 ## Correcciones de los informes de ventanas (2026-11-11, branch `arena/31f6e7e8-shalev`)
 
 - `cd DShalev && .venv/bin/python -m pytest -q`: **201 passed**, un aviso de deprecación de `starlette.testclient`/AnyIO. Incluye validaciones de nombres en formularios, exportación y comandos SPVI; retiro web/remoto auditable, historial CSV e integridad del respaldo; migración de esquema 9 a 10.

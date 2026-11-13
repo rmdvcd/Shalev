@@ -8,8 +8,10 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextClearance
+import androidx.lifecycle.ViewModelStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import cu.shalev.designsystem.theme.ShalevTheme
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -17,9 +19,16 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class CalculadoraCambioUiTest {
     @get:Rule val rule = createComposeRule()
+    private val modelos = ViewModelStore()
+    @After fun fin() = rule.runOnUiThread { modelos.clear() }
+
+    private fun mostrar() {
+        val vm = CalculadoraCambioViewModel(cu.shalev.app.FakeEstadoPantallas()).also { modelos.put("cambio", it) }
+        rule.setContent { ShalevTheme { CalculadoraCambio(onDismiss = {}, vm = vm) } }
+    }
 
     @Test fun convierteEnAmbosSentidos() {
-        rule.setContent { ShalevTheme { CalculadoraCambio(onDismiss = {}, vm = CalculadoraCambioViewModel(cu.shalev.app.FakeEstadoPantallas())) } }
+        mostrar()
         rule.onNodeWithText("Importe en USD").performScrollTo().performTextInput("2")
         rule.onNodeWithText("Tasa: CUP por 1 USD").performScrollTo().performTextInput("400")
         rule.onNodeWithText("Resultado: 800 CUP").performScrollTo().assertIsDisplayed()
@@ -29,7 +38,7 @@ class CalculadoraCambioUiTest {
     }
 
     @Test fun calculaYUsaTasa() {
-        rule.setContent { ShalevTheme { CalculadoraCambio(onDismiss = {}, vm = CalculadoraCambioViewModel(cu.shalev.app.FakeEstadoPantallas())) } }
+        mostrar()
         rule.onNodeWithText("Operación").performClick()
         rule.onNodeWithText("Calcular tasa desde importes").performClick()
         rule.onNodeWithText("Importe equivalente en CUP").performScrollTo().performTextInput("700")
@@ -41,7 +50,7 @@ class CalculadoraCambioUiTest {
         rule.onNodeWithContentDescription("Cerrar calculadora").assertIsDisplayed()
     }
     @Test fun tasaCeroMuestraError() {
-        rule.setContent { ShalevTheme { CalculadoraCambio(onDismiss = {}, vm = CalculadoraCambioViewModel(cu.shalev.app.FakeEstadoPantallas())) } }
+        mostrar()
         rule.onNodeWithText("Tasa: CUP por 1 USD").performScrollTo().performTextInput("350")
         rule.onNodeWithText("Tasa: CUP por 1 USD").performTextClearance()
         rule.onNodeWithText("Tasa: CUP por 1 USD").performTextInput("0")

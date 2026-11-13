@@ -486,7 +486,7 @@ Como todos tus datos viven únicamente en tu teléfono y no en internet, hacer c
 2. En la tarjeta **Exportar**, verás activada por defecto la opción **Proteger con contraseña**:
    - Escribe una contraseña de al menos 8 caracteres, repítela debajo y **anótala en un lugar seguro**.
    - *(Puedes apagar el interruptor si prefieres guardarla sin clave, pero recuerda que cualquier persona que consiga ese archivo podría abrirlo con Shalev y ver tus ventas y clientes).*
-3. Toca **Siguiente (→)** y elige **Guardar en el teléfono** (en tu carpeta *Descargas*) o **Enviar** a otra aplicación segura (Google Drive, Telegram, correo o tarjeta SD). El archivo se llamará `Shalev_respaldo_AAAA-MM-DD.shalev`.
+3. Toca **Siguiente (→)** y luego **Guardar en el teléfono**. Se abre el selector local de Android en *Descargas*; elige dónde conservar la copia. El archivo se llamará `Shalev_respaldo_AAAA-MM-DD.shalev`. Shalev no la envía directamente a otras apps: si necesitas trasladarla, hazlo después desde el gestor de archivos y custodia su contraseña.
 
 ### 13.2 Qué incluye y qué NO incluye el archivo `.shalev`
 
@@ -601,7 +601,7 @@ La venta suelta de insumos **sigue siendo entera de su medida**: 1 kg, 2 L, etc.
 - Si una operación remota queda sin respuesta, conecta con la principal y sincroniza: se recupera con la misma clave para no duplicarla. Antes de enviar una acción diferente revisa el resultado recuperado en Vinculación. Si el catálogo sigue pendiente, vuelve a sincronizar; no repitas una operación ya confirmada.
 - En Inicio, **Ganancia bruta** = venta menos costo guardado; no es ganancia neta porque no descuenta otros gastos del negocio. La distribución del inventario usa **valor al costo en CUP**, no una suma de kg, litros y unidades.
 
-En **Herramientas → Calculadora de cambio**, o desde el icono de cambio de la ficha, puedes convertir importes en ambos sentidos. Introduce la tasa como **CUP por 1 USD** y el importe; el resultado se redondea a dos decimales. También puedes calcular una tasa orientativa indicando importes equivalentes positivos en CUP y USD, y usarla para convertir. La tasa es manual, no se consulta por internet y no modifica los totales de la ficha. La calculadora recuerda en este teléfono la operación, la moneda de origen y la última tasa que usaste, para no escribirla cada vez; los importes no se guardan.
+En **Herramientas → Calculadora de cambio**, o desde el icono de cambio de la ficha, puedes convertir importes en ambos sentidos. Introduce la tasa como **CUP por 1 USD** y el importe; el resultado se redondea a dos decimales, sin convertir los centavos en cero (por ejemplo, 2 CUP a una tasa de 400 dan 0.01 USD). También puedes calcular una tasa orientativa indicando importes equivalentes positivos en CUP y USD, y usarla para convertir. La tasa es manual, no se consulta por internet y no modifica los totales de la ficha. La calculadora recuerda en este teléfono la operación, la moneda de origen y la última tasa que usaste, para no escribirla cada vez; los importes no se guardan.
 
 ---
 

@@ -51,7 +51,7 @@ jobs:
           test -d "$ANDROID_HOME/build-tools/35.0.0" || { echo "Faltan build-tools 35.0.0"; exit 1; }
           echo "SDK: $ANDROID_HOME (android-35 y build-tools 35.0.0 presentes)"
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-      - name: Pruebas del resumen de instrumentados
+      - name: Pruebas de herramientas de verificación
         run: python3 -m unittest discover -s tools/verificacion/tests -p 'test_*.py'
       - name: shalevTests + compilar androidTest
         run: |

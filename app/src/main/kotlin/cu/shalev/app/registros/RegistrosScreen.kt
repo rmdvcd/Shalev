@@ -274,7 +274,7 @@ fun RegistrosContent(
     )
 }
 
-/** Prompt 14: PDF o Excel de lo que se ve; cada formato se puede enviar a otra app o guardar en el teléfono. */
+/** PDF o Excel de lo que se ve: tocar una fila abre el selector de compartir del sistema. */
 @Composable
 private fun HojaExportar(state: RegistrosUiState, tipo: TipoRegistro, acciones: AccionesRegistros) {
     ShalevBottomSheet(onDismiss = acciones.onCerrarExportar, title = TextosRegistros.tituloExportar(tipo)) {

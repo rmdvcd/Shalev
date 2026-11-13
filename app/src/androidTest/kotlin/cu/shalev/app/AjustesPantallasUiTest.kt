@@ -43,6 +43,7 @@ import cu.shalev.app.respaldo.RespaldoUiState
 import cu.shalev.app.respaldo.ResultadoRespaldo
 import cu.shalev.app.respaldo.TextosRespaldo
 import cu.shalev.app.soporte.SoporteContent
+import cu.shalev.app.soporte.SoporteInfo
 import cu.shalev.app.soporte.SoporteTags
 import cu.shalev.designsystem.component.ShalevStepperTextos
 import cu.shalev.designsystem.theme.ShalevTheme
@@ -125,6 +126,25 @@ class AjustesPantallasUiTest {
         onEditarExport = {}, onGuardar = onGuardar, onElegirArchivo = onImportar,
         onContrasenaImport = {}, onConfirmarImport = {}, onCancelarImport = {},
     )
+
+    @Test fun respaldoProtegePorDefectoYApagarLaClaveEsExplicito() {
+        rule.setContent {
+            var state by remember { mutableStateOf(RespaldoUiState()) }
+            ShalevTheme(darkTheme = false) {
+                RespaldoContent(state, {}, AccionesRespaldo(
+                    onEditarExport = { editar -> state = state.copy(export = editar(state.export)) },
+                    onGuardar = {}, onElegirArchivo = {}, onContrasenaImport = {}, onConfirmarImport = {}, onCancelarImport = {},
+                ))
+            }
+        }
+        rule.onNodeWithTag(RespaldoTags.CONTRASENA).assertExists()
+        rule.onNodeWithTag(RespaldoTags.REPETIR).assertExists()
+        rule.onNodeWithTag(RespaldoTags.SIN_CONTRASENA).assertDoesNotExist()
+        rule.onNodeWithTag(RespaldoTags.PROTEGER).performScrollTo().performClick()
+        rule.onNodeWithTag(RespaldoTags.CONTRASENA).assertDoesNotExist()
+        rule.onNodeWithTag(RespaldoTags.REPETIR).assertDoesNotExist()
+        rule.onNodeWithTag(RespaldoTags.SIN_CONTRASENA).performScrollTo().assertIsDisplayed()
+    }
 
     @Test fun respaldoMuestraErroresDeContrasena() {
         rule.setContent {
@@ -248,10 +268,10 @@ class AjustesPantallasUiTest {
         var wa = 0
         rule.setContent { ShalevTheme(darkTheme = false) { SoporteContent(onBack = {}, version = "0.12.0 (12)", onWhatsapp = { wa++ }, onSms = {}) } }
         rule.onNodeWithTag(SoporteTags.FICHA).assertIsDisplayed()
-        rule.onNodeWithText("Ing. Ronnie Montero Duarte").assertIsDisplayed()
-        rule.onNodeWithText("91040922502").assertIsDisplayed()
-        rule.onNodeWithText("51815604").assertIsDisplayed()
-        rule.onNodeWithText("Desarrollo de sistemas y aplicaciones multiplataforma").performScrollTo().assertIsDisplayed()
+        // Las filas seleccionables contienen «Etiqueta: valor», no dos nodos de texto separados.
+        SoporteInfo.filas.forEach { (etiqueta, valor) ->
+            rule.onNodeWithText("$etiqueta: $valor").performScrollTo().assertIsDisplayed()
+        }
         rule.onNodeWithContentDescription("Escribir por WhatsApp").performScrollTo().performClick()
         assertEquals(1, wa)
     }

@@ -8,13 +8,13 @@
 #
 # Uso (en el PC del desarrollador, con Android SDK instalado; no necesita Gradle):
 #   bash tools/verificacion/verificar_firma_apk.sh [ruta/al.apk]
-# Por defecto revisa app/build/outputs/apk/release/app-release.apk.
+# Por defecto revisa app/build/outputs/apk/release/app-universal-release.apk.
 #
 # Sale con 0 si la firma es la vigente (v2/v3 verificadas y SHA-256 idéntico) y con 1 en cualquier otro caso.
 # =====================================================================================================================
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-APK="${1:-$ROOT/app/build/outputs/apk/release/app-release.apk}"
+APK="${1:-$ROOT/app/build/outputs/apk/release/app-universal-release.apk}"
 
 # Clave vigente: la que firmó la Release v1.0 publicada (Shalev-1.0.apk) y la MISMA con la que se firma
 # GL.apk (gl-release.jks, alias "gl", CN=GL) — prioridad según las claves de GL en sus releases.
@@ -34,11 +34,16 @@ echo "== Verificando firma de: $APK"
 SALIDA="$("$APKSIGNER" verify --verbose --print-certs "$APK")"
 echo "$SALIDA"
 
-echo "$SALIDA" | grep -q "Verified using v2 scheme: true" || { echo "FALLO: el APK no está firmado con esquema v2"; exit 1; }
-OBTENIDA="$(echo "$SALIDA" | grep -oP "Signer #1 certificate SHA-256 digest: \K[0-9A-Fa-f:]+" | tr 'a-f' 'A-F' | head -1)"
-[ -n "$OBTENIDA" ] || { echo "FALLO: no se pudo leer la huella SHA-256 del certificado"; exit 1; }
+# apksigner actual incluye «(APK Signature Scheme v2)» y emite el SHA sin dos puntos.
+# También se admite la salida corta de versiones anteriores; exigir v2 conserva compatibilidad API 26/27.
+echo "$SALIDA" | grep -Eq '^Verified using v2 scheme( \([^)]*\))?: true[[:space:]]*$' || { echo "FALLO: el APK no está firmado con esquema v2"; exit 1; }
+FIRMANTES="$(echo "$SALIDA" | grep -cE '^Signer #[0-9]+ certificate SHA-256 digest:' || true)"
+[ "$FIRMANTES" = 1 ] || { echo "FALLO: se esperaba exactamente un firmante de Shalev"; exit 1; }
+OBTENIDA="$(echo "$SALIDA" | sed -nE 's/^Signer #1 certificate SHA-256 digest: ([0-9A-Fa-f:]+)[[:space:]]*$/\1/p' | tr -d ':' | tr 'a-f' 'A-F')"
+[[ "$OBTENIDA" =~ ^[0-9A-F]{64}$ ]] || { echo "FALLO: no se pudo leer la huella SHA-256 del certificado"; exit 1; }
+ESPERADA_HEX="${ESPERADA//:/}"
 
-if [ "$OBTENIDA" != "$ESPERADA" ]; then
+if [ "$OBTENIDA" != "$ESPERADA_HEX" ]; then
   echo "FALLO: la huella del APK ($OBTENIDA) NO es la clave vigente de Shalev."
   echo "       Esperada (la de GL.apk / Release v1.0 publicada): $ESPERADA"
   echo "       No cambies de keystore ni de alias: firma con gl-release.jks (alias gl), el documentado en RELEASE.md."
