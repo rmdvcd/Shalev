@@ -91,6 +91,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
 
     private val conectando = Mutex()
     private val ronda = Mutex()
+    private val bandeja = BandejaComandos(config::secundariaActual, config::guardarPendiente)
     /**
      * Sesión vigente. 0.21.7 (P-e, punto 1): quien ve un error cierra SOLO la sesión que usó (compare-and-set, ver
      * [cerrarSesion]); antes cerraba la que hubiera en ese momento, que podía ser una nueva y sana de otra corrutina.
@@ -108,7 +109,10 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
             while (isActive) {
                 delay(espera)
                 val d = config.secundariaActual() ?: return@launch
-                if (sesionAbierta(d) != null) return@launch
+                if (sesionAbierta(d) != null) {
+                    if (d.comandoPendiente != null) sincronizar()
+                    return@launch
+                }
                 espera = (espera * 2).coerceAtMost(ESPERA_MAX_MS)
             }
         }
@@ -123,11 +127,21 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
      */
     suspend fun conectar() {
         val d = config.secundariaActual() ?: return
-        sesionAbierta(d)
+        if (sesionAbierta(d) != null && d.comandoPendiente != null) sincronizar()
     }
 
     /** Una ronda completa: envía lo pendiente, recibe lo guardado y, si cambió, el catálogo. */
-    suspend fun sincronizar(): AppResult<Unit> = ronda.withLock {        val d = config.secundariaActual() ?: return@withLock AppResult.Err(AppError.NoEncontrado)
+    suspend fun sincronizar(): AppResult<Unit> = try {
+        val recuperada = bandeja.recuperar(::enviarComando)
+        if (recuperada != null) {
+            if (recuperada.confirmada) _cambiosPendientes.value = true
+        }
+        if (recuperada != null && !recuperada.confirmada) AppResult.Err(AppError.Validacion("comandoPendiente")) else sincronizarCatalogo()
+    } catch (e: CancellationException) { throw e }
+    catch (_: Exception) { AppResult.Err(AppError.Almacenamiento) }
+
+    private suspend fun sincronizarCatalogo(): AppResult<Unit> = ronda.withLock {
+        val d = config.secundariaActual() ?: return@withLock AppResult.Err(AppError.NoEncontrado)
         val s = sesionAbierta(d) ?: return@withLock AppResult.Err(AppError.SinPrincipal(almacen.pendientes()))
         try {
             val lote = almacen.lotePendiente()
@@ -168,7 +182,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
                     avisoRechazo = x.avisoRechazo || (r.cierreRechazado && x.cierreSolicitado),
                 )
                 if (inst == null) base else base.copy(
-                    hash = r.hash, nombreNegocio = inst.nombreNegocio, nombreEmpleado = inst.empleado.nombre,
+                    hash = r.hash, nombreNegocio = inst.nombreNegocio, nombreEmpleado = inst.empleado.nombre, localId = inst.localId,
                     permisos = inst.empleado.permisos,
                     // 0.31.0 (mitigación 7): la licencia solo se guarda si trae un permiso que cubra a esta app.
                     licencia = inst.licencia?.let(permisos::verificar),
@@ -271,13 +285,13 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
 
     /** Acción remota sobre el catálogo de la principal. Ok(valor) = id creado, existencia… */
     suspend fun comando(accion: Accion): AppResult<Long?> {
-        val d = config.secundariaActual() ?: return AppResult.Err(AppError.NoEncontrado)
-        val r = enviarComando(d, accion) ?: return AppResult.Err(AppError.SinPrincipal(almacen.pendientes()))
-        val error = r.error
-        if (error != null) return AppResult.Err(EjecutorComandos.error(error))
-        // Trae el catálogo ya cambiado para que la pantalla lo muestre al volver.
-        sincronizar()
-        return AppResult.Ok(r.valor)
+        val entrega = bandeja.ejecutar(accion, ::enviarComando)
+        if (entrega.confirmada) {
+            _cambiosPendientes.value = true
+            // Un fallo de refresco posterior NO cambia el resultado definitivo de la operación.
+            try { sincronizarCatalogo() } catch (e: CancellationException) { throw e } catch (_: Exception) { /* se conserva cambiosPendientes */ }
+        }
+        return entrega.resultado
     }
 
     /**
@@ -333,13 +347,13 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
      * sesión nueva: si ya se había aplicado, la principal devuelve el recibo persistente sin repetir la acción. Con una
      * principal anterior no se reenvía (podría aplicarse dos veces) y se informa del fallo, como antes. null = sin principal.
      */
-    private suspend fun enviarComando(d: DatosSecundaria, accion: Accion): ResultadoComando? {
-        val clave = UUID.randomUUID().toString()
+    private suspend fun enviarComando(d: DatosSecundaria, pendiente: ComandoPendiente): ResultadoComando? {
         var intento = 0
         while (true) {
             val s = sesionAbierta(d) ?: return null
             try {
-                return s.pedir({ id -> Comando(id, accion, clave.takeIf { s.comandosUnicos }) }) as? ResultadoComando
+                if (!s.comandosUnicos) return ResultadoComando(0, error = ErroresRemotos.VALIDACION + "actualizarPrincipal:FORMATO")
+                return s.pedir({ id -> Comando(id, pendiente.accion, pendiente.clave, pendiente.localId) }) as? ResultadoComando
                     ?: throw ProtocoloException("respuesta inesperada")
             } catch (e: CancellationException) {
                 throw e

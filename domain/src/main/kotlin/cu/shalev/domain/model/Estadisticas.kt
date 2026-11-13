@@ -3,7 +3,7 @@ package cu.shalev.domain.model
 import cu.shalev.core.money.Cup
 import java.time.Instant
 
-/** Período de los gráficos Ventas y Ganancia Neta. */
+/** Período de los gráficos Ventas y Ganancia bruta. */
 sealed interface Periodo {
     data class DeTurno(val turnoId: Long) : Periodo
     /** [desde] inclusive, [hasta] exclusivo. */
@@ -48,7 +48,7 @@ enum class NivelStock { NORMAL, BAJO, CRITICO, SIN_EXISTENCIA }
 
 enum class Granularidad { HORA, DIA, MES }
 
-/** Un punto de las series Ventas / Ganancia Neta. */
+/** Un punto de las series Ventas / Ganancia bruta. */
 data class PuntoSerie(val inicio: Instant, val ventas: Cup, val costo: Cup) {
     val ganancia: Cup get() = ventas - costo
 }
@@ -72,7 +72,7 @@ data class Top3(val masVendidos: List<TopItem>, val lentoMovimiento: List<TopIte
 }
 
 /**
- * Gráficos Ventas (barras) y Ganancia Neta (área costo vs venta) del período elegido.
+ * Gráficos Ventas (barras) y Ganancia bruta (área costo vs venta) del período elegido.
  * [turno] = turno mostrado cuando el período es de turno; [sinTurnos] = se pidió TURNO pero aún no hay
  * ninguno, así que se muestra "hoy".
  */
@@ -94,7 +94,7 @@ data class GraficosPeriodo(
 
 /**
  * Parte de Inicio que NO depende del selector de período (Shalev.txt: el selector afecta solo a Ventas y
- * Ganancia Neta): Inventario (existencias actuales), Métodos de pago y Top 3 de los últimos [dias] días.
+ * Ganancia bruta): Inventario (existencias actuales), Métodos de pago y Top 3 de los últimos [dias] días.
  */
 data class ResumenGeneral(
     val categorias: List<Porcion>,

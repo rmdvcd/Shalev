@@ -81,12 +81,17 @@ class InicioPeriodoTest {
         restaurador.setContent {
             ShalevTheme {
                 InicioContent(
-                    InicioUiState(resumen = EstadoCarga.Exito(resumenDePrueba())),
+                    // Suficiente contenido para que la prueba necesite desplazar incluso con cambios de medida
+                    // de Compose. Ir a un nodo ya visible no prueba que se haya guardado una posición distinta.
+                    InicioUiState(
+                        alertas = TipoAlerta.entries.map { AlertaUi(it, 2) },
+                        resumen = EstadoCarga.Exito(resumenDePrueba()),
+                    ),
                     acciones, zona = ZoneId.of("America/Havana"),
                 )
             }
         }
-        rule.onNode(hasTestTag(InicioTags.LISTA)).performScrollToNode(hasTestTag(InicioTags.top(TipoTop.MAS_VENDIDO)))
+        rule.onNode(hasTestTag(InicioTags.LISTA)).performScrollToNode(hasTestTag(InicioTags.top(TipoTop.RENTABILIDAD)))
         assertTrue("la lista no se desplazó: ${desplazamiento()}", desplazamiento() > 0f)
         restaurador.emulateSavedInstanceStateRestore()
         assertEquals("al reabrir, Inicio aparece a media lista", 0f, desplazamiento())

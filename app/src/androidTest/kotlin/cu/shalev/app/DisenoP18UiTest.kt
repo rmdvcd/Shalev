@@ -113,7 +113,9 @@ class DisenoP18UiTest {
         }
         rule.onNodeWithTag("atras").performClick()
         rule.onNodeWithText(TextosGuardia.TITULO).assertIsDisplayed()
-        rule.onNodeWithContentDescription(TextosGuardia.SEGUIR).performClick()
+        // El diálogo no tiene Cancelar en el pie: Atrás lo descarta y conserva la edición.
+        androidx.test.espresso.Espresso.pressBack()
+        rule.onNodeWithText(TextosGuardia.TITULO).assertDoesNotExist()
         assertEquals(0, salidas)
         // Botón atrás del sistema: también pregunta.
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }

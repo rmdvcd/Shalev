@@ -112,6 +112,7 @@ object TablasExport {
         }
         v.transaccion?.let { t ->
             add("Nº transacción" to t.numero)
+        if (t.referenciaDuplicada) add("Verificación del cobro" to "Referencia repetida en otra venta válida. Revisar con el banco.")
             add("Cliente" to t.cliente.nombreApellidos)
         }
         if (interno) {
@@ -214,7 +215,7 @@ object TablasExport {
                 if (r.numAnuladas > 0) add(listOf("Ventas anuladas (no suman)", r.numAnuladas.toString()))
                 add(listOf("Unidades vendidas", r.unidades.toString()))
                 add(listOf("Costo", Money.format(r.costo)))
-                add(listOf("Ganancia neta", Money.format(r.ganancia)))
+                add(listOf("Ganancia bruta", Money.format(r.ganancia)))
             },
         )
         val arqueo = TablaExport("Arqueo de caja", listOf("Dato", "Valor"), camposArqueo(d.arqueo).map { listOf(it.first, it.second) })
@@ -225,6 +226,7 @@ object TablasExport {
 
     fun camposTransaccion(t: Transaccion, zone: ZoneId = ZoneId.systemDefault(), ocultarCi: Boolean = false): List<Pair<String, String>> = buildList {
         add("Nº transacción" to t.numero)
+        if (t.referenciaDuplicada) add("Verificación del cobro" to "Referencia repetida en otra venta válida. Revisar con el banco.")
         add("Importe" to Money.format(t.importe))
         add("Cliente" to t.cliente.nombreApellidos)
         add("CI" to if (ocultarCi) ciOculto(t.cliente.ci) else t.cliente.ci)
@@ -238,11 +240,15 @@ object TablasExport {
         val m = i.movimiento
         val u = if (m.entidad == TipoEntidad.INSUMO && i.simbolo.isNotBlank()) " ${i.simbolo}" else ""
         add("Tipo" to Estadisticas.etiqueta(m.tipo))
+        m.motivo?.let { add("Motivo del movimiento" to it.titulo) }
         add(entidad(m.entidad) to m.nombre)
         add("Cambio" to cantidad(m.entidad, m.delta, signo = true) + u)
         add("Existencia después" to cantidad(m.entidad, m.existenciaResultante) + u)
         if (m.hechoPor.isNotBlank()) add("Hecho por" to m.hechoPor) // 0.21.0 (C7)
         m.nota?.takeIf { it.isNotBlank() }?.let { add("Nota" to it) }
+        m.revisiones.forEachIndexed { indice, r ->
+            add("Corrección ${indice + 1}" to "${Dates.dayTime(r.fecha, zone)} · ${r.autor} · ${cantidad(m.entidad, r.anterior, signo = true)} → ${cantidad(m.entidad, r.nuevo, signo = true)} · ${r.motivo}")
+        }
     }
 
     /** «•••••••••23»: el carné cubano empieza por la fecha de nacimiento; al compartir basta con las 3 últimas cifras. */

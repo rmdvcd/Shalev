@@ -116,10 +116,10 @@ interface SyncDao {
      * Existencias de una venta hecha en una secundaria: se aplican SIEMPRE (la venta ya ocurrió). Si dos apps vendieron
      * a la vez lo último, la existencia queda negativa y el producto sale en «Stock crítico» para que el dueño lo revise.
      */
-    @Query("UPDATE producto SET cantidad = cantidad + :delta, actualizadoEn = :ahora WHERE id = :id")
+    @Query("UPDATE producto SET cantidad = cantidad + :delta, actualizadoEn = :ahora WHERE id = :id AND typeof(cantidad + :delta) = 'integer'")
     suspend fun forzarStockProducto(id: Long, delta: Long, ahora: Long): Int
 
-    @Query("UPDATE insumo SET cantidadMil = cantidadMil + :deltaMil, actualizadoEn = :ahora WHERE id = :id")
+    @Query("UPDATE insumo SET cantidadMil = cantidadMil + :deltaMil, actualizadoEn = :ahora WHERE id = :id AND typeof(cantidadMil + :deltaMil) = 'integer'")
     suspend fun forzarStockInsumo(id: Long, deltaMil: Long, ahora: Long): Int
 
     // ------------------------------------------------------------------ secundaria: lo pendiente de enviar

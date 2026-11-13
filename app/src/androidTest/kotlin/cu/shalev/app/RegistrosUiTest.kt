@@ -1,5 +1,9 @@
 package cu.shalev.app
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.assertIsDisplayed
@@ -9,6 +13,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -149,11 +154,19 @@ class RegistrosUiTest {
         pantalla(ventas(hoja = true), AccionesRegistros(onAplicarFiltro = { aplicado = it }))
         rule.onNodeWithTag(RegistrosTags.FILTRO_PERIODO).performClick()
         rule.onNodeWithTag(RegistrosTags.periodo(PeriodoRegistro.HOY)).performClick()
-        rule.onNodeWithTag(RegistrosTags.FILTRO_MIN).performTextReplacement("abc")
+        val minimo = rule.onNodeWithTag(RegistrosTags.FILTRO_MIN)
+        minimo.performScrollTo().performTextReplacement("abc")
+        minimo.assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
+        minimo.performTextReplacement(".") // se admite al escribir, pero no es un importe final válido
+        androidx.test.espresso.Espresso.closeSoftKeyboard()
         rule.onNodeWithTag(RegistrosTags.FILTRO_APLICAR).performClick()
-        rule.onNodeWithText(TextosRegistros.IMPORTE_INVALIDO).assertExists()
+        rule.onNodeWithText(TextosRegistros.IMPORTE_INVALIDO).performScrollTo().assertIsDisplayed()
         assertEquals(null, aplicado)
-        rule.onNodeWithTag(RegistrosTags.FILTRO_MIN).performTextReplacement("100")
+        minimo.performTextReplacement("100")
+        androidx.test.espresso.Espresso.closeSoftKeyboard()
+        // Reintento deliberado, no doble toque en la misma acción de Aplicar.
+        val desde = android.os.SystemClock.elapsedRealtime()
+        rule.waitUntil(2_000) { android.os.SystemClock.elapsedRealtime() - desde >= cu.shalev.designsystem.component.GuardiaDobleToque.VENTANA_MS }
         rule.onNodeWithTag(RegistrosTags.FILTRO_APLICAR).performClick()
         assertEquals(FiltroRegistros(periodo = PeriodoRegistro.HOY, importeMin = Cup.ofPesos(100)), aplicado)
     }
@@ -183,21 +196,21 @@ class RegistrosUiTest {
 
     // ---------- Exportar PDF / Excel (Prompt 14)
 
-    @Test fun exportarAbreLaHojaYCadaFormatoSeEnviaOSeGuarda() {
+    @Test fun exportarAbreLaHojaYCadaFormatoSeEnvia() {
         var abrir = 0
-        val enviados = mutableListOf<FormatoExport>(); val guardados = mutableListOf<FormatoExport>()
+        val enviados = mutableListOf<FormatoExport>()
         pantalla(
             ventas().copy(hojaExportar = true),
-            AccionesRegistros(onAbrirExportar = { abrir++ }, onEnviar = { enviados += it }, onGuardar = { guardados += it }),
+            AccionesRegistros(onAbrirExportar = { abrir++ }, onEnviar = { enviados += it }),
         )
         rule.onNodeWithTag(RegistrosTags.EXPORTAR).assertIsEnabled().performClick()
         assertEquals(1, abrir)
         rule.onNodeWithText(TextosRegistros.tituloExportar(TipoRegistro.VENTAS)).assertIsDisplayed()
         rule.onNodeWithText(TextosRegistros.alcanceExportar(TipoRegistro.VENTAS, 1, null)).assertIsDisplayed()
-        rule.onNodeWithTag(RegistrosTags.enviar(FormatoExport.XLSX)).performClick()
-        rule.onNodeWithTag(RegistrosTags.guardar(FormatoExport.PDF)).performClick()
-        assertEquals(listOf(FormatoExport.XLSX), enviados)
-        assertEquals(listOf(FormatoExport.PDF), guardados)
+        // El diseño actual presenta una fila por formato, que abre el selector de compartir del sistema.
+        rule.onNodeWithTag(RegistrosTags.formato(FormatoExport.XLSX)).performClick()
+        rule.onNodeWithTag(RegistrosTags.formato(FormatoExport.PDF)).performClick()
+        assertEquals(listOf(FormatoExport.XLSX, FormatoExport.PDF), enviados)
     }
 
     @Test fun exportandoMuestraProgresoYDeshabilitaExportar() {

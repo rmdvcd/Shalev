@@ -8,10 +8,10 @@ En las ventas móviles, la acción de agregar artículos permanece en la barra i
 
 | | |
 |---|---|
-| Versión | **1.0** (`versionCode 53`) |
+| Versión de trabajo | **1.0.1** (`versionCode 54`; no es una nueva publicación firmada) |
 | Paquete | `cu.shalev.app` (debug: `cu.shalev.app.debug`) |
 | minSdk / targetSdk / compileSdk | 26 / 35 / 35 |
-| Base de datos | Room **v13** en desarrollo (migración 12→13; exportación del esquema pendiente de compilación), cifrada con SQLCipher (respaldo `RespaldoDto` v4; archivo `.shalev` v4) |
+| Base de datos | Room **v18**, migración 17→18, cifrada con SQLCipher (contenido `RespaldoDto` v5, importa v3–v5; contenedor `.shalev` v4, lee v3/v4) |
 | Contrato de licencias | GL v1 (`ECIES-P256-AES256GCM-v1`) |
 | Permisos | Solo `CAMERA`, `INTERNET` y `POST_NOTIFICATIONS` (aviso «Turno abierto», Android 13+), más `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_CONNECTED_DEVICE` y `CHANGE_NETWORK_STATE` (servicio de la app principal con secundarias, 0.19.2), `REQUEST_INSTALL_PACKAGES` / `REQUEST_DELETE_PACKAGES` (actualizaciones y licencia transferida, 0.25.0) y `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` (hasta Android 12) / `WRITE_EXTERNAL_STORAGE` (hasta Android 9) para el registro de la prueba (0.26.0), y `USE_BIOMETRIC` / `USE_FINGERPRINT` (acceso con clave opcional, 0.27.0; permisos normales que añade `androidx.biometric`). La captura SMS opcional requiere habilitar manualmente el Acceso especial a notificaciones; no solicita `READ_SMS`. |
 
@@ -34,7 +34,23 @@ En las ventas móviles, la acción de agregar artículos permanece en la barra i
 
 Los documentos de trabajo que estaban fuera del proyecto (`DECISIONES_LICENCIA_Shalev.md`, `PRUEBA_COMPATIBILIDAD_GL.md`, `ARQUITECTURA_Shalev.md`, planes y auditorías de los Prompts 17 y 18, entregas `ENTREGA_*`) se retiraron en la 0.18.0. Lo vigente está en `LICENSE_CLIENT.md` (contrato GL y decisiones de licencia), `SECURITY.md`, `docs/HISTORIAL_DESARROLLO.md` y el propio código.
 
-## Alcance actual y cambios recientes — 24 de octubre de 2026
+## Auditoría Android — 13 de noviembre de 2026
+
+Se corrigieron integridad de importes y cobros, separación de locales, permisos de comandos, recuperación de sincronización, respaldo/fotos y fichas de costo. El diagnóstico y su matriz están en [docs/AUDITORIA_SHALEV_2026-11.md](docs/AUDITORIA_SHALEV_2026-11.md). Esta revisión **no modifica DShalev ni IShalev**.
+
+- **Dinero/cobro:** edición y Excel conservan centavos y signos. El cobro revalida la cotización y las recetas dentro del commit; si cambiaron, obliga a revisarlas. Modificar una venta vuelve a verificar antes de anularla y preserva los precios/costos originales de las líneas anteriores. Rechaza referencias repetidas en ventas locales válidas; las ventas offline reales no se descartan: quedan marcadas para revisar el cobro. Un SMS reconocido no confirma el ingreso bancario.
+- **Locales/permisos:** identidad estable, renombrado sin reasignar historial, catálogo y acciones del local asignado al empleado. Cambiar el selector de la principal no cambia el local del empleado. No se puede cambiar de local con turnos abiertos, incluidos los remotos. Editar existencias no concede cambiar precios dentro de un comando de guardado.
+- **Fichas:** guardadas en Room cifrado, migración no destructiva de las antiguas, por local y dentro del respaldo/borrado total. Exportar en la principal crea insumos a cero, receta y artículo en una transacción; reutiliza el costo vigente, convierte solo medidas compatibles y conserva trabajo/otros gastos como costo adicional editable.
+- **Inventario:** Herramientas → Gestión de inventario añade recepciones inmutables con proveedor, referencia de comprobante, autor, lotes y caducidad. Actualiza el costo promedio ponderado sin cambiar ventas anteriores. Asigna salidas por FEFO contable y devuelve sus lotes al anular o reducir una salida corregida. Las correcciones guardan un historial antes/después con autor y motivo.
+- **Recuperación:** un comando remoto incierto mantiene la misma clave durable hasta recibir su resultado. Se recupera al reconectar; un fallo del refresco posterior no transforma una operación confirmada en otra repetible. Inventario, Servicios, Fichas y Gestión ofrecen reintentos sin cambiar los filtros.
+- **Respaldo/actualización:** DTO v5 incluye locales, preferencias, fichas, gestión y fotos verificadas/remapeadas. Datos y preferencias se restauran en un commit; los archivos se preparan antes y se limpian si falla. La copia previa a actualizar se **conserva**, no se importa automáticamente sobre la base ya migrada; puede guardarse desde Respaldo para recuperación explícita.
+- **Indicadores:** «Ganancia bruta» (no descuenta gastos externos) y distribución del inventario por valor al costo en CUP, sin sumar kg, litros y unidades.
+
+**Límites deliberados:** los productos y la venta suelta de insumos siguen en unidades enteras de su medida (decisión del dueño); recetas y recepción de insumos admiten milésimas. FEFO es contable: no identifica físicamente el lote que entregó una secundaria offline. El comprobante es una referencia de texto, no una imagen adjunta. Sin permisos Android, telemetría ni servicios nuevos.
+
+**Verificación:** consultar [docs/VERIFICACION.md](docs/VERIFICACION.md); compilar instrumentados no equivale a ejecutarlos. Las pruebas en dos teléfonos, la instalación firmada y la revisión visual no se sustituyen por CI.
+
+## Alcance anterior y cambios recientes — 24 de octubre de 2026
 
 La aplicación principal de este repositorio sigue siendo **Android nativa**. Los antiguos proyectos Flutter/iOS y web de escritorio se retiraron; `IShalev/` es una contraparte iOS nueva, nativa en SwiftUI y con proyecto Xcode separado, no una restauración del código Flutter eliminado. `DShalev/` es una implementación nueva de escritorio en Python; no restaura el antiguo proyecto. La sincronización por red local entre teléfonos Android sigue siendo parte de la app Android.
 
@@ -48,13 +64,13 @@ La versión publicada es la **1.0 (`versionCode 53`)**: la primera versión púb
 
 | Área | Funciones |
 |---|---|
-| **Inicio** | Fijos arriba (no se desplazan): turno, selector de período y banner de licencia. Debajo, con desplazamiento: alertas de inventario (stock bajo/crítico, insumo bajo/crítico, próximo a caducar), accesos a Pago electrónico (teléfono y tarjeta/cuenta resaltados) y Precios, y acordeones: 4 gráficos (Ventas, Inventario, Métodos de pago, Ganancia neta) y Top 3 (más vendido, lento movimiento, rentabilidad; desde 1.0.1 los insumos con precio de venta cuentan como productos). **Nueva venta** y movimiento de caja son botones flotantes (con el turno abierto). Los acordeones empiezan cerrados y se cierran de nuevo al cambiar de ventana |
+| **Inicio** | Fijos arriba (no se desplazan): turno, selector de período y banner de licencia. Debajo, con desplazamiento: alertas de inventario (stock bajo/crítico, insumo bajo/crítico, próximo a caducar), accesos a Pago electrónico (teléfono y tarjeta/cuenta resaltados) y Precios, y acordeones: 4 gráficos (Ventas, Inventario, Métodos de pago, Ganancia bruta) y Top 3 (más vendido, lento movimiento, rentabilidad; desde 1.0.1 los insumos con precio de venta cuentan como productos). **Nueva venta** y movimiento de caja son botones flotantes (con el turno abierto). Los acordeones empiezan cerrados y se cierran de nuevo al cambiar de ventana |
 | **Venta** | Solo con turno abierto. Selección desde el Inventario, carrito con cantidades, **Efectivo** (comprobante) o **Transferencia** (QR de Transfermóvil con tarjeta y móvil; el total aparece debajo porque el QR oficial no lo admite). El nº de transacción se puede capturar opcionalmente desde una notificación autorizada o pegar/compartir desde el SMS de PAGOxMOVIL. Un Elaborado se vende mientras alcancen sus insumos, que se descuentan en la misma transacción; si la cantidad supera las existencias, se ajusta y se explica en un aviso |
 | **Inventario** | Lista con buscador, filtros, selección múltiple, ficha, alta manual y exportación (PDF, Excel o imagen: tarjeta promocional para un artículo y lista de precios para varios) |
 | **QR de vinculación** | CameraX + ML Kit (modelo empaquetado). Solo lee el QR para vincular la principal con la secundaria |
 | **Servicios** | (0.18.0, sustituye a Elaboración.) Nombre, Tipo, Importe y, opcionales, foto y descripción. Pueden gastar insumos. Se venden aparte de los productos, tienen su pestaña en Registros y sus indicadores en Inicio. Los **insumos** son ahora la categoría «Insumos» del Inventario (precio de venta opcional, en unidades enteras). Los Elaborados muestran «Alcanza para N» |
 | **Registros** | Ventas, Transferencias, Movimientos, **Clientes** (clientes fijos, 0.27.0; corregir sus datos desde la ficha, 0.31.0) y Turnos, con buscador y filtros de fecha e importe. Exportar a PDF/Excel (0.26.0: ya no se comparte como texto). Desde la 0.31.0 se corrige lo registrado de un turno **abierto**: cantidades, método de pago y nº de transacción en ventas y servicios; la venta de una transferencia desde su ficha; y la cantidad de un ajuste desde la ficha del movimiento |
-| **Herramientas** | Ficha de costo temporal en CUP y USD; calculadora de cambio manual entre ambas monedas |
+| **Herramientas** | Fichas de costo persistentes y exportación transaccional; recepción con proveedor/comprobante/costo promedio, lotes/caducidades FEFO y ajustes con motivo; calculadora de cambio CUP/USD conservando centavos |
 | **Ajustes** | Completar configuración, Perfil (aviso en línea para nombres no válidos), Licencia, Pago electrónico, Precios (preajustes), Avisos de inventario, Permisos, Respaldo, Actualizar, Manual de usuario, Soporte |
 
 ### Qué no hace
@@ -72,14 +88,14 @@ La versión publicada es la **1.0 (`versionCode 53`)**: la primera versión púb
 - **Gradle 8.11.1**: lo descarga el wrapper (`gradlew`).
 - Teléfono o emulador con **Android 8.0 (API 26)** o superior. La cámara es opcional (`android.hardware.camera.any`, `required=false`).
 
-Versiones principales (`gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 8.7.3, Compose BOM 2024.12.01, Hilt 2.52, Room 2.6.1, SQLCipher 4.6.1, DataStore 1.1.1, Navigation 2.8.5, CameraX 1.4.1, ML Kit barcode 17.3.0 (empaquetado, sin descargas), OkHttp 4.12.0, Coil 3.0.4, fastexcel 0.18.4, ZXing core 3.5.3, kotlinx.serialization 1.7.3, coroutines 1.9.0.
+Versiones principales (`gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 8.7.3, Compose BOM 2025.06.01, Hilt 2.52, Room 2.6.1, SQLCipher 4.6.1, DataStore 1.1.1, Navigation 2.8.5, CameraX 1.4.1, ML Kit barcode 17.3.0 (empaquetado, sin descargas), OkHttp 4.12.0, Coil 3.0.4, fastexcel 0.18.4, ZXing core 3.5.3, kotlinx.serialization 1.7.3, coroutines 1.9.0.
 
 ## Configuración
 
 1. **Claves públicas de GL.** `LicenseTrust.kt` fija la ECDH `sha256:fb3a:f7fc:…:078d` y la firma `sha256:113f:a5f6:…:4b1c` del emisor vigente (GL 1.2.0, pestaña Claves del teléfono `4bc9f8f3`, 22/10/2026). También acepta las firmas de instalaciones anteriores (`sha256:58d4:3aac:…:8c4e` del bundle del 05/10/2026, `sha256:e693:6c20:…:0a6e` y `sha256:d9c4:d821:…:998e` del 15/10/2026, `sha256:8a91:…:6888` del 30/09/2026) para licencias ya emitidas. Como GL genera claves locales por instalación, verifica siempre las huellas en la pestaña Claves del GL emisor: firma nueva → añadir a `SIGN_KEYS`; ECDH distinta → fijar esa clave y publicar un build nuevo. `LicenseTrustTest` valida las huellas.
 2. **Firma de release.** El repositorio no contiene ningún keystore ni contraseña. `app/build.gradle.kts` los lee de `keystore.properties`, que git ignora, o de las variables `Shalev_KEYSTORE`, `Shalev_KEYSTORE_PASSWORD`, `Shalev_KEY_ALIAS` y `Shalev_KEY_PASSWORD`. Los pasos completos están en [RELEASE.md](RELEASE.md). **Firma siempre con la misma clave**, porque `ANDROID_ID` (y con él el `deviceId` de la licencia) depende de la firma del APK.
 3. **Contacto del desarrollador.** Teléfono `+5351815604` en una sola constante (`core/.../contact/DeveloperContact.kt`), que usan Licencia y Soporte.
-4. **Esquema Room.** La versión actual es **v12** (`data/schemas/cu.shalev.data.db.ShalevDatabase/12.json`). Cada cambio requiere migración, esquema exportado y `EsquemaTest`.
+4. **Esquema Room.** La versión de trabajo es **v18** (`data/schemas/cu.shalev.data.db.ShalevDatabase/18.json`). Cada cambio requiere migración, esquema exportado y `EsquemaTest`.
 5. **Baseline de lint.** Se entrega vacío. La primera vez ejecuta `./gradlew :app:updateLintBaseline` y versiona `app/lint-baseline.xml`; a partir de ahí, cualquier error nuevo de lint rompe `shalevCheck`.
 6. **Actualizaciones:** el build apunta por defecto a las Releases públicas de [`rmdvcd/Shalev`](https://github.com/rmdvcd/Shalev/releases) (`shalevGithubRepo` en `gradle.properties`). Para compilar un fork, se puede sobrescribir con `-PshalevGithubRepo=usuario/repositorio`; vacío desactiva las consultas.
 7. **Nada más que configurar:** no hay claves de API, `google-services.json` ni variables de entorno.
@@ -317,7 +333,7 @@ El manual para el usuario final, sin tecnicismos, está en [MANUAL_USUARIO.md](M
 
 - **La contraseña del respaldo no se puede recuperar.** Sin ella el archivo `.shalev` no se abre.
 - **Importar reemplaza TODOS los datos:** inventario, insumos, turnos, ventas y configuración. Los respaldos de versiones anteriores a la 0.13.0 (formato v1/v2) ya no se abren.
-- **Las fotos de los productos no van en el respaldo.** El respaldo guarda la ruta de la foto, pero no la imagen; en otro teléfono los productos aparecen sin foto.
+- **Fotos:** DTO v5 incluye imágenes privadas disponibles, verificadas por SHA-256 y remapeadas al importar (4 MiB/foto, 48 MiB sumados). Los respaldos antiguos solo tienen rutas y no recuperan archivos que nunca contenían.
 - **La licencia no va en el respaldo.** Cada teléfono necesita la suya (`deviceId` distinto). Desde la 0.25.0 el respaldo lleva su ID para **recuperarla** gratis en otro teléfono (MANUAL §9).
 - **Borrar los datos de la app o reinstalarla** destruye la base de datos (su clave vive en el Keystore del teléfono) y la licencia instalada. Haz un respaldo antes. El `deviceId` suele mantenerse si el APK está firmado con la misma clave, así que el desarrollador puede volver a emitir la licencia.
 - **El PDF de configuración y las exportaciones de Registros no llevan contraseña.** Las de Transferencias incluyen nombre, carné y teléfono de clientes.
@@ -325,7 +341,7 @@ El manual para el usuario final, sin tecnicismos, está en [MANUAL_USUARIO.md](M
 - **QR de Transfermóvil sin importe:** el formato oficial no lo admite; el cliente escribe el total que Shalev muestra bajo el QR.
 - **SMS de licencia:** la solicitud ocupa unos 780 caracteres (varios SMS) y la licencia, unos 340 (3 SMS) o 216 si GL manda solo el código. WhatsApp es el canal recomendado.
 - **Valores fijos:** el tema sigue al sistema, el aviso de caducidad salta 7 días antes y la red espera 5 s. Son constantes, no preferencias (P17).
-- **Pruebas en este entorno:** la suite se compiló y los tests JVM pasaron fuera de Gradle. Gradle, lint, R8, Room KSP y los tests instrumentados no se han ejecutado nunca. Confirma con `./gradlew shalevCheck shalevInstrumentedTests` y la prueba de humo de [RELEASE.md](RELEASE.md) antes de distribuir.
+- **Pruebas:** el estado medido por SHA se registra en [docs/VERIFICACION.md](docs/VERIFICACION.md); no se extrapola del CI de `main` ni de una compilación a la ejecución en teléfono. Confirma también la prueba de humo de [RELEASE.md](RELEASE.md) antes de distribuir.
 - **Debug y release no comparten licencia:** cada uno tiene su propio paquete (`cu.shalev.app.debug` frente a `cu.shalev.app`) y su propia firma, así que su `deviceId` es distinto. Lo mismo pasa entre el APK distribuido a mano y uno publicado en Google Play con *Play App Signing*.
 
 ## Licencia del código

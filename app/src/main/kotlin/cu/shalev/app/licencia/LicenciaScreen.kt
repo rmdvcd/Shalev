@@ -98,6 +98,8 @@ fun LicenciaScreen(
     bloqueada: Boolean = false,
     onSoporte: (() -> Unit)? = null,
     viewModel: LicenciaViewModel = hiltViewModel(),
+    entradaVm: cu.shalev.app.common.EntradaViewModel = hiltViewModel(),
+    recuperacionVm: RecuperacionViewModel = hiltViewModel(),
 ) {
     SecureWindow()
     val context = LocalContext.current
@@ -105,7 +107,6 @@ fun LicenciaScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     // 0.25.0: mensaje de licencia compartido con Shalev → se rellena y se activa sin pegarlo (también en el bloqueo).
-    val entradaVm: cu.shalev.app.common.EntradaViewModel = hiltViewModel()
     val licenciaCompartida by entradaVm.licenciaPendiente.collectAsStateWithLifecycle()
     LaunchedEffect(licenciaCompartida, state.licencia != null) {
         if (licenciaCompartida && state.licencia != null) entradaVm.tomarLicencia()?.let { texto ->
@@ -114,7 +115,6 @@ fun LicenciaScreen(
         }
     }
     // 0.25.0 (§3): tras importar un respaldo con licencia, el ID a recuperar ya viene escrito.
-    val recuperacionVm: RecuperacionViewModel = hiltViewModel()
     val recuperable by recuperacionVm.recuperable.collectAsStateWithLifecycle()
     LaunchedEffect(recuperable, state.licencia?.instalada) {
         val r = recuperable

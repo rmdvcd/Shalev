@@ -59,39 +59,29 @@ class RespaldoPrevioTest {
         assertTrue(File(dir, "respaldo_actualizacion").listFiles().orEmpty().isEmpty()) // nada a medias
     }
 
-    @Test fun trasActualizarSeRestauraYSeBorra() = runTest {
+    @Test fun actualizarConservaLaCopiaSinSobrescribirLaBaseMigrada() = runTest {
         previo.crear("0.30.0/51")
-        assertEquals(Restauracion.RESTAURADO, previo.restaurarSiCorresponde("0.30.1/52"))
-        assertEquals("datos", repo.importado)
-        assertEquals(0, repo.contrasenaImportada)
-        assertFalse(previo.existe)
-        // una segunda apertura no vuelve a restaurar
-        repo.importado = null
-        assertEquals(Restauracion.NADA_QUE_RESTAURAR, previo.restaurarSiCorresponde("0.30.1/52"))
-        assertNull(repo.importado)
+        repeat(2) {
+            assertEquals(Restauracion.CONSERVADO, previo.restaurarSiCorresponde("0.30.1/52"))
+            assertNull(repo.importado)
+            assertTrue(previo.existe)
+        }
     }
 
-    @Test fun siLaVersionNoCambioElRespaldoSeDescartaSinRestaurar() = runTest {
+    @Test fun instalacionCanceladaTampocoRestauraNiBorraLaCopia() = runTest {
         previo.crear("0.30.0/51")
-        assertEquals(Restauracion.NADA_QUE_RESTAURAR, previo.restaurarSiCorresponde("0.30.0/51"))
+        assertEquals(Restauracion.CONSERVADO, previo.restaurarSiCorresponde("0.30.0/51"))
         assertNull(repo.importado)
-        assertFalse(previo.existe)
-    }
-
-    @Test fun siFallaLaRestauracionElRespaldoSeConserva() = runTest {
-        previo.crear("0.30.0/51")
-        repo.fallaImportar = true
-        assertEquals(Restauracion.FALLO, previo.restaurarSiCorresponde("0.30.1/52"))
         assertTrue(previo.existe)
-        repo.fallaImportar = false
-        assertEquals(Restauracion.RESTAURADO, previo.restaurarSiCorresponde("0.30.1/52"))
     }
 
-    @Test fun restaurarNoDejaUnaLicenciaRecuperableNueva() = runTest {
+    @Test fun laCopiaSoloSeExportaCuandoSePideExplicitamente() = runTest {
         previo.crear("0.30.0/51")
-        repo.dejaLicenciaRecuperable = { estado.flujo.value = estado.flujo.value.copy(licenciaRecuperable = LicenciaRecuperable("x", "MENSUAL", 0, null, "123")) }
-        previo.restaurarSiCorresponde("0.30.1/52")
-        assertNull(estado.flujo.value.licenciaRecuperable)
+        val destino = java.io.ByteArrayOutputStream()
+        assertTrue(previo.copiarA(destino) is AppResult.Ok)
+        assertEquals("datos", destino.toString("UTF-8"))
+        assertNull(repo.importado)
+        assertTrue(previo.existe)
     }
 
     @Test fun descartarBorraTodo() = runTest {

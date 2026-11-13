@@ -80,6 +80,7 @@ class AccionesServicioForm(
     val onNombre: (String) -> Unit = {},
     val onTipo: (String) -> Unit = {},
     val onImporte: (String) -> Unit = {},
+    val onCostoAdicional: (String) -> Unit = {},
     val onDescripcion: (String) -> Unit = {},
     val onElegirFoto: () -> Unit = {},
     val onQuitarFoto: () -> Unit = {},
@@ -111,7 +112,7 @@ fun ServicioFormScreen(onBack: () -> Unit, onGuardado: (String) -> Unit, viewMod
         state = state,
         snackbar = snackbar,
         acciones = AccionesServicioForm(
-            onNombre = viewModel::nombre, onTipo = viewModel::tipo, onImporte = viewModel::importe, onDescripcion = viewModel::descripcion,
+            onCostoAdicional = viewModel::costoAdicional, onNombre = viewModel::nombre, onTipo = viewModel::tipo, onImporte = viewModel::importe, onDescripcion = viewModel::descripcion,
             onElegirFoto = { elegirFoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onQuitarFoto = viewModel::quitarFoto, onFoto = { viewModel.fotoElegida(it) }, onMostrarInsumos = viewModel::mostrarInsumos, onAgregarInsumo = viewModel::agregarInsumo,
             onCantidadInsumo = viewModel::cantidadInsumo, onQuitarInsumo = viewModel::quitarInsumo, onGuardar = viewModel::guardar, onBack = onBack,
@@ -171,6 +172,8 @@ private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, modi
             imeAction = ImeAction.Next, modifier = Modifier.testTag(ServicioFormTags.NOMBRE),
         )
         CampoTipo(f.tipo, state.tipos, err[CamposServicio.TIPO], state.intentado, a.onTipo)
+        ShalevTextField(f.costoAdicional, a.onCostoAdicional, label = "Mano de obra y otros costos (CUP)", filtro = FiltroEntrada.DINERO,
+            isError = CamposServicio.COSTO_ADICIONAL in err, errorText = err[CamposServicio.COSTO_ADICIONAL], supportingText = "Costo adicional de UNA prestación, además de los insumos")
         ShalevTextField(
             filtro = FiltroEntrada.DINERO,
             value = f.importe, onValueChange = a.onImporte, label = "Importe (CUP) *", placeholder = "0.00",
@@ -245,7 +248,7 @@ private fun Insumos(state: ServicioFormUiState, a: AccionesServicioForm) {
         if (state.form.insumos.isNotEmpty()) {
             ShalevCard(tone = CardTone.Tonal) {
                 Text(
-                    "Costo de insumos: ${state.costo?.let(Money::format) ?: "—"}", style = MaterialTheme.typography.bodyLarge,
+                    "Costo completo: ${state.costo?.let(Money::format) ?: "—"}", style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
                 )
             }

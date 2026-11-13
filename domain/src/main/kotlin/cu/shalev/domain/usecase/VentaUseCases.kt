@@ -52,37 +52,42 @@ class CotizarVenta @Inject constructor(
     internal suspend fun planificar(
         solicitadas: List<LineaSolicitada>, metodo: MetodoPago, devueltos: Devueltos = Devueltos.NINGUNO,
     ): AppResult<Plan> {
-        val deServicios = solicitadas.count { it.clase == ClaseArticulo.SERVICIO }
-        if (deServicios > 0 && deServicios < solicitadas.size) return AppResult.Err(AppError.Validacion("lineas", AppError.Regla.NO_PERMITIDO))
-        if (deServicios > 0) return planificarServicios(solicitadas, metodo, devueltos)
-        // P29: los insumos vendibles entran como «producto» con id negativo (IdArticulo) y precio por unidad de medida.
-        val idsInsumo = solicitadas.filter { it.clase == ClaseArticulo.INSUMO }.map { it.productoId }.toSet()
-        val vendidos = (if (idsInsumo.isEmpty()) emptyList() else insumos.obtenerVarios(idsInsumo)).map(devueltos::aplicar)
-        if (vendidos.any { it.precioVenta == null }) return AppResult.Err(AppError.Validacion("precioVenta", AppError.Regla.REQUERIDO))
-        val lineas = solicitadas.map { if (it.clase == ClaseArticulo.INSUMO) it.copy(productoId = IdArticulo.deInsumo(it.productoId)) else it }
-        val mapa = productos.obtenerVarios(lineas.filter { it.productoId > 0 }.map { it.productoId }.toSet()).map(devueltos::aplicar).associateBy { it.id } +
-            vendidos.map { it.comoProducto() }.associateBy { it.id }
-        val pedidas = lineas.groupBy { it.productoId }.mapValues { (_, l) -> l.sumOf { it.cantidad } }
-        val recetas = mutableMapOf<Long, Receta>()
-        val alcanza = mutableMapOf<Long, Long>()
-        val costos = mutableMapOf<Long, Cup>()
-        var insumosLeidos: Map<Long, Insumo> = emptyMap()
-        val elaborados = pedidas.keys.filter { id -> mapa[id]?.esElaborado == true }
-        if (elaborados.isNotEmpty()) {
-            elaborados.forEach { id -> productos.receta(id)?.let { recetas[id] = it } }
-            insumosLeidos = insumos.obtenerVarios(recetas.values.flatMap { r -> r.lineas.map { it.insumoId } }.toSet()).map(devueltos::aplicar).associateBy { it.id }
-            recetas.forEach { (id, r) ->
-                alcanza[id] = Recetas.maxUnidades(r, insumosLeidos)
-                (Recetas.costo(r, insumosLeidos) as? AppResult.Ok)?.let { costos[id] = it.value }
-            }
-        }
-        return PlanificadorVenta.cotizar(lineas, mapa, metodo, precios.preajustesActivos(), alcanza, costos)
-            .map { c ->
-                val detalles = c.detalles.map { d ->
-                    if (IdArticulo.esInsumo(d.productoId)) d.copy(productoId = IdArticulo.insumoId(d.productoId), clase = ClaseArticulo.INSUMO) else d
+        try {
+            val deServicios = solicitadas.count { it.clase == ClaseArticulo.SERVICIO }
+            if (deServicios > 0 && deServicios < solicitadas.size) return AppResult.Err(AppError.Validacion("lineas", AppError.Regla.NO_PERMITIDO))
+            if (deServicios > 0) return planificarServicios(solicitadas, metodo, devueltos)
+            // P29: los insumos vendibles entran como «producto» con id negativo (IdArticulo) y precio por unidad de medida.
+            val idsInsumo = solicitadas.filter { it.clase == ClaseArticulo.INSUMO }.map { it.productoId }.toSet()
+            val vendidos = (if (idsInsumo.isEmpty()) emptyList() else insumos.obtenerVarios(idsInsumo)).map(devueltos::aplicar)
+            if (vendidos.any { it.precioVenta == null }) return AppResult.Err(AppError.Validacion("precioVenta", AppError.Regla.REQUERIDO))
+            val lineas = solicitadas.map { if (it.clase == ClaseArticulo.INSUMO) it.copy(productoId = IdArticulo.deInsumo(it.productoId)) else it }
+            val mapa = productos.obtenerVarios(lineas.filter { it.productoId > 0 }.map { it.productoId }.toSet()).map(devueltos::aplicar).associateBy { it.id } +
+                vendidos.map { it.comoProducto() }.associateBy { it.id }
+            val pedidas = lineas.groupBy { it.productoId }.mapValues { (_, l) -> l.fold(0L) { suma, linea -> Math.addExact(suma, linea.cantidad) } }
+            val recetas = mutableMapOf<Long, Receta>()
+            val alcanza = mutableMapOf<Long, Long>()
+            val costos = mutableMapOf<Long, Cup>()
+            var insumosLeidos: Map<Long, Insumo> = emptyMap()
+            val elaborados = pedidas.keys.filter { id -> mapa[id]?.esElaborado == true }
+            if (elaborados.isNotEmpty()) {
+                elaborados.forEach { id -> productos.receta(id)?.let { recetas[id] = it } }
+                insumosLeidos = insumos.obtenerVarios(recetas.values.flatMap { r -> r.lineas.map { it.insumoId } }.toSet()).map(devueltos::aplicar).associateBy { it.id }
+                recetas.forEach { (id, r) ->
+                    alcanza[id] = Recetas.maxUnidades(r, insumosLeidos)
+                    when (val costo = Recetas.costo(r, insumosLeidos)) {
+                        is AppResult.Err -> return costo
+                        is AppResult.Ok -> costos[id] = costo.value + mapa.getValue(id).costoAdicional
+                    }
                 }
-                Plan(c.copy(detalles = detalles), recetas, insumosLeidos)
             }
+            return PlanificadorVenta.cotizar(lineas, mapa, metodo, precios.preajustesActivos(), alcanza, costos)
+                .map { c ->
+                    val detalles = c.detalles.map { d ->
+                        if (IdArticulo.esInsumo(d.productoId)) d.copy(productoId = IdArticulo.insumoId(d.productoId), clase = ClaseArticulo.INSUMO) else d
+                    }
+                    Plan(c.copy(detalles = detalles), recetas, insumosLeidos)
+                }
+        } catch (_: ArithmeticException) { return AppResult.Err(AppError.Validacion("importe", AppError.Regla.RANGO)) }
     }
 
     /**
@@ -99,11 +104,14 @@ class CotizarVenta @Inject constructor(
         val mapa = ss.associate { s ->
             val r = recetas[s.id]
             val tope = r?.let { Recetas.maxUnidades(it, insumosLeidos) } ?: SIN_TOPE
-            val costo = r?.let { (Recetas.costo(it, insumosLeidos) as? AppResult.Ok)?.value } ?: Cup.ZERO
+            val costo = r?.let { when (val costo = Recetas.costo(it, insumosLeidos)) {
+                is AppResult.Err -> return costo
+                is AppResult.Ok -> costo.value
+            } } ?: Cup.ZERO
             alcanza[s.id] = tope
-            costos[s.id] = costo
+            costos[s.id] = costo + s.costoAdicional
             s.id to Producto(
-                id = s.id, categoria = s.tipo, nombre = s.nombreCompleto, precioCosto = costo, precioVenta = s.importe,
+                id = s.id, categoria = s.tipo, nombre = s.nombreCompleto, precioCosto = costo + s.costoAdicional, precioVenta = s.importe,
                 cantidad = tope, creadoEn = s.creadoEn,
             )
         }
@@ -183,7 +191,10 @@ class RegistrarVenta @Inject constructor(
     private val perfil: PerfilRepository,
     private val clock: Clock,
 ) {
-    suspend operator fun invoke(lineas: List<LineaSolicitada>, metodo: MetodoPago, transferencia: DatosTransferencia? = null): AppResult<Long> {
+    suspend operator fun invoke(
+        lineas: List<LineaSolicitada>, metodo: MetodoPago, transferencia: DatosTransferencia? = null,
+        aceptada: cu.shalev.domain.service.Cotizacion? = null,
+    ): AppResult<Long> {
         val turno = turnos.activo() ?: return AppResult.Err(AppError.TurnoCerrado)
 
         val cliente = when (val r = validarTransferencia(metodo, transferencia)) {
@@ -196,6 +207,9 @@ class RegistrarVenta @Inject constructor(
             is AppResult.Ok -> r.value
         }
         val cot = plan.cotizacion
+        if (aceptada != null && aceptada != cot) {
+            return AppResult.Err(AppError.Validacion("cotizacion", AppError.Regla.NO_PERMITIDO))
+        }
         val elaborados = when (val r = plan.elaborados()) {
             is AppResult.Err -> return r
             is AppResult.Ok -> r.value
@@ -205,10 +219,16 @@ class RegistrarVenta @Inject constructor(
             val p = perfil.perfil.first()
             transaccion(t, now, cot.total, p.tarjetaPago?.numero, p.telefonoPago?.numero)
         }
-        return ventas.registrar(
+        return ventas.registrarVerificada(
             Venta(turnoId = turno.id, fecha = now, metodoPago = metodo, detalles = cot.detalles, transaccion = transaccion),
             elaborados,
-        )
+        ) {
+            when (val vigente = cotizar.planificar(lineas, metodo)) {
+                is AppResult.Err -> vigente
+                is AppResult.Ok -> if (vigente.value.cotizacion == cot && vigente.value.elaborados() == AppResult.Ok(elaborados)) AppResult.Ok(Unit)
+                    else AppResult.Err(AppError.Validacion("cotizacion", AppError.Regla.NO_PERMITIDO))
+            }
+        }
     }
 }
 

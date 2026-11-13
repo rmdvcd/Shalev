@@ -9,6 +9,7 @@ import cu.shalev.domain.model.Insumo
 import cu.shalev.domain.model.Producto
 import cu.shalev.domain.model.Receta
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 /**
  * Productos (incluye Elaborados y sus recetas). Toda escritura que cambia existencias registra su
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
 interface ProductoRepository {
     /** Activos, más recientes primero (orden cronológico de Shalev.txt). */
     fun observarTodos(): Flow<List<Producto>>
+    suspend fun fotosEnUso(): Set<String> = observarTodos().first().mapNotNull { it.fotoUri }.toSet()
     fun observar(id: Long): Flow<Producto?>
     suspend fun obtener(id: Long): Producto?
     suspend fun obtenerVarios(ids: Collection<Long>): List<Producto>
@@ -62,6 +64,7 @@ interface InsumoRepository {
 interface ServicioRepository {
     /** Activos, más recientes primero. */
     fun observarTodos(): Flow<List<Servicio>>
+    suspend fun fotosEnUso(): Set<String> = observarTodos().first().mapNotNull { it.fotoUri }.toSet()
     /** servicioId → insumos que gasta por vez (solo de los servicios que consumen alguno). */
     fun observarInsumos(): Flow<Map<Long, List<RecetaLinea>>>
     suspend fun obtener(id: Long): Servicio?

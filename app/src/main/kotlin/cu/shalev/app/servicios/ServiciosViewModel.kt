@@ -120,9 +120,9 @@ class ServiciosViewModel @Inject constructor(
     private val filtroConsultado: Flow<FiltroServicios> = filtro.debounce { f -> if (f.texto.isEmpty()) 0L else debounceBusqueda }
 
     /** 0.30.0 (F1, ver `InventarioViewModel`): filtro + intento (Reintentar) disparan la consulta. */
-    private val consulta = combine(intento, filtroConsultado) { _, f -> f }.distinctUntilChanged()
+    private val consulta = combine(intento, filtroConsultado) { i, f -> i to f }.distinctUntilChanged()
 
-    private val vista: StateFlow<EstadoCarga<VistaServicios>> = consulta.flatMapLatest { f ->
+    private val vista: StateFlow<EstadoCarga<VistaServicios>> = consulta.flatMapLatest { (_, f) ->
         observarServicios(flowOf(f))
             .map<VistaServicios, EstadoCarga<VistaServicios>> { if (it.total == 0) EstadoCarga.Vacio(it) else EstadoCarga.Exito(it) }
             .onStart { emit(EstadoCarga.Cargando) }
@@ -130,8 +130,8 @@ class ServiciosViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EstadoCarga.Cargando)
 
     /** Todos los activos: la selección sobrevive a búsquedas/filtros y se poda si se borran. */
-    private val todos: StateFlow<Map<Long, ServicioDisponible>> = observarServicios.disponibles()
-        .catch { emit(emptyMap()) }
+    private val todos: StateFlow<Map<Long, ServicioDisponible>> = intento.flatMapLatest { observarServicios.disponibles()
+        .catch { emit(emptyMap()) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     val state: StateFlow<ServiciosUiState> = combine(vista, filtro, seleccion, todos, local) { v, f, s, t, l ->

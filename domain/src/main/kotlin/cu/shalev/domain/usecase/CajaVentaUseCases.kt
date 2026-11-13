@@ -146,7 +146,13 @@ class ModificarVenta @Inject constructor(
             )
         }
         val nueva = Venta(turnoId = turno.id, fecha = now, metodoPago = metodo, detalles = detalles, transaccion = transaccion, corrigeVentaId = ventaId)
-        return ventas.modificar(ventaId, Anulacion(now, m, usuario()), nueva, elaborados)
+        return ventas.modificarVerificada(ventaId, Anulacion(now, m, usuario()), nueva, elaborados) {
+            when (val vigente = cotizar.planificar(lineas, metodo, Devueltos.de(ventas.movimientosDe(ventaId)))) {
+                is AppResult.Err -> vigente
+                is AppResult.Ok -> if (conPreciosOriginales(vigente.value.cotizacion.detalles, original) == detalles && vigente.value.elaborados() == AppResult.Ok(elaborados))
+                    AppResult.Ok(Unit) else AppResult.Err(AppError.Validacion("cotizacion", AppError.Regla.NO_PERMITIDO))
+            }
+        }
     }
 
     companion object {

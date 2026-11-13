@@ -274,7 +274,7 @@ fun RegistrosContent(
     )
 }
 
-/** Prompt 14: PDF o Excel de lo que se ve; cada formato se puede enviar a otra app o guardar en el teléfono. */
+/** PDF o Excel de lo que se ve: tocar una fila abre el selector de compartir del sistema. */
 @Composable
 private fun HojaExportar(state: RegistrosUiState, tipo: TipoRegistro, acciones: AccionesRegistros) {
     ShalevBottomSheet(onDismiss = acciones.onCerrarExportar, title = TextosRegistros.tituloExportar(tipo)) {
@@ -414,7 +414,7 @@ private fun LazyListScope.ventas(xs: List<Venta>, marcados: Set<Long>, acciones:
 private fun LazyListScope.transferencias(xs: List<Transaccion>, marcados: Set<Long>, acciones: AccionesRegistros, zona: ZoneId) {
     items(xs, key = { "t${it.id}" }) { t ->
         ShalevListItem(
-            tituloEsDato = true, title = tituloFila(t, zona), subtitle = subtituloFila(t), value = valorFila(t), indicatorColor = null,
+            tituloEsDato = true, title = tituloFila(t, zona), subtitle = if (t.referenciaDuplicada) "Referencia repetida · Verifica el cobro" else subtituloFila(t), value = valorFila(t), indicatorColor = null,
             leading = { CasillaRegistro(t.id in marcados, t.id, tituloFila(t, zona), acciones.onAlternar) },
             onClick = { acciones.onAbrirTransferencia(t.id) }, modifier = shalevAnimateItem().testTag(RegistrosTags.transferencia(t.id)),
         )

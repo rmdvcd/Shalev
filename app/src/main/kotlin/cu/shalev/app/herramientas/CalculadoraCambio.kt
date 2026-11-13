@@ -25,6 +25,7 @@ import cu.shalev.domain.fichacosto.CalculoFichaCosto
 import cu.shalev.domain.fichacosto.MonedaCosto
 import cu.shalev.domain.repository.EstadoPantallasRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.math.BigDecimal
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+/** El dominio ya redondeó al centavo: presentar sin otra ronda de redondeo ni notación científica. */
+internal fun textoResultadoCambio(resultado: BigDecimal, moneda: MonedaCosto): String =
+    "Resultado: ${resultado.stripTrailingZeros().toPlainString()} ${moneda.name}"
 
 /** Operación de la calculadora. Público: forma parte del estado que expone [CalculadoraCambioViewModel]. */
 enum class ModoCambio(val titulo: String) {
@@ -137,9 +142,9 @@ fun CalculadoraCambio(onDismiss: () -> Unit, vm: CalculadoraCambioViewModel = hi
             if (importe != null && tasa != null) {
                 val destino = if (origen == MonedaCosto.USD) MonedaCosto.CUP else MonedaCosto.USD
                 val resultado = CalculoCambio.convertir(importe, tasa, origen)
-                Text("Resultado: ${resultado.abs().setScale(0, java.math.RoundingMode.HALF_UP).toPlainString()} ${destino.name}", style = MaterialTheme.typography.titleMedium)
+                Text(textoResultadoCambio(resultado, destino), style = MaterialTheme.typography.titleMedium)
             }
-            Text("El resultado se muestra como entero positivo.", style = MaterialTheme.typography.bodySmall)
+            Text("El resultado se redondea a dos decimales.", style = MaterialTheme.typography.bodySmall)
         } else {
             ShalevTextField(
                 cupTexto, { cupTexto = it }, label = "Importe equivalente en CUP", filtro = FiltroEntrada.DECIMAL,

@@ -38,7 +38,7 @@ class TurnoPersistenciaTest {
         // P38: v5 (Principal/Secundaria: tabla empleado + uuid/empleadoId/sincronizado) con migración explícita 4→5.
         // 0.20.0: v6 (empleado: tarjetaId, telefonoId, cierreSolicitadoEn) con migración explícita 5→6.
         // 0.31.0 (mitigación 7): v12 (empleado: device) con migración 11→12.
-        assertEquals(17, ShalevDatabase.VERSION)
+        assertEquals(18, ShalevDatabase.VERSION)
         assertEquals(16, ShalevDatabase.MIGRACION_16_17.startVersion)
         assertEquals(17, ShalevDatabase.MIGRACION_16_17.endVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_11_12.startVersion)

@@ -1,5 +1,12 @@
 package cu.shalev.data.sync
 
+import cu.shalev.core.time.Clock
+import cu.shalev.data.db.abortar
+import cu.shalev.data.db.dao.localActivo
+import cu.shalev.data.repository.localOperacion
+import cu.shalev.domain.usecase.GuardarProducto as CasoGuardarProducto
+import cu.shalev.domain.usecase.GuardarInsumo as CasoGuardarInsumo
+import cu.shalev.domain.usecase.GuardarServicio as CasoGuardarServicio
 import cu.shalev.core.money.Cup
 import cu.shalev.core.quantity.Cantidad
 import cu.shalev.core.result.AppError
@@ -8,6 +15,7 @@ import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.entity.EmpleadoEntity
 import cu.shalev.data.db.entity.ReciboComandoEntity
 import cu.shalev.data.db.tx
+import cu.shalev.data.mapper.toDomain
 import cu.shalev.data.dto.toDomain
 import cu.shalev.data.repository.InsumoRepositoryImpl
 import cu.shalev.data.repository.OrigenMovimiento
@@ -33,6 +41,7 @@ class EjecutorComandos @Inject constructor(
     private val insumos: InsumoRepositoryImpl,
     private val servicios: ServicioRepositoryImpl,
     private val precios: PreciosRepositoryImpl,
+    private val clock: Clock,
 ) {
     /**
      * Aplica y registra en una única transacción un comando con clave. El recibo vive en Room, sin poda, así que un
@@ -40,6 +49,7 @@ class EjecutorComandos @Inject constructor(
      * rechaza sin alterar el recibo ni aplicar la segunda acción.
      */
     suspend fun resultado(c: Comando, empleado: EmpleadoEntity): ResultadoComando {
+        if (c.localId != null && c.localId != empleado.localId) return ResultadoComando(c.id, error = ErroresRemotos.PERMISO)
         val clave = c.clave
         if (clave.isNullOrBlank() || clave.length > MAX_CLAVE) return resultado(c.id, empleado, c.accion)
         val huella = try {
@@ -68,11 +78,18 @@ class EjecutorComandos @Inject constructor(
     suspend fun resultado(id: Long, empleado: EmpleadoEntity, accion: Accion): ResultadoComando {
         val permisos = PermisoEmpleado.deNombres(empleado.permisos.split(','))
         if (permisoDe(accion) !in permisos) return ResultadoComando(id, error = ErroresRemotos.PERMISO)
-        val r: AppResult<Long?> = try {
-            // 0.19.3: los movimientos de stock van al turno de la secundaria, nunca al de la principal.
-            withContext(OrigenMovimiento(empleado.id, empleado.nombre)) { aplicar(accion, empleado.nombre) }
-        } catch (e: IllegalArgumentException) {
-            AppResult.Err(AppError.Validacion("datos"))
+        val r: AppResult<Long?> = db.tx {
+            val asignado = empleado.localId?.let { db.almacenLocalDao().porId(it) }
+            val local = asignado?.nombre ?: if (empleado.localId == null) db.almacenLocalDao().localActivo()
+                else abortar(AppError.SinPermiso)
+            withContext(OrigenMovimiento(empleado.id, empleado.nombre, local)) {
+                validarAlcance(accion, local)
+                if (PermisoEmpleado.CAMBIAR_PRECIOS !in permisos && cambiaPrecio(accion)) abortar(AppError.SinPermiso)
+                when (val aplicado = aplicar(accion, empleado.nombre)) {
+                    is AppResult.Ok -> aplicado.value
+                    is AppResult.Err -> abortar(aplicado.error)
+                }
+            }
         }
         return when (r) {
             is AppResult.Ok -> ResultadoComando(id, valor = r.value)
@@ -90,14 +107,14 @@ class EjecutorComandos @Inject constructor(
                 // 0.24.0: la secundaria ya lo comprobó con su copia; aquí se repite por si otra app guardó antes.
                 errorIdentificacion(p.id, p.nombre, p.descripcion, productos.observarTodos().first().map { it.identidad })
                     ?.let { return AppResult.Err(it) }
-                if (p.id == 0L) productos.crear(p, receta).ok() else productos.actualizar(p, receta, a.cantidadLeida).conId(p.id)
+                CasoGuardarProducto(productos, insumos, clock)(p, receta, a.cantidadLeida).ok()
             }
             is EliminarProducto -> productos.eliminar(a.id).conId(a.id)
             is AjustarStockProducto -> productos.ajustarStock(a.id, a.delta, nota(a.nota)).ok()
             is CambiarPrecios -> productos.actualizarPrecios(a.precios.mapValues { Cup(it.value) }).conId(null)
             is GuardarInsumo -> {
                 val i = a.insumo.toDomain()
-                if (i.id == 0L) insumos.crear(i).ok() else insumos.actualizar(i, a.cantidadLeidaMil?.let { Cantidad(it) }).conId(i.id)
+                CasoGuardarInsumo(insumos, productos, clock)(i, a.cantidadLeidaMil?.let { Cantidad(it) }).ok()
             }
             is EliminarInsumo -> insumos.eliminar(a.id).conId(a.id)
             is AjustarStockInsumo -> when (val r = insumos.ajustarStock(a.id, Cantidad(a.deltaMil), nota(a.nota))) {
@@ -109,11 +126,52 @@ class EjecutorComandos @Inject constructor(
                 val s = s0.copy(fotoUri = servicios.obtener(s0.id)?.fotoUri)
                 errorIdentificacion(s.id, s.nombre, s.descripcion, servicios.observarTodos().first().map { it.identidad })
                     ?.let { return AppResult.Err(it) }
-                if (s.id == 0L) servicios.crear(s, lineas).ok() else servicios.actualizar(s, lineas).conId(s.id)
+                CasoGuardarServicio(servicios, clock)(s, lineas).ok()
             }
             is EliminarServicio -> servicios.eliminar(a.id).conId(a.id)
-            is GuardarPreajuste -> precios.guardarPreajuste(a.preajuste.toDomain()).ok()
+            is GuardarPreajuste -> {
+                val p = a.preajuste.toDomain()
+                cu.shalev.domain.validation.Validadores.preajuste(p).firstOrNull()?.let { return AppResult.Err(it) }
+                precios.guardarPreajuste(p).ok()
+            }
             is EliminarPreajuste -> precios.eliminarPreajuste(a.id).conId(a.id)
+        }
+    }
+
+    /** Precio de VENTA: EDITAR_INVENTARIO no implica CAMBIAR_PRECIOS ni siquiera dentro de Guardar*. */
+    private suspend fun cambiaPrecio(a: Accion): Boolean = when (a) {
+        is GuardarProducto -> db.productoDao().obtener(a.producto.id)?.precioVentaCent != a.producto.precioVentaCent
+        is GuardarInsumo -> db.insumoDao().obtener(a.insumo.id)?.precioVentaCent != a.insumo.precioVentaCent
+        is GuardarServicio -> db.servicioDao().obtener(a.servicio.id)?.importeCent != a.servicio.importeCent
+        else -> false
+    }
+
+    private suspend fun validarAlcance(a: Accion, local: String) {
+        suspend fun producto(id: Long) { val fila = db.productoDao().obtener(id) ?: abortar(AppError.NoEncontrado); if (fila.local != local) abortar(AppError.SinPermiso) }
+        suspend fun insumo(id: Long) { val fila = db.insumoDao().obtener(id) ?: abortar(AppError.NoEncontrado); if (fila.local != local) abortar(AppError.SinPermiso) }
+        suspend fun servicio(id: Long) { val fila = db.servicioDao().obtener(id) ?: abortar(AppError.NoEncontrado); if (fila.local != local) abortar(AppError.SinPermiso) }
+        suspend fun preajuste(id: Long) {
+            val p = db.preciosDao().todos().firstOrNull { it.preajuste.id == id }?.toDomain() ?: abortar(AppError.NoEncontrado)
+            p.productoIds.forEach { producto(it) }; p.servicioIds.forEach { servicio(it) }
+        }
+        when (a) {
+            is GuardarProducto -> {
+                if (a.producto.id != 0L) producto(a.producto.id)
+                a.receta?.lineas?.forEach { insumo(it.insumoId) }
+            }
+            is GuardarInsumo -> if (a.insumo.id != 0L) insumo(a.insumo.id)
+            is GuardarServicio -> { if (a.servicio.id != 0L) servicio(a.servicio.id); a.servicio.insumos.forEach { insumo(it.insumoId) } }
+            is EliminarProducto -> producto(a.id)
+            is AjustarStockProducto -> producto(a.id)
+            is EliminarInsumo -> insumo(a.id)
+            is AjustarStockInsumo -> insumo(a.id)
+            is EliminarServicio -> servicio(a.id)
+            is CambiarPrecios -> a.precios.keys.forEach { producto(it) }
+            is GuardarPreajuste -> {
+                if (a.preajuste.id != 0L) preajuste(a.preajuste.id)
+                a.preajuste.productoIds.forEach { producto(it) }; a.preajuste.servicioIds.forEach { servicio(it) }
+            }
+            is EliminarPreajuste -> preajuste(a.id)
         }
     }
 

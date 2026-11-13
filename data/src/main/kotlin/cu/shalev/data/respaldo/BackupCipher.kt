@@ -67,6 +67,7 @@ class BackupCipher(
     }
 
     private fun escribir(plano: ByteArray, contrasena: CharArray, creadoEnMs: Long, version: Byte): ByteArray {
+        exigirTamanoRespaldo(plano.size.toLong())
         val conContrasena = contrasena.isNotEmpty()
         val iter = if (conContrasena) iteraciones else ITERACIONES_SIN_CONTRASENA
         val salt = ByteArray(SALT).also(random::nextBytes)
@@ -80,6 +81,8 @@ class BackupCipher(
         val clave = if (conContrasena) derivar(contrasena, salt, iter) else derivarInterna(salt, iter)
         val cifrado = gcm(Cipher.ENCRYPT_MODE, clave, iv, aad).doFinal(comprimido)
         check(cifrado.size.toLong() == largo)
+        // Un gzip de datos no compresibles puede crecer: nunca exportar un archivo que el lector rechazaría.
+        exigirTamanoRespaldo(aad.size.toLong() + 32 + cifrado.size)
         return aad + sha256(cifrado) + cifrado
     }
 
@@ -88,6 +91,7 @@ class BackupCipher(
      * ([VersionAnteriorException] si es v1/v2) y [ArchivoDanadoException] si está cortado o alterado.
      */
     fun inspeccionar(datos: ByteArray): Cabecera {
+        exigirTamanoRespaldo(datos.size.toLong())
         if (datos.size < MAGIC.size + 1 || !datos.copyOfRange(0, MAGIC.size).contentEquals(MAGIC)) {
             throw FormatoException("no es un respaldo Shalev")
         }
@@ -209,4 +213,9 @@ class BackupCipher(
         /** Tope del JSON descomprimido y del archivo leído. */
         const val MAX_PLANO = 128L * 1024 * 1024
     }
+}
+
+/** Mismo límite al escribir y leer; toma Long para probar los bordes sin reservar cientos de MiB en los tests. */
+internal fun exigirTamanoRespaldo(bytes: Long) {
+    if (bytes !in 0L..BackupCipher.MAX_PLANO) throw BackupCipher.FormatoException("respaldo demasiado grande")
 }

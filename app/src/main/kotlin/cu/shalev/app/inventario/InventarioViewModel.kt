@@ -162,9 +162,9 @@ class InventarioViewModel @Inject constructor(
      * vuelve a suscribir a `observarInventario` (por flatMapLatest), por eso el debounce funciona como se espera:
      * escribiendo rápido solo llega el último valor. El estado inicial es Cargando, igual que antes.
      */
-    private val consulta = combine(intento, filtroConsultado) { _, f -> f }.distinctUntilChanged()
+    private val consulta = combine(intento, filtroConsultado) { i, f -> i to f }.distinctUntilChanged()
 
-    private val vista: StateFlow<EstadoCarga<VistaInventario>> = consulta.flatMapLatest { f ->
+    private val vista: StateFlow<EstadoCarga<VistaInventario>> = consulta.flatMapLatest { (_, f) ->
         observarInventario(flowOf(f))
             .map<VistaInventario, EstadoCarga<VistaInventario>> { if (it.total == 0) EstadoCarga.Vacio(it) else EstadoCarga.Exito(it) }
             .onStart { emit(EstadoCarga.Cargando) }
@@ -175,10 +175,10 @@ class InventarioViewModel @Inject constructor(
      * Todos los productos activos + los insumos (id negativo, P29): la selección sobrevive a búsquedas/filtros y se
      * poda si se borran.
      */
-    private val todos: StateFlow<Map<Long, Producto>> = combine(productosRepo.observarTodos(), insumosRepo.observarTodos()) { l, xs ->
+    private val todos: StateFlow<Map<Long, Producto>> = intento.flatMapLatest { combine(productosRepo.observarTodos(), insumosRepo.observarTodos()) { l, xs ->
         l.filterNot { it.eliminado }.associateBy { it.id } + xs.map { it.comoProducto() }.associateBy { it.id }
     }
-        .catch { emit(emptyMap()) }
+        .catch { emit(emptyMap()) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     val state: StateFlow<InventarioUiState> = combine(vista, filtro, seleccion, todos, local) { v, f, s, t, l ->

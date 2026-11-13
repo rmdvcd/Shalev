@@ -39,6 +39,7 @@ data class ProductoEntity(
     val eliminado: Boolean,
     /** v16: local al que pertenece el artículo (su inventario es independiente por local). */
     @ColumnInfo(defaultValue = "") val local: String = "",
+    @ColumnInfo(defaultValue = "0") val costoAdicionalCent: Long = 0,
 )
 
 @Entity(tableName = "insumo", indices = [Index("creadoEn"), Index("nombre")])
@@ -209,6 +210,7 @@ data class TransaccionEntity(
     @ColumnInfo(defaultValue = "0") val clienteFijo: Boolean = false,
     /** v16: local de la venta asociada. */
     @ColumnInfo(defaultValue = "") val local: String = "",
+    @ColumnInfo(defaultValue = "0") val referenciaDuplicada: Boolean = false,
 )
 
 /**
@@ -242,6 +244,7 @@ data class MovimientoEntity(
     @androidx.room.ColumnInfo(defaultValue = "") val hechoPor: String = "",
     /** v16: local del movimiento (el del turno o el del artículo ajustado). */
     @ColumnInfo(defaultValue = "") val local: String = "",
+    val motivo: String? = null,
 )
 
 /** Fila única (id = 1). */
@@ -321,6 +324,7 @@ data class ServicioEntity(
     val eliminado: Boolean,
     /** v16: local que ofrece el servicio (catálogo independiente por local). */
     @ColumnInfo(defaultValue = "") val local: String = "",
+    @ColumnInfo(defaultValue = "0") val costoAdicionalCent: Long = 0,
 )
 @Entity(
     tableName = "servicio_insumo",
@@ -378,6 +382,8 @@ data class EmpleadoEntity(
      * (app anterior a la 0.31.0 o secundaria que no lo ha mandado).
      */
     val device: String? = null,
+    /** Local asignado al vincular; no depende del selector de la principal. */
+    val localId: String? = null,
 )
 
 /**

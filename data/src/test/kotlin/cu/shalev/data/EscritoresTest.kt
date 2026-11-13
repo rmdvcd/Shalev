@@ -60,7 +60,7 @@ class EscritoresTest {
                 partes++
             }
             val estilos = z.getInputStream(z.getEntry("xl/styles.xml")).readBytes().toString(Charsets.UTF_8)
-            assertTrue(estilos, estilos.contains("formatCode=\"#,##0 \\C\\U\\P\""))
+            assertTrue(estilos, estilos.contains("formatCode=\"#,##0.00 \\C\\U\\P\""))
         }
         assertTrue(partes >= 5)
     }

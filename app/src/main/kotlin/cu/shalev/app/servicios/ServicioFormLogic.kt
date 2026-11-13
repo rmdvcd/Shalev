@@ -23,12 +23,14 @@ data class ServicioForm(
     val fotoUri: String? = null,
     /** Insumos que gasta UNA vez el servicio (misma línea de edición que la receta de un Elaborado). */
     val insumos: List<LineaRecetaForm> = emptyList(),
+    val costoAdicional: String = "0",
 )
 
 /** Coinciden con los campos de [Validadores.servicio]. */
 object CamposServicio {
     const val NOMBRE = "nombre"
     const val TIPO = "tipo"
+    const val COSTO_ADICIONAL = "costoAdicional"
     const val IMPORTE = "importe"
     const val DESCRIPCION = "descripcion"
     const val INSUMOS = "insumos"
@@ -38,6 +40,7 @@ object ServicioFormLogic {
 
     fun validar(f: ServicioForm): Map<String, String> {
         val e = linkedMapOf<String, String>()
+        if (Money.parse(f.costoAdicional)?.let { it >= Cup.ZERO } != true) e[CamposServicio.COSTO_ADICIONAL] = "Escribe un costo adicional de 0 o más, con hasta dos decimales."
         val importe = Money.parse(f.importe)
         when {
             f.importe.isBlank() -> e[CamposServicio.IMPORTE] = "Escribe el importe."
@@ -47,6 +50,8 @@ object ServicioFormLogic {
         if (f.insumos.any { l -> Cantidad.parse(l.cantidad)?.let { it > Cantidad.ZERO } != true }) {
             e[CamposServicio.INSUMOS] = "Cada insumo necesita una cantidad mayor que 0 (hasta 3 decimales)."
         }
+        if (costo(f) == null && CamposServicio.COSTO_ADICIONAL !in e && CamposServicio.INSUMOS !in e)
+            e[CamposServicio.INSUMOS] = "El costo completo está fuera de rango. Reduce cantidades o costos."
         Validadores.servicio(servicio(f, importe ?: Cup(1), Instant.EPOCH), lineasValidas(f))
             .forEach { v -> if (v.campo !in e) mensaje(v)?.let { e[v.campo] = it } }
         return e
@@ -60,6 +65,7 @@ object ServicioFormLogic {
 
     fun desde(s: Servicio, lineas: List<RecetaLinea>, insumos: Map<Long, Insumo>) = ServicioForm(
         id = s.id, creadoEn = s.creadoEn, nombre = s.nombre, tipo = s.tipo, importe = ProductoFormLogic.decimal(s.importe),
+        costoAdicional = Money.editar(s.costoAdicional),
         descripcion = s.descripcion.orEmpty(), fotoUri = s.fotoUri,
         insumos = lineas.mapNotNull { l ->
             insumos[l.insumoId]?.let { LineaRecetaForm(it.id, it.nombre, it.unidad.simbolo, it.precio, Cantidad.format(l.cantidad)) }
@@ -67,7 +73,11 @@ object ServicioFormLogic {
     )
 
     /** Costo de los insumos de UNA vez; null si alguna cantidad no es válida. Cero si no gasta insumos. */
-    fun costo(f: ServicioForm): Cup? = if (f.insumos.isEmpty()) Cup.ZERO else ProductoFormLogic.costoReceta(f.insumos)
+    fun costo(f: ServicioForm): Cup? = try {
+        val material = if (f.insumos.isEmpty()) Cup.ZERO else ProductoFormLogic.costoReceta(f.insumos)
+        val adicional = Money.parse(f.costoAdicional)
+        if (material == null || adicional == null) null else material + adicional
+    } catch (_: ArithmeticException) { null }
 
     fun mensaje(e: AppError): String? = when (e) {
         is AppError.Validacion -> when (e.campo) {
@@ -94,5 +104,6 @@ object ServicioFormLogic {
         descripcion = f.descripcion.trim().ifEmpty { null },
         fotoUri = f.fotoUri,
         creadoEn = creado,
+        costoAdicional = Money.parse(f.costoAdicional) ?: Cup.ZERO,
     )
 }

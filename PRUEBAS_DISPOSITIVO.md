@@ -26,9 +26,11 @@ adb shell getprop ro.build.version.sdk   # API del teléfono (Shalev pide 26+)
 # Debug (la que se usa a diario; convive con la de producción por el sufijo .debug)
 ./gradlew :app:installDebug
 
-# Release sin firmar NO se instala encima de una firmada (y viceversa): si el teléfono ya tiene Shalev
-# de producción, usa la debug o desinstala primero (se pierden los datos locales del debug, no los de prod).
-adb install -r app/build/outputs/apk/release/app-arm64-v8a-release.apk   # si existe build con splits
+# Solo un release FIRMADO y verificado con la clave vigente de RELEASE.md puede actualizar producción.
+# Los APK *-release-unsigned.apk de CI no son instalables. Debug usa otro paquete y no actualiza producción.
+# No desinstalar producción para resolver una firma distinta: se perderían los datos y el vínculo de licencia.
+bash tools/verificacion/verificar_firma_apk.sh app/build/outputs/apk/release/app-arm64-v8a-release.apk
+adb install -r app/build/outputs/apk/release/app-arm64-v8a-release.apk   # únicamente si la firma pasó
 ```
 
 Desde 2026-10-14 el release genera un APK por ABI más el universal; para un teléfono moderno basta el
@@ -36,17 +38,21 @@ Desde 2026-10-14 el release genera un APK por ABI más el universal; para un tel
 
 ## 3. Tests instrumentados
 
-Son 145 tests (`src/androidTest` de `:app` y `:data`): Room con SQLCipher real, repositorios, sync por
-socket y flujos con Compose. En CI corren semanalmente en emulador (trabajo `instrumentados`); aquí van
-contra el teléfono conectado:
+Los tests de `src/androidTest` de `:app` y `:data` cubren repositorios Room, cifrado/Keystore, sync por
+socket y flujos con Compose. No todas las bases de prueba usan SQLCipher: muchas son Room en memoria.
+El número ejecutado y sus omisiones se comprueban en los XML y en [docs/VERIFICACION.md](docs/VERIFICACION.md),
+no con un conteo fijo en esta guía. En CI corren semanalmente, por `workflow_dispatch` o con `[instrumentados]`
+en el commit publicado (trabajo `instrumentados`); aquí van contra el teléfono conectado:
 
 ```bash
 # Todos
 ./gradlew :data:connectedDebugAndroidTest :app:connectedDebugAndroidTest
 
 # Una clase o un test concreto
-./gradlew :app:connectedDebugAndroidTest --tests "cu.shalev.app.SincronizacionRoomTest"
-./gradlew :app:connectedDebugAndroidTest --tests "*.VentaRoomTest.registraYAnula"
+./gradlew :data:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=cu.shalev.data.SincronizacionRoomTest
+./gradlew :data:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=cu.shalev.data.LocalesPermisosCobroRoomTest#referenciaNormalizadaSeRechazaSinCambiosYSeLiberaAlAnular
 
 # Informe legible
 #   app/build/reports/androidTests/connected/index.html
@@ -71,18 +77,23 @@ actividad real de Android y hardware):
 4. **Venta por debajo del costo**: aplicar un preajuste de descuento que deje una línea al costo — la app
    debe ADVERTIR (comprobante/QR) y permitir registrar (auditoría §6.1); al crear el producto, en cambio,
    precio ≤ costo sigue bloqueado en el formulario.
-5. **Inventario**: alta con foto (cámara y galería), código de barras con el escáner, ajustar existencias,
-   crear un Elaborado con receta y venderlo (descuenta insumos).
-6. **Respaldo**: exportar CON contraseña (viene marcado por defecto), importar en el mismo teléfono tras
-   «Borrar todo»; repetir sin contraseña solo para comprobar el aviso. Un respaldo con contraseña
-   incorrecta debe decir «Contraseña incorrecta», no «archivo dañado».
+5. **Inventario**: alta con foto (cámara y galería), ajustar existencias, crear un Elaborado con receta y
+   venderlo (descuenta insumos). No hay escáner/SKU en esta versión. En Herramientas, registrar una recepción
+   con proveedor/costo/comprobante, lote y caducidad; comprobar promedio, merma con motivo y bitácora.
+6. **Respaldo**: mantener la protección CON contraseña (activada por defecto), exportar e
+   importar primero en una instalación de prueba con datos prescindibles. Comprobar fichas, preferencias,
+   lotes y fotos además del catálogo. Probar «Borrar todo» solo después de verificar la copia en otro destino.
+   Repetir sin contraseña para comprobar el aviso de confidencialidad. Distinguir una contraseña incorrecta
+   de un archivo cortado/dañado y comprobar que ningún fallo sustituye el negocio.
 7. **Migración teléfono a teléfono**: con el segundo teléfono, leer el QR (ambos roles: este equipo envía
    y recibe), comprobar que los datos llegan y que el emisor ofrece borrarse al confirmar el receptor.
 8. **Sincronización**: principal + secundaria en la misma wifi: vincular con código, vender en la
    secundaria sin conexión, reconectar y comprobar que el lote sube una sola vez; quitar la secundaria
    desde la principal y comprobar el aviso de «quitada».
 9. **Actualización**: con un APK de versión mayor en el repo configurado, comprobar aviso de actualización,
-   descarga, verificación e instalación; con el mismo `versionCode`, no debe ofrecer nada.
+   descarga, verificación e instalación; con el mismo `versionCode`, no debe ofrecer nada. Tras actualizar,
+   confirmar que la copia previa queda conservada y no sobrescribe las operaciones nuevas. «Guardar copia
+   previa» es una exportación explícita sin contraseña; su importación reemplaza el negocio.
 10. **Licencia**: pegar una licencia válida, una caducada y una de otra app; renovar; comprobar el estado
     en Ajustes sin conexión.
 
@@ -104,7 +115,7 @@ actividad real de Android y hardware):
 | Síntoma | Causa probable | Qué hacer |
 | --- | --- | --- |
 | `adb devices` dice `unauthorized` | No se aceptó la huella en el teléfono | Desconectar, borrar autorizaciones en Opciones de desarrollador y reconectar |
-| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Firma distinta (debug ↔ release) | Instalar la misma variante o desinstalar la otra (se pierden sus datos locales) |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Firma o paquete incompatible con la instalación | Conservar los datos y usar la variante/clave vigente; verificar RELEASE.md. No desinstalar producción como atajo |
 | `INSTALL_FAILED_OLDER_SDK` | Teléfono con API < 26 | Shalev no se instala por debajo de Android 8; no es un fallo |
 | Los instrumentados no encuentran el equipo | Emulador apagado y USB sin autorizar | `adb devices` debe listar 1 equipo antes de lanzar Gradle |
 | La secundaria no ve a la principal | wifis distintas, aislamiento de clientes del router o VPN activa | Misma red, sin VPN; probar con la zona wifi del emisor |

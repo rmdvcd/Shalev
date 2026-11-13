@@ -85,6 +85,8 @@ data class Transaccion(
     val vendedor: String = "",
     /** 0.27.0 (N2): se marcó «Cliente fijo» al vender: al registrar la venta, el cliente se guarda (o actualiza) por carné. */
     val clienteFijo: Boolean = false,
+    /** Conflicto de cobro detectado al reunir ventas offline. Requiere revisar en Registros. */
+    val referenciaDuplicada: Boolean = false,
 )
 
 data class DatosCliente(val nombreApellidos: String, val ci: String, val telefono: String)

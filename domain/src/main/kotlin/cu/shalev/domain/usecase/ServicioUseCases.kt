@@ -40,8 +40,7 @@ object ServiciosFiltro {
                 porVez = l.cantidad, disponible = i?.cantidad ?: Cantidad.ZERO, existe = i != null,
             )
         }
-        val costo = if (lineas.isEmpty()) cu.shalev.core.money.Cup.ZERO
-        else (Recetas.costo(Receta(s.id, lineas), insumos) as? AppResult.Ok)?.value
+        val costo = (Recetas.costo(Receta(s.id, lineas), insumos, s.costoAdicional) as? AppResult.Ok)?.value
         return ServicioDisponible(s, ls, costo)
     }
 

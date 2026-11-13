@@ -14,12 +14,14 @@ import cu.shalev.app.respaldo.RespaldoScreen
 import cu.shalev.app.respaldo.RespaldoTags
 import cu.shalev.app.respaldo.RespaldoViewModel
 import cu.shalev.app.respaldo.TextosRespaldo
+import cu.shalev.designsystem.component.ShalevStepperTextos
 import cu.shalev.designsystem.theme.ShalevTheme
 import cu.shalev.domain.model.Producto
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -59,8 +61,15 @@ class FlujoRespaldoTest {
 
     /** Escribe la contraseña en la pantalla y "elige" el destino. */
     private fun exportar() {
+        // S-01: protección ENCENDIDA por defecto. No apagarla para intentar escribir una contraseña.
+        assertTrue(vm.state.value.export.conContrasena)
+        rule.onNodeWithTag(RespaldoTags.SIN_CONTRASENA).assertDoesNotExist()
         rule.onNodeWithTag(RespaldoTags.CONTRASENA).performScrollTo().performTextInput(clave)
         rule.onNodeWithTag(RespaldoTags.REPETIR).performScrollTo().performTextInput(clave)
+        androidx.test.espresso.Espresso.closeSoftKeyboard()
+        rule.onNodeWithContentDescription(ShalevStepperTextos.SIGUIENTE).performScrollTo().performClick()
+        rule.onNodeWithTag(RespaldoTags.GUARDAR).performScrollTo().assertIsDisplayed()
+        // Solo se sustituye el resultado del selector del sistema, no la edición ni los pasos de la pantalla.
         rule.runOnIdle { vm.destinoElegido(uri) }
         esperarResultado()
         rule.onNodeWithText("Respaldo guardado").assertIsDisplayed()

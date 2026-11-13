@@ -86,20 +86,31 @@ class EntornoIntegracion(licencia: LicenseState = LicenseState.Trial(5)) {
             pagoTarjetaId = 1, pagoTelefonoId = 2,
         ),
     )
-    val prefs = PrefRepo(Preferencias(onboardingCompletado = true))
+    private val contexto = ApplicationProvider.getApplicationContext<android.content.Context>()
+    val prefs = cu.shalev.data.repository.PreferenciasRepositoryImpl(
+        cu.shalev.data.local.SecureDataStore(contexto, cu.shalev.data.security.KeystoreAead(contexto)), db,
+    ).also { kotlinx.coroutines.runBlocking { it.completarOnboarding() } }
     val licencia = LicMem(licencia, clock)
     val conf = ConfRepo()
     val archivos = FakeArchivos()
     val entrada = EntradaCompartida()
     val estadoApp = cu.shalev.app.EstadoAppRepo()
-    val respaldo = RespaldoRepositoryImpl(db, prefs, clock, Dispatchers.IO, this.licencia, estadoApp)
+    val respaldo = RespaldoRepositoryImpl(db, prefs, clock, Dispatchers.IO, this.licencia, estadoApp, ApplicationProvider.getApplicationContext())
 
-    fun cerrar() = db.close()
+    private val modelos = androidx.lifecycle.ViewModelStore()
+    private fun <T : androidx.lifecycle.ViewModel> conservar(vm: T): T = vm.also {
+        modelos.put(java.util.UUID.randomUUID().toString(), it)
+    }
+    fun cerrar() {
+        // Cancelar observadores antes de cerrar Room: no dejan consultas vivas en el siguiente caso.
+        androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().runOnMainSync { modelos.clear() }
+        db.close()
+    }
 
     private val usuario = UsuarioActual(perfil)
     private val cotizar = CotizarVenta(productos, precios, insumos, servicios)
 
-    fun ventaVm(tipo: String = "VENTA") = VentaViewModel(
+    fun ventaVm(tipo: String = "VENTA") = conservar(VentaViewModel(
         saved = SavedStateHandle(mapOf(VentaViewModel.KEY_TIPO to tipo)),
         observarPermiso = ObservarPermisoVenta(turnos),
         productosRepo = productos,
@@ -115,13 +126,13 @@ class EntornoIntegracion(licencia: LicenseState = LicenseState.Trial(5)) {
         sesion = sesionVenta,
         secundaria = secundaria,
         clientesFijos = cu.shalev.data.repository.ClienteFijoRepositoryImpl(db, clock),
-    )
+    ))
 
     /** 0.20.0 (H5): venta en curso y estado de app secundaria (aquí siempre principal: sin cierre pedido). */
     val sesionVenta = cu.shalev.domain.service.SesionVenta()
     val secundaria = cu.shalev.app.SecundariaRepoFake()
 
-    fun inicioVm() = InicioViewModel(
+    fun inicioVm() = conservar(InicioViewModel(
         SavedStateHandle(), licencia, ObservarAlertas(productos, insumos, prefs, clock, Dispatchers.Unconfined), perfil,
         precios, turnos, productos,
         ResolverPeriodo(PeriodoPorDefecto(turnos, clock), RangoDePreset(clock)),
@@ -129,18 +140,28 @@ class EntornoIntegracion(licencia: LicenseState = LicenseState.Trial(5)) {
         ObtenerResumenGeneral(ventas, productos, insumos, servicios, clock, Dispatchers.Unconfined),
         AbrirTurno(turnos, usuario, clock), CerrarTurno(turnos, usuario, clock), clock,
         secundaria, cu.shalev.app.FakeEstadoPantallas(),
-    )
+    ))
 
-    fun respaldoVm() = RespaldoViewModel(
+    fun respaldoVm() = conservar(RespaldoViewModel(
         ExportarRespaldo(respaldo), ImportarRespaldo(respaldo), respaldo,
-        archivos, clock,
-    )
+        archivos, clock, cu.shalev.app.actualizacion.RespaldoPrevio(
+            java.io.File(ApplicationProvider.getApplicationContext<android.content.Context>().filesDir, "copia_previa_integracion"),
+            ExportarRespaldo(respaldo), ImportarRespaldo(respaldo), estadoApp,
+        ),
+    ))
 
-    fun licenciaVm() = LicenciaViewModel(
+    fun licenciaVm() = conservar(LicenciaViewModel(
         licencia, perfil, SolicitarLicencia(licencia, perfil), ActivarLicencia(licencia), prefs,
-    )
+    ))
 
-    fun rootVm() = RootViewModel(licencia, prefs, VigilarLicencia(licencia, clock), cu.shalev.app.TipoRepo())
+    fun entradaVm() = conservar(cu.shalev.app.common.EntradaViewModel(entrada))
+    fun recuperacionVm() = conservar(cu.shalev.app.licencia.RecuperacionViewModel(estadoApp))
+    fun conteoVm() = conservar(cu.shalev.app.caja.CierreConteoViewModel(turnos))
+    fun cajaVm() = conservar(cu.shalev.app.caja.CajaViewModel(
+        turnos, cu.shalev.domain.usecase.FondoSugerido(turnos),
+        cu.shalev.domain.usecase.RegistrarMovimientoCaja(turnos, usuario, clock), estadoApp, cu.shalev.app.TipoRepo(), clock,
+    ))
+    fun rootVm() = conservar(RootViewModel(licencia, prefs, VigilarLicencia(licencia, clock), cu.shalev.app.TipoRepo()))
 }
 
 // ------------------------------------------------------------------ bordes simulados

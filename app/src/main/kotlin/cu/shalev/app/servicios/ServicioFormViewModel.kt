@@ -113,6 +113,7 @@ class ServicioFormViewModel @Inject constructor(
 
     fun nombre(v: String) = editar(CamposServicio.NOMBRE) { it.copy(nombre = v.take(80)) }
     fun tipo(v: String) = editar(CamposServicio.TIPO) { it.copy(tipo = v.take(40)) }
+    fun costoAdicional(v: String) = editar(CamposServicio.COSTO_ADICIONAL) { it.copy(costoAdicional = v.take(16)) }
     fun importe(v: String) = editar(CamposServicio.IMPORTE) { it.copy(importe = v.take(16)) }
     fun descripcion(v: String) = editar(CamposServicio.DESCRIPCION) { it.copy(descripcion = cu.shalev.app.producto.ProductoFormLogic.unaLinea(v).take(500)) }
 

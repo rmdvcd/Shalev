@@ -37,7 +37,7 @@ interface ProductoDao {
      * Suma condicional y atómica: 0 filas afectadas = no existe, eliminado o una resta que dejaría negativo.
      * Sumar siempre se permite (0.21.6: antes, con existencia negativa, una entrada también se rechazaba).
      */
-    @Query("UPDATE producto SET cantidad = cantidad + :delta, actualizadoEn = :ahora WHERE id = :id AND eliminado = 0 AND (:delta >= 0 OR cantidad + :delta >= 0)")
+    @Query("UPDATE producto SET cantidad = cantidad + :delta, actualizadoEn = :ahora WHERE id = :id AND eliminado = 0 AND (:delta >= 0 OR cantidad + :delta >= 0) AND typeof(cantidad + :delta) = 'integer'")
     suspend fun sumarStock(id: Long, delta: Long, ahora: Long): Int
 
     @Query("UPDATE producto SET precioVentaCent = :precioCent, actualizadoEn = :ahora WHERE id = :id AND eliminado = 0")
@@ -94,7 +94,7 @@ interface InsumoDao {
     suspend fun borrar(id: Long): Int
 
     /** Resta solo si alcanza; sumar siempre se permite (0.21.6). */
-    @Query("UPDATE insumo SET cantidadMil = cantidadMil + :deltaMil, actualizadoEn = :ahora WHERE id = :id AND (:deltaMil >= 0 OR cantidadMil + :deltaMil >= 0)")
+    @Query("UPDATE insumo SET cantidadMil = cantidadMil + :deltaMil, actualizadoEn = :ahora WHERE id = :id AND (:deltaMil >= 0 OR cantidadMil + :deltaMil >= 0) AND typeof(cantidadMil + :deltaMil) = 'integer'")
     suspend fun sumarStock(id: Long, deltaMil: Long, ahora: Long): Int
 
     @Query("SELECT cantidadMil FROM insumo WHERE id = :id")
@@ -105,13 +105,16 @@ interface InsumoDao {
 
 @Dao
 interface MovimientoDao {
+    @Query("SELECT * FROM movimiento WHERE entidad = :entidad AND entidadId = :id ORDER BY id DESC LIMIT 1")
+    suspend fun ultimoDe(entidad: String, id: Long): MovimientoEntity?
+
     @Insert suspend fun insertar(m: MovimientoEntity): Long
     @Insert suspend fun insertarTodos(ms: List<MovimientoEntity>)
 
     @Query(
         """
         SELECT m.id, m.fecha, m.tipo, m.entidad, m.entidadId, m.nombre, m.delta, m.existencia, m.turnoId, m.ventaId, m.nota,
-               m.local,
+               m.local, m.motivo,
                COALESCE(NULLIF(m.hechoPor, ''), t.abiertoPor, NULLIF(TRIM(COALESCE(p.nombre, '') || ' ' || COALESCE(p.apellidos, '')), ''),
                         'Titular del dispositivo') AS hechoPor
         FROM movimiento m
@@ -150,6 +153,9 @@ interface MovimientoDao {
      * 0.31.0: al corregir la cantidad de un ajuste, la existencia resultante de los movimientos posteriores de esa
      * entidad se desplaza lo mismo, para que el libro siga cuadrando.
      */
+    @Query("SELECT EXISTS(SELECT 1 FROM movimiento WHERE entidad = :entidad AND entidadId = :entidadId AND id > :id AND typeof(existencia + :delta) != 'integer')")
+    suspend fun desplazarDesborda(entidad: String, entidadId: Long, id: Long, delta: Long): Boolean
+
     @Query("UPDATE movimiento SET existencia = existencia + :delta WHERE entidad = :entidad AND entidadId = :entidadId AND id > :id")
     suspend fun desplazarExistencia(entidad: String, entidadId: Long, id: Long, delta: Long)
 

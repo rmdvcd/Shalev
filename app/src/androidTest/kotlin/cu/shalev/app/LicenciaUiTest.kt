@@ -1,5 +1,7 @@
 package cu.shalev.app
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -36,7 +38,10 @@ class LicenciaUiTest {
 
     private val ahora = Instant.parse("2026-09-30T12:00:00Z")
     private val huella = "ab".repeat(32)
-    private val vencida = Licencia(LicenseState.Expired(TipoLicencia.MENSUAL), "SPVI:abc", true, huella)
+    private val vencida = Licencia(
+        LicenseState.Expired(TipoLicencia.MENSUAL), "SPVI:abc", true, huella,
+        instalada = cu.shalev.domain.model.LicenciaInstalada("lic-1", TipoLicencia.MENSUAL, ahora.minusSeconds(2_678_400), ahora.minusSeconds(86_400)),
+    )
     private val perfil = Perfil("María", "Pérez González", "85010112345", telefonos = listOf(Telefono(1, "52345678")))
 
     private var solicitudes = 0
@@ -66,6 +71,9 @@ class LicenciaUiTest {
         }
         rule.onNodeWithTag(LicenciaTags.AVISO_BLOQUEO).assertIsDisplayed()
         rule.onNodeWithText("Licencia Mensual vencida").assertIsDisplayed()
+        androidx.test.espresso.Espresso.closeSoftKeyboard()
+        val bloqueo = rule.onNodeWithText("Shalev está bloqueado")
+        if (bloqueo.fetchSemanticsNode().config[SemanticsProperties.StateDescription] == "Contraído") bloqueo.performClick()
         rule.onNodeWithTag(LicenciaTags.SOPORTE).performScrollTo().performClick()
         assertEquals(1, soporte)
     }
@@ -86,7 +94,7 @@ class LicenciaUiTest {
         licencia(LicenciaUiState(vencida, LicenciaForm().desdePerfil(perfil), listOf("52345678"), perfilVacio = false))
         // Los datos ya están en el Perfil: el asistente entra directo en «Pide la licencia», sin re-pedirlos.
         rule.onNodeWithContentDescription("Paso 2 de 3: Pide la licencia").assertExists()
-        rule.onNodeWithText("Solicitar renovación").assertExists()
+        rule.onNodeWithTag(LicenciaTags.BOTON_SOLICITAR).assertContentDescriptionEquals("Solicitar renovación")
         rule.onNodeWithContentDescription(ShalevStepperTextos.ATRAS).performScrollTo().performClick()
         rule.onNodeWithTag(LicenciaTags.RESUMEN_DATOS).performScrollTo().assertIsDisplayed()
     }

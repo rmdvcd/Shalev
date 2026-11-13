@@ -44,10 +44,12 @@ private fun fecha(s: String): LocalDate = runCatching { LocalDate.parse(s) }.get
 fun Producto.toDto() = ProductoDto(
     id, categoria, nombre, descripcion, fotoUri, fechaCaducidad?.toString(), precioCosto.centavos, precioVenta.centavos,
     cantidad, nivelBajo, nivelCritico, creadoEn.ms(), actualizadoEn.ms(), eliminado,
+    costoAdicionalCent = costoAdicional.centavos,
 )
 fun ProductoDto.toDomain() = Producto(
     id, categoria, nombre, descripcion, fotoUri, fechaCaducidad?.let(::fecha), Cup(precioCostoCent), Cup(precioVentaCent),
     cantidad, nivelBajo, nivelCritico, creadoEn.instant(), actualizadoEn.instant(), eliminado,
+    costoAdicional = Cup(costoAdicionalCent),
 )
 
 fun Receta.toDto() = RecetaDto(productoId, lineas.map { RecetaLineaDto(it.insumoId, it.cantidad.milesimas) })
@@ -66,10 +68,12 @@ fun InsumoDto.toDomain() = Insumo(
 fun Servicio.toDto(insumos: List<RecetaLinea>) = ServicioDto(
     id, nombre, tipo, importe.centavos, descripcion, fotoUri, creadoEn.ms(), actualizadoEn.ms(), eliminado,
     insumos.map { RecetaLineaDto(it.insumoId, it.cantidad.milesimas) },
+    costoAdicionalCent = costoAdicional.centavos,
 )
 fun ServicioDto.toDomain() = Servicio(
     id = id, nombre = nombre, tipo = tipo, importe = Cup(importeCent), descripcion = descripcion, fotoUri = fotoUri,
     creadoEn = creadoEn.instant(), actualizadoEn = actualizadoEn.instant(), eliminado = eliminado,
+    costoAdicional = Cup(costoAdicionalCent),
 ) to insumos.map { RecetaLinea(it.insumoId, Cantidad(it.cantidadMil)) }
 
 fun Turno.toDto() = TurnoDto(
@@ -106,7 +110,7 @@ fun Venta.toDto() = VentaDto(
     },
     transaccion?.let {
         TransaccionDto(it.id, it.fecha.ms(), it.importe.centavos, it.numero, it.cliente.nombreApellidos,
-            it.cliente.ci, it.cliente.telefono, it.tarjetaCobro, it.telefonoCobro, clienteFijo = it.clienteFijo)
+            it.cliente.ci, it.cliente.telefono, it.tarjetaCobro, it.telefonoCobro, clienteFijo = it.clienteFijo, referenciaDuplicada = it.referenciaDuplicada)
     },
     anuladaEn = anulacion?.en?.let { it.ms() }, motivoAnulacion = anulacion?.motivo, anuladaPor = anulacion?.por,
     corrigeVentaId = corrigeVentaId,
@@ -120,7 +124,7 @@ fun VentaDto.toDomain() = Venta(
     transaccion?.let {
         Transaccion(it.id, id, it.fecha.instant(), Cup(it.importeCent), it.numero,
             DatosCliente(it.clienteNombre, it.clienteCi, it.clienteTelefono), it.tarjetaCobro, it.telefonoCobro,
-            clienteFijo = it.clienteFijo)
+            clienteFijo = it.clienteFijo, referenciaDuplicada = it.referenciaDuplicada)
     },
     anulacion = anuladaEn?.let { Anulacion(it.instant(), motivoAnulacion.orEmpty(), anuladaPor.orEmpty()) },
     corrigeVentaId = corrigeVentaId,
@@ -132,11 +136,11 @@ fun MovimientoCajaDto.toDomain() = MovimientoCaja(
 )
 
 fun MovimientoInventario.toDto() = MovimientoDto(
-    id, fecha.ms(), tipo.name, entidad.name, entidadId, nombre, delta, existenciaResultante, turnoId, ventaId, nota, hechoPor,
+    id, fecha.ms(), tipo.name, entidad.name, entidadId, nombre, delta, existenciaResultante, turnoId, ventaId, nota, hechoPor, motivo = motivo?.name,
 )
 fun MovimientoDto.toDomain() = MovimientoInventario(
     id, fecha.instant(), enumStrict<TipoMovimiento>(tipo), enumStrict<TipoEntidad>(entidad), entidadId, nombre,
-    delta, existencia, turnoId, ventaId, nota, hechoPor,
+    delta, existencia, turnoId, ventaId, nota, hechoPor, motivo = motivo?.let { enumStrict<cu.shalev.domain.model.MotivoMovimiento>(it) },
 )
 
 fun Perfil.toDto() = PerfilDto(

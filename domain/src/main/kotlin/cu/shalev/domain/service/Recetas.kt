@@ -11,9 +11,10 @@ import cu.shalev.domain.model.Receta
 object Recetas {
 
     /** Costo de 1 unidad del Elaborado = Σ precio del insumo × cantidad (HALF_UP por línea). */
-    fun costo(receta: Receta, insumos: Map<Long, Insumo>): AppResult<Cup> {
+    fun costo(receta: Receta, insumos: Map<Long, Insumo>, adicional: Cup = Cup.ZERO): AppResult<Cup> {
         val lineas = receta.lineas.map { l -> (insumos[l.insumoId] ?: return AppResult.Err(AppError.NoEncontrado)) to l.cantidad }
-        return AppResult.Ok(lineas.sumOfCup { (i, c) -> i.precio.porMilesimas(c.milesimas) })
+        return try { AppResult.Ok(lineas.sumOfCup { (i, c) -> i.precio.porMilesimas(c.milesimas) } + adicional) }
+        catch (_: ArithmeticException) { AppResult.Err(AppError.Validacion("precioCosto", AppError.Regla.RANGO)) }
     }
 
     fun consumo(receta: Receta, unidades: Long): Map<Long, Cantidad> =

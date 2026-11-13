@@ -6,11 +6,13 @@
 
 **Sistema de Punto de Venta e Inventario para Pequeños Negocios**
 
-**Versión 1.0** · Aplicación nativa para Android (Android 8.0 o superior) · **100 % sin conexión**
+**Versión de trabajo 1.0.1** · Aplicación nativa para Android (Android 8.0 o superior) · **100 % sin conexión**
 
 </div>
 
 ---
+
+> Revisión del 13/11/2026. Las capturas ilustran versiones anteriores; las funciones nuevas de gestión y recuperación se describen en el texto. Esta edición de trabajo no anuncia una nueva publicación firmada.
 
 ## Índice de contenidos
 
@@ -484,15 +486,16 @@ Como todos tus datos viven únicamente en tu teléfono y no en internet, hacer c
 2. En la tarjeta **Exportar**, verás activada por defecto la opción **Proteger con contraseña**:
    - Escribe una contraseña de al menos 8 caracteres, repítela debajo y **anótala en un lugar seguro**.
    - *(Puedes apagar el interruptor si prefieres guardarla sin clave, pero recuerda que cualquier persona que consiga ese archivo podría abrirlo con Shalev y ver tus ventas y clientes).*
-3. Toca **Siguiente (→)** y elige **Guardar en el teléfono** (en tu carpeta *Descargas*) o **Enviar** a otra aplicación segura (Google Drive, Telegram, correo o tarjeta SD). El archivo se llamará `Shalev_respaldo_AAAA-MM-DD.shalev`.
+3. Toca **Siguiente (→)** y luego **Guardar en el teléfono**. Se abre el selector local de Android en *Descargas*; elige dónde conservar la copia. El archivo se llamará `Shalev_respaldo_AAAA-MM-DD.shalev`. Shalev no la envía directamente a otras apps: si necesitas trasladarla, hazlo después desde el gestor de archivos y custodia su contraseña.
 
 ### 13.2 Qué incluye y qué NO incluye el archivo `.shalev`
 
 | Sí va dentro del respaldo `.shalev` | No va dentro del respaldo (tómalo en cuenta) |
 |---|---|
-| Todos tus productos, recetas, insumos y servicios | **Las imágenes de las fotos** (en un teléfono nuevo los artículos conservan todos sus datos, pero aparecen sin foto) |
+| Productos, recetas, insumos, servicios y **fotos guardadas por Shalev** | Archivos externos o fotos que ya no existan en el teléfono |
+| Fichas de costo, locales, recepciones, lotes e historial de correcciones | La vinculación activa y las claves privadas del dispositivo |
 | Todos los turnos, arqueos de caja, ventas, transferencias y movimientos | **La licencia activa en sí** (está ligada al teléfono, aunque el respaldo **sí guarda el ID** para que la recuperes gratis en el nuevo) |
-| Tu perfil, tarjetas, teléfonos, preajustes de precios y **clientes fijos** | **Los códigos QR activos de vinculación** (los nombres y permisos de los empleados se conservan, pero deberás generarles un QR nuevo) |
+| Perfil, tarjetas, teléfonos, preajustes, **clientes fijos y preferencias del negocio** | **Los códigos QR activos de vinculación** (los nombres y permisos de los empleados se conservan, pero deberás generarles un QR nuevo) |
 
 ### 13.3 Cómo restaurar una copia (Importar) y mudarte de teléfono
 
@@ -558,7 +561,7 @@ Entra en **Ajustes → Licencia**:
 Para que disfrutes siempre de las últimas mejoras y que la App Principal y las Secundarias hablen el mismo idioma:
 
 - **Búsqueda manual o semanal:** entra en **Ajustes → Actualizar** cuando tengas conexión; aparecerá un cuadro con progreso circular que te indicará *«Estás al día»*, *«Sin conexión»* o descargará e instalará la nueva versión verificada. Al terminar de actualizar o de comprobar que estás al día, el cuadro **se cierra solo**; si fue *«Sin conexión»*, se queda a la vista para que lo leas y lo cierres. Además, Shalev comprueba automáticamente una vez por semana si salió una actualización oficial y la reparte a las apps secundarias de tus empleados.
-- **Respaldo automático antes de instalar:** justo antes de abrir el instalador de una nueva versión, Shalev guarda internamente una copia automática de tus datos y la restaura al abrir la versión actualizada (evita hacer ventas entre la descarga y el final de la instalación).
+- **Copia previa antes de instalar:** justo antes de abrir el instalador, Shalev guarda una copia interna. Al abrir la versión actualizada, adapta la base de datos normalmente: **no restaura esa copia automáticamente ni borra operaciones posteriores**. Si necesitas recuperarla, usa **Ajustes → Respaldo → Guardar copia previa** y luego el asistente normal de Importar. Esa copia no tiene contraseña: guárdala en lugar seguro y recuerda que importarla reemplaza el negocio por el estado de aquel momento.
 - **Plazo de 30 días:** cuando el teléfono detecta una versión nueva, puedes posponerla con *«Más tarde»* durante **30 días** (viendo la fecha límite). Cumplido ese plazo, Shalev pedirá actualizar para continuar, permitiéndote siempre cerrar tu turno abierto y exportar un respaldo antes.
 
 ---
@@ -567,13 +570,38 @@ Para que disfrutes siempre de las últimas mejoras y que la App Principal y las 
 
 En **Herramientas → Ficha de costo**, agrega partidas con categoría, cantidad, unidad, costo unitario y moneda. Puedes editar o eliminar partidas y consultar los totales por categoría, separados en CUP y USD. El margen opcional permite estimar un precio como porcentaje o factor; no es una fórmula normativa. Las fichas se guardan en este teléfono: puedes buscarlas por nombre, abrirlas para seguir editándolas y eliminarlas cuando ya no las necesites.
 
-**Exportar la ficha — solo Materias primas crean insumos:** únicamente las partidas con categoría **Materias primas y materiales** se convierten en **insumos** de la receta; las demás categorías (Fuerza de trabajo, Otros gastos, Gastos indirectos) solo suman al costo total.
-- **Al Inventario:** Shalev crea un producto con **categoría Elaborado** listo para vender. Si el insumo ya existe (mismo nombre) lo reutiliza; si no existe, lo crea con su costo en CUP —si la partida está en USD, lo convierte con la **tasa CUP por 1 USD** que escribiste—. La receta queda solo con las partidas de Materias primas y sus cantidades, y el costo del Elaborado se calcula sumando esos insumos más las demás categorías. El precio de venta se propone a partir del costo total más tu margen; si no supera el costo, Shalev lo ajusta automáticamente (al menos 1 CUP por encima) para que no vendas a pérdida.
-- **A Servicios:** se crea un servicio de tipo **General** con las mismas partidas de Materias primas como **insumos que gasta cada vez** que lo prestas; al cobrarlo esos insumos se descuentan y la ganancia refleja su costo real. Las demás categorías solo incrementan el importe.
+**Exportar una ficha (solo en la App Principal):** las materias primas forman la receta y el resto de las categorías suma **mano de obra y otros costos**. La ficha representa una unidad de producto o una prestación de servicio.
+- **Al Inventario:** crea un producto **Elaborado** con receta; no crea existencias del producto elaborado. Los materiales nuevos se crean con existencia **cero**: recibe o ajusta su existencia antes de vender.
+- **A Servicios:** crea un servicio con sus insumos y costos adicionales; los insumos se descuentan al prestar el servicio.
+- Se reutiliza un insumo del mismo nombre solo si es inequívoco y su medida es compatible. Admite unidades, kg, g, L y ml; convierte masa con masa y volumen con volumen, sin adivinar densidades y con hasta tres decimales de la medida de destino. Si hay dos candidatos o una unidad no reconocida, corrige la ficha antes de exportar.
+- Si el insumo ya existe, **no se cambia su costo por el de la ficha**: se usa el costo vigente del local. El precio estimado sigue siendo el de la ficha; revisa el margen si el costo vigente subió. Si falla una línea, no se crea ninguna parte de la receta ni del artículo.
+- Si hay partidas en USD, escribe una **tasa CUP por 1 USD** positiva. Es una tasa manual, no una consulta bancaria. El costo adicional puede editarse después en el formulario del elaborado o del servicio.
 
-Si alguna partida está en USD, el botón de exportar queda deshabilitado hasta que escribas una **tasa CUP por 1 USD** válida. Las fichas de costo no forman parte del respaldo `.shalev` ni de la sincronización entre App Principal y Secundaria y no sustituyen el generador GFC ni una ficha oficial.
+Las fichas guardadas pertenecen al local y **sí se incluyen en el respaldo `.shalev` y en Borrar todo**. Las fichas antiguas se incorporan sin descartar las que tengan el mismo identificador. No se sincronizan entre Principal y Secundaria y no sustituyen una ficha oficial. Si falla su lectura, toca **Reintentar carga**; no hace falta borrar fichas ni cambiar filtros.
 
-En **Herramientas → Calculadora de cambio**, o desde el icono de cambio de la ficha, puedes convertir importes en ambos sentidos. Introduce la tasa como **CUP por 1 USD** y el importe; el resultado se redondea a dos decimales. También puedes calcular una tasa orientativa indicando importes equivalentes positivos en CUP y USD, y usarla para convertir. La tasa es manual, no se consulta por internet y no modifica los totales de la ficha. La calculadora recuerda en este teléfono la operación, la moneda de origen y la última tasa que usaste, para no escribirla cada vez; los importes no se guardan.
+### Gestión de inventario: recepciones, ajustes y lotes
+
+En **Herramientas → Gestión de inventario**, en la App Principal y en el local correcto:
+
+1. **Origen:** escribe proveedor, referencia del comprobante y motivo (3–120 caracteres). El comprobante es un texto; no se adjunta una foto o PDF.
+2. **Artículos y lotes:** elige un producto o insumo, cantidad, costo por unidad de su medida, código de lote y caducidad opcional `AAAA-MM-DD`. Añade todas las líneas. Los productos usan unidades enteras; los insumos admiten tres decimales.
+3. **Revisar recepción:** confirma una vez. Existencias, costo promedio ponderado, movimientos y lotes se guardan juntos. Un reintento de la misma recepción no vuelve a sumar la compra. Las ventas anteriores conservan su costo de entonces; revisa tus precios si la compra encareció el costo.
+
+Una recepción confirmada no se reescribe: registra un ajuste con explicación si debes corregirla. **Ajuste con motivo** permite merma y consumo interno (solo salidas), corrección de conteo o devolución. El autor y el motivo quedan en el movimiento. Corregir la cantidad de un ajuste en el turno abierto deja el antes/después de cada corrección; no borra el historial.
+
+**Lotes y caducidades** muestra cantidades recibidas y disponibles, y señala los vencidos. Shalev asigna las salidas primero al lote con caducidad más próxima (**FEFO contable**). No bloquea automáticamente la entrega de un lote vencido: revisa físicamente qué entregas. Los saldos anteriores o las entradas sin recepción pueden no tener lote. En una secundaria offline la asignación se hace al sincronizar: no es seguimiento físico garantizado. Anular una venta devuelve sus lotes registrados; reducir una salida corregida restituye los lotes que le correspondían.
+
+La venta suelta de insumos **sigue siendo entera de su medida**: 1 kg, 2 L, etc. Las fracciones corresponden a recetas, existencias y recepciones. No cambies la unidad de un insumo que ya tiene existencias, recetas o historial; crea otro para la medida nueva.
+
+### Revisiones de cobro, locales y conexión
+
+- Al confirmar, Shalev vuelve a comprobar precios, costos y receta. Si cambiaron desde el comprobante, **revisa la venta** antes de cobrar. Las líneas ya existentes de una venta modificada mantienen sus precios/costos originales; las nuevas usan los actuales.
+- Una referencia de transferencia ya usada en otra venta válida se rechaza, aunque tenga espacios o minúsculas. Una referencia repetida que llegue en ventas offline reales se señala en Registros: no se eliminan esas ventas. **Comprueba el ingreso con el banco**; reconocer un SMS o notificación no verifica el pago.
+- Cada empleado conserva el local que se le asignó aunque la principal cambie su selector o renombre el local. Para cambiar de local, cierra los turnos abiertos de la principal **y de las secundarias**.
+- Si una operación remota queda sin respuesta, conecta con la principal y sincroniza: se recupera con la misma clave para no duplicarla. Antes de enviar una acción diferente revisa el resultado recuperado en Vinculación. Si el catálogo sigue pendiente, vuelve a sincronizar; no repitas una operación ya confirmada.
+- En Inicio, **Ganancia bruta** = venta menos costo guardado; no es ganancia neta porque no descuenta otros gastos del negocio. La distribución del inventario usa **valor al costo en CUP**, no una suma de kg, litros y unidades.
+
+En **Herramientas → Calculadora de cambio**, o desde el icono de cambio de la ficha, puedes convertir importes en ambos sentidos. Introduce la tasa como **CUP por 1 USD** y el importe; el resultado se redondea a dos decimales, sin convertir los centavos en cero (por ejemplo, 2 CUP a una tasa de 400 dan 0.01 USD). También puedes calcular una tasa orientativa indicando importes equivalentes positivos en CUP y USD, y usarla para convertir. La tasa es manual, no se consulta por internet y no modifica los totales de la ficha. La calculadora recuerda en este teléfono la operación, la moneda de origen y la última tasa que usaste, para no escribirla cada vez; los importes no se guardan.
 
 ---
 

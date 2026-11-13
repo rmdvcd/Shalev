@@ -18,7 +18,7 @@ object CorreccionMovimiento {
         tipo == TipoMovimiento.AJUSTE && turnoId != null && turnoId == turnoAbierto
 
     /** Lo que hay que sumarle AHORA al stock para que el ajuste pase de [viejo] a [nuevo]. */
-    fun diferencia(viejo: Long, nuevo: Long): Long = nuevo - viejo
+    fun diferencia(viejo: Long, nuevo: Long): Long = Math.subtractExact(nuevo, viejo)
 
     /**
      * Lee la cantidad escrita: «5», «+5», «-5» (producto, unidades enteras) y «1.25», «-0.5» (insumo, hasta 3

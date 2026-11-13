@@ -17,8 +17,20 @@ import kotlinx.coroutines.flow.Flow
 /** 0.20.0 (H1). */
 data class VendedorDeVenta(val ventaId: Long, val vendedor: String)
 
+data class CambiosVentaRow(val numero: Long, val ultimoId: Long, val total: Long, val costo: Long, val anuladas: Long)
+
 @Dao
 interface VentaDao {
+    @Query("SELECT COUNT(*) AS numero, COALESCE(MAX(id), 0) AS ultimoId, COALESCE(SUM(totalCent), 0) AS total, COALESCE(SUM(costoCent), 0) AS costo, COUNT(anuladaEn) AS anuladas FROM venta WHERE local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local)")
+    fun observarCambios(): Flow<CambiosVentaRow>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM transaccion t JOIN venta v ON v.id = t.ventaId WHERE v.anuladaEn IS NULL AND UPPER(TRIM(t.numero)) = UPPER(TRIM(:numero)))")
+    suspend fun referenciaUsada(numero: String): Boolean
+
+    /** Se ejecuta tras registrar/anular/importar: el aviso desaparece cuando se resuelve la duplicidad. */
+    @Query("UPDATE transaccion SET referenciaDuplicada = EXISTS(SELECT 1 FROM transaccion t JOIN venta v ON v.id = t.ventaId JOIN venta propia ON propia.id = transaccion.ventaId WHERE t.ventaId != transaccion.ventaId AND v.anuladaEn IS NULL AND propia.anuladaEn IS NULL AND UPPER(TRIM(t.numero)) = UPPER(TRIM(transaccion.numero)))")
+    suspend fun recalcularReferenciasDuplicadas()
+
     @Insert suspend fun insertarVenta(v: VentaEntity): Long
     @Insert suspend fun insertarDetalles(ds: List<DetalleVentaEntity>)
     @Insert suspend fun insertarTransaccion(t: TransaccionEntity): Long
@@ -113,6 +125,10 @@ interface VentaDao {
 /** P37: el turno «activo» es siempre el de ESTA app; los turnos de las secundarias (empleadoId) solo se ven en el historial. */
 @Dao
 interface TurnoDao {
+    /** Incluye los turnos remotos, no solo el de esta app. */
+    @Query("SELECT EXISTS(SELECT 1 FROM turno WHERE cerradoEn IS NULL)")
+    suspend fun hayAbiertos(): Boolean
+
     @Query("SELECT * FROM turno WHERE cerradoEn IS NULL AND empleadoId IS NULL AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY abiertoEn DESC LIMIT 1")
     fun observarActivo(): Flow<TurnoEntity?>
 

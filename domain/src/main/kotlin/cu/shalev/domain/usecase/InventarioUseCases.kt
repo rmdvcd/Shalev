@@ -107,8 +107,7 @@ class LimpiarFotos @Inject constructor(
 ) {
     suspend operator fun invoke() {
         // P29: también las fotos de los servicios están en uso.
-        val enUso = (productos.observarTodos().first().mapNotNull { it.fotoUri } +
-            servicios.observarTodos().first().mapNotNull { it.fotoUri }).toSet()
+        val enUso = productos.fotosEnUso() + servicios.fotosEnUso()
         fotos.limpiarHuerfanas(enUso)
     }
 }

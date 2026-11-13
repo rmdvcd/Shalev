@@ -54,7 +54,7 @@ fun tiposVenta(p: cu.shalev.domain.model.PermisosApp): List<TipoVenta> = buildLi
 
 object TextosInicio {
     /** 0.27.0 (N1): subtítulo de la dona Inventario (productos e insumos, cada uno en su medida). */
-    const val EXISTENCIAS_POR_CATEGORIA = "Existencias por categoría"
+    const val EXISTENCIAS_POR_CATEGORIA = "Valor al costo por categoría (CUP)"
     /** 0.20.0 (H5): cierre de turno pedido desde la app principal. */
     const val CIERRE_PEDIDO = "El encargado pidió cerrar tu turno. Se cierra en cuanto no haya una venta en curso."
     /** 0.25.1 (D). */
@@ -243,7 +243,7 @@ fun descripcionVentas(g: GraficosPeriodo, zone: ZoneId): String {
 
 fun descripcionGanancia(g: GraficosPeriodo): String =
     "Gráfico de área. Ventas ${Money.format(g.totalVentas)}, costo ${Money.format(g.totalCosto)}, " +
-        "ganancia neta ${Money.format(g.ganancia)}" + (g.margen?.let { ", margen ${Percent.format(it).removePrefix("+")}." } ?: ".")
+        "ganancia bruta ${Money.format(g.ganancia)}" + (g.margen?.let { ", margen ${Percent.format(it).removePrefix("+")}." } ?: ".")
 
 /**
  * Porciones para la dona: las [max]-1 mayores y el resto sumado en "Otras" (la leyenda debe ser legible).

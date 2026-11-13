@@ -78,12 +78,14 @@ internal suspend fun ShalevDatabase.aplicarConteo(turnoId: Long, usuario: String
         // La existencia es la actual tras el ajuste (puede no ser la contada: la principal pudo moverla después).
         val existencia = if (l.entidad == TipoEntidad.PRODUCTO) productoDao().cantidad(l.id) ?: 0
             else insumoDao().cantidad(l.id) ?: 0
-        movimientoDao().insertar(MovimientoEntity(
+        val movimientoId = movimientoDao().insertar(MovimientoEntity(
             fecha = ahora, tipo = "AJUSTE", entidad = l.entidad.name, entidadId = l.id, nombre = l.nombre,
             delta = delta, existencia = existencia, turnoId = turnoId, ventaId = null,
             nota = "Conciliación de cierre · Esperado ${cantidadConteo(l.esperado, l)} · Contado ${cantidadConteo(l.contado, l)} · ${c.motivo.trim()}", hechoPor = usuario,
-            local = turno.local,
+            local = turno.local, motivo = cu.shalev.domain.model.MotivoMovimiento.CORRECCION.name,
         ))
+        if (delta < 0) consumirLotes(turno.local, l.entidad.name, l.id,
+            if (l.entidad == TipoEntidad.PRODUCTO) Math.multiplyExact(Math.negateExact(delta), 1000L) else Math.negateExact(delta), movimientoId = movimientoId)
     }
     syncDao().actualizarTurno(turno.copy(conteoCierreJson = c.copy(aprobadoPor = usuario, aprobadoEn = ahora).aJson(), sincronizado = false))
 }

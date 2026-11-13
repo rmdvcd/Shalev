@@ -1,97 +1,69 @@
-# Informe para arena.ai — Shalev (Android)
+# Informe de auditoría — Shalev Android
 
-**Fecha:** 04/11/2026  
-**Repositorio:** `C:\Users\666\Desktop\CODE\SPVI\Shalev`  
-**Rama:** `main` (commit `9dea11e` merge #90)  
-**Dispositivo de prueba:** `4bc9f8f3` (modelo `23021RAAEG`, API 26+)
+**Fecha:** 13/11/2026 · **Versión de trabajo:** 1.0.1/54
+**Rama:** `arena/5d323d0e-shalev` · **Base:** `edde212323332cc97781fcf220c98a67641627b6`
+**Estado:** análisis y correcciones concluidos; cierre automatizado aprobado en CI. Distribución firmada y aceptación física pendientes.
 
----
+> Este informe sustituye al del 04/11/2026. No se reutilizan su prueba en teléfono ni sus cifras como
+> evidencia de este trabajo. Su instrucción de usar una firma distinta era incorrecta: la referencia
+> vigente es **RELEASE.md**, `gl-release.jks`, alias `gl`, huella `13:9D:…:17:38`. No cambiar la clave.
 
-## 1. Estado general
+## Qué se corrigió
 
-La app compila, instala y ejecuta correctamente en el dispositivo real.
-- `./gradlew :app:assembleDebug` → **BUILD SUCCESSFUL**
-- `./gradlew shalevTests` → **BUILD SUCCESSFUL** (883 casos JVM en verde tras correcciones)
-- APK debug instalado en `4bc9f8f3`: `cu.shalev.app.debug`, `MainActivity` en primer plano, sin crashes.
+1. **Dinero y cobro:** centavos/signo en edición, calculadora y Excel; sumas fuera de rango detectadas;
+   cotización y consumos revalidados en la transacción, sin alterar precios/costos históricos.
+   Referencia de transferencia normalizada y duplicados locales rechazados; conflictos offline
+   conservados y señalados, no ventas descartadas ni una falsa confirmación bancaria por SMS.
+2. **Locales y autorización:** identidad estable al renombrar, empleado ligado a su local y no al selector
+   de la principal, bloqueo de cambio con turnos propios/remotos abiertos. Guardar un artículo no elude
+   el permiso de cambiar precios. Una ausencia se distingue de un recurso de otro local.
+3. **Fichas de costo:** persistencia Room por local, migración legada idempotente, respaldo/reset completos;
+   exportación atómica a insumos/receta/artículo, conversiones exactas y costo adicional de trabajo/otros.
+4. **Respaldo y actualización:** fotos verificadas/acotadas, locales, fichas, lotes, historial y preferencias
+   en DTO v5; datos+preferencias en un commit, archivos preparados antes. Copia previa conservada y
+   exportable, **nunca autoimportada** sobre operaciones nuevas. Protección con contraseña **encendida por
+   defecto**; el modo sin contraseña exige opt-out y no ofrece confidencialidad real.
+5. **Sincronización y recuperación:** bandeja durable de comandos inciertos, misma clave tras reconectar o
+   reiniciar, mutex/compare-and-set y recuperación al conectar. Fallar el refresco no convierte un éxito
+   confirmado en una operación que se pueda repetir como nueva. Reintentos conservan filtro y edición.
+6. **Inventario operativo:** recepción con proveedor, comprobante textual, costo/promedio, motivo y autor;
+   lotes/caducidades y FEFO contable; devolución de lotes al anular/corregir, ajustes append-only, límites
+   e idempotencia. La venta de insumos sigue siendo **entera por decisión del dueño**; recetas y recepción
+   admiten milésimas. No se inventa escaneo de lote físico ni comprobantes adjuntos.
+7. **Indicadores y verificación:** ganancia **bruta**, distribución por valor al costo CUP; Room v18 con
+   migración y esquema KSP; pruebas de regresión JVM/Room/UI, versiones Compose alineadas y emulador que
+   exige resultados XML reales de app y data. Parser de firma actualizado sin cambiar la huella vigente.
 
----
+La matriz completa con archivos, prioridades y regresiones está en
+[docs/AUDITORIA_SHALEV_2026-11.md](docs/AUDITORIA_SHALEV_2026-11.md).
 
-## 2. Cambios implementados (esta sesión)
+## Resultados observados (no mezclar SHA)
 
-### A) Aviso flotante de «operación realizada» (1.0.4)
+Código verificado: **`44cf4950cc62e629506542e6adddd53c13ab8e39`**, [CI 43349968643](https://github.com/rmdvcd/Shalev/actions/runs/43349968643), **SUCCESS: los seis trabajos aprobados**. El cierre documental posterior no cambia ese código ni sus pruebas.
 
-Se añadió un cuadro flotante automático (no modal, se va solo a los 2 s) con icono ✓ que se muestra tras agregar/guardar/eliminar cualquier elemento (producto, servicio, insumo, venta, ajuste de precios…).
+- **991 pruebas JVM**, sin fallos, errores ni omisiones; instrumentados compilan.
+- **100 pruebas data en emulador**, sin fallos ni omisiones; incluye Room y migraciones.
+- **105 pruebas UI/integración**, sin fallos ni omisiones; **205 instrumentados** sumando ambos módulos.
+- Lint: **0 errores, 102 avisos**; permisos: OK; API 26: **4016 clases, 0 llamadas prohibidas**.
+- APK debug/release y R8: **OK**, sin clases ausentes. El release de CI está **sin firmar** y no es una
+  actualización instalable de producción.
 
-- **Nuevo componente:** `designsystem/src/main/kotlin/cu/shalev/designsystem/component/Overlays.kt` → `ShalevAvisoExito(texto, onFin)`
-- **Host global:** `app/src/main/kotlin/cu/shalev/app/common/AvisoExito.kt` → `AvisoExitoHost` (una sola vez en `MainScaffold`, arriba centrado, bajo la barra de estado)
-- **Objeto compartido:** `AvisoExito.mostrar(mensaje)` desde cualquier pantalla
-- **Conectado a:** `ProductoForm`, `ServicioForm`, `InsumoForm`, `Venta.terminada` (en `MainScaffold.kt`); se eliminó el uso obsoleto de `savedStateHandle` para esos mensajes (`KEY_PRODUCTO_GUARDADO`, `KEY_SERVICIO_MENSAJE`, `KEY_INICIO_MENSAJE` dejaron de usarse para este fin).
+La corrida anterior `808caf0` tenía 10 fallos UI. La nueva ejecución ya confirma su corrección: centavos
+de calculadora, protección por defecto y opt-out, pie fijo del QR, cabecera del acordeón y selectores/
+validación. En local pasaron **14 pruebas Python** de herramientas, `bash -n` y `git diff --check`; son
+fixtures de XML/apksigner, no sustituyen Android ni una firma real. El manual MD/PDF
+fue actualizado; el PDF regenerado tiene 32 páginas y 66 marcadores válidos.
 
-### B) Barra de progreso horizontal en Actualización + diálogo de aplicar
+Evidencia y comandos por SHA: [docs/VERIFICACION.md](docs/VERIFICACION.md).
 
-En Ajustes → «Actualizar»:
-- La barra circular se sustituyó por **`ShalevLinearProgress`** (progreso real 0..1 de la descarga, texto con porcentaje).
-- Al terminar la descarga no se instala solo: aparece un cuadro «Actualización descargada» con **Omitir / Confirmar**. Al confirmar se instala y **Shalev se reabre solo** en la versión nueva (vía `ReinicioPendiente` + `ReinicioTrasActualizar` en `MY_PACKAGE_REPLACED`).
-- Archivos tocados: `GestorActualizacion.kt` (`ProcesoActualizar.Descargada`, `aplicarActualizacion()`, `esperarConfirmacion`), `ReinicioTrasActualizar.kt` (nuevo), `AndroidManifest.xml` (receptor), `AjustesScreen.kt` (diálogo + `onAplicarActualizar`).
+## Qué falta para distribuir
 
----
+- Los controles automatizados de este alcance están aprobados; no hay una corrida fallida pendiente de cierre.
+- En equipo con la clave custodiada, generar/verificar el release firmado y actualizar una instalación
+  de prueba v1.0 sin desinstalar ni perder datos/licencia.
+- Revisión visual, TalkBack/letra grande, recuperación con GL y pruebas de principal/secundaria en dos
+  teléfonos y redes reales. **No se han hecho en esta sesión.**
 
-## 3. Correcciones de bugs preexistentes (merge roto)
-
-| Archivo | Problema | Corrección |
-|---|---|---|
-| `data/.../respaldo/RespaldoRepositoryImpl.kt:308` | `c.servicios` es `List<Pair<…>>`; se leía `it.eliminado` / `it.id` sin `.first` | `.first.eliminado` / `.first.id` |
-| `app/…/herramientas/HerramientasScreen.kt:75,245` | `CalculadoraCambio { … }` pasaba la lambda como `vm` | `CalculadoraCambio({ … })` |
-| `app/…/precios/PreciosScreen.kt:252` | `ShalevSpacing.sm` no existe (solo xs/md/lg) | `xs` |
-
----
-
-## 4. Ajustes de tests (deuda del merge anterior: formato monetario sin decimales)
-
-`Money.format` ahora muestra enteros sin decimales (`"1450 CUP"` en lugar de `"1450.00 CUP"`). Se actualizaron las expectativas de 6 tests para que coincidan con el formato real:
-
-- `app/…/insumos/InsumoFormTest.kt`
-- `app/…/producto/ProductoFormTest.kt`
-- `app/…/registros/RegistrosLogicTest.kt`
-- `app/…/Version025AppTest.kt`
-- `licencia/…/LicenseFlowTest.kt` (2 veces)
-- `domain/…/TablasExportTest.kt`
-
-Resultado: `shalevTests` → **883 tests en verde**.
-
----
-
-## 5. Firma del APK de release — BLOQUEADO
-
-Se ejecutó el procedimiento de `docs/PROMPT_FIRMAR_APK.md`:
-
-**Compilación release:** `./gradlew :app:assembleRelease` → **BUILD SUCCESSFUL** (requirió `-Xmx6g`; `lintVitalAnalyzeRelease` se saltó por `OutOfMemoryError`, no por error de código). Artefactos generados:
-- `app/build/outputs/apk/release/app-universal-release.apk` (48,6 MB)
-- splits por ABI (`arm64-v8a`, `armeabi-v7a`, `x86_64`)
-- `app/build/outputs/mapping/release/mapping.txt` (74 MB)
-
-**Verificación de firma (`apksigner verify --verbose --print-certs`):**
-
-```
-Verified using v2 scheme (APK Signature Scheme v2): true
-Signer #1 certificate DN: CN=GL, O=GL, C=US
-Signer #1 SHA-256 digest: 139d3da93bd3abb881a2c55503dae0b059ab4c36a68ad16394a8b526ffd41738
-```
-
-**Huella esperada (clave vigente de la app, RELEASE.md):**
-`4F:3B:5F:24:15:E7:03:16:27:8A:7C:0D:93:A3:45:2A:88:79:02:68:8E:C7:E0:B8:00:9D:1F:D8:69:AD:E8:37`
-
-**Resultado: NO COINCIDE.** El APK se firmó con `gl-release.jks` (emisor de licencias GL), porque `keystore.properties` apunta a `~/.android/gl-release.jks`. El keystore de la app (`shalev-release.jks`, alias `shalev`) **no está en este equipo** (AGENTS.md, estado de verificación).
-
-**Veredicto:** No distribuir este APK. Firmar con la clave de GL anula todas las licencias GL emitidas (`deviceId = SPVI:` + `ANDROID_ID`, que depende de la clave de firma) y Android obliga a desinstalar la app para actualizar.
-
-**Requisito para publicar:** incorporar `shalev-release.jks` (alias `shalev`, RSA 4096 PKCS12, válido hasta 2054-03-08) y sus credenciales en `keystore.properties` (o variables `Shalev_*`), nunca generar una clave nueva.
-
----
-
-## 6. Próximos pasos
-
-1. Traer el keystore de la app (`shalev-release.jks`) al equipo y configurar `keystore.properties`.
-2. Volver a ejecutar `:app:assembleRelease` y `tools/verificacion/verificar_firma_apk.sh` (debe devolver `OK: firmado con la clave vigente`).
-3. Ejecutar `PRUEBAS_DISPOSITIVO.md` (puntos 1–6) en teléfono real con el APK firmado.
-4. Publicar (APK directo o AAB a Play) conservando `mapping.txt` con la versión.
+No se publicó una release, no se pidieron secretos ni se cambió la firma de producción. Los procedimientos
+seguros están en [Pruebas.md](Pruebas.md), [PRUEBAS_DISPOSITIVO.md](PRUEBAS_DISPOSITIVO.md) y
+[RELEASE.md](RELEASE.md). Un emulador no valida teléfonos físicos ni significa «cero errores posibles».

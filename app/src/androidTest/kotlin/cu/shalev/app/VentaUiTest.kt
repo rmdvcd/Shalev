@@ -2,6 +2,7 @@ package cu.shalev.app
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -74,7 +75,7 @@ class VentaUiTest {
         assertEquals(listOf(1L to 4L), cambios)
         rule.onNodeWithTag(VentaTags.metodo(MetodoPago.TRANSFERENCIA)).performClick()
         assertEquals(MetodoPago.TRANSFERENCIA, metodo)
-        rule.onNodeWithText("500 CUP").assertExists()
+        rule.onNodeWithTag(VentaTags.TOTAL).assertTextContains("500 CUP", substring = true)
     }
 
     @Test fun agregarArticuloPermaneceEnLaBarraDelCarrito() {

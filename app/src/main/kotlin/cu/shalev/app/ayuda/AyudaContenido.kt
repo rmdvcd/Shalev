@@ -9,7 +9,7 @@ enum class CategoriaAyuda(val titulo: String, val detalle: String) {
     SERVICIOS("Servicios", "Catálogo de servicios por especialidad"),
     VENTA("Venta", "Carrito, cobro en efectivo o por transferencia"),
     REGISTROS("Registros", "Historial, correcciones y exportación de informes"),
-    HERRAMIENTAS("Herramientas", "Cálculo de costos y cambio"),
+    HERRAMIENTAS("Herramientas", "Fichas, recepción, lotes y ajustes con motivo"),
     AJUSTES("Ajustes", "Configuración, pago electrónico y precios"),
     RESPALDO("Respaldo", "Copias de seguridad y restauración"),
     LICENCIA("Licencia", "Solicitud, activación y renovación"),
@@ -34,7 +34,7 @@ object AyudaContenido {
         pasos = listOf(
             "Usa la barra inferior para cambiar de sección o desliza entre pantallas principales",
             "Activa el interruptor del turno cuando empieces a trabajar",
-            "Consulta el período de gráficos tocando el selector",
+            "Ganancia bruta no descuenta otros gastos; el inventario se distribuye por valor al costo en CUP",
             "Accede a Ajustes con el engranaje para configurar tu negocio"
         ),
         categoria = CategoriaAyuda.INICIO
@@ -71,7 +71,7 @@ object AyudaContenido {
             "Con el turno abierto, toca Vender en Inicio",
             "Selecciona productos o servicios para el carrito",
             "Ajusta cantidades y elige efectivo o transferencia",
-            "Revisa el comprobante y confirma la venta"
+            "Si cambió la cotización, revísala antes de confirmar. Un SMS no prueba el ingreso bancario"
         ),
         categoria = CategoriaAyuda.VENTA
     )
@@ -93,9 +93,10 @@ object AyudaContenido {
         titulo = "Manual de usuario: Herramientas",
         pasos = listOf(
             "Abre Ficha de costo y agrega partidas con categoría, cantidad, unidad, costo y moneda",
-            "Guarda y exporta a Inventario (Elaborado) o Servicios: solo Materias primas y materiales pasan como insumos",
+            "Guarda y exporta al Inventario (Elaborado) o Servicios: materiales forman receta, otros gastos suman costo",
             "Si alguna partida está en USD, escribe la tasa CUP por 1 USD antes de exportar",
-            "En Calculadora de cambio, introduce la tasa o calcula una a partir de dos importes"
+            "En Gestión de inventario, recibe compras con proveedor, comprobante y lotes o usa Ajuste con motivo",
+            "FEFO es contable: revisa el lote físico. Fichas y lotes se incluyen en el respaldo"
         ),
         categoria = CategoriaAyuda.HERRAMIENTAS
     )
@@ -119,7 +120,8 @@ object AyudaContenido {
             "Ve a Ajustes → Respaldo para exportar tus datos",
             "Protege la copia con contraseña y anótala en un lugar seguro",
             "Elige Guardar en el teléfono o Enviar a otra aplicación",
-            "Para restaurar, importa el archivo .shalev y escribe la contraseña"
+            "La copia incluye fichas, lotes y fotos privadas; importarla reemplaza datos y preferencias",
+            "La copia previa a actualizar no se restaura sola. Usa Guardar copia previa para recuperarla explícitamente"
         ),
         categoria = CategoriaAyuda.RESPALDO
     )
@@ -143,7 +145,8 @@ object AyudaContenido {
             "En Ajustes → Apps vinculadas toca + para generar un código QR",
             "En la secundaria indica tu teléfono y escanea el código",
             "Usa Wi-Fi o datos móviles para mantener la conexión",
-            "El dueño revisa permisos y solicitudes de cierre"
+            "El dueño revisa permisos y cierres. El empleado conserva su local asignado",
+            "Si hay una operación sin confirmar, sincroniza y revisa su resultado antes de hacer otro cambio"
         ),
         categoria = CategoriaAyuda.EMPLEADOS
     )

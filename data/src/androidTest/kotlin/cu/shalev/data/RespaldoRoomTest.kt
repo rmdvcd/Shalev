@@ -44,9 +44,10 @@ class RespaldoRoomTest {
     private val ahora = Instant.parse("2026-09-30T12:00:00Z")
     private val clock = Clock { ahora }
     private val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), ShalevDatabase::class.java).build()
-    private val prefs = PrefsEnMemoria()
+    private val contexto = ApplicationProvider.getApplicationContext<android.content.Context>()
+    private val prefs = cu.shalev.data.repository.PreferenciasRepositoryImpl(cu.shalev.data.local.SecureDataStore(contexto, cu.shalev.data.security.KeystoreAead(contexto)), db)
     private val estadoApp = EstadoAppEnMemoria()
-    private val respaldo = RespaldoRepositoryImpl(db, prefs, clock, Dispatchers.IO, LicenciaFija(), estadoApp)
+    private val respaldo = RespaldoRepositoryImpl(db, prefs, clock, Dispatchers.IO, LicenciaFija(), estadoApp, ApplicationProvider.getApplicationContext())
     private val productos = ProductoRepositoryImpl(db, clock)
     private val turnos = TurnoRepositoryImpl(db)
     private val ventas = VentaRepositoryImpl(db)
@@ -98,7 +99,7 @@ class RespaldoRoomTest {
         assertEquals(listOf("Refresco"), nombres())
         assertEquals(8L, productos.observarTodos().first().single().cantidad)
         assertEquals(1, ventas.entre(ahora.minusSeconds(1), ahora.plusSeconds(1)).size)
-        assertEquals(9L, prefs.state.value.niveles.productoBajo)
+        assertEquals(9L, prefs.preferencias.first().niveles.productoBajo)
     }
 
     /** 0.27.0 (T10): sin contraseña se importa sin pedirla (la recibida se ignora). */
@@ -118,11 +119,12 @@ class RespaldoRoomTest {
         val id = ok(productos.crear(producto("Refresco", 10), null))
         val p = productos.obtener(id)!!
         val t = ok(turnos.abrir(ahora, "Ana"))
+        var referencia = 1000
         suspend fun vender(tel: String, fijo: Boolean, ci: String = "85010112345") = ok(ventas.registrar(Venta(
             turnoId = t.id, fecha = ahora, metodoPago = MetodoPago.TRANSFERENCIA,
             detalles = listOf(DetalleVenta(productoId = id, nombre = p.nombre, categoria = p.categoria, cantidad = 1,
                 precioBase = p.precioVenta, precioUnitario = p.precioVenta, costoUnitario = p.precioCosto)),
-            transaccion = cu.shalev.domain.model.Transaccion(fecha = ahora, importe = p.precioVenta, numero = "MM10040FEJ987",
+            transaccion = cu.shalev.domain.model.Transaccion(fecha = ahora, importe = p.precioVenta, numero = "MM${++referencia}FEJ987",
                 cliente = cu.shalev.domain.model.DatosCliente("María Pérez", ci, tel), clienteFijo = fijo),
         )))
         vender("+5351234567", fijo = true)
@@ -147,7 +149,7 @@ class RespaldoRoomTest {
         assertEquals(AppError.ArchivoDanado(incompleto = true), err(respaldo.inspeccionar(cortado.inputStream())))
         assertTrue(err(respaldo.importar(cortado.inputStream(), clave())) is AppError.ArchivoDanado)
         assertEquals(listOf("Galletas", "Refresco"), nombres())
-        assertEquals(3L, prefs.state.value.niveles.productoBajo)
+        assertEquals(3L, prefs.preferencias.first().niveles.productoBajo)
     }
 
     @Test fun archivoAlteradoNoTocaLosDatos() = runBlocking {
@@ -163,7 +165,7 @@ class RespaldoRoomTest {
         val archivo = exportarYCambiar()
         assertEquals(AppError.ContrasenaIncorrecta, err(respaldo.importar(archivo.inputStream(), "otra-clave".toCharArray())))
         assertEquals(listOf("Galletas", "Refresco"), nombres())
-        assertEquals(3L, prefs.state.value.niveles.productoBajo)
+        assertEquals(3L, prefs.preferencias.first().niveles.productoBajo)
     }
 
     /** Preferencias en memoria (la app usa DataStore cifrado, fuera del alcance de este test). */

@@ -31,6 +31,7 @@ data class InsumoForm(
 /** Coinciden con los campos de [Validadores.insumo] para mapear sus errores sin duplicar reglas. */
 object CamposInsumo {
     const val NOMBRE = "nombre"
+    const val UNIDAD = "unidad"
     const val PRECIO = "precio"
     const val CANTIDAD = "cantidad"
     const val NIVEL_BAJO = "nivelBajo"
@@ -89,6 +90,7 @@ object InsumoFormLogic {
     fun mensaje(e: AppError): String? = when (e) {
         is AppError.Validacion -> when (e.campo) {
             CamposInsumo.NOMBRE -> if (e.regla == AppError.Regla.REQUERIDO) "Escribe el nombre." else "Máximo ${Validadores.MAX_NOMBRE} caracteres."
+            CamposInsumo.UNIDAD -> "Este insumo ya tiene existencias, recetas o historial. Crea otro para usar una unidad de medida diferente."
             CamposInsumo.PRECIO -> "El precio de costo no puede ser negativo."
             CamposInsumo.CANTIDAD -> "La cantidad no puede ser negativa."
             CamposInsumo.NIVEL_BAJO -> "El nivel bajo no puede ser negativo."

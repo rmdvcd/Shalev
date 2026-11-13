@@ -4,6 +4,9 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -106,7 +109,7 @@ class InventarioUiTest {
     @Test fun barraDeSeleccionConEliminarYExportar() {
         var eliminar = false
         inventario(lista(seleccion = setOf(1, 2)), AccionesInventario(onEliminarSeleccion = { eliminar = true }))
-        rule.onNodeWithText("2 seleccionados").assertIsDisplayed()
+        rule.onNode(hasText("2 seleccionados") and hasAnyAncestor(hasTestTag(InventarioTags.SELECCION))).assertIsDisplayed()
         rule.onNodeWithTag(InventarioTags.check(1)).assertIsOn()
         rule.onNodeWithTag(InventarioTags.ELIMINAR_SELECCION).performClick()
         assertEquals(true, eliminar)

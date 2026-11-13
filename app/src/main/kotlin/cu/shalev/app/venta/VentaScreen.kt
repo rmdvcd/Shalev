@@ -151,6 +151,7 @@ fun VentaScreen(
     seleccion: List<Long>?,
     onSeleccionConsumida: () -> Unit,
     viewModel: VentaViewModel = hiltViewModel(),
+    cajaVm: cu.shalev.app.caja.CajaViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -175,7 +176,6 @@ fun VentaScreen(
     }
     BackHandler(onBack = viewModel::atras)
     // 0.25.0 (§5.2): mismo diálogo de fondo que en Inicio.
-    val cajaVm: cu.shalev.app.caja.CajaViewModel = hiltViewModel()
     val caja by cajaVm.state.collectAsStateWithLifecycle()
     var pedirFondo by rememberSaveable { mutableStateOf(false) }
     if (pedirFondo) cu.shalev.app.caja.DialogoFondo(

@@ -40,7 +40,7 @@ class GuardarInsumo @Inject constructor(
         for (p in productos.productosQueUsan(insumoId)) {
             val receta = productos.receta(p.id) ?: continue
             val mapa = insumos.obtenerVarios(receta.lineas.map { it.insumoId }).associateBy { it.id }
-            val costo = (Recetas.costo(receta, mapa) as? AppResult.Ok)?.value ?: continue
+            val costo = (Recetas.costo(receta, mapa) as? AppResult.Ok)?.value?.plus(p.costoAdicional) ?: continue
             if (costo != p.precioCosto) productos.actualizar(p.copy(precioCosto = costo), receta)
         }
     }

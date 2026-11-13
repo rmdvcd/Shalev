@@ -43,12 +43,20 @@ data class DatosSecundaria(
     val cierreSolicitado: Boolean = false,
     /** 0.21.0 (C6): el dueño rechazó la solicitud (aviso en Inicio hasta que el empleado lo cierre). */
     val avisoRechazo: Boolean = false,
+    val localId: String? = null,
+    /** Antes de enviar, se persiste cifrado; se conserva hasta obtener un recibo definitivo. */
+    val comandoPendiente: ComandoPendiente? = null,
+    /** null = sin aviso; true = confirmada; false = rechazada. No guarda mensajes ni datos sensibles del comando. */
+    val operacionRecuperada: Boolean? = null,
 ) {
     val permisosEmpleado: Set<PermisoEmpleado> get() = PermisoEmpleado.deNombres(permisos)
     val licenciaPrincipal: LicenciaPrincipal? get() = licencia?.aDominio()
 
     override fun toString(): String = "DatosSecundaria(empleado=$empleadoId)" // nunca la clave en logs
 }
+
+@Serializable
+data class ComandoPendiente(val clave: String, val accion: Accion, val localId: String? = null)
 
 fun LicenciaDto.aDominio(): LicenciaPrincipal? {
     val c = LicenciaPrincipal.Clase.entries.firstOrNull { it.name == clase } ?: return null
@@ -90,6 +98,13 @@ class ConfigSync @Inject constructor(private val ds: SecureDataStore) {
     suspend fun editarSecundaria(f: (DatosSecundaria) -> DatosSecundaria) = mutex.withLock {
         val actual = secundaria.first() ?: return@withLock
         ds.put(K_SECUNDARIA, SyncJson.encodeToString(DatosSecundaria.serializer(), f(actual)))
+    }
+
+    internal suspend fun guardarPendiente(esperado: DatosSecundaria, pendiente: ComandoPendiente?, recuperada: Boolean?): Boolean = mutex.withLock {
+        val actual = secundariaActual() ?: return@withLock false
+        if (!mismaVinculacion(actual, esperado) || actual.comandoPendiente != esperado.comandoPendiente) return@withLock false
+        ds.put(K_SECUNDARIA, SyncJson.encodeToString(DatosSecundaria.serializer(), actual.copy(comandoPendiente = pendiente, operacionRecuperada = recuperada)))
+        true
     }
 
     /** Vuelve a PRINCIPAL y olvida la vinculación (la clave se borra). */

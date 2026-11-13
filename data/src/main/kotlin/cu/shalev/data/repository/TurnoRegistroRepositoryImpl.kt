@@ -116,19 +116,32 @@ class TurnoRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
         val e = movimientos.obtener(movimientoId) ?: abortar(AppError.NoEncontrado)
         val m = e.toDomain()
         val t = turnos.activo() ?: abortar(AppError.TurnoCerrado)
-        if (!CorreccionMovimiento.puede(m.tipo, m.turnoId, t.id)) {
+        if (m.motivo == cu.shalev.domain.model.MotivoMovimiento.COMPRA || !CorreccionMovimiento.puede(m.tipo, m.turnoId, t.id)) {
             abortar(AppError.Validacion("movimiento", AppError.Regla.NO_PERMITIDO))
         }
-        val diff = CorreccionMovimiento.diferencia(m.delta, delta)
+        if (delta > 0 && m.motivo in setOf(cu.shalev.domain.model.MotivoMovimiento.MERMA, cu.shalev.domain.model.MotivoMovimiento.CONSUMO_INTERNO))
+            abortar(AppError.Validacion("cantidad", AppError.Regla.NO_PERMITIDO))
+        val diff = try { CorreccionMovimiento.diferencia(m.delta, delta) }
+        catch (_: ArithmeticException) { abortar(AppError.Validacion("cantidad", AppError.Regla.RANGO)) }
+        val existenciaNueva = try { Math.addExact(e.existencia, diff) }
+        catch (_: ArithmeticException) { abortar(AppError.Validacion("cantidad", AppError.Regla.RANGO)) }
+        if (movimientos.desplazarDesborda(e.entidad, e.entidadId, e.id, diff)) abortar(AppError.Validacion("cantidad", AppError.Regla.RANGO))
         if (diff != 0L) {
             val filas = when (m.entidad) {
                 TipoEntidad.PRODUCTO -> db.productoDao().sumarStock(m.entidadId, diff, ahora)
                 TipoEntidad.INSUMO -> db.insumoDao().sumarStock(m.entidadId, diff, ahora)
             }
             if (filas == 0) abortar(AppError.StockInsuficiente(listOf(m.nombre)))
+            fun salidaMil(d: Long): Long = if (d >= 0) 0 else if (m.entidad == TipoEntidad.PRODUCTO) Math.multiplyExact(Math.negateExact(d), 1000L) else Math.negateExact(d)
+            db.corregirLotesDeMovimiento(e.id, salidaMil(e.delta), salidaMil(delta))
             movimientos.desplazarExistencia(e.entidad, e.entidadId, e.id, diff)
         }
-        movimientos.actualizar(e.copy(delta = delta, existencia = e.existencia + diff, nota = CorreccionMovimiento.nota(m.nota, motivo)))
+        db.gestionDao().insertarRevision(cu.shalev.data.db.entity.MovimientoRevisionEntity(
+            movimientoId = e.id, fecha = ahora, deltaAnterior = e.delta, deltaNuevo = delta,
+            existenciaAnterior = e.existencia, existenciaNueva = existenciaNueva,
+            hechoPor = t.abiertoPor.orEmpty().ifBlank { "Principal" }, motivo = motivo.trim(), local = e.local,
+        ))
+        movimientos.actualizar(e.copy(delta = delta, existencia = existenciaNueva, nota = CorreccionMovimiento.nota(m.nota, motivo)))
         Unit
     }
 
@@ -163,7 +176,7 @@ internal fun ArqueoRow.toArqueo(): Arqueo? = fondoCent?.let { f ->
 }
 
 @Singleton
-class RegistroRepositoryImpl @Inject constructor(db: ShalevDatabase) : RegistroRepository {
+class RegistroRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : RegistroRepository {
     private val ventas = db.ventaDao()
     private val movimientos = db.movimientoDao()
 
@@ -185,7 +198,12 @@ class RegistroRepositoryImpl @Inject constructor(db: ShalevDatabase) : RegistroR
     override fun vendedores(): Flow<List<String>> = ventas.nombresVendedores().map { l -> l.map { it.trim() }.distinctBy { it.lowercase() } }
 
     override fun movimientos(filtro: FiltroRegistro): Flow<List<MovimientoInventario>> = with(filtro) {
-        movimientos.filtrar(desde?.toEpochMilli(), hasta?.toEpochMilli(), textoLike()).map { l -> l.map { it.toDomain() } }
+        movimientos.filtrar(desde?.toEpochMilli(), hasta?.toEpochMilli(), textoLike()).map { l ->
+            val revisiones = db.gestionDao().revisiones().groupBy { it.movimientoId }
+            l.map { m -> m.toDomain().copy(revisiones = revisiones[m.id].orEmpty().map { r ->
+                cu.shalev.domain.model.RevisionMovimiento(java.time.Instant.ofEpochMilli(r.fecha), r.deltaAnterior, r.deltaNuevo, r.existenciaAnterior, r.existenciaNueva, r.hechoPor, r.motivo)
+            }) }
+        }
     }
 
     /**

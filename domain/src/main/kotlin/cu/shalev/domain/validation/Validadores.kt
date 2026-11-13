@@ -33,6 +33,7 @@ object Validadores {
     val RANGO_AJUSTE = -9_000..10_000 // -90 % … +100 %
 
     fun producto(p: Producto): List<Validacion> = buildList {
+        if (p.costoAdicional < Cup.ZERO) add(Validacion("costoAdicional", Regla.RANGO))
         texto("nombre", p.nombre, MAX_NOMBRE)?.let(::add)
         texto("categoria", p.categoria, MAX_CATEGORIA)?.let(::add)
         if (Categorias.esInsumos(p.categoria)) add(Validacion("categoria", Regla.NO_PERMITIDO)) // P29: reservada
@@ -59,6 +60,7 @@ object Validadores {
 
     /** P29: Nombre, Tipo e Importe obligatorios; insumos opcionales (cantidad > 0, sin repetir). */
     fun servicio(s: Servicio, lineas: List<RecetaLinea>): List<Validacion> = buildList {
+        if (s.costoAdicional < Cup.ZERO) add(Validacion("costoAdicional", Regla.RANGO))
         texto("nombre", s.nombre, MAX_NOMBRE)?.let(::add)
         texto("tipo", s.tipo, MAX_CATEGORIA)?.let(::add)
         if (s.importe.isNegative || s.importe.centavos == 0L) add(Validacion("importe", Regla.RANGO))
