@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.withTransaction
 import cu.shalev.core.time.Clock
 import cu.shalev.data.db.ShalevDatabase
+import cu.shalev.data.db.entity.AlmacenLocalEntity
 import cu.shalev.data.db.entity.ClienteFijoEntity
 import cu.shalev.data.db.entity.DetalleVentaEntity
 import cu.shalev.data.db.entity.EmpleadoEntity
@@ -13,6 +14,7 @@ import cu.shalev.data.db.entity.MovimientoEntity
 import cu.shalev.data.db.entity.PerfilEntity
 import cu.shalev.data.db.entity.PreajusteEntity
 import cu.shalev.data.db.entity.PreajusteProductoEntity
+import cu.shalev.data.db.entity.PreajusteServicioEntity
 import cu.shalev.data.db.entity.ProductoEntity
 import cu.shalev.data.db.entity.RecetaLineaEntity
 import cu.shalev.data.db.entity.ServicioEntity
@@ -37,12 +39,20 @@ import java.util.UUID
 import kotlin.random.Random
 
 /**
- * **Solo builds de depuración.** Carga datos de demostración en la base de la app instalada:
- * **2 años (730 días)** de ventas por efectivo y transferencia, 50 artículos de inventario (productos, elaborados
- * e insumos), 20 servicios, clientes fijos, preajustes de precio y 8 apps secundarias «vinculadas» de prueba.
+ * **Solo builds de depuración.** Carga datos de demostración en la base de la app instalada.
+ *
+ * Cubre **todos los módulos** de la app actual (v18):
+ * - **2 años de uso** (730 días) en el local principal: turnos, ventas por efectivo y transferencia, caja,
+ *   movimientos de existencias, anulaciones y correcciones de venta.
+ * - **Locales con catálogo e historial propios** (v18): el principal y dos más, cada uno con sus productos,
+ *   sus servicios, sus empleados asignados y su propio histórico de turnos y ventas.
+ * - **Inventario**: productos, insumos, elaborados con receta, consumos de servicios y ajustes de
+ *   existencias con motivo (merma, consumo interno, corrección de conteo y devolución).
+ * - **Servicios**, **clientes fijos**, **preajustes de precio** (de productos y de servicios), **perfil y
+ *   cobro electrónico** y **apps secundarias** vinculadas con sus permisos y su local.
  *
  * No entra en el APK de release: vive en `data/src/debug` (D-05, auditoría de la 0.32.0). Borra los datos
- * operativos y de configuración antes de sembrar, así que se puede ejecutar varias veces.
+ * operativos, de configuración y de gestión antes de sembrar, así que se puede ejecutar varias veces.
  */
 class Sembrador(
     private val db: ShalevDatabase,
@@ -52,7 +62,7 @@ class Sembrador(
     private val azar = Random(20261022)
     private val zona: ZoneId = ZoneId.systemDefault()
 
-    /** Histórico de demostración: 2 años de uso (730 días hacia atrás desde hoy). */
+    /** Histórico de demostración: 2 años de uso (730 días hacia atrás desde hoy) en el local principal. */
     private val diasHistorico = 730
 
     // ---------------------------------------------------------------------------------------------
@@ -126,7 +136,7 @@ class Sembrador(
         Insumo("Huevos", "UNIDAD", 1200),
         Insumo("Mantequilla", "GRAMO", 12),
         Insumo("Queso crema", "GRAMO", 14),
-        Insumo("Jamón en lonjas", "GRAMO", 18),
+        Insumo("Jamón en lonchas", "GRAMO", 18),
         Insumo("Pulpa de mango", "MILILITRO", 6),
         Insumo("Chocolate en polvo", "GRAMO", 15),
         Insumo("Sirope de vainilla", "MILILITRO", 8),
@@ -191,16 +201,131 @@ class Sembrador(
     )
 
     // ---------------------------------------------------------------------------------------------
+    // Locales de demostración: cada uno es un negocio completo (catálogo, existencias e historial propios)
+    // ---------------------------------------------------------------------------------------------
+
+    private data class LocalDemo(
+        val nombre: String,
+        /** Índices del catálogo global que usa este local. */
+        val productos: List<Int>,
+        val servicios: List<Int>,
+        /** Días de histórico hacia atrás. */
+        val dias: Int,
+        /** Días de la semana que abre. */
+        val diasSemana: Set<DayOfWeek>,
+        /** Empleados (índice en [nombresEmpleados]) asignados a este local. */
+        val empleados: List<Int>,
+        /** Turno del dueño (null si el local solo lo llevan empleados). */
+        val turnoDueño: Pair<LocalTime, LocalTime>?,
+        val ventasDueño: IntRange,
+        val ventasEmpleado: IntRange,
+        /** Turnos de empleado por día abierto. */
+        val turnosEmpleado: IntRange,
+    )
+
+    private val locales = listOf(
+        LocalDemo(
+            nombre = "Bodega",
+            productos = productos.indices.toList(),
+            servicios = servicios.indices.toList(),
+            dias = diasHistorico,
+            diasSemana = DayOfWeek.values().toSet() - DayOfWeek.SUNDAY,
+            empleados = listOf(0, 1, 2, 3),
+            turnoDueño = LocalTime.of(9, 0) to LocalTime.of(18, 30),
+            ventasDueño = 2..5,
+            ventasEmpleado = 1..3,
+            turnosEmpleado = 0..2,
+        ),
+        LocalDemo(
+            nombre = "Casa",
+            productos = listOf(0, 3, 5, 7, 12, 14, 16, 20, 25, 26, 30, 32, 33, 34, 35, 27, 28, 29),
+            servicios = listOf(10, 11, 12, 13, 14, 15, 16, 19),
+            dias = 400,
+            diasSemana = setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY, DayOfWeek.SATURDAY),
+            empleados = listOf(4, 5),
+            turnoDueño = null,
+            ventasDueño = 0..0,
+            ventasEmpleado = 1..4,
+            turnosEmpleado = 1..1,
+        ),
+        LocalDemo(
+            nombre = "Kiosco",
+            productos = listOf(1, 6, 8, 15, 18, 19, 21, 22, 23, 24, 26, 27, 28, 29, 31),
+            servicios = listOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 17, 18),
+            dias = 220,
+            diasSemana = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
+            empleados = listOf(6, 7),
+            turnoDueño = null,
+            ventasDueño = 0..0,
+            ventasEmpleado = 1..4,
+            turnosEmpleado = 1..1,
+        ),
+    )
+
+    /** Motivos con los que el dueño anula una venta (2 % de las ventas). */
+    private val motivosAnulacion = listOf(
+        "El cliente devolvió el producto",
+        "Error en el cobro",
+        "Se registró por duplicado",
+        "El cliente cambió de opinión",
+    )
+
+    /** Motivos de corrección: la venta original se anula y entra otra que la corrige. */
+    private val motivosCorreccion = listOf(
+        "Se corrigió la cantidad",
+        "Se cambió el método de pago",
+        "Se cambió un artículo por otro",
+    )
+
+    /** Ajustes de existencias con motivo (como los que registra la app en Inventario). */
+    private data class AjusteDemo(val motivo: String, val detalle: String, val cantidad: Long)
+
+    private val ajustesDemo = listOf(
+        AjusteDemo("MERMA", "cajas mojadas en el almacén", -2L),
+        AjusteDemo("MERMA", "envases rotos en el mostrador", -1L),
+        AjusteDemo("CONSUMO_INTERNO", "café del personal", -1L),
+        AjusteDemo("CONSUMO_INTERNO", "agua para el equipo", -2L),
+        AjusteDemo("CORRECCION", "diferencia en el conteo", -1L),
+        AjusteDemo("CORRECCION", "se contaron dos cajas de más", 2L),
+        AjusteDemo("DEVOLUCION", "devolución del proveedor", 3L),
+    )
+
+    // ---------------------------------------------------------------------------------------------
     // Planes (en memoria) y consumo
     // ---------------------------------------------------------------------------------------------
 
     private data class LineaPlan(val clase: String, val idx: Int, val cantidad: Long)
 
-    private data class VentaPlan(val en: Long, val metodo: String, val lineas: List<LineaPlan>, val cliente: Int?)
+    /** Anulación de una venta: cuándo, por qué y quién. */
+    private data class AnulacionPlan(val en: Long, val motivo: String, val por: String)
+
+    private data class VentaPlan(
+        val en: Long,
+        val metodo: String,
+        val lineas: List<LineaPlan>,
+        val cliente: Int?,
+        /** Anulación con motivo; null si la venta se queda. */
+        val anulacion: AnulacionPlan?,
+        /** La venta se corrige con otra (la original queda anulada). */
+        val correccion: Boolean,
+        /** Motivo de la corrección (el texto final lo arma la app). */
+        val motivoCorreccion: String?,
+    )
 
     private data class CajaPlan(val en: Long, val tipo: String, val importeCent: Long, val motivo: String)
 
+    /** Ajuste de existencias con motivo, de un local (sin turno: se registra fuera de la jornada). */
+    private data class AjustePlan(
+        val local: String,
+        val en: Long,
+        val idx: Int,
+        val delta: Long,
+        val motivo: String,
+        val detalle: String,
+    )
+
     private data class TurnoPlan(
+        val local: String,
         val empleado: Int?,
         val abierto: Long,
         val cerrado: Long,
@@ -209,52 +334,71 @@ class Sembrador(
         val caja: List<CajaPlan>,
     )
 
-    private val consumoProducto = LongArray(productos.size)
-    private val consumoInsumo = LongArray(insumos.size) // milésimas
-    /** Locales de la demo: cada uno es un negocio completo (Inventario y Servicios compartidos). */
-    private val localesDemo = listOf("Bodega", "Casa", "Kiosco")
-    /** Índices del catálogo (ver [productos]/[servicios]) que usa cada local además de Bodega, que los tiene todos. */
-    private val catalogoCasa = listOf(0, 3, 5, 7, 12, 14, 16, 20, 25, 26, 30, 32, 33, 34, 35, 27, 28, 29)
-    private val catalogoKiosco = listOf(1, 6, 8, 15, 18, 19, 21, 22, 23, 24, 26, 27, 28, 29, 31)
-    private val serviciosCasa = listOf(10, 11, 12, 13, 14, 15, 16, 19)
-    private val serviciosKiosco = listOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 17, 18)
+    /** Todo lo que el plan sembró: turnos por local y ajustes de existencias. */
+    private data class Plan(
+        val turnos: List<TurnoPlan>,
+        val ajustes: List<AjustePlan>,
+    )
 
     suspend fun sembrar(): String {
         val inicio = clock.now()
         val desde = inicio.atZone(zona).toLocalDate().minusDays(diasHistorico.toLong())
         val plan = planificar(desde, inicio)
-        val resumen = ejecutar(plan, desde, inicio)
-        return resumen
+        return ejecutar(plan, desde, inicio)
     }
 
-    /** Recorre los últimos 2 años (730 días) y arma turnos, ventas y movimientos de caja. */
-    private fun planificar(desde: LocalDate, ahora: Instant): List<TurnoPlan> {
-        val planes = mutableListOf<TurnoPlan>()
-        var dia = desde
+    /** Recorre el histórico de cada local y arma turnos, ventas, caja y ajustes de existencias. */
+    private fun planificar(desde: LocalDate, ahora: Instant): Plan {
+        val turnos = mutableListOf<TurnoPlan>()
+        val ajustes = mutableListOf<AjustePlan>()
         val hoy = ahora.atZone(zona).toLocalDate()
-        while (!dia.isAfter(hoy)) {
-            if (dia.dayOfWeek != DayOfWeek.SUNDAY && azar.nextInt(100) < 93) {
-                val delDia = mutableListOf<TurnoPlan>()
-                // Turno del dueño: de 9:00 a 18:30, 2–5 ventas.
-                delDia += turno(dia, null, LocalTime.of(9, 0), LocalTime.of(18, 30), 2 + azar.nextInt(4))
-                // Uno o dos turnos de empleados en parte de los días.
-                val nEmpleados = when {
-                    azar.nextInt(100) < 35 -> 2
-                    azar.nextInt(100) < 60 -> 1
-                    else -> 0
+        locales.forEach { local ->
+            var dia = hoy.minusDays(local.dias.toLong())
+            while (!dia.isAfter(hoy)) {
+                if (dia.dayOfWeek in local.diasSemana && azar.nextInt(100) < 93) {
+                    val delDia = mutableListOf<TurnoPlan>()
+                    local.turnoDueño?.let { (apertura, cierre) ->
+                        delDia += turno(
+                            local, dia, null, apertura, cierre,
+                            azar.nextInt(local.ventasDueño.first, local.ventasDueño.last + 1),
+                        )
+                    }
+                    val nEmpleados = when {
+                        local.turnoDueño == null -> local.turnosEmpleado.first
+                        azar.nextInt(100) < 35 -> 2
+                        azar.nextInt(100) < 60 -> 1
+                        else -> 0
+                    }.coerceIn(local.turnosEmpleado)
+                    repeat(nEmpleados) {
+                        val e = local.empleados[azar.nextInt(local.empleados.size)]
+                        delDia += turno(
+                            local, dia, e, LocalTime.of(10, 0), LocalTime.of(17, 0),
+                            azar.nextInt(local.ventasEmpleado.first, local.ventasEmpleado.last + 1),
+                        )
+                    }
+                    // Un ajuste de existencias al abrir el local (12 % de los días abiertos).
+                    if (azar.nextInt(100) < 12) {
+                        val ajuste = ajustesDemo[azar.nextInt(ajustesDemo.size)]
+                        ajustes += AjustePlan(
+                            local = local.nombre,
+                            en = dia.atTime(8, 30).atZone(zona).toInstant().toEpochMilli(),
+                            idx = local.productos[azar.nextInt(local.productos.size)],
+                            delta = ajuste.cantidad,
+                            motivo = ajuste.motivo,
+                            detalle = ajuste.detalle,
+                        )
+                    }
+                    turnos += delDia
                 }
-                repeat(nEmpleados) {
-                    val e = azar.nextInt(nombresEmpleados.size)
-                    delDia += turno(dia, e, LocalTime.of(10, 0), LocalTime.of(17, 0), 1 + azar.nextInt(3))
-                }
-                planes += delDia
+                dia = dia.plusDays(1)
             }
-            dia = dia.plusDays(1)
         }
-        return planes
+        turnos.sortBy { it.abierto }
+        return Plan(turnos, ajustes)
     }
 
     private fun turno(
+        local: LocalDemo,
         dia: LocalDate,
         empleado: Int?,
         apertura: LocalTime,
@@ -269,14 +413,30 @@ class Sembrador(
             val lineas = mutableListOf<LineaPlan>()
             repeat(1 + azar.nextInt(3)) {
                 when {
-                    azar.nextInt(100) < 55 -> lineas += LineaPlan("PRODUCTO", elegirProducto(), (1 + azar.nextInt(3)).toLong())
-                    azar.nextInt(100) < 30 -> lineas += LineaPlan("SERVICIO", azar.nextInt(servicios.size), (1 + azar.nextInt(2)).toLong())
-                    else -> lineas += LineaPlan("PRODUCTO", elegirProducto(), 1)
+                    azar.nextInt(100) < 55 -> lineas += LineaPlan("PRODUCTO", elegirProducto(local.productos), (1 + azar.nextInt(3)).toLong())
+                    azar.nextInt(100) < 30 -> lineas += LineaPlan("SERVICIO", elegirServicio(local.servicios), (1 + azar.nextInt(2)).toLong())
+                    else -> lineas += LineaPlan("PRODUCTO", elegirProducto(local.productos), 1)
                 }
             }
             val metodo = if (azar.nextInt(100) < 55) "EFECTIVO" else "TRANSFERENCIA"
             val cliente = if (metodo == "TRANSFERENCIA") azar.nextInt(clientes.size) else null
-            ventas += VentaPlan(t, metodo, lineas, cliente)
+            val anula = azar.nextInt(100) < 2
+            val corrige = !anula && azar.nextInt(100) < 1
+            val anulacion = if (anula || corrige) {
+                AnulacionPlan(
+                    en = minOf(t + (30 + azar.nextInt(150)) * 60_000L, cierra),
+                    motivo = if (corrige) motivosCorreccion[azar.nextInt(motivosCorreccion.size)]
+                    else motivosAnulacion[azar.nextInt(motivosAnulacion.size)],
+                    por = if (empleado == null) "Ronnie" else nombresEmpleados[empleado],
+                )
+            } else {
+                null
+            }
+            ventas += VentaPlan(
+                en = t, metodo = metodo, lineas = lineas, cliente = cliente,
+                anulacion = anulacion, correccion = corrige,
+                motivoCorreccion = if (corrige) anulacion?.motivo else null,
+            )
             t = minOf(t + (20 + azar.nextInt(90)) * 60_000L, cierra - 5 * 60_000L)
         }
         val caja = mutableListOf<CajaPlan>()
@@ -287,6 +447,7 @@ class Sembrador(
             caja += CajaPlan(abre + 5 * 3_600_000L, "SALIDA", (300 + azar.nextInt(900)) * 100L, "Compra de hielo y bolsas")
         }
         return TurnoPlan(
+            local = local.nombre,
             empleado = empleado,
             abierto = abre,
             cerrado = cierra,
@@ -296,16 +457,18 @@ class Sembrador(
         )
     }
 
-    /** Elige un producto con peso (los baratos y los elaborados salen más). */
-    private fun elegirProducto(): Int {
-        val total = productos.sumOf { it.peso }
+    /** Elige un producto del local con peso (los baratos y los elaborados salen más). */
+    private fun elegirProducto(catalogo: List<Int>): Int {
+        val total = catalogo.sumOf { productos[it].peso }
         var r = azar.nextInt(total)
-        for ((i, p) in productos.withIndex()) {
-            r -= p.peso
+        for (i in catalogo) {
+            r -= productos[i].peso
             if (r < 0) return i
         }
-        return 0
+        return catalogo.first()
     }
+
+    private fun elegirServicio(catalogo: List<Int>): Int = catalogo[azar.nextInt(catalogo.size)]
 
     private fun costoLinea(l: LineaPlan): Long = when (l.clase) {
         "SERVICIO" -> consumoServicio[l.idx].orEmpty().sumOf { (i, mil) -> insumos[i].precioCent * mil / 1000 }
@@ -324,16 +487,35 @@ class Sembrador(
         else -> productos[l.idx].venta
     }
 
-    /** Registra el consumo para calcular existencias iniciales. */
-    private fun acumularConsumo(l: LineaPlan) {
+    /** Líneas de la venta que corrige a otra: una unidad menos de la última línea (o esa línea fuera). */
+    private fun lineasCorregidas(lineas: List<LineaPlan>): List<LineaPlan> {
+        if (lineas.isEmpty()) return lineas
+        val ultima = lineas.last()
+        return when {
+            ultima.cantidad > 1 -> lineas.dropLast(1) + ultima.copy(cantidad = ultima.cantidad - 1)
+            lineas.size > 1 -> lineas.dropLast(1)
+            else -> lineas
+        }
+    }
+
+    /**
+     * Registra el consumo para calcular existencias iniciales. Una venta corregida consume lo que
+     * consume la venta que la corrige (la original se anula y devuelve las existencias).
+     */
+    private fun acumularConsumo(
+        l: LineaPlan,
+        local: String,
+        prod: MutableMap<String, LongArray>,
+        ins: MutableMap<String, LongArray>,
+    ) {
         when (l.clase) {
-            "SERVICIO" -> consumoServicio[l.idx].orEmpty().forEach { (i, mil) -> consumoInsumo[i] += mil * l.cantidad }
+            "SERVICIO" -> consumoServicio[l.idx].orEmpty().forEach { (i, mil) -> ins[local]!![i] += mil * l.cantidad }
             else -> {
                 val p = productos[l.idx]
                 if (p.elaborado) {
-                    recetas[l.idx].orEmpty().forEach { (i, mil) -> consumoInsumo[i] += mil * l.cantidad }
+                    recetas[l.idx].orEmpty().forEach { (i, mil) -> ins[local]!![i] += mil * l.cantidad }
                 } else {
-                    consumoProducto[l.idx] += l.cantidad
+                    prod[local]!![l.idx] += l.cantidad
                 }
             }
         }
@@ -344,70 +526,167 @@ class Sembrador(
     // ---------------------------------------------------------------------------------------------
 
     /**
-     * Catálogo propio de un local sin historial: copia los insumos (cada local lleva su propio inventario)
-     * y solo los productos y servicios elegidos, con sus fotos.
+     * Catálogo de un local: sus insumos, sus productos, sus servicios y el alta de existencias con el
+     * histórico de consumo ya descontado (como en una compra de apertura).
      */
-    private suspend fun sembrarCatalogoLocal(local: String, idxProductos: List<Int>, idxServicios: List<Int>, creadoEn: Long) {
-        val idsInsumo = insumos.mapIndexed { i, ins ->
-            val unidades = if (ins.unidad == "UNIDAD") 40L + azar.nextInt(60) else 300L + azar.nextInt(900)
-            db.insumoDao().insertar(
+    private suspend fun sembrarLocal(
+        local: LocalDemo,
+        creadoEn: Long,
+        idsProducto: MutableMap<String, LongArray>,
+        idsInsumo: MutableMap<String, LongArray>,
+        idsServicio: MutableMap<String, LongArray>,
+        existenciasProducto: MutableMap<String, LongArray>,
+        existenciasInsumo: MutableMap<String, LongArray>,
+        consumoProd: Map<String, LongArray>,
+        consumoIns: Map<String, LongArray>,
+        ajustesProd: Map<String, LongArray>,
+        altas: MutableList<MovimientoEntity>,
+    ) {
+        val nombre = local.nombre
+        val ins = LongArray(insumos.size)
+        val prods = LongArray(productos.size)
+        val servs = LongArray(servicios.size)
+
+        // --- Insumos (cada local lleva su propio inventario) -------------------------------------
+        insumos.forEachIndexed { i, insumo ->
+            val unidades = if (insumo.unidad == "UNIDAD") 120L + azar.nextInt(180) else 800L + azar.nextInt(2200)
+            val resto = unidades * 1000L
+            // El alta es lo que había al abrir: lo que se consumió más lo que queda más los ajustes del período.
+            existenciasInsumo[nombre]!![i] = consumoIns[nombre]!![i] + resto
+            ins[i] = db.insumoDao().insertar(
                 InsumoEntity(
-                    nombre = ins.nombre, unidad = ins.unidad, precioCent = ins.precioCent,
-                    cantidadMil = unidades * 1000, nivelBajoMil = unidades * 250, nivelCriticoMil = unidades * 100,
-                    creadoEn = creadoEn, actualizadoEn = creadoEn, precioVentaCent = null, local = local,
+                    nombre = insumo.nombre, unidad = insumo.unidad, precioCent = insumo.precioCent,
+                    cantidadMil = resto,
+                    nivelBajoMil = resto / 4, nivelCriticoMil = resto / 10,
+                    creadoEn = creadoEn, actualizadoEn = creadoEn, precioVentaCent = null, local = nombre,
                 ),
             )
+            altas += MovimientoEntity(
+                fecha = creadoEn, tipo = "ALTA", entidad = "INSUMO", entidadId = ins[i],
+                nombre = insumo.nombre, delta = existenciasInsumo[nombre]!![i], existencia = existenciasInsumo[nombre]!![i],
+                turnoId = null, ventaId = null, nota = null, hechoPor = "", local = nombre,
+            )
         }
-        idxProductos.forEach { i ->
+
+        // --- Productos ---------------------------------------------------------------------------
+        local.productos.forEach { i ->
             val p = productos[i]
-            db.productoDao().insertar(
+            val resto = if (p.elaborado) 0L else (12 + azar.nextInt(45)).toLong()
+            val costoElaborado = recetas[i].orEmpty().sumOf { (j, mil) -> insumos[j].precioCent * mil / 1000 }
+            // El alta descuenta los ajustes del período (una merma de 2 unidades exige 2 unidades más al abrir).
+            existenciasProducto[nombre]!![i] = consumoProd[nombre]!![i] - ajustesProd[nombre]!![i] + resto
+            prods[i] = db.productoDao().insertar(
                 ProductoEntity(
-                    categoria = p.categoria, nombre = p.nombre, descripcion = null, fotoUri = foto("prod", i),
+                    categoria = p.categoria, nombre = p.nombre,
+                    descripcion = if (p.elaborado) "Preparado en el local" else null, fotoUri = foto("prod", i),
                     fechaCaducidad = if (p.caduca) LocalDate.now(zona).plusDays(2L + azar.nextInt(25)).toEpochDay() else null,
-                    precioCostoCent = p.costo, precioVentaCent = p.venta, cantidad = (15 + azar.nextInt(40)).toLong(),
-                    nivelBajo = 8, nivelCritico = 3, creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false,
-                    local = local,
+                    precioCostoCent = if (p.elaborado) costoElaborado else p.costo, precioVentaCent = p.venta,
+                    cantidad = resto,
+                    nivelBajo = 10, nivelCritico = 4,
+                    creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false,
+                    local = nombre,
                 ),
             )
+            if (!p.elaborado) {
+                altas += MovimientoEntity(
+                    fecha = creadoEn, tipo = "ALTA", entidad = "PRODUCTO", entidadId = prods[i],
+                    nombre = p.nombre, delta = existenciasProducto[nombre]!![i], existencia = existenciasProducto[nombre]!![i],
+                    turnoId = null, ventaId = null, nota = null, hechoPor = "", local = nombre,
+                )
+            }
         }
-        idxServicios.forEach { i ->
+
+        // --- Servicios ---------------------------------------------------------------------------
+        local.servicios.forEach { i ->
             val s = servicios[i]
-            val id = db.servicioDao().insertar(
+            servs[i] = db.servicioDao().insertar(
                 ServicioEntity(
                     nombre = s.nombre, tipo = s.tipo, importeCent = s.importeCent,
                     descripcion = null, fotoUri = foto("serv", i),
-                    creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false, local = local,
+                    creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false, local = nombre,
                 ),
             )
             consumoServicio[i]?.let { lineas ->
-                db.servicioDao().insertarInsumos(lineas.map { (j, mil) -> ServicioInsumoEntity(id, idsInsumo[j], mil) })
+                db.servicioDao().insertarInsumos(lineas.map { (j, mil) -> ServicioInsumoEntity(servs[i], ins[j], mil) })
             }
         }
+
+        // --- Recetas (solo hay elaborados en el local principal) ---------------------------------
+        local.productos.filter { productos[it].elaborado }.forEach { i ->
+            recetas[i]?.let { lineas ->
+                db.recetaDao().insertarTodas(lineas.map { (j, mil) -> RecetaLineaEntity(prods[i], ins[j], mil) })
+            }
+        }
+
+        idsProducto[nombre] = prods
+        idsInsumo[nombre] = ins
+        idsServicio[nombre] = servs
     }
 
-    private suspend fun ejecutar(plan: List<TurnoPlan>, desde: LocalDate, ahora: Instant): String {        plan.forEach { t -> t.ventas.forEach { v -> v.lineas.forEach(::acumularConsumo) } }
+    private suspend fun ejecutar(plan: Plan, desde: LocalDate, ahora: Instant): String {
+        // --- Consumo y ajustes por local ---------------------------------------------------------
+        val consumoProd = mutableMapOf<String, LongArray>()
+        val consumoIns = mutableMapOf<String, LongArray>()
+        val ajustesProd = mutableMapOf<String, LongArray>()
+        locales.forEach { l ->
+            consumoProd[l.nombre] = LongArray(productos.size)
+            consumoIns[l.nombre] = LongArray(insumos.size)
+            ajustesProd[l.nombre] = LongArray(productos.size)
+        }
+        plan.turnos.forEach { tp ->
+            tp.ventas.forEach { v ->
+                val lineas = if (v.correccion) lineasCorregidas(v.lineas) else v.lineas
+                lineas.forEach { l -> acumularConsumo(l, tp.local, consumoProd, consumoIns) }
+            }
+        }
+        val ajustes = plan.ajustes
+        ajustes.forEach { a -> ajustesProd[a.local]!![a.idx] += a.delta }
 
         val creadoEn = desde.minusDays(15).atStartOfDay(zona).toInstant().toEpochMilli()
-        val existenciasProducto = LongArray(productos.size)
-        val existenciasInsumo = LongArray(insumos.size)
+        val existenciasProducto = mutableMapOf<String, LongArray>()
+        val existenciasInsumo = mutableMapOf<String, LongArray>()
+        val idsProducto = mutableMapOf<String, LongArray>()
+        val idsInsumo = mutableMapOf<String, LongArray>()
+        val idsServicio = mutableMapOf<String, LongArray>()
+        locales.forEach { l ->
+            existenciasProducto[l.nombre] = LongArray(productos.size)
+            existenciasInsumo[l.nombre] = LongArray(insumos.size)
+        }
+
+        var ventasAnuladas = 0
+        var ventasCorregidas = 0
+        var totalVentas = 0
+        var totalMovimientos = 0
+        val idsEmpleado = LongArray(nombresEmpleados.size)
 
         db.withTransaction {
+            // --- Vaciado: operativo, configuración y gestión (semilla repetible) -------------------
             db.mantenimientoDao().borrarOperacion()
             db.mantenimientoDao().borrarConfiguracion()
+            db.gestionDao().borrarConsumos()
+            db.gestionDao().borrarLotes()
+            db.gestionDao().borrarRecepciones()
+            db.gestionDao().borrarFichas()
+            db.gestionDao().borrarRevisiones()
+            db.gestionDao().borrarConfiguracion()
+            db.mantenimientoDao().borrarRecibosComandos()
             // Semilla repetible: cada local tiene su propio catálogo y su propio historial.
             db.almacenLocalDao().borrar()
             // Cada local corresponde a un Inventario y Servicios propios (la misma ventana para ambos);
-            // el primero queda activo. Solo Bodega recibe el histórico de ventas.
-            localesDemo.forEach {
-                db.almacenLocalDao().insertar(cu.shalev.data.db.entity.AlmacenLocalEntity(it))
+            // el primero queda activo.
+            val idLocal = mutableMapOf<String, String>()
+            locales.forEach { l ->
+                val entidad = AlmacenLocalEntity(nombre = l.nombre)
+                db.almacenLocalDao().insertar(entidad)
+                idLocal[l.nombre] = entidad.id
             }
-            db.almacenLocalDao().inventario(localesDemo.first())
-            db.almacenLocalDao().servicios(localesDemo.first())
-            val localBodega = localesDemo.first()
+            db.almacenLocalDao().inventario(locales.first().nombre)
+            db.almacenLocalDao().servicios(locales.first().nombre)
+            val localBodega = locales.first().nombre
             // Las apps vinculadas no las borra el vaciado de respaldo (no viajan en él): se limpian aquí.
             db.openHelper.writableDatabase.execSQL("DELETE FROM empleado")
 
-            // --- Perfil, cobro y clientes -------------------------------------------------------
+            // --- Perfil, cobro y clientes ---------------------------------------------------------
             val tarjetaId = db.perfilDao().insertarTarjeta(TarjetaEntity(numero = "9234567812349021", alias = "CUP principal"))
             val telefonoId = db.perfilDao().insertarTelefono(TelefonoEntity(numero = "+5352168959", alias = "Personal"))
             db.perfilDao().guardar(
@@ -425,93 +704,21 @@ class Sembrador(
                 },
             )
 
-            // --- Insumos y productos ------------------------------------------------------------
-            val idsInsumo = insumos.mapIndexed { i, ins ->
-                // Existencias finales suficientes para que los elaborados se puedan seguir sirviendo.
-                val unidades = if (ins.unidad == "UNIDAD") 120L + azar.nextInt(180) else 800L + azar.nextInt(2200)
-                val resto = unidades * 1000L
-                existenciasInsumo[i] = consumoInsumo[i] + resto
-                db.insumoDao().insertar(
-                    InsumoEntity(
-                        nombre = ins.nombre, unidad = ins.unidad, precioCent = ins.precioCent,
-                        cantidadMil = resto,
-                        nivelBajoMil = resto / 4, nivelCriticoMil = resto / 10,
-                        creadoEn = creadoEn, actualizadoEn = creadoEn,
-                        precioVentaCent = null,
-                        local = localBodega,
-                    ),
-                )
-            }
-            val idsProducto = productos.mapIndexed { i, p ->
-                val resto = if (p.elaborado) 0L else (12 + azar.nextInt(45)).toLong()
-                // El costo del elaborado es el de su receta (lo que gasta una unidad).
-                val costoElaborado = recetas[i].orEmpty().sumOf { (j, mil) -> insumos[j].precioCent * mil / 1000 }
-                existenciasProducto[i] = if (p.elaborado) 0L else consumoProducto[i] + resto
-                db.productoDao().insertar(
-                    ProductoEntity(
-                        categoria = p.categoria, nombre = p.nombre,
-                        descripcion = if (p.elaborado) "Preparado en el local" else null,
-                        fotoUri = foto("prod", i),
-                        fechaCaducidad = if (p.caduca) LocalDate.now(zona).plusDays(2L + azar.nextInt(25)).toEpochDay() else null,
-                        precioCostoCent = if (p.elaborado) costoElaborado else p.costo, precioVentaCent = p.venta,
-                        cantidad = resto,
-                        nivelBajo = 10, nivelCritico = 4,
-                        creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false,
-                        local = localBodega,
-                    ),
-                )
-            }
-            val idsServicio = servicios.mapIndexed { i, s ->
-                db.servicioDao().insertar(
-                    ServicioEntity(
-                        nombre = s.nombre, tipo = s.tipo, importeCent = s.importeCent,
-                        descripcion = null, fotoUri = foto("serv", i),
-                        creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false,
-                        local = localBodega,
-                    ),
-                )
-            }
-
-            // --- Recetas y consumos de servicios ------------------------------------------------
-            db.recetaDao().insertarTodas(
-                recetas.flatMap { (p, lineas) ->
-                    lineas.map { (i, mil) -> RecetaLineaEntity(idsProducto[p], idsInsumo[i], mil) }
-                },
-            )
-            db.servicioDao().insertarInsumos(
-                consumoServicio.flatMap { (s, lineas) ->
-                    lineas.map { (i, mil) -> ServicioInsumoEntity(idsServicio[s], idsInsumo[i], mil) }
-                },
-            )
-
-            // --- Movimientos de alta ------------------------------------------------------------
+            // --- Catálogo y existencias por local --------------------------------------------------
             val altas = mutableListOf<MovimientoEntity>()
-            productos.forEachIndexed { i, p ->
-                if (!p.elaborado) {
-                    altas += MovimientoEntity(
-                        fecha = creadoEn, tipo = "ALTA", entidad = "PRODUCTO", entidadId = idsProducto[i],
-                        nombre = p.nombre, delta = existenciasProducto[i], existencia = existenciasProducto[i],
-                        turnoId = null, ventaId = null, nota = null, hechoPor = "", local = localBodega,
-                    )
-                }
-            }
-            insumos.forEachIndexed { i, ins ->
-                altas += MovimientoEntity(
-                    fecha = creadoEn, tipo = "ALTA", entidad = "INSUMO", entidadId = idsInsumo[i],
-                    nombre = ins.nombre, delta = existenciasInsumo[i], existencia = existenciasInsumo[i],
-                    turnoId = null, ventaId = null, nota = null, hechoPor = "", local = localBodega,
+            locales.forEach { local ->
+                sembrarLocal(
+                    local, creadoEn, idsProducto, idsInsumo, idsServicio,
+                    existenciasProducto, existenciasInsumo, consumoProd, consumoIns, ajustesProd, altas,
                 )
             }
             db.movimientoDao().insertarTodos(altas)
 
-            // --- Catálogo propio de Casa y Kiosco (sin historial de ventas) ----------------------
-            sembrarCatalogoLocal(localesDemo[1], catalogoCasa, serviciosCasa, creadoEn)
-            sembrarCatalogoLocal(localesDemo[2], catalogoKiosco, serviciosKiosco, creadoEn)
-
-            // --- Empleados (apps secundarias de prueba) -----------------------------------------
+            // --- Empleados (apps secundarias de prueba), cada uno en su local ---------------------
             nombresEmpleados.forEachIndexed { i, nombre ->
+                val local = locales.firstOrNull { i in it.empleados } ?: locales.first()
                 val vinculado = ahora.minusSeconds((7L + i * 9) * 86_400L).toEpochMilli()
-                db.syncDao().insertarEmpleado(
+                idsEmpleado[i] = db.syncDao().insertarEmpleado(
                     EmpleadoEntity(
                         nombre = nombre,
                         permisos = "VENDER_PRODUCTOS,VENDER_SERVICIOS",
@@ -524,22 +731,46 @@ class Sembrador(
                         telefono = "+5355%05d".format(100000 + i * 7919),
                         device = "SPVI:demo%010d".format(i + 1),
                         versionCode = 53,
+                        localId = idLocal[local.nombre],
                     ),
                 )
             }
 
-            // --- Turnos, ventas y movimientos ----------------------------------------------------
+            // --- Turnos, ventas y movimientos ------------------------------------------------------
             val movimientos = mutableListOf<MovimientoEntity>()
-            var totalVentas = 0
-            plan.forEach { tp ->
+            val ajustesAplicados = mutableSetOf<String>()
+            plan.turnos.forEach { tp ->
+                val local = tp.local
                 val abiertoPor = tp.empleado?.let { nombresEmpleados[it] } ?: "Ronnie"
-                val efectivo = tp.ventas.filter { it.metodo == "EFECTIVO" }
-                val transferencia = tp.ventas.filter { it.metodo == "TRANSFERENCIA" }
+                val empleadoId = tp.empleado?.let { idsEmpleado[it] }
                 var unidadesTurno = 0L
                 var totalTurno = 0L
                 var costoTurno = 0L
+                var efectivoTurno = 0L
+                var transferenciaTurno = 0L
+                var ventasEfectivoTurno = 0
+                var ventasTransferenciaTurno = 0
+                var anuladasTurno = 0
                 val salidas = tp.caja.filter { it.tipo == "SALIDA" }.sumOf { it.importeCent }
                 val entradas = tp.caja.filter { it.tipo == "ENTRADA" }.sumOf { it.importeCent }
+
+                // --- Ajustes de existencias del día (08:30, antes de abrir) -----------------------
+                ajustes.filter { a ->
+                    a.local == local && a.en < tp.abierto && !ajustesAplicados.contains(a.local + a.en + a.idx)
+                }.forEach { a ->
+                    ajustesAplicados += a.local + a.en + a.idx
+                    val idEntidad = idsProducto[local]!![a.idx]
+                    existenciasProducto[local]!![a.idx] += a.delta
+                    val existencia = existenciasProducto[local]!![a.idx]
+                    movimientos += MovimientoEntity(
+                        fecha = a.en, tipo = "AJUSTE", entidad = "PRODUCTO", entidadId = idEntidad,
+                        nombre = productos[a.idx].nombre, delta = a.delta, existencia = existencia,
+                        turnoId = null, ventaId = null,
+                        nota = "${motivoTitulo(a.motivo)} · ${a.detalle}", hechoPor = "Ronnie", local = local,
+                        motivo = a.motivo,
+                    )
+                }
+
                 // Se abre vacío (la venta necesita su id) y se completa al cerrar, cuando ya hay totales.
                 val turnoId = db.turnoDao().insertar(
                     TurnoEntity(
@@ -551,7 +782,8 @@ class Sembrador(
                         ventasEfectivo = null, ventasTransferencia = null,
                         movimientosProducto = null, movimientosInsumo = null,
                         uuid = UUID.randomUUID().toString(),
-                        sincronizado = true, fondoCent = tp.fondoCent, local = localBodega,
+                        sincronizado = true, fondoCent = tp.fondoCent, local = local,
+                        empleadoId = empleadoId,
                     ),
                 )
                 tp.caja.forEach { c ->
@@ -563,114 +795,223 @@ class Sembrador(
                         ),
                     )
                 }
+
                 tp.ventas.forEach { vp ->
-                    var total = 0L
-                    var costo = 0L
-                    var unidades = 0L
-                    val detalles = vp.lineas.map { l ->
-                        val precio = precioLinea(l)
-                        val c = costoLinea(l)
-                        total += precio * l.cantidad
-                        costo += c * l.cantidad
-                        unidades += l.cantidad
-                        val nombre = if (l.clase == "SERVICIO") servicios[l.idx].nombre else productos[l.idx].nombre
-                        val categoria = if (l.clase == "SERVICIO") servicios[l.idx].tipo else productos[l.idx].categoria
-                        val id = if (l.clase == "SERVICIO") idsServicio[l.idx] else idsProducto[l.idx]
-                        DetalleVentaEntity(
-                            ventaId = 0, productoId = id, nombre = nombre, categoria = categoria,
-                            cantidad = l.cantidad, precioBaseCent = precio, precioUnitarioCent = precio,
-                            costoUnitarioCent = c, clase = l.clase,
-                        )
-                    }
-                    val ventaId = db.ventaDao().insertarVenta(
-                        VentaEntity(
-                            turnoId = turnoId, fecha = vp.en, metodoPago = vp.metodo,
-                            totalCent = total, costoCent = costo, unidades = unidades,
-                            uuid = UUID.randomUUID().toString(), empleadoId = null, sincronizado = true,
-                            local = localBodega,
-                        ),
+                    val ventaId = escribirVenta(
+                        vp, turnoId, local, abiertoPor, empleadoId,
+                        idsProducto[local]!!, idsInsumo[local]!!, idsServicio[local]!!,
+                        existenciasProducto[local]!!, existenciasInsumo[local]!!,
+                        movimientos, clientes,
                     )
-                    db.ventaDao().insertarDetalles(detalles.map { it.copy(ventaId = ventaId) })
-                    if (vp.metodo == "TRANSFERENCIA") {
-                        val c = clientes[vp.cliente ?: 0]
-                        db.ventaDao().insertarTransaccion(
-                            TransaccionEntity(
-                                ventaId = ventaId, fecha = vp.en, importeCent = total,
-                                numero = "TRF-%06d".format(100000 + azar.nextInt(899999)),
-                                clienteNombre = c.nombre, clienteCi = c.ci, clienteTelefono = c.telefono,
-                                tarjetaCobro = "9234567812349021", telefonoCobro = "+5352168959",
-                                clienteFijo = azar.nextInt(100) < 55,
-                                local = localBodega,
-                            ),
-                        )
-                    }
-                    vp.lineas.forEach { l ->
-                        val lineas = if (l.clase == "SERVICIO") consumoServicio[l.idx].orEmpty() else if (productos[l.idx].elaborado) recetas[l.idx].orEmpty() else emptyList()
-                        if (l.clase == "PRODUCTO" && !productos[l.idx].elaborado) {
-                            existenciasProducto[l.idx] -= l.cantidad
-                            movimientos += MovimientoEntity(
-                                fecha = vp.en, tipo = "VENTA", entidad = "PRODUCTO", entidadId = idsProducto[l.idx],
-                                nombre = productos[l.idx].nombre, delta = -l.cantidad,
-                                existencia = existenciasProducto[l.idx], turnoId = turnoId, ventaId = ventaId,
-                                nota = null, hechoPor = abiertoPor, local = localBodega,
-                            )
-                        }
-                        lineas.forEach { (i, mil) ->
-                            val delta = -(mil * l.cantidad)
-                            existenciasInsumo[i] += delta
-                            movimientos += MovimientoEntity(
-                                fecha = vp.en, tipo = "CONSUMO", entidad = "INSUMO", entidadId = idsInsumo[i],
-                                nombre = insumos[i].nombre, delta = delta,
-                                existencia = existenciasInsumo[i], turnoId = turnoId, ventaId = ventaId,
-                                nota = null, hechoPor = abiertoPor, local = localBodega,
-                            )
-                        }
-                    }
-                    unidadesTurno += unidades
-                    totalTurno += total
-                    costoTurno += costo
                     totalVentas++
+                    if (vp.anulacion == null) {
+                        // Venta vigente: cuenta en los totales del turno.
+                        unidadesTurno += unidadesDe(vp)
+                        totalTurno += totalDe(vp)
+                        costoTurno += costoDe(vp)
+                        if (vp.metodo == "EFECTIVO") {
+                            efectivoTurno += totalDe(vp); ventasEfectivoTurno++
+                        } else {
+                            transferenciaTurno += totalDe(vp); ventasTransferenciaTurno++
+                        }
+                    } else {
+                        ventasAnuladas++
+                        anuladasTurno++
+                        if (vp.correccion) {
+                            ventasCorregidas++
+                            // La venta que corrige: misma fecha un minuto después, con un motivo que la app rehace.
+                            val correccion = vp.copy(
+                                en = vp.anulacion.en + 60_000L,
+                                lineas = lineasCorregidas(vp.lineas),
+                                metodo = if (vp.motivoCorreccion == "Se cambió el método de pago") {
+                                    if (vp.metodo == "EFECTIVO") "TRANSFERENCIA" else "EFECTIVO"
+                                } else {
+                                    vp.metodo
+                                },
+                                anulacion = null, correccion = false, motivoCorreccion = null,
+                            )
+                            val nuevaId = escribirVenta(
+                                correccion, turnoId, local, abiertoPor, empleadoId,
+                                idsProducto[local]!!, idsInsumo[local]!!, idsServicio[local]!!,
+                                existenciasProducto[local]!!, existenciasInsumo[local]!!,
+                                movimientos, clientes, corrigeVentaId = ventaId,
+                            )
+                            db.ventaDao().cambiarMotivo(
+                                ventaId,
+                                "Modificada → venta #$nuevaId · ${vp.motivoCorreccion.orEmpty()}".take(120),
+                            )
+                            totalVentas++
+                            unidadesTurno += unidadesDe(correccion)
+                            totalTurno += totalDe(correccion)
+                            costoTurno += costoDe(correccion)
+                            if (correccion.metodo == "EFECTIVO") {
+                                efectivoTurno += totalDe(correccion); ventasEfectivoTurno++
+                            } else {
+                                transferenciaTurno += totalDe(correccion); ventasTransferenciaTurno++
+                            }
+                        }
+                    }
                 }
+
                 db.syncDao().actualizarTurno(TurnoEntity(
                     id = turnoId, abiertoEn = tp.abierto, cerradoEn = tp.cerrado,
-                    numVentas = tp.ventas.size, unidades = unidadesTurno, totalCent = totalTurno,
-                    efectivoCent = efectivo.sumOf { v -> v.lineas.sumOf { precioLinea(it) * it.cantidad } },
-                    transferenciaCent = transferencia.sumOf { v -> v.lineas.sumOf { precioLinea(it) * it.cantidad } },
+                    numVentas = ventasEfectivoTurno + ventasTransferenciaTurno, unidades = unidadesTurno,
+                    totalCent = totalTurno, efectivoCent = efectivoTurno, transferenciaCent = transferenciaTurno,
                     costoCent = costoTurno, numMovimientos = movimientos.count { it.turnoId == turnoId },
                     abiertoPor = abiertoPor, cerradoPor = abiertoPor,
-                    ventasEfectivo = efectivo.size, ventasTransferencia = transferencia.size,
+                    ventasEfectivo = ventasEfectivoTurno, ventasTransferencia = ventasTransferenciaTurno,
                     movimientosProducto = movimientos.count { it.turnoId == turnoId && it.entidad == "PRODUCTO" },
                     movimientosInsumo = movimientos.count { it.turnoId == turnoId && it.entidad == "INSUMO" },
-                    uuid = UUID.randomUUID().toString(), empleadoId = null, sincronizado = true,
-                    fondoCent = tp.fondoCent, local = localBodega,
-                    contadoCent = tp.fondoCent + efectivo.sumOf { v -> v.lineas.sumOf { precioLinea(it) * it.cantidad } } + entradas - salidas,
+                    uuid = UUID.randomUUID().toString(), empleadoId = empleadoId, sincronizado = true,
+                    fondoCent = tp.fondoCent, local = local,
+                    contadoCent = tp.fondoCent + efectivoTurno + entradas - salidas,
                     entradasCent = if (entradas == 0L) null else entradas,
                     salidasCent = if (salidas == 0L) null else salidas,
-                    numAnuladas = 0,
+                    numAnuladas = anuladasTurno,
                 ))
             }
             movimientos.chunked(500).forEach { db.movimientoDao().insertarTodos(it) }
-
-            // --- Preajustes de precio -----------------------------------------------------------
-            val pre1 = db.preciosDao().insertar(
-                PreajusteEntity(nombre = "Empleados", puntosBasicos = 1000, metodoPago = null, importeMinimoCent = null, activo = true),
-            )
-            db.preciosDao().insertarProductos(listOf(idsProducto[19], idsProducto[21], idsProducto[36]).map { PreajusteProductoEntity(pre1, it) })
-            val pre2 = db.preciosDao().insertar(
-                PreajusteEntity(nombre = "Por mayor (desde 5)", puntosBasicos = 500, metodoPago = null, importeMinimoCent = 500000, activo = true),
-            )
-            db.preciosDao().insertarProductos(listOf(idsProducto[1], idsProducto[2], idsProducto[4], idsProducto[13]).map { PreajusteProductoEntity(pre2, it) })
+            totalMovimientos = movimientos.size + altas.size
         }
+
         return buildString {
             appendLine("Datos de demostración cargados")
-            appendLine("Ventas (Bodega): ${plan.sumOf { it.ventas.size }} en ${plan.size} turnos")
-            appendLine("Locales: ${localesDemo.joinToString()} (catálogo propio por local; activo: ${localesDemo.first()})")
-            appendLine("Productos: ${productos.size} en Bodega · ${catalogoCasa.size} en Casa · ${catalogoKiosco.size} en Kiosco")
-            appendLine("Servicios: ${servicios.size} en Bodega · ${serviciosCasa.size} en Casa · ${serviciosKiosco.size} en Kiosco")
-            appendLine("Insumos: ${insumos.size} por local")
-            appendLine("Apps secundarias: ${nombresEmpleados.size}")
+            locales.forEach { l ->
+                val turnos = plan.turnos.count { it.local == l.nombre }
+                val ventasLocal = plan.turnos.filter { it.local == l.nombre }.sumOf { it.ventas.size }
+                appendLine(
+                    "Local ${l.nombre}: ${l.dias} días · $turnos turnos · $ventasLocal ventas · " +
+                        "${l.productos.size} productos · ${l.servicios.size} servicios",
+                )
+            }
+            appendLine("Ventas: $totalVentas ($ventasAnuladas anuladas, $ventasCorregidas corregidas)")
+            appendLine("Movimientos de existencias: $totalMovimientos · Ajustes con motivo: ${ajustes.size}")
+            appendLine("Preajustes de precio: 2 de productos · 1 de servicios")
+            appendLine("Apps secundarias: ${nombresEmpleados.size} (cada una con su local)")
             appendLine("Desde: ${desde} · hasta: ${ahora.atZone(zona).toLocalDate()}")
         }
+    }
+
+    /** Escribe una venta con sus detalles, su transacción y sus movimientos de existencias. */
+    private suspend fun escribirVenta(
+        vp: VentaPlan,
+        turnoId: Long,
+        local: String,
+        hechoPor: String,
+        empleadoId: Long?,
+        idsProducto: LongArray,
+        idsInsumo: LongArray,
+        idsServicio: LongArray,
+        existenciasProducto: LongArray,
+        existenciasInsumo: LongArray,
+        movimientos: MutableList<MovimientoEntity>,
+        clientes: List<Cliente>,
+        corrigeVentaId: Long? = null,
+    ): Long {
+        var total = 0L
+        var costo = 0L
+        var unidades = 0L
+        val detalles = vp.lineas.map { l ->
+            val precio = precioLinea(l)
+            val c = costoLinea(l)
+            total += precio * l.cantidad
+            costo += c * l.cantidad
+            unidades += l.cantidad
+            val nombre = if (l.clase == "SERVICIO") servicios[l.idx].nombre else productos[l.idx].nombre
+            val categoria = if (l.clase == "SERVICIO") servicios[l.idx].tipo else productos[l.idx].categoria
+            val id = if (l.clase == "SERVICIO") idsServicio[l.idx] else idsProducto[l.idx]
+            DetalleVentaEntity(
+                ventaId = 0, productoId = id, nombre = nombre, categoria = categoria,
+                cantidad = l.cantidad, precioBaseCent = precio, precioUnitarioCent = precio,
+                costoUnitarioCent = c, clase = l.clase,
+            )
+        }
+        val ventaId = db.ventaDao().insertarVenta(
+            VentaEntity(
+                turnoId = turnoId, fecha = vp.en, metodoPago = vp.metodo,
+                totalCent = total, costoCent = costo, unidades = unidades,
+                uuid = UUID.randomUUID().toString(), empleadoId = empleadoId, sincronizado = true,
+                local = local, corrigeVentaId = corrigeVentaId,
+            ),
+        )
+        db.ventaDao().insertarDetalles(detalles.map { it.copy(ventaId = ventaId) })
+        if (vp.metodo == "TRANSFERENCIA") {
+            val c = clientes[vp.cliente ?: 0]
+            db.ventaDao().insertarTransaccion(
+                TransaccionEntity(
+                    ventaId = ventaId, fecha = vp.en, importeCent = total,
+                    numero = "TRF-%06d".format(100000 + azar.nextInt(899999)),
+                    clienteNombre = c.nombre, clienteCi = c.ci, clienteTelefono = c.telefono,
+                    tarjetaCobro = "9234567812349021", telefonoCobro = "+5352168959",
+                    clienteFijo = azar.nextInt(100) < 55,
+                    local = local,
+                ),
+            )
+        }
+        // Salidas de existencias: un movimiento por producto y otro por cada insumo consumido.
+        val salidas = mutableListOf<Triple<String, Int, Long>>()
+        vp.lineas.forEach { l ->
+            if (l.clase == "PRODUCTO" && !productos[l.idx].elaborado) {
+                existenciasProducto[l.idx] -= l.cantidad
+                salidas += Triple("PRODUCTO", l.idx, l.cantidad)
+                movimientos += MovimientoEntity(
+                    fecha = vp.en, tipo = "VENTA", entidad = "PRODUCTO", entidadId = idsProducto[l.idx],
+                    nombre = productos[l.idx].nombre, delta = -l.cantidad,
+                    existencia = existenciasProducto[l.idx], turnoId = turnoId, ventaId = ventaId,
+                    nota = null, hechoPor = hechoPor, local = local,
+                )
+            }
+            val lineas = if (l.clase == "SERVICIO") consumoServicio[l.idx].orEmpty()
+            else if (productos[l.idx].elaborado) recetas[l.idx].orEmpty() else emptyList()
+            lineas.forEach { (i, mil) ->
+                val delta = -(mil * l.cantidad)
+                existenciasInsumo[i] += delta
+                salidas += Triple("INSUMO", i, mil * l.cantidad)
+                movimientos += MovimientoEntity(
+                    fecha = vp.en, tipo = "CONSUMO", entidad = "INSUMO", entidadId = idsInsumo[i],
+                    nombre = insumos[i].nombre, delta = delta,
+                    existencia = existenciasInsumo[i], turnoId = turnoId, ventaId = ventaId,
+                    nota = null, hechoPor = hechoPor, local = local,
+                )
+            }
+        }
+        // Anulación: la app devuelve las existencias con un movimiento ANULACION por cada salida.
+        vp.anulacion?.let { anulacion ->
+            salidas.forEach { (entidad, idx, cantidad) ->
+                val existencia = if (entidad == "PRODUCTO") {
+                    existenciasProducto[idx] += cantidad
+                    existenciasProducto[idx]
+                } else {
+                    existenciasInsumo[idx] += cantidad
+                    existenciasInsumo[idx]
+                }
+                val idEntidad = if (entidad == "PRODUCTO") idsProducto[idx] else idsInsumo[idx]
+                val nombre = if (entidad == "PRODUCTO") productos[idx].nombre else insumos[idx].nombre
+                movimientos += MovimientoEntity(
+                    fecha = anulacion.en, tipo = "ANULACION", entidad = entidad, entidadId = idEntidad,
+                    nombre = nombre, delta = cantidad, existencia = existencia,
+                    turnoId = turnoId, ventaId = ventaId,
+                    nota = "Venta anulada · ${anulacion.motivo}".take(160), hechoPor = anulacion.por, local = local,
+                )
+            }
+            db.ventaDao().anular(ventaId, anulacion.en, anulacion.motivo.trim(), anulacion.por, bajar = false)
+        }
+        return ventaId
+    }
+
+    private fun totalDe(vp: VentaPlan): Long = vp.lineas.sumOf { precioLinea(it) * it.cantidad }
+
+    private fun costoDe(vp: VentaPlan): Long = vp.lineas.sumOf { costoLinea(it) * it.cantidad }
+
+    private fun unidadesDe(vp: VentaPlan): Long = vp.lineas.sumOf { it.cantidad }
+
+    /** Título legible del motivo de ajuste (como en la app: «Merma · cajas mojadas en el almacén»). */
+    private fun motivoTitulo(motivo: String): String = when (motivo) {
+        "MERMA" -> "Merma"
+        "CONSUMO_INTERNO" -> "Consumo interno"
+        "CORRECCION" -> "Corrección de conteo"
+        "DEVOLUCION" -> "Devolución"
+        else -> motivo
     }
 
     /** URI de la foto si el archivo existe (se empujan por adb a files/fotos). */
