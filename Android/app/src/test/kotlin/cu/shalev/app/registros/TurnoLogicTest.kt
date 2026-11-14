@@ -40,7 +40,7 @@ class TurnoLogicTest {
         assertEquals("Desde las 08:30 · Ana Pérez", subtituloTurno(abierto, zona))
         assertEquals("Abierto", valorTurno(abierto))
         val cerrado = abierto.copy(cerradoEn = a.plusSeconds(3600), resumen = ResumenTurno.VACIO.copy(total = Cup.ofPesos(1450)))
-        assertEquals("1,450 CUP", valorTurno(cerrado))
+        assertEquals("1\u202F450 CUP", valorTurno(cerrado))
         assertEquals("08:30 – 09:30", subtituloTurno(cerrado.copy(abiertoPor = ""), zona))
         assertEquals("08:30 – 01/10 08:30", horasTurno(cerrado.copy(cerradoEn = a.plusSeconds(86_400)), zona))
     }
@@ -48,6 +48,7 @@ class TurnoLogicTest {
     @Test fun cantidadesConSigno() {
         assertEquals("-2", cantidadConSigno(-2, TipoEntidad.PRODUCTO))
         assertEquals("+3", cantidadConSigno(3, TipoEntidad.PRODUCTO))
+        assertEquals("-1\u202F234", cantidadConSigno(-1234, TipoEntidad.PRODUCTO))
         assertEquals("-1.25 kg", cantidadConSigno(-1_250, TipoEntidad.INSUMO, "kg"))
         assertEquals("+0.5", cantidadConSigno(500, TipoEntidad.INSUMO))
         assertEquals("-0.1 L", cantidadInsumo(Cantidad(-100), "L"))
@@ -63,5 +64,6 @@ class TurnoLogicTest {
         assertEquals("2 × Refresco, 1 × Pan, 1 × Café y 1 más", subtituloVenta(v))
         assertEquals("1 venta", ventasTexto(1))
         assertEquals("2 unidades", unidadesTexto(2))
+        assertEquals("1\u202F234 unidades", unidadesTexto(1_234))
     }
 }

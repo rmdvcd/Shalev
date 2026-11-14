@@ -143,9 +143,9 @@ def diag_01_navegacion() -> str:
     tabs = [
         ("Home", "1. Inicio", "Turno, alertas,", "gráficos y Top 3", True),
         ("Inventory2", "2. Inventario", "Artículos, insumos,", "recetas y exportar", False),
-        ("ManoRecibe", "3. Servicios", "Trabajos, tarifas", "e insumos usados", False),
+        ("ManoRecibe", "3. Servicios", "Catálogo y tarifas", "e insumos usados", False),
         ("History", "4. Registros", "Ventas, clientes,", "caja y turnos", False),
-        ("Build", "5. Herramientas", "Fichas de costo,", "inventario y cambio", False),
+        ("Settings", "5. Ajustes", "Permisos, respaldo", "y configuración", False),
     ]
     tw, th = 154, 128
     gap = 16
@@ -197,7 +197,7 @@ def diag_01_navegacion() -> str:
         w,
         h,
         "Mapa de navegación y botones de Shalev",
-        "Cinco secciones y acceso a Ajustes desde Inicio; guía rápida de navegación y botones.",
+        "Ajustes ocupa la quinta sección; la Calculadora de cambio se abre desde Inicio.",
         "\n".join(parts),
     )
 

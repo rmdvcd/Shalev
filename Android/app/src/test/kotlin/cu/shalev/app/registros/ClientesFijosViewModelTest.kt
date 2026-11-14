@@ -43,6 +43,12 @@ class ClientesFijosViewModelTest {
         return vm to repo
     }
 
+    @Test fun laFichaFormateaElTelefonoSoloAlPresentarlo() {
+        val telefono = TextosClientes.campos(maria).first { it.first == "Teléfono" }.second
+        assertEquals("+53\u202F5123\u202F4567", telefono)
+        assertEquals("+5351234567", maria.telefono)
+    }
+
     @Test fun laCorreccionLlegaConLosDatosYLosGuarda() = runTest {
         val (vm, repo) = vm()
         vm.abrir(maria.ci)

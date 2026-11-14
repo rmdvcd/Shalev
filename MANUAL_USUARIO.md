@@ -95,26 +95,26 @@ Tras la pantalla de bienvenida, el asistente te guía por preguntas sencillas. P
 
 ## 3. Conoce la pantalla, la barra inferior y los botones
 
-Shalev está pensada para manejarse con una sola mano de forma ágil detrás del mostrador. La barra inferior reúne **5 secciones**; Ajustes se abre desde el icono de engranaje, arriba a la derecha de Inicio.
-
-La disponibilidad de Inventario y Servicios depende de los módulos seleccionados.
+Shalev está pensada para manejarse con una sola mano de forma ágil detrás del mostrador. La barra inferior ofrece hasta **5 secciones**: **Inicio**, **Inventario**, **Servicios**, **Registros** y **Ajustes**. Inventario y Servicios aparecen según los módulos elegidos; Ajustes ocupa siempre la última posición.
 
 ### 3.1 Cómo moverte entre secciones
 
-- **Tocar una sección de la barra inferior:** cada sección muestra su icono y **su nombre escrito debajo** (**Inicio**, **Inventario**, **Servicios**, **Registros** o **Herramientas**), y la que tienes abierta se destaca con fondo relleno.
-- **Abrir Ajustes:** toca el engranaje de la esquina superior derecha de Inicio. Desde Ajustes, usa la flecha de regreso para volver a la pantalla anterior.
-- **Deslizar el dedo hacia la izquierda o la derecha:** en las 5 pantallas principales puedes deslizar horizontalmente para pasar a la sección vecina. Para evitar errores mientras trabajas, el gesto se desactiva al escribir, filtrar, seleccionar filas o abrir una ventana emergente.
+- **Tocar una sección de la barra inferior:** cada sección muestra su icono y **su nombre escrito debajo**; la que tienes abierta se destaca con fondo relleno.
+- **Abrir Ajustes:** toca **Ajustes** en la última posición de la barra inferior. Desde ahí puedes tocar otra sección o usar Atrás para volver.
+- **Calculadora de cambio:** el botón de cambio en la cabecera de Inicio la abre directamente; también está disponible desde Fichas de costo.
+- **Deslizar el dedo hacia la izquierda o la derecha:** puedes pasar entre las secciones principales disponibles. Para evitar errores mientras trabajas, el gesto se desactiva al escribir, filtrar, seleccionar filas o abrir una ventana emergente.
 
 ### 3.2 Iconos de acción y ayuda contextual
 
-Las acciones se muestran principalmente con **iconos** para dejar más espacio al contenido. Cada icono tiene una descripción accesible que TalkBack puede leer. En diálogos y ventanas emergentes se conserva el texto de **Confirmar**, **Eliminar**, **Omitir** y **Cancelar**; los demás botones usan iconos. Para mantener las listas compactas, cada fila limita su texto a tres líneas y recorta lo que no cabe con puntos suspensivos.
+Fuera de las ventanas emergentes, algunas acciones usan **iconos** para dejar espacio al contenido y TalkBack puede leer su descripción. En las acciones de la aplicación dentro de diálogos y ventanas emergentes verás su etiqueta escrita (por ejemplo, **Guardar**, **Eliminar** o **Aceptar**) en vez del icono. Si las acciones del pie no caben en una sola fila, se distribuyen en varias sin cambiar el orden; los controles internos de selectores conservan sus iconos y descripciones accesibles. Para mantener las listas compactas, cada fila limita su texto a tres líneas y recorta lo que no cabe con puntos suspensivos.
 
 ![Mapa de navegación y botones de Shalev](docs/manual/diagramas/01_navegacion_general.svg)
 
 | Icono o acción | Qué hace | Dónde lo encontrarás |
 |---|---|---|
-| **Ayuda** *(arriba a la izquierda)* | Abre la guía de la sección y el acceso al manual resumido | Inicio, Inventario, Servicios, Registros y Herramientas |
-| **Engranaje** *(arriba a la derecha)* | Abre Ajustes; la flecha de regreso vuelve a la pantalla anterior | Inicio |
+| **Ayuda** *(arriba a la izquierda)* | Abre la guía de la sección y el acceso al manual resumido | Inicio, Inventario, Servicios y Registros |
+| **Ajustes** *(barra inferior)* | Abre configuración, permisos, respaldo y demás opciones del negocio | Quinta posición de la barra inferior |
+| **Cambio** *(arriba a la derecha de Inicio)* | Abre la Calculadora de cambio CUP/USD | Inicio |
 | **Carrito** / **Caja registradora** | Inician una nueva venta / registran una entrada o salida de efectivo | Inicio, debajo del banner de licencia y antes de las alertas (con el turno abierto) |
 | **Embudo** | Abre los filtros disponibles | Inventario, Servicios y Registros |
 | **Exportar** | Guarda o comparte informes, listas, imágenes o tarjetas | Inventario, Servicios, Registros y detalle de Turno |
@@ -156,7 +156,8 @@ Debajo del banner fijo de licencia, con el turno abierto, aparecen los iconos de
   - **Precios:** indica cuántos ajustes automáticos de precio están encendidos.
 - **Gráficos y rankings plegables (acordeones):** empiezan cerrados para mantener el orden visual; toca cualquiera para desplegarlo:
   - **Ventas:** evolución de tus ingresos en CUP durante el período elegido.
-  - **Ganancia Neta:** comparativa visual entre **Venta**, **Costo** y porcentaje de margen.
+  - **Ganancia bruta:** comparativa de **Venta** y **Costo**.
+  - Ambos gráficos muestran las fechas u horas en el eje X y los importes en CUP en el eje Y. En Hoy, 7 días, Este mes y Este año se llega hasta el período actual; no se añade a la derecha el tramo futuro todavía sin datos.
   - **Inventario:** gráfico circular de distribución de tus existencias por categoría.
   - **Métodos de pago:** proporción cobrada en efectivo frente a transferencia.
   - **Rankings Top 3 con medallas de oro, plata y bronce:** productos más vendidos, artículos de lento movimiento, mayor rentabilidad y —en los últimos 30 días— los **3 mejores vendedores (empleados)** y los **3 mejores clientes por transferencia**. Los **insumos con precio de venta** cuentan como productos en estos rankings (los de solo receta no).
@@ -232,27 +233,24 @@ Cada fila te da de un vistazo toda la información clave sin tener que abrirla:
 ### 6.2 Agregar un artículo físico paso a paso
 
 1. Entra en **Inventario** y pulsa el botón **+** de la esquina inferior derecha.
-2. **Foto opcional (arriba del todo):** toca el icono de **Cámara** para tomar una foto al instante o **Galería** para elegir una imagen que ya tengas en el teléfono.
-3. **Categoría \*:** elige una existente o escribe una nueva (por ejemplo: *Bebidas*, *Aseo personal*, *Bodega*, *Confituras*).
-4. **Nombre \* y Descripción:** escribe el nombre comercial. Si tienes dos artículos con el mismo nombre (por ejemplo, dos formatos de *Refresco*), usa **Descripción** para distinguirlos (*«Lata 355 ml»*, *«Pomo 1.5 L»*).
-5. **Fecha de caducidad (opcional):** si el producto vence, márcala para que Shalev te avise en Inicio **7 días antes**.
-6. **Precio de costo \* y Precio de venta \*:** escribe ambos en CUP (admite punto o coma decimal). Por seguridad contra pérdidas, el precio de venta debe ser mayor que el de costo.
-7. **Cantidad inicial \*:** cuántas unidades tienes ahora mismo.
-8. Pulsa **Guardar** en la barra inferior.
+2. El asistente tiene **3 pasos**. En **Datos del producto**, añade una foto opcional, elige o escribe la categoría y completa nombre, descripción y caducidad opcional (Shalev avisa en Inicio **7 días antes**).
+3. En **Costos y receta**, escribe el **Precio de costo (CUP)**. En un producto físico es el costo por unidad; para un Elaborado, agrega la receta y el costo se calcula con los insumos. Al crear un artículo nuevo también puedes abrir una ficha de costo.
+4. En **Precio e inventario**, escribe el **Precio de venta (CUP)**, mayor que el costo, y la **cantidad inicial** que tienes. Los niveles bajo y crítico son opcionales; si quedan vacíos, se usan los de Ajustes.
+5. Pulsa **Guardar producto** para registrar directamente la cantidad escrita. Si es un producto físico nuevo y quieres dejar documentada la compra con proveedor y lote, usa **Guardar y registrar compra inicial**; se explica en «Gestión de inventario» más adelante.
 
 ### 6.3 Insumos y Productos Elaborados (recetas)
 
 Si tienes una cafetería, pizzería, dulcería o taller de producción, Shalev calcula por ti cuánto cuesta preparar cada producto y cuántas raciones puedes vender:
 
 1. **Primero crea tus materias primas (Insumos):**
-   - Ve a **Inventario → +** y en **Categoría** elige **Insumos** (si ya tenías puesto el filtro *Insumos*, el formulario se abre directamente en ese modo).
-   - Escribe el nombre (*Harina de trigo*, *Queso gouda*, *Azúcar*, *Café molido*), elige su unidad (`kg`, `g`, `L`, `ml`, `u`), su costo por unidad y la existencia actual (admite hasta **3 decimales**, como `2.500 kg`).
-   - *Opcional:* si además vendes ese insumo suelto al público, escríbele un **Precio de venta** (se venderá por unidades enteras). Si solo lo usas para cocinar o producir, deja el precio de venta vacío.
+   - Ve a **Inventario → +** y en **Categoría** elige **Insumos** para abrir el formulario específico.
+   - El asistente reúne en tres pasos el nombre y la unidad (`kg`, `g`, `L`, `ml`, `u`), el costo y cantidad actual (hasta **3 decimales**, como `2.500 kg`), y el precio de venta opcional.
+   - Si el insumo es nuevo y vas a registrar su primera compra con proveedor y lote, al final puedes elegir **Guardar y registrar compra inicial**. El insumo se guarda con existencia cero y la recepción se confirma después en Gestión de inventario.
+   - Si vendes ese insumo suelto, escribe un **Precio de venta** (se venderá por unidades enteras). Si solo lo usas para cocinar o producir, déjalo vacío.
 2. **Después crea el Producto Elaborado con su receta:**
    - Ve a **Inventario → +** y en **Categoría** elige **Elaborado** (en singular).
-   - Escribe el nombre (p. ej. *Pizza napolitana* o *Sándwich de jamón*).
-   - En el bloque **Receta \*** (*Insumos de UNA unidad*), agrega cada ingrediente e indica cuánto gasta **una sola unidad** (por ejemplo: `0.25 kg` de harina, `0.10 kg` de puré de tomate y `0.08 kg` de queso).
-   - Verás que Shalev calcula sola el **Precio de costo** sumando los ingredientes de la receta. Tú solo eliges el **Precio de venta** y guardas con **Guardar**.
+   - El asistente guía sus datos, la receta y los costos, y después el precio y la revisión. En **Costos y receta**, agrega cada ingrediente e indica cuánto gasta **una sola unidad** (por ejemplo: `0.25 kg` de harina, `0.10 kg` de puré de tomate y `0.08 kg` de queso).
+   - Verás que Shalev calcula sola el **Precio de costo** sumando los ingredientes de la receta. Tú solo eliges el **Precio de venta** y guardas con **Guardar producto**.
 
 > **¿Qué ocurre al vender un Elaborado?** En la lista de Inventario y en el carrito verás siempre **«Alcanza para N»** calculado según el ingrediente más escaso. Cada vez que vendas uno, Shalev descontará automáticamente las porciones exactas de cada insumo. Cuando algún ingrediente no alcance, Shalev impedirá venderlo para que el inventario nunca quede en negativo.
 
@@ -277,12 +275,10 @@ La tercera pestaña de la barra inferior, **Servicios**, está dedicada a todo l
 
 ### Cómo crear y usar tus servicios
 
-1. Entra en **Servicios** y toca el botón **+** (abajo a la derecha).
-2. Añade una **foto** opcional con Cámara o Galería.
-3. Escribe el **Nombre \*** (p. ej. *Corte de cabello* o *Lavado y peinado*), el **Tipo \*** (*Barbería*, *Belleza*, *Lavandería*, *Telefonía*, *Domicilio*…) y el **Importe (CUP) \*** que cobras cada vez.
-4. Si tienes servicios parecidos, añade una **Descripción** breve (hasta 40 caracteres).
-5. **Insumos que gasta (opcional):** si cada vez que realizas ese servicio consumes algún material de tu inventario (por ejemplo, champú, tinte, detergente o bolsas de regalo), agrégalo con su cantidad. Al cobrar el servicio, Shalev descontará esos insumos automáticamente y calculará tu ganancia real descontando su costo.
-6. Guarda con **Guardar**.
+1. Entra en **Servicios** y toca el botón **+** (abajo a la derecha). El asistente tiene tres pasos.
+2. En **Datos del servicio**, añade una foto opcional, escribe el **Nombre \*** (p. ej. *Corte de cabello*), el **Tipo \*** (*Barbería*, *Belleza*, *Lavandería*…) y una descripción breve si hace falta.
+3. En **Costos e insumos**, agrega opcionalmente los materiales que consumes cada vez (champú, tinte, detergente, bolsas…) y su cantidad; añade también mano de obra y otros costos. Puedes usar una ficha guardada para exportar el servicio con su receta.
+4. En **Precio y revisión**, escribe el **Importe (CUP) \*** que cobras cada vez y revisa el resumen. Pulsa **Guardar servicio**. Al venderlo, Shalev descuenta automáticamente sus insumos y calcula la ganancia bruta considerando su costo.
 
 | <img src="promocion/capturas/shot_servicios_claro.png" alt="Catálogo de Servicios" width="240"/> | <img src="Android/app/capturas/claro/09e_servicio_form.png" alt="Formulario Nuevo servicio" width="240"/> |
 |:---:|:---:|
@@ -568,9 +564,11 @@ Para que disfrutes siempre de las últimas mejoras y que la App Principal y las 
 
 ---
 
-## Herramientas: ficha de costo y calculadora de cambio
+## Fichas de costo, Gestión de inventario y calculadora de cambio
 
-En **Herramientas → Ficha de costo**, agrega partidas con categoría, cantidad, unidad, costo unitario y moneda. Puedes editar o eliminar partidas y consultar los totales por categoría, separados en CUP y USD. El margen opcional permite estimar un precio como porcentaje o factor; no es una fórmula normativa. Las fichas se guardan en este teléfono: puedes buscarlas por nombre, abrirlas para seguir editándolas y eliminarlas cuando ya no las necesites.
+Estas funciones ya no ocupan una pestaña propia: abre **Fichas de costo** desde Inventario o Servicios, y también desde los asistentes de alta que las ofrecen. **Gestión de inventario** se abre desde Inventario o Servicios; las operaciones de stock se realizan en la App Principal con el permiso correspondiente. La **Calculadora de cambio** está en el botón de cambio de la cabecera de Inicio y en Fichas de costo.
+
+En **Fichas de costo**, agrega partidas con categoría, cantidad, unidad, costo unitario y moneda. Puedes editar o eliminar partidas y consultar los totales por categoría, separados en CUP y USD. El margen opcional permite estimar un precio como porcentaje o factor; no es una fórmula normativa. Las fichas se guardan en este teléfono: puedes buscarlas por nombre, abrirlas para seguir editándolas y eliminarlas cuando ya no las necesites.
 
 **Exportar una ficha (solo en la App Principal):** las materias primas forman la receta y el resto de las categorías suma **mano de obra y otros costos**. La ficha representa una unidad de producto o una prestación de servicio.
 - **Al Inventario:** crea un producto **Elaborado** con receta; no crea existencias del producto elaborado. Los materiales nuevos se crean con existencia **cero**: recibe o ajusta su existencia antes de vender.
@@ -583,7 +581,9 @@ Las fichas guardadas pertenecen al local y **sí se incluyen en el respaldo `.sh
 
 ### Gestión de inventario: recepciones, ajustes y lotes
 
-En **Herramientas → Gestión de inventario**, en la App Principal y en el local correcto:
+Entra en **Inventario → Gestión de inventario** (o desde **Servicios** si tienes habilitado Inventario), en la App Principal y con el local correcto.
+
+**Compra inicial desde un alta:** en el último paso de un producto físico o insumo nuevo, elige **Guardar y registrar compra inicial**. Shalev guarda primero el artículo con existencia cero y abre una recepción con artículo, cantidad y costo prellenados. Completa proveedor, referencia del comprobante, motivo y lote; confirma la recepción para que la existencia se registre una sola vez. No se suma stock hasta confirmar.
 
 1. **Origen:** escribe proveedor, referencia del comprobante y motivo (3–120 caracteres). El comprobante es un texto; no se adjunta una foto o PDF.
 2. **Artículos y lotes:** elige un producto o insumo, cantidad, costo por unidad de su medida, código de lote y caducidad opcional `AAAA-MM-DD`. Añade todas las líneas. Los productos usan unidades enteras; los insumos admiten tres decimales.
@@ -603,7 +603,7 @@ La venta suelta de insumos **sigue siendo entera de su medida**: 1 kg, 2 L, etc.
 - Si una operación remota queda sin respuesta, conecta con la principal y sincroniza: se recupera con la misma clave para no duplicarla. Antes de enviar una acción diferente revisa el resultado recuperado en Vinculación. Si el catálogo sigue pendiente, vuelve a sincronizar; no repitas una operación ya confirmada.
 - En Inicio, **Ganancia bruta** = venta menos costo guardado; no es ganancia neta porque no descuenta otros gastos del negocio. La distribución del inventario usa **valor al costo en CUP**, no una suma de kg, litros y unidades.
 
-En **Herramientas → Calculadora de cambio**, o desde el icono de cambio de la ficha, puedes convertir importes en ambos sentidos. Introduce la tasa como **CUP por 1 USD** y el importe; el resultado se redondea a dos decimales, sin convertir los centavos en cero (por ejemplo, 2 CUP a una tasa de 400 dan 0.01 USD). También puedes calcular una tasa orientativa indicando importes equivalentes positivos en CUP y USD, y usarla para convertir. La tasa es manual, no se consulta por internet y no modifica los totales de la ficha. La calculadora recuerda en este teléfono la operación, la moneda de origen y la última tasa que usaste, para no escribirla cada vez; los importes no se guardan.
+Desde el botón de cambio de **Inicio** o el icono de cambio de **Fichas de costo**, puedes convertir importes en ambos sentidos. Introduce la tasa como **CUP por 1 USD** y el importe; el resultado se redondea a dos decimales, sin convertir los centavos en cero (por ejemplo, 2 CUP a una tasa de 400 dan 0.01 USD). También puedes calcular una tasa orientativa indicando importes equivalentes positivos en CUP y USD, y usarla para convertir. La tasa es manual, no se consulta por internet y no modifica los totales de la ficha. La calculadora recuerda en este teléfono la operación, la moneda de origen y la última tasa que usaste, para no escribirla cada vez; los importes no se guardan.
 
 ---
 
@@ -705,4 +705,4 @@ En Shalev e IShalev, cuando el carrito contiene artículos puedes volver al sele
 
 En **Servicios** puedes crear y consultar los servicios del catálogo de escritorio; usa **Recetas** para asociar insumos. En Inicio, el gráfico muestra siete días de ventas de escritorio y móviles sincronizadas; el Top 3 incluye solo ventas de escritorio. El selector **Tema** de la cabecera permite usar el modo del sistema, claro u oscuro.
 
-En **Herramientas** se puede convertir entre CUP y USD o calcular una tasa manual, sin conexión a un servicio de tasas. En Fichas de costo puedes guardar partidas en CUP y USD y calcular un margen; puedes exportarlas a Excel o al catálogo web como producto o servicio con receta. Confirma el destino y proporciona la tasa CUP por USD si hay partidas en USD; los insumos nuevos se crean sin existencias. En escritorio un producto necesita además existencia propia antes de venderse. **Licencia** informa del estado de la integración pendiente; no permite activar una licencia GL. La administración avanzada de fotos y actualización Android está en **Equipo**, no en la navegación principal. DShalev permite iniciar locales independientes mediante `--local`; consulta el README de DShalev para los límites y respaldos. La gestión visual y sincronización por local siguen pendientes.
+En **DShalev de escritorio**, el menú **Herramientas** permite convertir entre CUP y USD o calcular una tasa manual, sin conexión a un servicio de tasas. En Fichas de costo puedes guardar partidas en CUP y USD y calcular un margen; puedes exportarlas a Excel o al catálogo web como producto o servicio con receta. Confirma el destino y proporciona la tasa CUP por USD si hay partidas en USD; los insumos nuevos se crean sin existencias. En escritorio un producto necesita además existencia propia antes de venderse. **Licencia** informa del estado de la integración pendiente; no permite activar una licencia GL. La administración avanzada de fotos y actualización Android está en **Equipo**, no en la navegación principal. DShalev permite iniciar locales independientes mediante `--local`; consulta el README de DShalev para los límites y respaldos. La gestión visual y sincronización por local siguen pendientes.

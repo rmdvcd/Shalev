@@ -126,7 +126,7 @@ fun MainScaffold(snapshot: Licencia) {
     Box(Modifier.fillMaxSize().then(if (bloquear) Modifier.clearAndSetSemantics { } else Modifier)) {
     Scaffold(
         bottomBar = {
-            // Solo en los destinos principales; Ajustes también es una pantalla completa abierta desde Inicio.
+            // La barra aparece en los cinco destinos principales, incluido Ajustes.
             AnimatedVisibility(
                 visible = selected != null,
                 enter = slideInVertically(ShalevMotion.muelleEntrada()) { it },
@@ -242,6 +242,14 @@ fun MainScaffold(snapshot: Licencia) {
                     onCrearInsumo = { nombre ->
                         nav.navigate(Route.InsumoForm(nombre = nombre.ifBlank { null })) { popUpTo<Route.ProductoForm> { inclusive = true } }
                     },
+                    onFichasCosto = { nav.navigateTo(Route.FichaCosto(destino = "INVENTARIO", finalizarAlta = true)) },
+                    onGestionInventario = { nav.navigateTo(Route.GestionInventario()) },
+                    onRecepcionInicial = { id, cantidad, costo ->
+                        cu.shalev.app.common.AvisoExito.mostrar("Producto guardado sin existencia. Completa la recepción inicial.")
+                        nav.navigate(Route.GestionInventario(tipo = "PRODUCTO", articuloId = id, cantidadInicial = cantidad, costoInicial = costo)) {
+                            popUpTo<Route.ProductoForm> { inclusive = true }
+                        }
+                    },
                 )
             }
             composable<Route.Servicios> { e ->
@@ -265,6 +273,8 @@ fun MainScaffold(snapshot: Licencia) {
                         cu.shalev.app.common.AvisoExito.mostrar(msg)
                         nav.popBackStack()
                     },
+                    onFichasCosto = { nav.navigateTo(Route.FichaCosto(destino = "SERVICIO", finalizarAlta = true)) },
+                    onGestionInventario = { nav.navigateTo(Route.GestionInventario()) },
                 )
             }
             composable<Route.InsumoForm> {
@@ -276,16 +286,43 @@ fun MainScaffold(snapshot: Licencia) {
                         val volvio = nav.popBackStack<Route.Inventario>(inclusive = false)
                         if (!volvio) nav.navigate(Route.Inventario()) { popUpTo<Route.InsumoForm> { inclusive = true } }
                     },
+                    onFichasCosto = { nav.navigateTo(Route.FichaCosto()) },
+                    onGestionInventario = { nav.navigateTo(Route.GestionInventario()) },
+                    onRecepcionInicial = { id, cantidad, costo ->
+                        cu.shalev.app.common.AvisoExito.mostrar("Insumo guardado sin existencias. Completa la recepción inicial.")
+                        nav.navigate(Route.GestionInventario(tipo = "INSUMO", articuloId = id, cantidadInicial = cantidad, costoInicial = costo)) {
+                            popUpTo<Route.InsumoForm> { inclusive = true }
+                        }
+                    },
                 )
             }
             composable<Route.Registros> {
                 RegistrosScreen(onNavigate = nav::navigateTo)
             }
-            composable<Route.Herramientas> { cu.shalev.app.herramientas.HerramientasScreen(onAbrirFicha = { nav.navigateTo(Route.FichaCosto) }, onVerManual = { nav.navigateTo(Route.Ayuda) }, onGestionInventario = { nav.navigateTo(Route.GestionInventario) }) }
-            composable<Route.GestionInventario> { cu.shalev.app.herramientas.GestionInventarioScreen(onBack = { nav.popBackStack() }) }
-            composable<Route.FichaCosto> {
+            composable<Route.GestionInventario> { e ->
+                val ruta = e.toRoute<Route.GestionInventario>()
+                cu.shalev.app.herramientas.GestionInventarioScreen(
+                    onBack = { nav.popBackStack() },
+                    tipoInicial = ruta.tipo,
+                    articuloIdInicial = ruta.articuloId,
+                    cantidadInicial = ruta.cantidadInicial,
+                    costoInicial = ruta.costoInicial,
+                )
+            }
+            composable<Route.FichaCosto> { e ->
+                val ruta = e.toRoute<Route.FichaCosto>()
                 cu.shalev.app.herramientas.FichaCostoScreen(
                     onBack = { nav.popBackStack() },
+                    destinoAlta = ruta.destino,
+                    onExportacionCompletada = {
+                        cu.shalev.app.common.AvisoExito.mostrar("Ficha exportada con su receta y costo completo.")
+                        if (ruta.finalizarAlta) {
+                            when (ruta.destino) {
+                                "SERVICIO" -> nav.navigateTopLevel(Route.Servicios())
+                                else -> nav.navigateTopLevel(Route.Inventario())
+                            }
+                        }
+                    },
                 )
             }
             composable<Route.TurnoDetalle> { TurnoDetalleScreen(onBack = { nav.popBackStack() }) }
@@ -401,7 +438,7 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.entrePestanas(): B
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.direccionGesto(gesto: GestoSeccion?): CambioSeccion =
     cambioSeccion(gesto, initialState.id, TopLevel.entries.firstOrNull { targetState.destination.isIn(it.route) }?.name)
 
-/** Cambio de pestaña: una sola instancia por destino, conserva estado. */
+/** Cambio de destino principal: una sola instancia por destino, conserva estado. */
 private fun NavHostController.navigateTopLevel(route: Route) = navigate(route) {
     popUpTo(graph.findStartDestination().id) { saveState = true }
     launchSingleTop = true

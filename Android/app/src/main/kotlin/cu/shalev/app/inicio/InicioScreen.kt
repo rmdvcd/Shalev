@@ -120,6 +120,7 @@ object InicioTags {
     const val DESACTUALIZADAS = "inicio_desactualizadas"
     const val PERIODO = "inicio_periodo"
     const val PAGO = "inicio_pago"
+    const val CALCULADORA = "inicio_calculadora"
     const val PRECIOS = "inicio_precios"
     const val VENTAS = "inicio_ventas"
     const val GANANCIA = "inicio_ganancia"
@@ -129,7 +130,6 @@ object InicioTags {
     const val DIALOGO_VENTA = "inicio_dialogo_venta"
     const val RESPALDO = "inicio_respaldo"
     const val CAJA = "inicio_caja"
-    const val AJUSTES = "inicio_ajustes"
     const val ACTUALIZACION = "inicio_actualizacion"
     fun alerta(t: cu.shalev.domain.model.TipoAlerta) = "inicio_alerta_${t.name}"
     fun periodo(o: OpcionPeriodo) = "inicio_periodo_${o.name}"
@@ -287,6 +287,7 @@ fun InicioContent(
     val acordeones = remember { AcordeonesInicio(acordeonesAbiertos) }
     // 1.0.2: ayuda de la pestaña (botón «?» de la esquina superior izquierda).
     var ayudaPestana by remember { mutableStateOf(false) }
+    var calculadoraAbierta by remember { mutableStateOf(false) }
     // 0.27.0 (T2): con letra grande caben menos alertas por fila (ancho de pantalla menos el relleno lateral).
     val maxAlertas = alertasPorFila(
         androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp - 2 * ShalevSpacing.md.value,
@@ -299,8 +300,8 @@ fun InicioContent(
                 onAyuda = { ayudaPestana = true }, ayudaDescripcion = "Ayuda de Inicio",
                 actions = {
                     cu.shalev.designsystem.component.ShalevIconAction(
-                        ShalevIcons.Ajustes, "Ajustes", onClick = { acciones.onNavigate(Route.Ajustes) },
-                        modifier = Modifier.testTag(InicioTags.AJUSTES),
+                        ShalevIcons.CalculadoraCambio, "Calculadora de cambio", onClick = { calculadoraAbierta = true },
+                        modifier = Modifier.testTag(InicioTags.CALCULADORA),
                     )
                 },
             )
@@ -446,6 +447,8 @@ fun InicioContent(
             }
         }
     }
+
+    if (calculadoraAbierta) cu.shalev.app.herramientas.CalculadoraCambio({ calculadoraAbierta = false })
 
     when (state.dialogo) {
         DialogoInicio.NuevaVenta -> NuevaVentaDialog(state.turnoAbierto, acciones, tiposVenta(permisos))
@@ -802,7 +805,7 @@ private fun LazyListScope.graficosPeriodo(
         is EstadoCarga.Exito -> {
             val g = estado.datos
             item(key = "ventas") { VentasCard(g, opcion, zona, ac) }
-            item(key = "ganancia") { GananciaCard(g, ac) }
+            item(key = "ganancia") { GananciaCard(g, zona, ac) }
         }
     }
 }
@@ -826,12 +829,13 @@ private fun VentasCard(g: GraficosPeriodo, opcion: OpcionPeriodo, zona: ZoneId, 
             values = puntos.map { it.ventas.enPesos() },
             labels = puntos.map { etiquetaPunto(it.inicio, g.serie.granularidad, zona) },
             description = descripcionVentas(g, zona),
+            yAxisUnit = "CUP",
         )
     }
 }
 
 @Composable
-private fun GananciaCard(g: GraficosPeriodo, ac: AcordeonesInicio) {
+private fun GananciaCard(g: GraficosPeriodo, zona: ZoneId, ac: AcordeonesInicio) {
     val colores = ShalevTheme.colors.chart
     val puntos = g.serie.puntos
     CardGrafico("Ganancia bruta", InicioTags.GANANCIA, ac, subtitle = resumenGanancia(g)) {
@@ -847,8 +851,9 @@ private fun GananciaCard(g: GraficosPeriodo, ac: AcordeonesInicio) {
                 ChartSeries("Venta", puntos.map { it.ventas.enPesos() }, colores[0]),
                 ChartSeries("Costo", puntos.map { it.costo.enPesos() }, colores[1]),
             ),
-            labels = emptyList(),
+            labels = puntos.map { etiquetaPunto(it.inicio, g.serie.granularidad, zona) },
             description = descripcionGanancia(g),
+            yAxisUnit = "CUP",
         )
     }
 }

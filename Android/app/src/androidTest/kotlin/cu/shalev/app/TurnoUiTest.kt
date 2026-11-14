@@ -73,7 +73,7 @@ class TurnoUiTest {
                 )
             }
         }
-        rule.onNodeWithText("1,450 CUP").assertIsDisplayed()
+        rule.onNodeWithText("1\u202F450 CUP").assertIsDisplayed()
         rule.onNodeWithTag(RegistrosTags.turno(1)).performClick()
         assertEquals(1L, abierto)
     }

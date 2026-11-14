@@ -31,6 +31,7 @@ import cu.shalev.app.common.SecureWindow
 import cu.shalev.app.venta.CampoCliente
 import cu.shalev.app.venta.CampoClienteField
 import cu.shalev.app.venta.FormCliente
+import cu.shalev.core.format.NumberPresentation
 import cu.shalev.core.money.Money
 import cu.shalev.core.time.Dates
 import cu.shalev.designsystem.component.ShalevBottomSheet
@@ -158,7 +159,7 @@ object TextosClientes {
         if (c.compras == 0) "Sin compras" else "${c.compras} ${if (c.compras == 1) "compra" else "compras"} · ${Money.format(c.total)}"
     fun campos(c: ClienteFijo, zona: ZoneId = ZoneId.systemDefault()): List<Pair<String, String>> = buildList {
         add("Carné de identidad" to c.ci)
-        add("Teléfono" to c.telefono)
+        add("Teléfono" to NumberPresentation.phone(c.telefono))
         add("Compras" to c.compras.toString())
         add("Total comprado" to Money.format(c.total))
         c.ultimaCompra?.let { add("Última compra" to Dates.dayTime(it, zona)) }

@@ -487,10 +487,10 @@ struct HomeView: View {
     private var topAccordions: some View {
         if !rankedItems.isEmpty {
             topAccordion(title: "Más vendido", value: topSold.first.map { "\($0.name)" } ?? "Sin ventas",
-                         key: "top_sold", items: topSold, detail: { "\($0.units) u · \(Cup(cents: $0.cents).formatted)" },
+                         key: "top_sold", items: topSold, detail: { "\(NumberPresentation.groupedInteger($0.units)) u · \(Cup(cents: $0.cents).formatted)" },
                          amount: { Cup(cents: $0.cents).formatted })
             topAccordion(title: "Lento movimiento", value: slowMoving.first.map { "\($0.name)" } ?? "Sin ventas",
-                         key: "top_slow", items: slowMoving, detail: { "\($0.units) u vendidas" },
+                         key: "top_slow", items: slowMoving, detail: { "\(NumberPresentation.groupedInteger($0.units)) u vendidas" },
                          amount: { Cup(cents: $0.cents).formatted })
             topAccordion(title: "Rentabilidad", value: topProfit.first.map { "\($0.name)" } ?? "Sin ventas",
                          key: "top_profit", items: topProfit, detail: { "Ganancia \(Cup(cents: $0.profit).formatted)" },
@@ -622,7 +622,7 @@ struct HomeView: View {
         let phone = store.data.settings.profile.paymentPhone?.number ?? ""
         let card = store.data.settings.profile.paymentCard?.number.filter(\.isNumber) ?? ""
         var lines: [String] = []
-        if !phone.isEmpty { lines.append("Tel. \(phone)") }
+        if !phone.isEmpty { lines.append("Tel. \(NumberPresentation.phone(phone))") }
         if card.count >= 4 { lines.append("Cuenta •••• \(card.suffix(4))") }
         return lines.isEmpty ? "Sin configurar" : lines.joined(separator: "\n")
     }

@@ -4,12 +4,11 @@ import cu.shalev.domain.model.Modulo
 
 /** Secciones del manual resumido, una por ventana principal de la app. */
 enum class CategoriaAyuda(val titulo: String, val detalle: String) {
-    INICIO("Inicio", "Barra inferior, selector de turno, período y licencias"),
-    INVENTARIO("Inventario", "Productos, insumos y elaborados con receta"),
-    SERVICIOS("Servicios", "Catálogo de servicios por especialidad"),
+    INICIO("Inicio", "Barra inferior, turno, período y conversión de cambio"),
+    INVENTARIO("Inventario", "Productos, insumos, fichas de costo y gestión de existencias"),
+    SERVICIOS("Servicios", "Catálogo, fichas de costo e insumos consumidos"),
     VENTA("Venta", "Carrito, cobro en efectivo o por transferencia"),
     REGISTROS("Registros", "Historial, correcciones y exportación de informes"),
-    HERRAMIENTAS("Herramientas", "Fichas, recepción, lotes y ajustes con motivo"),
     AJUSTES("Ajustes", "Configuración, pago electrónico y precios"),
     RESPALDO("Respaldo", "Copias de seguridad y restauración"),
     LICENCIA("Licencia", "Solicitud, activación y renovación"),
@@ -33,9 +32,10 @@ object AyudaContenido {
         titulo = "Manual de usuario: Inicio",
         pasos = listOf(
             "Usa la barra inferior para cambiar de sección o desliza entre pantallas principales",
+            "Abre la Calculadora de cambio con el botón de la cabecera",
             "Activa el interruptor del turno cuando empieces a trabajar",
             "Ganancia bruta no descuenta otros gastos; el inventario se distribuye por valor al costo en CUP",
-            "Accede a Ajustes con el engranaje para configurar tu negocio"
+            "Abre Ajustes desde la última posición de la barra inferior"
         ),
         categoria = CategoriaAyuda.INICIO
     )
@@ -44,10 +44,12 @@ object AyudaContenido {
     val inventario = AyudaVentana(
         titulo = "Manual de usuario: Inventario",
         pasos = listOf(
-            "Toca + para agregar un nuevo producto, insumo o elaborado",
-            "Sube una foto o elige una de la galería para ilustrarlo",
-            "Completa nombre, categoría, precio de costo y precio de venta",
-            "Marca la caducidad opcional si el producto vence"
+            "Toca + para iniciar el asistente de producto o insumo",
+            "Completa los pasos guiados; puedes abrir una ficha de costo para crear un elaborado con receta",
+            "En un producto o insumo físico, «Guardar y registrar compra inicial» guarda con existencia cero y abre una recepción prellenada; confirma la recepción para sumar el saldo una sola vez",
+            "Usa Gestión de inventario para registrar compras, proveedores, lotes y ajustes con motivo",
+            "Marca la caducidad opcional si el producto vence",
+            "Las recepciones usan costo promedio ponderado; las ventas anteriores conservan su costo"
         ),
         categoria = CategoriaAyuda.INVENTARIO
     )
@@ -56,9 +58,10 @@ object AyudaContenido {
     val servicios = AyudaVentana(
         titulo = "Manual de usuario: Servicios",
         pasos = listOf(
-            "Toca + para agregar un nuevo servicio con nombre y tipo",
-            "Escribe el importe en CUP que cobras por cada servicio",
-            "Añade insumos que consume el servicio si corresponde",
+            "Toca + para iniciar el asistente y completa nombre, tipo y precio",
+            "Añade los insumos que consume cada prestación",
+            "Usa una ficha de costo guardada para exportar el servicio con su receta",
+            "Abre Gestión de inventario para registrar la compra de los insumos",
             "Guarda el servicio para que aparezca en el catálogo"
         ),
         categoria = CategoriaAyuda.SERVICIOS
@@ -88,24 +91,11 @@ object AyudaContenido {
         categoria = CategoriaAyuda.REGISTROS
     )
 
-    /** Ayuda de la ficha de costo con exportación a Inventario/Servicios. */
-    val herramientas = AyudaVentana(
-        titulo = "Manual de usuario: Herramientas",
-        pasos = listOf(
-            "Abre Ficha de costo y agrega partidas con categoría, cantidad, unidad, costo y moneda",
-            "Guarda y exporta al Inventario (Elaborado) o Servicios: materiales forman receta, otros gastos suman costo",
-            "Si alguna partida está en USD, escribe la tasa CUP por 1 USD antes de exportar",
-            "En Gestión de inventario, recibe compras con proveedor, comprobante y lotes o usa Ajuste con motivo",
-            "FEFO es contable: revisa el lote físico. Fichas y lotes se incluyen en el respaldo"
-        ),
-        categoria = CategoriaAyuda.HERRAMIENTAS
-    )
-
     /** Ayuda para la pantalla de Ajustes. */
     val ajustes = AyudaVentana(
         titulo = "Manual de usuario: Ajustes",
         pasos = listOf(
-            "Abre Ajustes con el engranaje de la pantalla Inicio",
+            "Abre Ajustes desde la última posición de la barra inferior",
             "Completa la configuración: permisos, avisos y perfil",
             "Gestiona pago electrónico y tarifas de precios",
             "Exporta respaldos y administra licencias"
@@ -163,9 +153,9 @@ object AyudaContenido {
         categoria = CategoriaAyuda.SOPORTE
     )
 
-    /** Todas las ventanas de ayuda en orden de la barra inferior. */
+    /** Temas del manual, agrupados por las pantallas actuales de la app. */
     val todas = listOf(
-        inicio, inventario, servicios, venta, registros, herramientas, ajustes, respaldo, licencia, empleados, soporte
+        inicio, inventario, servicios, venta, registros, ajustes, respaldo, licencia, empleados, soporte
     )
 
     /** Obtiene la ayuda de la ventana que corresponde a la CategoríaAyuda. */
@@ -199,7 +189,7 @@ object AyudaContenido {
         "Servicios" -> ayudaPara(CategoriaAyuda.SERVICIOS)
         "Venta" -> ayudaPara(CategoriaAyuda.VENTA)
         "Registros" -> ayudaPara(CategoriaAyuda.REGISTROS)
-        "Herramientas" -> ayudaPara(CategoriaAyuda.HERRAMIENTAS)
+        "Herramientas" -> ayudaPara(CategoriaAyuda.INVENTARIO) // compatibilidad con enlaces al manual anterior
         "Ajustes" -> ayudaPara(CategoriaAyuda.AJUSTES)
         "Respaldo" -> ayudaPara(CategoriaAyuda.RESPALDO)
         "Licencia" -> ayudaPara(CategoriaAyuda.LICENCIA)

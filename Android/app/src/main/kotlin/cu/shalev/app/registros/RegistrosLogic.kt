@@ -286,7 +286,7 @@ object FiltroRegistrosLogic {
     )
 
     /** «1450.00» (sin separador de miles ni «CUP») para editarlo cómodamente. */
-    private fun importeEditable(c: Cup): String = Money.format(c).removeSuffix(" CUP").replace(",", "")
+    private fun importeEditable(c: Cup): String = Money.editar(c)
 
     /**
      * Valida y construye el filtro conservando el texto del buscador de [actual]. En Movimientos se ignoran los

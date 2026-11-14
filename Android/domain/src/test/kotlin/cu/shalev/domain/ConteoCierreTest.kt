@@ -33,11 +33,11 @@ class ConteoCierreTest {
     }
     @Test fun exportaBilletesFraccionesYFaltantesSinCambiarLasUnidades() {
         val c = ConteoCierre(mapOf(5000 to 2L), Cup(50), listOf(linea,
-            LineaConteo(TipoEntidad.INSUMO, 2, "Harina", "kg", 2500, 2250, 1000, "Insumos")), "Merma")
+            LineaConteo(TipoEntidad.INSUMO, 2, "Harina", "kg", 1_250_500, 1_250_250, 1000, "Insumos")), "Merma")
         val tablas = TablasExport.tablasConteo(c)
         assertEquals("10,000.5 CUP", tablas[0].filas.last()[2])
         // 0.32.0: la categoría encabeza la conciliación (el conteo es parcial y va por categorías).
-        assertEquals(listOf("Insumos", "Harina", "kg", "2.5", "2.25", "-0.25"), tablas[1].filas.last())
+        assertEquals(listOf("Insumos", "Harina", "kg", "1,250.5", "1,250.25", "-0.25"), tablas[1].filas.last())
         assertEquals("-2", tablas[1].filas.first().last())
         assertTrue(tablas[1].pie.contains("Pendiente de aprobación"))
     }

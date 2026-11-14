@@ -65,7 +65,7 @@ class PagoLogicTest {
     }
 
     @Test fun formatoYMensajes() {
-        assertEquals("9205 1299 0000 1234", formatoCuenta("9205129900001234"))
+        assertEquals("9205-1299-0000-1234", formatoCuenta("9205129900001234"))
         assertEquals(TextosPago.DUPLICADO, mensajePago(AppError.Duplicado("tarjetas")))
         assertEquals(TextosPago.ERROR_TELEFONO, mensajePago(AppError.Validacion("telefonos")))
         assertEquals(TextosPago.ERROR_GENERICO, mensajePago(AppError.Almacenamiento))

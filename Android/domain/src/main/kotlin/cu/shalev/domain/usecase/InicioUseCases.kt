@@ -99,13 +99,21 @@ class ObtenerGraficosPeriodo @Inject constructor(
                     val hasta = maxOf(t.cerradoEn ?: clock.now(), t.abiertoEn.plusSeconds(1))
                     AppResult.Ok(GraficosPeriodo(periodo, Estadisticas.serie(ventas.deTurno(t.id).validas(), t.abiertoEn, hasta, zone), turno = t))
                 }
-                is Periodo.Rango -> AppResult.Ok(
-                    GraficosPeriodo(
-                        periodo = periodo,
-                        serie = Estadisticas.serie(ventas.entre(periodo.desde, periodo.hasta).validas(), periodo.desde, periodo.hasta, zone),
-                        sinTurnos = pedidoTurno,
-                    ),
-                )
+                is Periodo.Rango -> {
+                    // El rango preset conserva su granularidad (hora/día/mes), pero no dibuja el tramo futuro vacío.
+                    // El nanosegundo adicional incluye una venta registrada exactamente en el instante del reloj.
+                    val hastaVisible = clock.now().plusNanos(1)
+                    AppResult.Ok(
+                        GraficosPeriodo(
+                            periodo = periodo,
+                            serie = Estadisticas.serie(
+                                ventas.entre(periodo.desde, periodo.hasta).validas(),
+                                periodo.desde, periodo.hasta, zone, hastaVisible = hastaVisible,
+                            ),
+                            sinTurnos = pedidoTurno,
+                        ),
+                    )
+                }
             }
         }
 }

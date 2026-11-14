@@ -147,7 +147,7 @@ class DisenoP18UiTest {
                 ShalevTheme(darkTheme = false) {
                     Column(Modifier.width(320.dp)) {
                         ShalevPrimaryButton("Guardar en el teléfono", icon = ShalevIcons.Exportar, onClick = {}, modifier = Modifier.testTag("boton"))
-                        ShalevListItem("Refresco de cola de dos litros", value = "1,450 CUP", modifier = Modifier.testTag("fila"))
+                        ShalevListItem("Refresco de cola de dos litros", value = "1\u202F450 CUP", modifier = Modifier.testTag("fila"))
                     }
                 }
             }
@@ -155,7 +155,7 @@ class DisenoP18UiTest {
         rule.onNodeWithTag("boton").assertHeightIsAtLeast(48.dp)
         rule.onNodeWithContentDescription("Guardar en el teléfono").assertIsDisplayed()
         val titulo = rule.onNodeWithText("Refresco de cola de dos litros", useUnmergedTree = true).getUnclippedBoundsInRoot()
-        val valor = rule.onNodeWithText("1,450 CUP", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val valor = rule.onNodeWithText("1\u202F450 CUP", useUnmergedTree = true).getUnclippedBoundsInRoot()
         assertTrue("El importe debe ir debajo del nombre con letra grande", valor.top >= titulo.bottom)
     }
 

@@ -22,16 +22,40 @@ import cu.shalev.core.quantity.Cantidad
 import cu.shalev.designsystem.component.*
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.token.ShalevSpacing
+import cu.shalev.domain.model.ArticuloGestion
 import cu.shalev.domain.model.MotivoMovimiento
+import cu.shalev.domain.model.TipoEntidad
 import java.time.LocalDate
 
 /** Recepción en tres pasos; el registro completo se confirma una sola vez, en una transacción. */
 @Composable
-fun GestionInventarioScreen(onBack: () -> Unit, vm: GestionInventarioViewModel = hiltViewModel()) {
+fun GestionInventarioScreen(
+    onBack: () -> Unit,
+    tipoInicial: String? = null,
+    articuloIdInicial: Long? = null,
+    cantidadInicial: String? = null,
+    costoInicial: String? = null,
+    vm: GestionInventarioViewModel = hiltViewModel(),
+) {
     val articulos by vm.articulos.collectAsStateWithLifecycle()
     val recepciones by vm.recepciones.collectAsStateWithLifecycle()
     val lotes by vm.lotes.collectAsStateWithLifecycle()
-    LaunchedEffect(articulos) { vm.actualizarCatalogo(articulos) }
+    var recepcionInicialPreparada by rememberSaveable { mutableStateOf(false) }
+    val catalogoCargado = vm.catalogoCargado
+    LaunchedEffect(articulos, tipoInicial, articuloIdInicial, catalogoCargado) {
+        val entidad = tipoInicial?.let { runCatching { TipoEntidad.valueOf(it) }.getOrNull() }
+        if (articuloIdInicial == null) {
+            vm.actualizarCatalogo(articulos)
+        } else if (catalogoCargado) {
+            val inicial = articulos.firstOrNull { it.entidad == entidad && it.id == articuloIdInicial }
+            if (inicial != null && !recepcionInicialPreparada && vm.articulo == null) {
+                vm.prepararRecepcionInicial(inicial, cantidadInicial, costoInicial)
+                recepcionInicialPreparada = true
+            } else if (recepcionInicialPreparada) {
+                vm.actualizarCatalogo(articulos)
+            }
+        }
+    }
     var seccion by rememberSaveable { mutableStateOf("Recepción") }
     var salir by rememberSaveable { mutableStateOf(false) }
     val volver = { if (!vm.ocupado) { if (vm.tieneDatos) salir = true else onBack() } }
@@ -41,6 +65,19 @@ fun GestionInventarioScreen(onBack: () -> Unit, vm: GestionInventarioViewModel =
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(ShalevSpacing.md), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
             if (vm.hayErrorCarga) item { ShalevSecondaryButton("Reintentar carga", vm::reintentarCarga, ShalevIcons.Reintentar, mostrarTexto = true) }
             item { ShalevComboBox("Ver", listOf("Recepción", "Ajuste con motivo", "Lotes y caducidades", "Recepciones registradas"), seccion, { it }, { seccion = it }) }
+            if (articuloIdInicial != null && seccion == "Recepción") item {
+                val pendiente = articulos.firstOrNull { it.id == articuloIdInicial && it.entidad.name == tipoInicial }
+                ShalevCard(tone = CardTone.Tonal) {
+                    Text("Recepción inicial")
+                    ShalevSecondaryText(
+                        when {
+                            pendiente != null -> "${pendiente.nombre} se guardó con existencia cero. Completa y confirma la recepción para registrar la cantidad, el costo y el lote."
+                            !catalogoCargado && !vm.hayErrorCarga -> "Buscando el artículo recién guardado en el catálogo del local…"
+                            else -> "No se encontró el artículo en este local. Revisa el local seleccionado antes de registrar la compra."
+                        },
+                    )
+                }
+            }
             if (!principal) item { ShalevSecondaryText("Las recepciones, lotes y ajustes con motivo se gestionan en la app principal.") }
             else when (seccion) {
                 "Recepción" -> {
@@ -56,7 +93,14 @@ fun GestionInventarioScreen(onBack: () -> Unit, vm: GestionInventarioViewModel =
                     if (vm.paso == 2) {
                         item {
                             vm.articulo?.let { seleccionado -> ShalevComboBox("Artículo del local", articulos, seleccionado, { "${it.nombre} · ${it.unidad.simbolo}" }, vm::elegir) }
-                                ?: ShalevSecondaryText("Crea primero un producto o un insumo en este local.")
+                                ?: ShalevSecondaryText(
+                                    when {
+                                        articuloIdInicial != null && !catalogoCargado && !vm.hayErrorCarga -> "Buscando el artículo recién guardado en el catálogo del local…"
+                                        articuloIdInicial != null -> "No se encontró el artículo de la compra inicial en este local. Revisa el local antes de continuar."
+                                        articulos.isEmpty() -> "Crea primero un producto o un insumo en este local."
+                                        else -> "Elige un artículo del catálogo del local."
+                                    },
+                                )
                         }
                         item { ShalevTextField(vm.cantidad, { vm.cantidad = it }, "Cantidad (${vm.articulo?.unidad?.simbolo.orEmpty()})", filtro = FiltroEntrada.DECIMAL) }
                         item { ShalevTextField(vm.costo, { vm.costo = it }, "Costo por ${vm.articulo?.unidad?.simbolo.orEmpty()} (CUP)", filtro = FiltroEntrada.DECIMAL) }

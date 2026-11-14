@@ -29,7 +29,7 @@ struct SupportView: View {
                         HStack {
                             Text("Teléfono").foregroundStyle(Color.shalevSecondaryText)
                             Spacer(minLength: 10)
-                            Link("+53 5 181 5604", destination: phone)
+                            Link(NumberPresentation.phone("+5351815604"), destination: phone)
                                 .fontWeight(.semibold).foregroundStyle(Color.shalevText)
                         }
                         Divider()

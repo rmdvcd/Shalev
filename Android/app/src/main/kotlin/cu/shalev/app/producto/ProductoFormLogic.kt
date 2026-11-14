@@ -133,7 +133,7 @@ object ProductoFormLogic {
         nombre = p.nombre,
         descripcion = p.descripcion.orEmpty(),
         receta = receta?.lineas.orEmpty().mapNotNull { l ->
-            insumos[l.insumoId]?.let { LineaRecetaForm(it.id, it.nombre, it.unidad.simbolo, it.precio, Cantidad.format(l.cantidad)) }
+            insumos[l.insumoId]?.let { LineaRecetaForm(it.id, it.nombre, it.unidad.simbolo, it.precio, Cantidad.editable(l.cantidad)) }
         },
         fechaCaducidad = p.fechaCaducidad,
         precioCosto = decimal(p.precioCosto),

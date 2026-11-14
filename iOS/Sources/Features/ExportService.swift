@@ -450,7 +450,7 @@ struct ExportCenterView: View {
                                 headers: ["Artículo", "Tipo", "Categoría", "Existencias", "Unidad", "Costo CUP", "Precio CUP", "Caducidad"],
                                 rows: store.activeProducts.map { product in
                                     [product.name, product.kind.rawValue, product.category,
-                                     product.kind == .prepared ? "Elaborado" : FixedNumber.formatMilli(product.stockMilli), product.unit,
+                                     product.kind == .prepared ? "Elaborado" : FixedNumber.formatMilliForExport(product.stockMilli), product.unit,
                                      Cup(cents: store.estimatedCostCents(for: product)).inputValue,
                                      Cup(cents: product.priceCents).inputValue, product.expiresAt?.shalevDate ?? ""]
                                 })
@@ -462,7 +462,7 @@ struct ExportCenterView: View {
                                      Cup(cents: service.priceCents).inputValue,
                                      service.uses.map { use in
                                          let name = store.activeProducts.first(where: { $0.id == use.ingredientID })?.name ?? "Insumo"
-                                         return "\(name): \(FixedNumber.formatMilli(use.milliUnits))"
+                                         return "\(name): \(FixedNumber.formatMilliForExport(use.milliUnits))"
                                      }.joined(separator: ", ")]
                                 })
         case .sales:
@@ -489,11 +489,11 @@ struct ExportCenterView: View {
         case .inventory:
             return ExportReport(title: "Lista de precios", subtitle: subtitle, headers: ["Artículo", "Tipo", "Precio"],
                                 rows: store.activeProducts.filter { $0.priceCents > 0 }.map {
-                                    [$0.name, $0.kind.rawValue, Cup(cents: $0.priceCents).formatted]
+                                    [$0.name, $0.kind.rawValue, Cup(cents: $0.priceCents).formattedForExport]
                                 })
         case .services:
             return ExportReport(title: "Precios de servicios", subtitle: subtitle, headers: ["Servicio", "Tipo", "Precio"],
-                                rows: store.activeServices.map { [$0.name, $0.type, Cup(cents: $0.priceCents).formatted] })
+                                rows: store.activeServices.map { [$0.name, $0.type, Cup(cents: $0.priceCents).formattedForExport] })
         case .sales:
             return report
         }
@@ -504,12 +504,12 @@ struct ExportCenterView: View {
         case .inventory:
             return store.activeProducts.filter { $0.priceCents > 0 }.map {
                 ExportCard(title: $0.name, subtitle: $0.kind.rawValue, description: $0.description,
-                           price: Cup(cents: $0.priceCents).formatted, imageData: $0.imageData)
+                           price: Cup(cents: $0.priceCents).formattedForExport, imageData: $0.imageData)
             }
         case .services:
             return store.activeServices.map {
                 ExportCard(title: $0.name, subtitle: $0.type, description: $0.description,
-                           price: Cup(cents: $0.priceCents).formatted, imageData: $0.imageData)
+                           price: Cup(cents: $0.priceCents).formattedForExport, imageData: $0.imageData)
             }
         case .sales: return []
         }

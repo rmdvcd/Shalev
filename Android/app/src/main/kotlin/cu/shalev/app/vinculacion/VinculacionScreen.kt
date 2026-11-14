@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.app.venta.QrCodigo
+import cu.shalev.core.format.NumberPresentation
 import cu.shalev.core.time.Dates
 import cu.shalev.app.common.AjustesRed
 import cu.shalev.core.money.Money
@@ -565,7 +566,7 @@ private fun FormDialog(
                     if (!nueva) {
                         ShalevListItem(
                             title = VinculacionLogic.COBRO_TELEFONO,
-                            subtitle = empleado?.telefono ?: VinculacionLogic.SIN_TELEFONO,
+                            subtitle = empleado?.telefono?.let { NumberPresentation.phone(it) } ?: VinculacionLogic.SIN_TELEFONO,
                             indicatorColor = null,
                             leading = { Icon(ShalevIcons.Telefono, contentDescription = null) },
                             modifier = Modifier.testTag(VinculacionTags.COBRO_TELEFONO),

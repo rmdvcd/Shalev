@@ -11,6 +11,8 @@ import cu.shalev.core.money.Cup
 import cu.shalev.core.quantity.Cantidad
 import cu.shalev.domain.model.Categorias
 import cu.shalev.domain.model.Insumo
+import cu.shalev.domain.model.RecetaLinea
+import cu.shalev.domain.model.Servicio
 import cu.shalev.domain.model.UnidadMedida
 import java.time.Instant
 import org.junit.Assert.*
@@ -36,6 +38,17 @@ class CostosAdicionalesFormTest {
         assertEquals("1.25", ServicioFormLogic.desde(servicio, lineas, emptyMap()).costoAdicional)
         assertEquals("8.25", ServicioFormLogic.desde(servicio, lineas, emptyMap()).importe)
     }
+    @Test fun recetaDeServicioAlEditarUsaCantidadSinSeparadorDeMiles() {
+        val insumo = Insumo(
+            id = 1, nombre = "Harina", unidad = UnidadMedida.KILOGRAMO,
+            precio = Cup.ofPesos(1), cantidad = Cantidad.enteras(2), creadoEn = ahora,
+        )
+        val servicio = Servicio(id = 1, nombre = "Masa", tipo = "Cocina", importe = Cup.ofPesos(20), creadoEn = ahora)
+        val form = ServicioFormLogic.desde(servicio, listOf(RecetaLinea(1, Cantidad(1_234_500))), mapOf(1L to insumo))
+        assertEquals("1234.5", form.insumos.single().cantidad)
+        assertEquals(Cantidad(1_234_500), Cantidad.parse(form.insumos.single().cantidad))
+    }
+
     @Test fun costosFueraDeLongSeMuestranComoErrorDeFormularioNoComoExcepcion() {
         val linea = LineaRecetaForm(1, "Material", "u", Cup(Long.MAX_VALUE), "2")
         val f = ProductoForm(categoria = Categorias.ELABORADO, nombre = "Extremo", precioVenta = "1", receta = listOf(linea))

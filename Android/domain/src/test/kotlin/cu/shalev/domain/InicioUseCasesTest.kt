@@ -84,11 +84,26 @@ class InicioUseCasesTest {
     @Test fun `rangos del selector`() = runBlocking<Unit> {
         venta(1, T0.minusSeconds(86_400L * 3), 1, 1, 100, 50) // hace 3 días
         venta(1, T0, 1, 1, 100, 50)
-        fun total(o: OpcionPeriodo) = runBlocking { (graficos(resolver(o, zone), zone = zone) as AppResult.Ok).value.totalVentas }
+        suspend fun total(o: OpcionPeriodo) = (graficos(resolver(o, zone), zone = zone) as AppResult.Ok).value.totalVentas
         assertEquals(Cup.ofPesos(100), total(OpcionPeriodo.HOY))
         assertEquals(Cup.ofPesos(200), total(OpcionPeriodo.SEMANA))
         assertEquals(Cup.ofPesos(100), total(OpcionPeriodo.MES)) // T0 = 1 de septiembre: la otra es de agosto
         assertEquals(Cup.ofPesos(200), total(OpcionPeriodo.ANIO))
+    }
+
+    @Test fun `la serie de cada período termina en su último cubo visible y omite el futuro`() = runBlocking<Unit> {
+        venta(1, T0.plusSeconds(3600), 1, 1, 100, 50) // se consulta, pero aún está una hora en el futuro
+        val puntosEsperados = mapOf(
+            OpcionPeriodo.HOY to 9, // medianoche local hasta la hora actual incluida
+            OpcionPeriodo.SEMANA to 7, // seis días anteriores y hoy
+            OpcionPeriodo.MES to 1, // el mes actual solo ha empezado
+            OpcionPeriodo.ANIO to 9, // enero hasta el mes actual
+        )
+        puntosEsperados.forEach { (opcion, cantidad) ->
+            val g = (graficos(resolver(opcion, zone), zone = zone) as AppResult.Ok).value
+            assertEquals(opcion.name, cantidad, g.serie.puntos.size)
+            assertEquals("la venta futura queda fuera de ${opcion.name}", Cup.ZERO, g.totalVentas)
+        }
     }
 
     @Test fun `resumen general ultimos 30 dias e inventario actual`() = runBlocking<Unit> {

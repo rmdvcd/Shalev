@@ -92,7 +92,7 @@ class VentaCapturas {
         "05h_venta_datos_cliente",
         VentaUiState(
             abierto, lineas = lineas, metodo = MetodoPago.TRANSFERENCIA, paso = PasoVenta.CLIENTE, cotizacion = Cotizacion(MetodoPago.TRANSFERENCIA, detalles, emptyMap()),
-            cliente = FormCliente("Ana Díaz Rodríguez", "90020212345", "53123456", "MM10040FEJ987"), avisoSms = "El importe del SMS (1,000 CUP) no coincide con el total (1,100 CUP).",
+            cliente = FormCliente("Ana Díaz Rodríguez", "90020212345", "53123456", "MM10040FEJ987"), avisoSms = "El importe del SMS (1\u202F000 CUP) no coincide con el total (1\u202F100 CUP).",
         ),
     )
     @Test fun confirmarSalir() = venta("05j_venta_dialogo_descartar", VentaUiState(abierto, lineas = lineas, confirmarSalir = true))

@@ -69,6 +69,10 @@ class InsumoFormTest {
     @Test fun desdeUnInsumoSeEditaSinSeparadorDeMiles() {
         val f = InsumoFormLogic.desde(ins(7, "Azúcar", cantidad = 1250, precio = 1450))
         assertEquals("1250", f.cantidad)
+        val cantidadGrande = InsumoFormLogic.desde(
+            ins(8, "Azúcar", cantidad = 1, precio = 1450).copy(cantidad = Cantidad(1_234_500)),
+        )
+        assertEquals("1234.5", cantidadGrande.cantidad)
         assertEquals("1450", f.precio)
         assertEquals(7, f.id)
         assertTrue(InsumoFormLogic.validar(f).isEmpty())
@@ -108,6 +112,31 @@ class InsumoFormTest {
         val i = insumos.guardados.single()
         assertEquals(UnidadMedida.LITRO, i.unidad)
         assertEquals(listOf("ALTA" to Cantidad.enteras(2)), insumos.movimientos)
+    }
+
+    @Test fun guardarYRegistrarDejaElInsumoEnCeroYEntregaLaCantidadUnaSolaVez() = runTest {
+        val vm = vm()
+        vm.nombre("Aceite"); vm.precio("300"); vm.cantidad("1234.5"); vm.unidad(UnidadMedida.LITRO)
+        vm.guardar(abrirRecepcion = true)
+
+        val guardado = insumos.guardados.single()
+        assertEquals(Cantidad.ZERO, guardado.cantidad)
+        assertTrue(insumos.movimientos.isEmpty())
+        val recepcion = (eventos.single() as EventoInsumoForm.Guardado).recepcionInicial!!
+        assertEquals("INSUMO", recepcion.tipo.name)
+        assertEquals(guardado.id, recepcion.articuloId)
+        assertEquals("1234.5", recepcion.cantidad)
+        assertEquals("300", recepcion.costo)
+    }
+
+    @Test fun recepcionInicialDeInsumoExigeCantidadPositiva() = runTest {
+        val vm = vm()
+        vm.nombre("Aceite"); vm.precio("300"); vm.cantidad("0")
+        vm.guardar(abrirRecepcion = true)
+
+        assertTrue(insumos.guardados.isEmpty())
+        assertEquals("Escribe una cantidad mayor que cero para la recepción inicial.", vm.state.value.errores[CamposInsumo.CANTIDAD])
+        assertTrue(eventos.isEmpty())
     }
 
     @Test fun editarCargaYAlCambiarPrecioRecalculaElCostoDelElaborado() = runTest {

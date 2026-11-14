@@ -5,6 +5,7 @@ import java.math.RoundingMode
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
+import cu.shalev.core.format.NumberPresentation
 
 /** Importe en CUP almacenado en centavos. Nunca Double. Aritmética con desbordamiento detectado. */
 @JvmInline
@@ -40,10 +41,22 @@ inline fun <T> Iterable<T>.sumOfCup(selector: (T) -> Cup): Cup = fold(Cup.ZERO) 
 
 /** Presentación sin ceros decimales innecesarios, pero sin perder centavos ni el signo. */
 object Money {
-    private val FORMAT = ThreadLocal.withInitial { DecimalFormat("#,##0.##", DecimalFormatSymbols(Locale.US)).apply { roundingMode = RoundingMode.HALF_UP } }
+    private val FORMAT = ThreadLocal.withInitial {
+        DecimalFormat("#,##0.##", DecimalFormatSymbols(Locale.US).apply {
+            groupingSeparator = NumberPresentation.NARROW_NO_BREAK_SPACE.single()
+        }).apply { roundingMode = RoundingMode.HALF_UP }
+    }
+    // Los documentos/tablas de exportación conservan el formato anterior; las pantallas usan [format].
+    private val EXPORT_FORMAT = ThreadLocal.withInitial {
+        DecimalFormat("#,##0.##", DecimalFormatSymbols(Locale.US)).apply { roundingMode = RoundingMode.HALF_UP }
+    }
     private val INPUT = Regex("^-?[0-9]{1,3}(,[0-9]{3})*(\\.[0-9]{1,2})?$|^-?[0-9]+(\\.[0-9]{1,2})?$")
 
+    /** Importe para mostrar en pantalla, con agrupación tipográfica estrecha cada tres cifras. */
     fun format(amount: Cup): String = "${FORMAT.get()!!.format(amount.toBigDecimal())} CUP"
+
+    /** Formato histórico para documentos y exportaciones; no usar para poblar campos de edición. */
+    fun formatExport(amount: Cup): String = "${EXPORT_FORMAT.get()!!.format(amount.toBigDecimal())} CUP"
     /** Texto de edición independiente de la presentación y sin separadores de miles. */
     fun editar(amount: Cup): String = amount.toBigDecimal().stripTrailingZeros().toPlainString()
 

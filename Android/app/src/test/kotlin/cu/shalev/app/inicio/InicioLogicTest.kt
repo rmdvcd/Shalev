@@ -78,7 +78,7 @@ class InicioLogicTest {
             telefonos = listOf(Telefono(1, "+5351234567")), tarjetas = listOf(TarjetaBancaria(2, "9205129900001234")),
             pagoTelefonoId = 1, pagoTarjetaId = 2,
         )
-        assertEquals("Tel. +53 5123 4567\nCuenta •••• 1234", p.pagoResumen().texto)
+        assertEquals("Tel. +53\u202F5123\u202F4567\nCuenta •••• 1234", p.pagoResumen().texto)
         assertEquals("Cuenta •••• 1234", PagoResumen(null, "•••• 1234").texto)
         assertEquals("+34600111222", formatoTelefono("+34600111222"))
     }
@@ -139,6 +139,7 @@ class InicioLogicTest {
         assertEquals("20 CUP", valorTop(TipoTop.RENTABILIDAD, t))
         assertEquals("1 unidad vendida", subtituloTop(TipoTop.RENTABILIDAD, t))
         assertEquals("12 unidades", valorTop(TipoTop.LENTO, t.copy(unidades = 12)))
+        assertEquals("1\u202F234 unidades", valorTop(TipoTop.LENTO, t.copy(unidades = 1_234)))
     }
 
     @Test fun resumenesDeLosAcordeones() {

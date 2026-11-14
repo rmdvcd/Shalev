@@ -106,6 +106,17 @@ class ProductoFormLogicTest {
         val (vuelta, _) = ProductoFormLogic.aProducto(f, T0.plusSeconds(99))!!
         assertEquals(p.copy(creadoEn = p.creadoEn), vuelta.copy(actualizadoEn = p.actualizadoEn))
     }
+
+    @Test fun recetaAlEditarMantieneLaCantidadSinSeparadoresDeMiles() {
+        val insumo = Insumo(
+            id = 1, nombre = "Harina", unidad = UnidadMedida.KILOGRAMO,
+            precio = Cup.ofPesos(1), cantidad = Cantidad.enteras(2), creadoEn = T0,
+        )
+        val receta = Receta(4, listOf(RecetaLinea(1, Cantidad(1_234_500))))
+        val form = ProductoFormLogic.desde(prod(4, "Pan"), receta, mapOf(1L to insumo))
+        assertEquals("1234.5", form.receta.single().cantidad)
+        assertEquals(Cantidad(1_234_500), Cantidad.parse(form.receta.single().cantidad))
+    }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -181,6 +192,32 @@ class ProductoFormViewModelTest {
         assertEquals("Malta", p.nombre)
         assertEquals(T0, p.creadoEn)
         assertEquals("Producto agregado.", (eventos.single() as EventoForm.Guardado).mensaje)
+    }
+
+    @Test fun guardarYRegistrarDejaElProductoEnCeroYEntregaLaCantidadUnaSolaVez() = runTest {
+        val vm = vm()
+        vm.completar()
+        vm.guardar(abrirRecepcion = true)
+
+        val guardado = productos.items.value.single()
+        assertEquals(0L, guardado.cantidad)
+        assertEquals(0L, productos.guardados.single().cantidad)
+        val recepcion = (eventos.single() as EventoForm.Guardado).recepcionInicial!!
+        assertEquals("PRODUCTO", recepcion.tipo.name)
+        assertEquals(guardado.id, recepcion.articuloId)
+        assertEquals("24", recepcion.cantidad)
+        assertEquals("80", recepcion.costo)
+    }
+
+    @Test fun recepcionInicialDeProductoExigeCantidadPositiva() = runTest {
+        val vm = vm()
+        vm.completar()
+        vm.cantidad("0")
+        vm.guardar(abrirRecepcion = true)
+
+        assertTrue(productos.guardados.isEmpty())
+        assertEquals("Escribe una cantidad mayor que cero para la recepción inicial.", vm.state.value.errores[Campos.CANTIDAD])
+        assertTrue(eventos.isEmpty())
     }
 
     @Test fun prellenadoDesdeLaRutaLlegaAlFormulario() = runTest {

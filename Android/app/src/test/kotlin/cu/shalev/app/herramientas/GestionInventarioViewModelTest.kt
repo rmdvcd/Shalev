@@ -29,10 +29,14 @@ class GestionInventarioViewModelTest {
     private class Repo : GestionInventarioRepository {
         var fallar = false
         val catalogo = MutableStateFlow<List<ArticuloGestion>>(emptyList())
+        val recibos = mutableListOf<NuevaRecepcion>()
         override fun articulos() = flow { if (fallar) error("Lectura simulada"); emitAll(catalogo) }
         override fun recepciones() = MutableStateFlow<List<RecepcionInventario>>(emptyList())
         override fun lotes() = MutableStateFlow<List<LoteInventario>>(emptyList())
-        override suspend fun recibir(recepcion: NuevaRecepcion, autor: String) = AppResult.Ok(recepcion.uuid)
+        override suspend fun recibir(recepcion: NuevaRecepcion, autor: String): AppResult<String> {
+            recibos += recepcion
+            return AppResult.Ok(recepcion.uuid)
+        }
         override suspend fun ajustar(entidad: TipoEntidad, id: Long, delta: Cantidad, motivo: MotivoMovimiento, detalle: String, autor: String) = AppResult.Ok(Unit)
     }
     private val articulo = ArticuloGestion(TipoEntidad.PRODUCTO, 1, "Refresco", UnidadMedida.UNIDAD, Cantidad(1_000), Cup(125))
@@ -43,6 +47,35 @@ class GestionInventarioViewModelTest {
         })
         return GestionInventarioViewModel(repo, RegistrarRecepcion(repo, usuario), RegistrarAjusteInventario(repo, usuario))
     }
+    @Test fun recepcionInicialPreseleccionaArticuloCantidadYCostoSinSumarSaldoAntesDeConfirmar() = runTest {
+        val repo = Repo()
+        val vm = vm(repo)
+        val nuevo = articulo.copy(id = 2, cantidad = Cantidad.ZERO, costo = Cup(250))
+        vm.prepararRecepcionInicial(nuevo, "3", "2.75")
+
+        assertEquals(nuevo, vm.articulo)
+        assertEquals("3", vm.cantidad)
+        assertEquals("2.75", vm.costo)
+        assertEquals(1, vm.paso)
+        assertTrue(repo.recibos.isEmpty())
+        assertEquals(Cantidad.ZERO, vm.articulo!!.cantidad)
+
+        vm.proveedor = "Distribuidor"
+        vm.comprobante = "F-01"
+        vm.motivo = "Compra inicial"
+        vm.codigoLote = "L-01"
+        vm.agregarLinea()
+        assertEquals(Cantidad(3_000), vm.lineas.single().cantidad)
+        assertEquals(Cantidad.ZERO, vm.articulo!!.cantidad)
+        assertTrue(repo.recibos.isEmpty())
+
+        vm.confirmarRecepcion()
+        runCurrent()
+        assertEquals(1, repo.recibos.size)
+        assertEquals(Cantidad(3_000), repo.recibos.single().lineas.single().cantidad)
+        assertEquals(Cup(275), repo.recibos.single().lineas.single().costoUnitario)
+    }
+
     @Test fun refrescarCatalogoNoReescribeElCostoDeCompraEnEdicion() = runTest {
         val vm = vm()
         vm.actualizarCatalogo(listOf(articulo))
@@ -68,11 +101,13 @@ class GestionInventarioViewModelTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.articulos.collect {} }
         runCurrent()
         assertTrue(vm.hayErrorCarga)
+        assertFalse(vm.catalogoCargado)
         vm.comprobante = "F-1"
         repo.fallar = false; repo.catalogo.value = listOf(articulo)
         vm.reintentarCarga()
         runCurrent()
         assertFalse(vm.hayErrorCarga)
+        assertTrue(vm.catalogoCargado)
         assertEquals(listOf(articulo), vm.articulos.value)
         assertEquals("F-1", vm.comprobante)
     }

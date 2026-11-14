@@ -117,7 +117,7 @@ object CajaTags {
 /** Lógica pura de los diálogos (testeable sin Compose). */
 object CajaForm {
     /** Texto inicial del fondo: el sugerido sin «CUP», o vacío (hay que escribirlo, aunque sea 0). */
-    fun textoInicial(c: Cup?): String = c?.let { Money.format(it).removeSuffix(" CUP").replace(",", "") } ?: ""
+    fun textoInicial(c: Cup?): String = c?.let(Money::editar) ?: ""
 
     /** null = vacío o inválido; los negativos no valen. */
     fun importe(texto: String): Cup? = Money.parse(texto)?.takeUnless { it.isNegative }

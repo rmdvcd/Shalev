@@ -24,7 +24,6 @@ enum class PestanaAyuda(val titulo: String) {
     INVENTARIO("Inventario"),
     SERVICIOS("Servicios"),
     REGISTROS("Registros"),
-    HERRAMIENTAS("Herramientas"),
     AJUSTES("Ajustes"),
     LICENCIA("Licencia"),
     RESPALDO("Respaldo"),
@@ -39,7 +38,6 @@ fun pestanaTemas(pestana: PestanaAyuda, modulos: Set<Modulo>): List<AyudaVentana
         PestanaAyuda.INVENTARIO -> CategoriaAyuda.INVENTARIO
         PestanaAyuda.SERVICIOS -> CategoriaAyuda.SERVICIOS
         PestanaAyuda.REGISTROS -> CategoriaAyuda.REGISTROS
-        PestanaAyuda.HERRAMIENTAS -> CategoriaAyuda.HERRAMIENTAS
         PestanaAyuda.AJUSTES -> CategoriaAyuda.AJUSTES
         PestanaAyuda.LICENCIA -> CategoriaAyuda.LICENCIA
         PestanaAyuda.RESPALDO -> CategoriaAyuda.RESPALDO

@@ -177,7 +177,7 @@ private struct ServiceRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(service.name).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText).lineLimit(apilar ? nil : 1)
                     let capacity = store.availableQuantity(kind: .service, sourceID: service.id) ?? 0
-                    Text(service.uses.isEmpty ? service.type : "Alcanza para \(capacity) · \(service.type)")
+                    Text(service.uses.isEmpty ? service.type : "Alcanza para \(NumberPresentation.groupedInteger(capacity)) · \(service.type)")
                         .font(.shalev(12)).foregroundStyle(capacity == 0 && !service.uses.isEmpty ? Color.shalevError : Color.shalevSecondaryText)
                         .lineLimit(apilar ? nil : 1)
                 }

@@ -1,6 +1,7 @@
 package cu.shalev.domain.service
 
 import cu.shalev.domain.model.nombreCompleto
+import cu.shalev.core.format.NumberPresentation
 import cu.shalev.core.money.Cup
 import cu.shalev.core.money.Money
 import cu.shalev.core.money.Percent
@@ -45,10 +46,10 @@ object TablasExport {
             listOf(
                 Dates.dayTime(v.fecha, zone), v.vendedor, Estadisticas.etiqueta(v.metodoPago),
                 v.detalles.joinToString("; ") { "${it.nombre} ×${it.cantidad}" }, v.unidades.toString(),
-                Money.format(v.total), Money.format(v.costoTotal), Money.format(v.ganancia), estado(v),
+                Money.formatExport(v.total), Money.formatExport(v.costoTotal), Money.formatExport(v.ganancia), estado(v),
             )
         },
-        pie = listOf("Total: " + Money.format(ventas.filterNot { it.anulada }.fold(cu.shalev.core.money.Cup.ZERO) { a, v -> a + v.total })),
+        pie = listOf("Total: " + Money.formatExport(ventas.filterNot { it.anulada }.fold(cu.shalev.core.money.Cup.ZERO) { a, v -> a + v.total })),
     )
 
     /** [ocultarCi]: en el texto compartido el carné solo muestra sus 3 últimas cifras (ver [ciOculto]). */
@@ -59,10 +60,10 @@ object TablasExport {
             listOf(
                 Dates.dayTime(t.fecha, zone), t.vendedor, t.numero, t.cliente.nombreApellidos,
                 if (ocultarCi) ciOculto(t.cliente.ci) else t.cliente.ci, t.cliente.telefono,
-                Money.format(t.importe),
+                Money.formatExport(t.importe),
             )
         },
-        pie = listOf("Total: " + Money.format(ts.fold(cu.shalev.core.money.Cup.ZERO) { a, t -> a + t.importe })),
+        pie = listOf("Total: " + Money.formatExport(ts.fold(cu.shalev.core.money.Cup.ZERO) { a, t -> a + t.importe })),
     )
 
     /** [simbolos]: unidad de cada insumo por id («kg»); los productos van en unidades. */
@@ -102,13 +103,13 @@ object TablasExport {
         // 0.20.0 (H1): solo en la ficha (interno); el texto compartido con el cliente no lleva nombres del negocio.
         if (interno && v.vendedor.isNotBlank()) add("Vendedor" to v.vendedor)
         v.detalles.forEach { d ->
-            add("${d.cantidad} × ${d.nombre}" to "${Money.format(d.precioUnitario)} c/u · ${Money.format(d.subtotal)}")
+            add("${d.cantidad} × ${d.nombre}" to "${Money.formatExport(d.precioUnitario)} c/u · ${Money.formatExport(d.subtotal)}")
         }
         add("Unidades" to v.unidades.toString())
-        add("Total" to Money.format(v.total))
+        add("Total" to Money.formatExport(v.total))
         if (interno) {
-            add("Costo" to Money.format(v.costoTotal))
-            add("Ganancia" to Money.format(v.ganancia))
+            add("Costo" to Money.formatExport(v.costoTotal))
+            add("Ganancia" to Money.formatExport(v.ganancia))
         }
         v.transaccion?.let { t ->
             add("Nº transacción" to t.numero)
@@ -130,7 +131,7 @@ object TablasExport {
      * derecha. Triple(título `"2 × Pan"`, subtítulo `"$10.00 c/u"`, valor `"$20.00"`).
      */
     fun lineasVenta(v: Venta): List<Triple<String, String?, String>> =
-        v.detalles.map { d -> Triple("${d.cantidad} × ${d.nombre}", "${Money.format(d.precioUnitario)} c/u", Money.format(d.subtotal)) }
+        v.detalles.map { d -> Triple("${d.cantidad} × ${d.nombre}", "${Money.formatExport(d.precioUnitario)} c/u", Money.formatExport(d.subtotal)) }
 
     /** 0.25.0: «Válida», «Anulada» o «Corrige #N». */
     fun estado(v: Venta): String = when {
@@ -143,13 +144,13 @@ object TablasExport {
     fun camposArqueo(a: cu.shalev.domain.model.Arqueo?): List<Pair<String, String>> = if (a == null) {
         listOf("Arqueo" to SIN_ARQUEO)
     } else buildList {
-        add("Fondo inicial" to Money.format(a.fondo))
-        add("Ventas en efectivo" to Money.format(a.ventasEfectivo))
-        add("Entradas de efectivo" to Money.format(a.entradas))
-        add("Salidas de efectivo" to Money.format(a.salidas))
-        add("Esperado en caja" to Money.format(a.esperado))
-        add("Contado" to (a.contado?.let(Money::format) ?: "Sin contar"))
-        a.diferencia?.let { d -> add(etiquetaDiferencia(a.estado) to Money.format(if (d.isNegative) -d else d)) }
+        add("Fondo inicial" to Money.formatExport(a.fondo))
+        add("Ventas en efectivo" to Money.formatExport(a.ventasEfectivo))
+        add("Entradas de efectivo" to Money.formatExport(a.entradas))
+        add("Salidas de efectivo" to Money.formatExport(a.salidas))
+        add("Esperado en caja" to Money.formatExport(a.esperado))
+        add("Contado" to (a.contado?.let(Money::formatExport) ?: "Sin contar"))
+        a.diferencia?.let { d -> add(etiquetaDiferencia(a.estado) to Money.formatExport(if (d.isNegative) -d else d)) }
     }
 
     fun etiquetaDiferencia(e: cu.shalev.domain.model.EstadoArqueo?): String = when (e) {
@@ -165,7 +166,7 @@ object TablasExport {
         filas = ms.map { m ->
             listOf(
                 Dates.dayTime(m.fecha, zone), if (m.tipo == cu.shalev.domain.model.TipoMovimientoCaja.ENTRADA) "Entrada" else "Salida",
-                Money.format(m.importe), m.motivo, m.hechoPor,
+                Money.formatExport(m.importe), m.motivo, m.hechoPor,
             )
         },
     )
@@ -186,15 +187,28 @@ object TablasExport {
      * El turno completo, en el orden de la pantalla: resumen, arqueo, entradas/salidas de efectivo, ventas (con Estado)
      * e inventario. Las tablas sin filas se omiten (el resumen y el arqueo siempre van).
      */
-    fun filasConteo(c: cu.shalev.domain.model.ConteoCierre): List<List<String>> = c.inventario.map { l ->
-        fun formato(n: Long): String = if (l.entidad == TipoEntidad.INSUMO) Cantidad.format(Cantidad(n)) else n.toString()
+    fun filasConteo(c: cu.shalev.domain.model.ConteoCierre): List<List<String>> = filasConteo(
+        c, { Cantidad.formatExport(Cantidad(it)) }, { it.toString() },
+    )
+
+    /** Versión de pantalla; la tabla de archivo conserva el separador histórico. */
+    fun filasConteoVisual(c: cu.shalev.domain.model.ConteoCierre): List<List<String>> = filasConteo(
+        c, { Cantidad.format(Cantidad(it)) }, { NumberPresentation.groupedInteger(it) },
+    )
+
+    private fun filasConteo(
+        c: cu.shalev.domain.model.ConteoCierre,
+        formatoInsumo: (Long) -> String,
+        formatoProducto: (Long) -> String,
+    ): List<List<String>> = c.inventario.map { l ->
+        val formato = if (l.entidad == TipoEntidad.INSUMO) formatoInsumo else formatoProducto
         listOf(l.categoria, l.nombre, l.unidad, formato(l.esperado), formato(l.contado), formato(l.diferencia))
     }
 
     fun tablasConteo(c: cu.shalev.domain.model.ConteoCierre): List<TablaExport> = listOf(
         TablaExport("Conteo de efectivo", listOf("Denominación", "Billetes", "Subtotal"),
-            c.billetes.toSortedMap().map { (d, n) -> listOf("$d CUP", n.toString(), Money.format(Cup(d.toLong() * 100 * n))) } +
-                listOf(listOf("Otro efectivo", "", Money.format(c.otroEfectivo)), listOf("Total", "", Money.format(c.efectivo)))),
+            c.billetes.toSortedMap().map { (d, n) -> listOf("$d CUP", n.toString(), Money.formatExport(Cup(d.toLong() * 100 * n))) } +
+                listOf(listOf("Otro efectivo", "", Money.formatExport(c.otroEfectivo)), listOf("Total", "", Money.formatExport(c.efectivo)))),
         TablaExport("Conciliación de inventario", listOf("Categoría", "Nombre", "Unidad", "Esperado", "Contado", "Diferencia"), filasConteo(c),
             pie = listOfNotNull(c.motivo.takeIf { it.isNotBlank() }, c.aprobadoPor?.let { "Aprobado por $it" } ?: "Pendiente de aprobación")),
     )
@@ -208,14 +222,14 @@ object TablasExport {
             filas = buildList {
                 add(listOf("Apertura", Dates.dayTime(t.abiertoEn, zone) + t.abiertoPor.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()))
                 t.cerradoEn?.let { c -> add(listOf("Cierre", Dates.dayTime(c, zone) + t.cerradoPor?.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty())) }
-                add(listOf("Total vendido", Money.format(r.total)))
-                add(listOf("Efectivo", Money.format(r.totalEfectivo)))
-                add(listOf("Transferencia", Money.format(r.totalTransferencia)))
+                add(listOf("Total vendido", Money.formatExport(r.total)))
+                add(listOf("Efectivo", Money.formatExport(r.totalEfectivo)))
+                add(listOf("Transferencia", Money.formatExport(r.totalTransferencia)))
                 add(listOf("Ventas", r.numVentas.toString()))
                 if (r.numAnuladas > 0) add(listOf("Ventas anuladas (no suman)", r.numAnuladas.toString()))
                 add(listOf("Unidades vendidas", r.unidades.toString()))
-                add(listOf("Costo", Money.format(r.costo)))
-                add(listOf("Ganancia bruta", Money.format(r.ganancia)))
+                add(listOf("Costo", Money.formatExport(r.costo)))
+                add(listOf("Ganancia bruta", Money.formatExport(r.ganancia)))
             },
         )
         val arqueo = TablaExport("Arqueo de caja", listOf("Dato", "Valor"), camposArqueo(d.arqueo).map { listOf(it.first, it.second) })
@@ -227,7 +241,7 @@ object TablasExport {
     fun camposTransaccion(t: Transaccion, zone: ZoneId = ZoneId.systemDefault(), ocultarCi: Boolean = false): List<Pair<String, String>> = buildList {
         add("Nº transacción" to t.numero)
         if (t.referenciaDuplicada) add("Verificación del cobro" to "Referencia repetida en otra venta válida. Revisar con el banco.")
-        add("Importe" to Money.format(t.importe))
+        add("Importe" to Money.formatExport(t.importe))
         add("Cliente" to t.cliente.nombreApellidos)
         add("CI" to if (ocultarCi) ciOculto(t.cliente.ci) else t.cliente.ci)
         add("Teléfono" to t.cliente.telefono)
@@ -269,8 +283,8 @@ object TablasExport {
         filas = ps.filterNot { it.eliminado }.map { p ->
             listOf(
                 // P26: un Elaborado no tiene existencias propias → Cantidad vacía.
-                p.categoria, p.nombre, p.descripcion.orEmpty(), if (p.esElaborado) "" else p.cantidad.toString(), Money.format(p.precioCosto),
-                Money.format(p.precioVenta), p.fechaCaducidad?.let { Dates.day(it) }.orEmpty(),
+                p.categoria, p.nombre, p.descripcion.orEmpty(), if (p.esElaborado) "" else p.cantidad.toString(), Money.formatExport(p.precioCosto),
+                Money.formatExport(p.precioVenta), p.fechaCaducidad?.let { Dates.day(it) }.orEmpty(),
             )
         },
     )
@@ -284,7 +298,7 @@ object TablasExport {
         columnas = listOf("Categoría", "Producto", "Precio"),
         filas = ps.filterNot { it.eliminado }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, Producto::categoria).thenBy(String.CASE_INSENSITIVE_ORDER, Producto::nombreCompleto))
-            .map { listOf(it.categoria, it.nombreCompleto, Money.format(it.precioVenta)) },
+            .map { listOf(it.categoria, it.nombreCompleto, Money.formatExport(it.precioVenta)) },
     )
 
     /** Ficha completa de un producto (Compartir → PDF, uso interno): tabla Campo / Valor, solo campos con dato. */
@@ -295,22 +309,38 @@ object TablasExport {
     )
 
     /** Atributos en el orden del Prompt Maestro. [paraClientes] omite costo, cantidad, niveles y receta. */
-    fun camposFicha(f: FichaProducto, paraClientes: Boolean): List<Pair<String, String>> {
+    fun camposFicha(f: FichaProducto, paraClientes: Boolean): List<Pair<String, String>> = crearCamposFicha(
+        f, paraClientes, Money::formatExport, { Cantidad.formatExport(it) }, { it.toString() },
+    )
+
+    /** Mismos campos para la ficha visible; no se debe reutilizar su agrupación tipográfica en un archivo. */
+    fun camposFichaVisual(f: FichaProducto, paraClientes: Boolean = false): List<Pair<String, String>> = crearCamposFicha(
+        f, paraClientes, Money::format, { Cantidad.format(it) }, { NumberPresentation.groupedInteger(it) },
+    )
+
+    private fun crearCamposFicha(
+        f: FichaProducto,
+        paraClientes: Boolean,
+        formatoDinero: (Cup) -> String,
+        formatoCantidad: (Cantidad) -> String,
+        formatoEntero: (Long) -> String,
+    ): List<Pair<String, String>> {
         val p = f.producto
         return buildList {
             add("Nombre" to p.nombre)
             add("Categoría" to p.categoria)
             p.descripcion?.takeIf { it.isNotBlank() }?.let { add("Descripción" to it) }
             if (!paraClientes && p.esElaborado && f.receta.isNotEmpty()) {
-                add("Receta" to f.receta.joinToString("; ") { "${it.nombre} ${Cantidad.format(it.cantidad)} ${it.simbolo}" })
+                add("Receta" to f.receta.joinToString("; ") { "${it.nombre} ${formatoCantidad(it.cantidad)} ${it.simbolo}" })
             }
             p.fechaCaducidad?.let { add("Caducidad" to Dates.day(it)) }
-            if (!paraClientes) add("Precio costo" to Money.format(p.precioCosto))
-            add((if (paraClientes) "Precio" else "Precio venta") to Money.format(p.precioVenta))
+            if (!paraClientes) add("Precio costo" to formatoDinero(p.precioCosto))
+            add((if (paraClientes) "Precio" else "Precio venta") to formatoDinero(p.precioVenta))
             if (!paraClientes) {
-                if (p.esElaborado) f.alcanza?.let { add("Alcanza para" to it.toString()) } else add("Cantidad" to p.cantidad.toString())
-                p.nivelBajo?.let { add("Nivel bajo" to it.toString()) }
-                p.nivelCritico?.let { add("Nivel crítico" to it.toString()) }
+                if (p.esElaborado) f.alcanza?.let { add("Alcanza para" to formatoEntero(it)) }
+                else add("Cantidad" to formatoEntero(p.cantidad))
+                p.nivelBajo?.let { add("Nivel bajo" to formatoEntero(it)) }
+                p.nivelCritico?.let { add("Nivel crítico" to formatoEntero(it)) }
             }
         }
     }
@@ -321,8 +351,8 @@ object TablasExport {
         columnas = listOf("Nombre", "Precio (costo)", "Cantidad", "Nivel bajo", "Nivel crítico"),
         filas = xs.map { i ->
             listOf(
-                i.nombre, Money.format(i.precio) + " / " + i.unidad.simbolo, conUnidad(i.cantidad, i),
-                i.nivelBajo?.let { conUnidad(it, i) }.orEmpty(), i.nivelCritico?.let { conUnidad(it, i) }.orEmpty(),
+                i.nombre, Money.formatExport(i.precio) + " / " + i.unidad.simbolo, conUnidadExport(i.cantidad, i),
+                i.nivelBajo?.let { conUnidadExport(it, i) }.orEmpty(), i.nivelCritico?.let { conUnidadExport(it, i) }.orEmpty(),
             )
         },
     )
@@ -333,14 +363,15 @@ object TablasExport {
         add("Nombre" to i.nombre)
         add("Precio (costo)" to Money.format(i.precio) + " / " + i.unidad.simbolo)
         i.precioVenta?.let { add("Precio de venta" to Money.format(it) + " / " + i.unidad.simbolo) }
-        add("Cantidad" to conUnidad(i.cantidad, i))
-        i.nivelBajo?.let { add("Nivel bajo" to conUnidad(it, i)) }
-        i.nivelCritico?.let { add("Nivel crítico" to conUnidad(it, i)) }
+        add("Cantidad" to conUnidadVisual(i.cantidad, i))
+        i.nivelBajo?.let { add("Nivel bajo" to conUnidadVisual(it, i)) }
+        i.nivelCritico?.let { add("Nivel crítico" to conUnidadVisual(it, i)) }
         add("Valor en existencia" to Money.format(f.valorExistencias))
-        if (f.usadoEn.isNotEmpty()) add("Usado en" to f.usadoEn.joinToString("; ") { "${it.nombre} (${conUnidad(it.cantidad, i)} ${if (it.servicio) "por vez" else "por unidad"})" })
+        if (f.usadoEn.isNotEmpty()) add("Usado en" to f.usadoEn.joinToString("; ") { "${it.nombre} (${conUnidadVisual(it.cantidad, i)} ${if (it.servicio) "por vez" else "por unidad"})" })
     }
 
-    private fun conUnidad(c: Cantidad, i: Insumo) = "${Cantidad.format(c)} ${i.unidad.simbolo}"
+    private fun conUnidadExport(c: Cantidad, i: Insumo) = "${Cantidad.formatExport(c)} ${i.unidad.simbolo}"
+    private fun conUnidadVisual(c: Cantidad, i: Insumo) = "${Cantidad.format(c)} ${i.unidad.simbolo}"
 
     fun perfil(p: Perfil) = TablaExport(
         titulo = "Perfil",
@@ -359,14 +390,14 @@ object TablasExport {
         filas = ps.map { p ->
             listOf(
                 p.nombre, Percent.format(p.puntosBasicos), p.metodoPago?.let(Estadisticas::etiqueta) ?: "Cualquiera",
-                p.importeMinimo?.let(Money::format) ?: "—", p.productoIds.mapNotNull { productos[it]?.nombreCompleto }.sorted().joinToString("; "),
+                p.importeMinimo?.let(Money::formatExport) ?: "—", p.productoIds.mapNotNull { productos[it]?.nombreCompleto }.sorted().joinToString("; "),
                 if (p.activo) "Sí" else "No",
             )
         },
     )
 
     private fun cantidad(e: TipoEntidad, v: Long, signo: Boolean = false): String {
-        val s = if (e == TipoEntidad.PRODUCTO) v.toString() else Cantidad.format(Cantidad(v))
+        val s = if (e == TipoEntidad.PRODUCTO) v.toString() else Cantidad.formatExport(Cantidad(v))
         return if (signo && v > 0) "+$s" else s
     }
 }

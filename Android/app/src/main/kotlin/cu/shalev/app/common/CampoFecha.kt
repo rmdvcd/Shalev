@@ -81,7 +81,7 @@ fun CampoFecha(
             confirmButton = {
                 ShalevButtonRow {
                     ShalevIconAction(
-                        ShalevIcons.Confirmar, "Aceptar", style = IconActionStyle.Filled,
+                        ShalevIcons.Confirmar, "Aceptar", style = IconActionStyle.Filled, mostrarTexto = true,
                         onClick = { state.selectedDateMillis?.let { onFecha(FechasUi.deMillis(it)) }; cerrar() },
                     )
                 }

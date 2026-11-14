@@ -127,9 +127,15 @@ fun ShalevTopBar(
         },
         navigationIcon = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (onAyuda != null) ShalevBotonAyuda(descripcion = ayudaDescripcion, onClick = onAyuda)
+                if (onAyuda != null) {
+                    if (LocalShalevVentana.current) {
+                        ShalevIconAction(ShalevIcons.Ayuda, ayudaDescripcion, onClick = onAyuda, etiqueta = "Ayuda")
+                    } else ShalevBotonAyuda(descripcion = ayudaDescripcion, onClick = onAyuda)
+                }
                 if (onBack != null) {
-                    IconButton(onClick = onBack) { Icon(ShalevIcons.Atras, contentDescription = "Atrás") }
+                    if (LocalShalevVentana.current) {
+                        ShalevIconAction(ShalevIcons.Atras, "Atrás", onClick = onBack, etiqueta = "Atrás")
+                    } else IconButton(onClick = onBack) { Icon(ShalevIcons.Atras, contentDescription = "Atrás") }
                 }
             }
         },

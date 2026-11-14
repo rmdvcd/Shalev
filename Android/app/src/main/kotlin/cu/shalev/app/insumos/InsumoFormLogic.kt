@@ -111,7 +111,7 @@ object InsumoFormLogic {
     }
 
     /** 1250 milésimas → "1.25" (sin separador de miles para que se pueda volver a editar). */
-    private fun texto(c: Cantidad): String = java.math.BigDecimal.valueOf(c.milesimas, 3).stripTrailingZeros().toPlainString()
+    private fun texto(c: Cantidad): String = Cantidad.editable(c)
 
     private fun insumo(f: InsumoForm, precio: Cup, cantidad: Cantidad, creado: Instant) = Insumo(
         id = f.id,
