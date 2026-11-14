@@ -65,7 +65,7 @@ class PlanAvisoTest {
 
     @Test fun textos() {
         val turnoYApps = PlanAviso.calcular(false, desde, principal(abiertos = 2, conectadas = 2))
-        assertEquals("Turno abierto desde las 9:30 · 2 apps conectadas", PlanAviso.texto(turnoYApps, "9:30"))
+        assertEquals("2 apps conectadas · Turno abierto desde las 9:30", PlanAviso.texto(turnoYApps, "9:30"))
         val turnoSinApps = PlanAviso.calcular(false, desde, principal(abiertos = 1))
         assertEquals("Turno abierto desde las 9:30", PlanAviso.texto(turnoSinApps, "9:30"))
         val unaApp = PlanAviso.calcular(true, null, principal(conectadas = 1))

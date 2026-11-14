@@ -30,7 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -168,7 +168,11 @@ fun ServicioFormContent(state: ServicioFormUiState, acciones: AccionesServicioFo
                     ShalevSecondaryButton("Volver", icon = ShalevIcons.Atras, onClick = acciones.onBack)
                 }
             }
-            else -> Formulario(state, acciones, paso, Modifier.padding(padding).consumeWindowInsets(padding))
+            else -> Formulario(
+                state, acciones, paso,
+                onAnterior = if (paso > 1) ({ paso = NavegacionAsistenteAlta.anterior(paso, 3) }) else null,
+                modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+            )
         }
     }
     if (state.hojaInsumos) HojaAgregarInsumo(
@@ -178,7 +182,7 @@ fun ServicioFormContent(state: ServicioFormUiState, acciones: AccionesServicioFo
 }
 
 @Composable
-private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, paso: Int, modifier: Modifier) {
+private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, paso: Int, onAnterior: (() -> Unit)?, modifier: Modifier) {
     val f = state.form
     val err = state.errores
     val titulo = when (paso) { 1 -> "Datos del servicio"; 2 -> "Costos e insumos"; else -> "Precio y revisión" }
@@ -188,7 +192,7 @@ private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, paso
     ) {
         EncabezadoAsistenteAlta(
             paso, 3, titulo,
-            onAnterior = if (paso > 1) ({ paso = NavegacionAsistenteAlta.anterior(paso, 3) }) else null,
+            onAnterior = onAnterior,
         )
         when (paso) {
             1 -> {

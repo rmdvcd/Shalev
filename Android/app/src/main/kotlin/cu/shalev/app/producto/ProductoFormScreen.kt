@@ -30,7 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -191,7 +191,11 @@ fun ProductoFormContent(state: ProductoFormUiState, acciones: AccionesForm, snac
                     ShalevSecondaryButton("Volver", icon = ShalevIcons.Atras, onClick = acciones.onBack)
                 }
             }
-            else -> Formulario(state, acciones, paso, Modifier.padding(padding).consumeWindowInsets(padding))
+            else -> Formulario(
+                state, acciones, paso,
+                onAnterior = if (paso > 1) ({ paso = NavegacionAsistenteAlta.anterior(paso, 3) }) else null,
+                modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+            )
         }
     }
     if (state.hojaInsumos) HojaAgregarInsumo(
@@ -201,7 +205,7 @@ fun ProductoFormContent(state: ProductoFormUiState, acciones: AccionesForm, snac
 }
 
 @Composable
-private fun Formulario(state: ProductoFormUiState, a: AccionesForm, paso: Int, modifier: Modifier) {
+private fun Formulario(state: ProductoFormUiState, a: AccionesForm, paso: Int, onAnterior: (() -> Unit)?, modifier: Modifier) {
     val f = state.form
     val err = state.errores
     val numero = KeyboardOptions(keyboardType = KeyboardType.Decimal)
@@ -213,7 +217,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, paso: Int, m
     ) {
         EncabezadoAsistenteAlta(
             paso, 3, titulo,
-            onAnterior = if (paso > 1) ({ paso = NavegacionAsistenteAlta.anterior(paso, 3) }) else null,
+            onAnterior = onAnterior,
         )
         when (paso) {
             1 -> {

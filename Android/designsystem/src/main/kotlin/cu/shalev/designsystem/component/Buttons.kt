@@ -122,7 +122,7 @@ fun ShalevPrimaryButton(
         shape = RoundedCornerShape(ShalevRadius.md),
         contentPadding = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp),
     ) {
-        if (dibujarTexto) EtiquetaBoton(textoVentana ?: text, loading) else ContenidoIcono(icon, text, loading)
+        if (dibujarTexto) EtiquetaBoton(textoVentana ?: text, loading) else ContenidoIcono(icon, loading)
     }
 }
 
@@ -150,7 +150,7 @@ fun ShalevSecondaryButton(
         contentPadding = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp),
         border = ButtonDefaults.outlinedButtonBorder(enabled),
     ) {
-        if (dibujarTexto) EtiquetaBoton(textoVentana ?: text, loading) else ContenidoIcono(icon, text, loading)
+        if (dibujarTexto) EtiquetaBoton(textoVentana ?: text, loading) else ContenidoIcono(icon, loading)
     }
 }
 
@@ -182,10 +182,11 @@ fun ShalevTextButton(
 
 /** En modo compacto conserva el indicador de carga; el texto está disponible para TalkBack en el botón. */
 @Composable
-private fun ContenidoIcono(icon: ImageVector, descripcion: String, loading: Boolean) {
+private fun ContenidoIcono(icon: ImageVector, loading: Boolean) {
     if (loading) {
+        // El botón ya anuncia su etiqueta; el indicador no la repite (si la repitiera, TalkBack la diría dos veces).
         CircularProgressIndicator(
-            Modifier.size(ShalevSize.iconSmall).semantics { contentDescription = descripcion },
+            Modifier.size(ShalevSize.iconSmall),
             strokeWidth = 2.dp, color = LocalContentColor.current,
         )
     } else {
@@ -197,8 +198,9 @@ private fun ContenidoIcono(icon: ImageVector, descripcion: String, loading: Bool
 @Composable
 private fun EtiquetaBoton(text: String, loading: Boolean) {
     if (loading) {
+        // El botón ya anuncia su etiqueta; el indicador no la repite.
         CircularProgressIndicator(
-            Modifier.size(ShalevSize.iconSmall).semantics { contentDescription = text },
+            Modifier.size(ShalevSize.iconSmall),
             strokeWidth = 2.dp, color = LocalContentColor.current,
         )
         androidx.compose.foundation.layout.Spacer(Modifier.size(ShalevSpacing.xs))

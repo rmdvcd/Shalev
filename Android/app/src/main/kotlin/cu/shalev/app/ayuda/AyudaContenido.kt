@@ -46,10 +46,9 @@ object AyudaContenido {
         pasos = listOf(
             "Toca + para iniciar el asistente de producto o insumo",
             "Completa los pasos guiados; puedes abrir una ficha de costo para crear un elaborado con receta",
-            "En un producto o insumo físico, «Guardar y registrar compra inicial» guarda con existencia cero y abre una recepción prellenada; confirma la recepción para sumar el saldo una sola vez",
-            "Usa Gestión de inventario para registrar compras, proveedores, lotes y ajustes con motivo",
-            "Marca la caducidad opcional si el producto vence",
-            "Las recepciones usan costo promedio ponderado; las ventas anteriores conservan su costo"
+            "«Guardar y registrar compra inicial» guarda con existencia cero y abre una recepción prellenada",
+            "Confirma la recepción; Gestión de inventario registra compras, proveedores, lotes y ajustes con motivo",
+            "Marca la caducidad opcional; las recepciones usan costo promedio ponderado y las ventas conservan su costo"
         ),
         categoria = CategoriaAyuda.INVENTARIO
     )
