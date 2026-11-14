@@ -614,7 +614,7 @@ private struct PaymentSettingsView: View {
                     } else {
                         ForEach(phones) { phone in
                             paymentRow(kind: .phone, id: phone.id,
-                                       title: phone.number,
+                                       title: NumberPresentation.phone(phone.number),
                                        subtitle: phone.alias.isEmpty ? nil : phone.alias,
                                        selected: paymentPhoneID == phone.id)
                         }
@@ -913,7 +913,7 @@ private struct PaymentEditorSheet: View {
         self.title = title
         self.existingNumbers = existingNumbers
         self.onSave = onSave
-        _number = State(initialValue: number)
+        _number = State(initialValue: kind == .card ? NumberPresentation.card(number) : number)
         _alias = State(initialValue: alias)
     }
 
@@ -921,7 +921,7 @@ private struct PaymentEditorSheet: View {
         let value = number.trimmingCharacters(in: .whitespacesAndNewlines)
         if kind == .phone {
             guard let normalized = CustomerValidator.normalizedPhone(value) else {
-                return "Escribe un teléfono válido, por ejemplo 5123 4567"
+                return "Escribe un teléfono válido, por ejemplo 5123\u{202F}4567"
             }
             return existingNumbers.contains(normalized) ? "Ese número ya está en la lista" : nil
         }
@@ -941,7 +941,7 @@ private struct PaymentEditorSheet: View {
                         Text(kind == .phone ? "Número de teléfono" : "Número de tarjeta o cuenta")
                             .font(.shalev(12, weight: .medium))
                             .foregroundStyle(Color.shalevSecondaryText)
-                        TextField(kind == .phone ? "5123 4567" : "9205 0000 0000 0000", text: $number)
+                        TextField(kind == .phone ? "5123\u{202F}4567" : "9205-0000-0000-0000", text: $number)
                             .keyboardType(kind == .phone ? .phonePad : .numberPad)
                             .textContentType(kind == .phone ? .telephoneNumber : nil)
                             .autocorrectionDisabled()
@@ -2278,10 +2278,10 @@ private struct InventoryAlertSettingsView: View {
     init(store: ShalevStore) {
         self.store = store
         let defaults = store.data.settings.effectiveInventoryAlertDefaults
-        _productLow = State(initialValue: FixedNumber.formatMilli(defaults.productLowMilli))
-        _productCritical = State(initialValue: FixedNumber.formatMilli(defaults.productCriticalMilli))
-        _ingredientLow = State(initialValue: FixedNumber.formatMilli(defaults.ingredientLowMilli))
-        _ingredientCritical = State(initialValue: FixedNumber.formatMilli(defaults.ingredientCriticalMilli))
+        _productLow = State(initialValue: FixedNumber.formatMilliForEditing(defaults.productLowMilli))
+        _productCritical = State(initialValue: FixedNumber.formatMilliForEditing(defaults.productCriticalMilli))
+        _ingredientLow = State(initialValue: FixedNumber.formatMilliForEditing(defaults.ingredientLowMilli))
+        _ingredientCritical = State(initialValue: FixedNumber.formatMilliForEditing(defaults.ingredientCriticalMilli))
     }
 
     var body: some View {

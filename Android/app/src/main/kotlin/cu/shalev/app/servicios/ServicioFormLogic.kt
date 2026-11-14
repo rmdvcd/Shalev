@@ -68,7 +68,7 @@ object ServicioFormLogic {
         costoAdicional = Money.editar(s.costoAdicional),
         descripcion = s.descripcion.orEmpty(), fotoUri = s.fotoUri,
         insumos = lineas.mapNotNull { l ->
-            insumos[l.insumoId]?.let { LineaRecetaForm(it.id, it.nombre, it.unidad.simbolo, it.precio, Cantidad.format(l.cantidad)) }
+            insumos[l.insumoId]?.let { LineaRecetaForm(it.id, it.nombre, it.unidad.simbolo, it.precio, Cantidad.editable(l.cantidad)) }
         },
     )
 

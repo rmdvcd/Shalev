@@ -68,5 +68,7 @@ class InventarioLogicTest {
         assertEquals("Sin insumos suficientes", valorFila(agotado))
         assertEquals(TonoFila.PELIGRO, tonoDe(agotado))
         assertEquals("7 u", valorFila(ItemInventario(prod(1, cantidad = 7), NivelStock.NORMAL, EstadoCaducidad.SIN_FECHA)))
+        assertEquals("1\u202F234 u", valorFila(ItemInventario(prod(2, cantidad = 1_234), NivelStock.NORMAL, EstadoCaducidad.SIN_FECHA)))
+        assertEquals("Alcanza para 1\u202F234", textoAlcance(1_234))
     }
 }

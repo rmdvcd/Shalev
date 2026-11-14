@@ -136,7 +136,7 @@ data class NivelesForm(
         val esInsumo = c == CampoNivel.INSUMO_BAJO || c == CampoNivel.INSUMO_CRITICO
         val actual = if (esInsumo) Cantidad.parse(valor(c)) ?: Cantidad.ZERO else Cantidad.enteras(valor(c).trim().toLongOrNull() ?: 0)
         val nuevo = Cantidad((actual.milesimas + delta * 1000L).coerceIn(0, MAX * 1000L))
-        return con(c, if (esInsumo) Cantidad.format(nuevo).replace(",", "") else (nuevo.milesimas / 1000).toString())
+        return con(c, if (esInsumo) Cantidad.editable(nuevo) else (nuevo.milesimas / 1000).toString())
     }
 
     private fun entero(s: String): Long? = s.trim().takeIf { it.matches(Regex("^[0-9]{1,6}$")) }?.toLong()?.takeIf { it <= MAX }
@@ -164,7 +164,7 @@ data class NivelesForm(
 
         fun desde(n: NivelesMinimos) = NivelesForm(
             n.productoBajo.toString(), n.productoCritico.toString(),
-            Cantidad.format(n.insumoBajo).replace(",", ""), Cantidad.format(n.insumoCritico).replace(",", ""),
+            Cantidad.editable(n.insumoBajo), Cantidad.editable(n.insumoCritico),
         )
 
         /** Valores recomendados de Shalev.txt: bajo 5, crítico 1. */

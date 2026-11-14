@@ -57,8 +57,14 @@ object Estadisticas {
         }
     }
 
-    /** Serie continua (incluye cubos vacíos) para Ventas (barras) y Ganancia bruta (área). */
-    fun serie(ventas: List<Venta>, desde: Instant, hasta: Instant, zone: ZoneId): Serie {
+    /**
+     * Serie continua (incluye cubos vacíos) para Ventas (barras) y Ganancia bruta (área). [hastaVisible] permite
+     * conservar la granularidad del período elegido, pero cortar sus cubos futuros sin datos.
+     */
+    fun serie(
+        ventas: List<Venta>, desde: Instant, hasta: Instant, zone: ZoneId, hastaVisible: Instant = hasta,
+    ): Serie {
+        val limite = minOf(hasta, hastaVisible)
         val g = granularidad(desde, hasta)
         fun cubo(i: Instant): ZonedDateTime = i.atZone(zone).let {
             when (g) {
@@ -74,12 +80,12 @@ object Estadisticas {
             Granularidad.DIA -> z.toLocalDate().plusDays(1).atStartOfDay(zone)
             Granularidad.MES -> z.toLocalDate().withDayOfMonth(1).plusMonths(1).atStartOfDay(zone)
         }
-        val agregados = ventas.filter { it.fecha >= desde && it.fecha < hasta }
+        val agregados = ventas.filter { it.fecha >= desde && it.fecha < limite }
             .groupBy { cubo(it.fecha).toInstant() }
             .mapValues { (_, vs) -> vs.fold(Cup.ZERO to Cup.ZERO) { (t, c), v -> (t + v.total) to (c + v.costoTotal) } }
         val puntos = buildList {
             var z = cubo(desde)
-            while (z.toInstant() < hasta) {
+            while (z.toInstant() < limite) {
                 val (t, c) = agregados[z.toInstant()] ?: (Cup.ZERO to Cup.ZERO)
                 add(PuntoSerie(z.toInstant(), t, c))
                 z = siguiente(z)

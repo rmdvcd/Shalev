@@ -116,7 +116,7 @@ open class TarjetasAndroid @Inject constructor(
         val precio = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             color = marca; textSize = if (grande) 76f else 42f; typeface = Typeface.DEFAULT_BOLD
         }
-        dibujarTexto(c, Money.format(p.precioVenta), precio, r.left + pad, r.bottom - pad - precio.textSize * 1.2f, ancho, 1)
+        dibujarTexto(c, Money.formatExport(p.precioVenta), precio, r.left + pad, r.bottom - pad - precio.textSize * 1.2f, ancho, 1)
     }
 
     /**

@@ -3,6 +3,7 @@ package cu.shalev.app.capturas
 import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import cu.shalev.app.inicio.EstadoCarga
 import cu.shalev.app.inicio.TipoVenta
@@ -122,7 +123,15 @@ class InventarioCapturas {
         Insumo(id = 2, nombre = "Queso gouda", unidad = UnidadMedida.KILOGRAMO, precio = Cup.ofPesos(2000), cantidad = Cantidad.enteras(3), creadoEn = t0),
         Insumo(id = 3, nombre = "Puré de tomate", unidad = UnidadMedida.KILOGRAMO, precio = Cup.ofPesos(450), cantidad = Cantidad.enteras(2), creadoEn = t0),
     )
-    private fun form(id: String, s: ProductoFormUiState) = rule.capturar(id) { ProductoFormContent(s, AccionesForm()) }
+    private fun form(id: String, s: ProductoFormUiState, pasos: Int = 0) = rule.capturar(
+        id,
+        antes = {
+            repeat(pasos) {
+                onNodeWithTag("alta.siguiente").performClick()
+                waitForIdle()
+            }
+        },
+    ) { ProductoFormContent(s, AccionesForm()) }
 
     @Test fun productoNuevo() = form("08j_producto_nuevo", ProductoFormUiState())
     @Test @Config(qualifiers = Captura.LARGA) fun productoErrores() = form(
@@ -148,7 +157,9 @@ class InventarioCapturas {
         ),
         precioVenta = "400.00", cantidad = "4",
     )
-    @Test @Config(qualifiers = Captura.LARGA) fun productoElaborado() = form("08m_producto_elaborado_receta", ProductoFormUiState(form = pizza, insumos = insumos))
+    @Test @Config(qualifiers = Captura.LARGA) fun productoElaborado() = form(
+        "08m_producto_elaborado_receta", ProductoFormUiState(form = pizza, insumos = insumos), pasos = 1,
+    )
     @Test fun productoHojaInsumos() = form("08n_producto_hoja_insumos", ProductoFormUiState(form = pizza, insumos = insumos, hojaInsumos = true))
     @Test fun productoDialogoSalir() = rule.capturar("08o_producto_dialogo_salir", antes = { onNodeWithContentDescription("Atrás").performClick() }) {
         ProductoFormContent(ProductoFormUiState(form = ProductoForm(categoria = "Bebidas", nombre = "Malta"), cambios = true), AccionesForm())

@@ -1,6 +1,7 @@
 package cu.shalev.app.inicio
 
 import cu.shalev.core.quantity.Cantidad
+import cu.shalev.core.format.NumberPresentation
 import cu.shalev.core.money.Cup
 import cu.shalev.core.money.Money
 import cu.shalev.core.money.Percent
@@ -189,9 +190,8 @@ data class PagoResumen(val telefono: String?, val cuenta: String?) {
 
 fun Perfil.pagoResumen() = PagoResumen(telefonoPago?.numero?.let(::formatoTelefono), tarjetaPago?.enmascarado)
 
-/** "+5351234567" → "+53 5123 4567". Otros formatos se dejan tal cual. */
-fun formatoTelefono(e164: String): String =
-    if (e164.startsWith("+53") && e164.length == 11) "+53 ${e164.substring(3, 7)} ${e164.substring(7)}" else e164
+/** Formato visual del teléfono; no altera el E.164 almacenado. */
+fun formatoTelefono(e164: String): String = NumberPresentation.phone(e164)
 
 // ---------------- Precios ----------------
 
@@ -318,18 +318,18 @@ enum class TipoTop(val titulo: String) {
 }
 
 fun valorTop(tipo: TipoTop, item: TopItem): String = when (tipo) {
-    TipoTop.MAS_VENDIDO, TipoTop.LENTO -> if (item.unidades == 1L) "1 unidad" else "${item.unidades} unidades"
+    TipoTop.MAS_VENDIDO, TipoTop.LENTO -> if (item.unidades == 1L) "1 unidad" else "${NumberPresentation.groupedInteger(item.unidades)} unidades"
     TipoTop.RENTABILIDAD -> Money.format(item.ganancia)
-    TipoTop.SERVICIO_TOP, TipoTop.SERVICIO_MENOS -> if (item.unidades == 1L) "1 vez" else "${item.unidades} veces"
+    TipoTop.SERVICIO_TOP, TipoTop.SERVICIO_MENOS -> if (item.unidades == 1L) "1 vez" else "${NumberPresentation.groupedInteger(item.unidades)} veces"
     TipoTop.EMPLEADO, TipoTop.CLIENTE -> Money.format(item.ingresos)
 }
 
 fun subtituloTop(tipo: TipoTop, item: TopItem): String? = when (tipo) {
     TipoTop.MAS_VENDIDO, TipoTop.SERVICIO_TOP -> Money.format(item.ingresos)
     TipoTop.LENTO, TipoTop.SERVICIO_MENOS -> null
-    TipoTop.RENTABILIDAD -> if (item.unidades == 1L) "1 unidad vendida" else "${item.unidades} unidades vendidas"
-    TipoTop.EMPLEADO -> if (item.unidades == 1L) "1 venta" else "${item.unidades} ventas"
-    TipoTop.CLIENTE -> if (item.unidades == 1L) "1 compra" else "${item.unidades} compras"
+    TipoTop.RENTABILIDAD -> if (item.unidades == 1L) "1 unidad vendida" else "${NumberPresentation.groupedInteger(item.unidades)} unidades vendidas"
+    TipoTop.EMPLEADO -> if (item.unidades == 1L) "1 venta" else "${NumberPresentation.groupedInteger(item.unidades)} ventas"
+    TipoTop.CLIENTE -> if (item.unidades == 1L) "1 compra" else "${NumberPresentation.groupedInteger(item.unidades)} compras"
 }
 
 /** Subtítulos de los acordeones de Inicio (de un vistazo, sin abrir): null = sin datos. */

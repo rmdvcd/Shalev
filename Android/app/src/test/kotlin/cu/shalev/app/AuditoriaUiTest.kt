@@ -1,28 +1,41 @@
 package cu.shalev.app
 
 import android.app.Application
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import cu.shalev.app.common.CampoFecha
 import cu.shalev.app.common.descripcionFiltro
 import cu.shalev.app.precios.AccionesPrecios
 import cu.shalev.app.precios.PreajusteForm
 import cu.shalev.app.precios.PreciosContent
 import cu.shalev.app.precios.PreciosUiState
+import cu.shalev.designsystem.component.ChartSeries
 import cu.shalev.designsystem.component.IconActionStyle
 import cu.shalev.designsystem.component.ShalevAccordionCard
+import cu.shalev.designsystem.component.ShalevAreaChart
+import cu.shalev.designsystem.component.ShalevBarChart
 import cu.shalev.designsystem.component.ShalevCard
 import cu.shalev.designsystem.component.ShalevDialog
 import cu.shalev.designsystem.component.ShalevFab
 import cu.shalev.designsystem.component.ShalevIconAction
 import cu.shalev.designsystem.component.ShalevListItem
+import cu.shalev.designsystem.component.ShalevPrimaryButton
+import cu.shalev.designsystem.component.ShalevSecondaryButton
+import cu.shalev.designsystem.component.ShalevTextButton
+import cu.shalev.designsystem.component.ShalevTextField
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.theme.ShalevTheme
 import org.junit.Assert.assertEquals
@@ -36,9 +49,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Auditoría de UI: comprueba semántica accesible, iconos y etiquetas de ventanas, además del formulario de Precios a 360 dp.
- * Son pruebas de comportamiento, no capturas: detectan etiquetas visibles incorrectas, selección anunciada sin estado
- * conmutable y el chip de Transferencia aplastado.
+ * Auditoría de UI: comprueba semántica accesible, acciones de ventanas adaptables, etiquetas de ejes de gráficos y el
+ * formulario de Precios a 360 dp. Son pruebas de comportamiento, no capturas: detectan etiquetas visibles incorrectas,
+ * selección anunciada sin estado conmutable y el chip de Transferencia aplastado.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -66,16 +79,16 @@ class AuditoriaUiTest {
             ShalevTheme {
                 ShalevAccordionCard(
                     title = "Ventas",
-                    subtitle = "1,000 CUP",
+                    subtitle = "1\u202F000 CUP",
                     expanded = abierto.value,
                     onToggle = { abierto.value = !abierto.value },
                 ) { androidx.compose.material3.Text("Detalle") }
             }
         }
 
-        rule.onNodeWithText("1,000 CUP").assertExists()
+        rule.onNodeWithText("1\u202F000 CUP").assertExists()
         rule.onNodeWithText("Ventas").performClick()
-        rule.onNodeWithText("1,000 CUP").assertDoesNotExist()
+        rule.onNodeWithText("1\u202F000 CUP").assertDoesNotExist()
     }
 
     @Test
@@ -95,7 +108,7 @@ class AuditoriaUiTest {
     }
 
     @Test
-    fun lasAccionesMuestranIconoYConservanDescripcionAccesible() {
+    fun fueraDeVentanasLasAccionesSiguenCompactasYAccesibles() {
         rule.setContent { ShalevTheme { ShalevIconAction(ShalevIcons.Agregar, "Agregar producto", onClick = {}) } }
 
         rule.onNodeWithContentDescription("Agregar producto").assertExists()
@@ -110,43 +123,95 @@ class AuditoriaUiTest {
         rule.onNodeWithText("Agregar producto").assertDoesNotExist()
     }
 
-    // 1.0.3: en ventanas emergentes no se dibuja etiqueta escrita (la descripción accesible sigue completa) y el pie
-    // ya no lleva Cancelar: se cierra tocando fuera o con Atrás.
     @Test
-    fun lasAccionesDeVentanaUsanSoloIconoYConservanLaDescripcion() {
+    fun aceptarEnElSelectorDeFechaEsTextoVisible() {
+        rule.setContent { ShalevTheme { CampoFecha(fecha = null, onFecha = {}, label = "Fecha") } }
+
+        rule.onNodeWithTag("campo_fecha_elegir").performClick()
+        rule.onNodeWithContentDescription("Aceptar").assertExists()
+        rule.onNodeWithText("Aceptar", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun graficoDeVentasMuestraUnidadEscalaYEtiquetasDeHora() {
+        rule.setContent {
+            ShalevTheme {
+                ShalevBarChart(
+                    values = listOf(100.0, 200.0), labels = listOf("08:00", "09:00"),
+                    description = "Ventas de hoy", yAxisUnit = "CUP",
+                )
+            }
+        }
+
+        rule.onNodeWithContentDescription("Ventas de hoy").assertExists()
+        listOf("CUP", "200", "100", "0", "08:00", "09:00").forEach { rule.onNodeWithText(it, useUnmergedTree = true).assertIsDisplayed() }
+    }
+
+    @Test
+    fun graficoDeGananciaMuestraUnidadEscalaYEtiquetasDeFecha() {
+        rule.setContent {
+            ShalevTheme {
+                ShalevAreaChart(
+                    series = listOf(
+                        ChartSeries("Venta", listOf(500.0, 300.0), Color.Blue),
+                        ChartSeries("Costo", listOf(250.0, 150.0), Color.Red),
+                    ),
+                    labels = listOf("01/09", "02/09"), description = "Ganancia bruta", yAxisUnit = "CUP",
+                )
+            }
+        }
+
+        rule.onNodeWithContentDescription("Ganancia bruta").assertExists()
+        listOf("CUP", "500", "250", "0", "01/09", "02/09").forEach { rule.onNodeWithText(it, useUnmergedTree = true).assertIsDisplayed() }
+    }
+
+    // 1.0.5: las acciones de diálogos y ventanas muestran su etiqueta escrita, también durante una carga.
+    // El pie no añade Cancelar: la ventana se cierra tocando fuera o con Atrás.
+    @Test
+    fun todasLasAccionesDeVentanaMuestranTextoYConservanLaDescripcion() {
         rule.setContent {
             ShalevTheme {
                 ShalevDialog(
                     title = "Prueba de acciones",
                     onDismiss = {},
                     onConfirm = {},
+                    confirmLoading = true,
                     content = {
                         ShalevIconAction(ShalevIcons.Eliminar, "Eliminar", onClick = {}, style = IconActionStyle.Tonal)
                         ShalevIconAction(ShalevIcons.AhoraNo, "Omitir", onClick = {}, style = IconActionStyle.Tonal)
                         ShalevIconAction(ShalevIcons.Exportar, "Exportar", onClick = {}, style = IconActionStyle.Tonal)
+                        ShalevPrimaryButton("Guardar", onClick = {}, icon = ShalevIcons.Guardar, loading = true)
+                        ShalevSecondaryButton("Cancelar", onClick = {}, icon = ShalevIcons.Cancelar)
+                        ShalevTextButton("Volver", onClick = {}, icon = ShalevIcons.Atras)
+                        ShalevFab(ShalevIcons.Agregar, "Agregar producto", onClick = {}, etiqueta = "Nuevo")
+                        ShalevTextField(value = "dato", onValueChange = {}, label = "Buscar", clearable = true)
                     },
                 )
             }
         }
 
-        listOf("Confirmar", "Eliminar", "Omitir", "Exportar").forEach { etiqueta ->
+        listOf("Confirmar", "Eliminar", "Omitir", "Exportar", "Guardar", "Cancelar", "Volver").forEach { etiqueta ->
             rule.onNodeWithContentDescription(etiqueta).assertExists()
-            rule.onNodeWithText(etiqueta).assertDoesNotExist()
+            rule.onNodeWithText(etiqueta, useUnmergedTree = true).assertIsDisplayed()
         }
-        rule.onNodeWithText("Cancelar").assertDoesNotExist()
-        rule.onNodeWithContentDescription("Cancelar").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Agregar producto").assertExists()
+        rule.onNodeWithText("Nuevo", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithContentDescription("Limpiar Buscar").assertExists()
+        rule.onNodeWithText("Limpiar", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Cerrar").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Cerrar").assertDoesNotExist()
     }
 
-    // 1.0.4: las acciones secundarias del pie («Atrás», «Omitir»…) van en la MISMA fila centrada que la confirmación.
-    // Antes cada pantalla las ponía dentro del contenido y aparecían en otra fila, lejos del ✓ (capturas del cierre).
+    // 1.0.5: el pie conserva el orden y centra las etiquetas; si no caben en una fila, fluyen a la siguiente.
     @Test
-    fun lasAccionesSecundariasDelDialogoCompartenFilaConLaConfirmacion() {
+    fun lasAccionesDelDialogoMantienenElOrdenCuandoElPieSeEnvuelve() {
         rule.setContent {
             ShalevTheme {
                 ShalevDialog(
                     title = "Revisar cierre",
                     onDismiss = {},
                     onConfirm = {},
+                    modifier = Modifier.widthIn(max = 240.dp),
                     secundarias = {
                         ShalevIconAction(ShalevIcons.Atras, "Atrás", onClick = {})
                         ShalevIconAction(ShalevIcons.AhoraNo, "Omitir", onClick = {})
@@ -157,12 +222,19 @@ class AuditoriaUiTest {
             }
         }
 
-        val atras = rule.onNodeWithContentDescription("Atrás").fetchSemanticsNode().boundsInRoot
-        val omitir = rule.onNodeWithContentDescription("Omitir").fetchSemanticsNode().boundsInRoot
-        val confirmar = rule.onNodeWithContentDescription("Confirmar").fetchSemanticsNode().boundsInRoot
-        assertEquals("Atrás va en la fila de la confirmación", atras.center.y, confirmar.center.y, 1f)
-        assertEquals("Omitir va en la fila de la confirmación", omitir.center.y, confirmar.center.y, 1f)
-        assertTrue("Orden: Atrás, Omitir y la confirmación", atras.right <= omitir.left && omitir.right <= confirmar.left)
+        val orden = listOf("Atrás", "Omitir", "Confirmar").map { etiqueta ->
+            rule.onNodeWithText(etiqueta, useUnmergedTree = true).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        }
+        assertTrue("el pie estrecho debe envolver al menos una acción", orden.map { it.center.y }.distinct().size > 1)
+        rule.onNodeWithText("Cancelar").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Cancelar").assertDoesNotExist()
+        orden.zipWithNext().forEach { (anterior, siguiente) ->
+            val mismaFila = kotlin.math.abs(anterior.center.y - siguiente.center.y) <= 1f
+            assertTrue(
+                "Se conserva el orden de izquierda a derecha o de arriba abajo",
+                if (mismaFila) anterior.right <= siguiente.left else anterior.center.y < siguiente.center.y,
+            )
+        }
     }
 
     @Test

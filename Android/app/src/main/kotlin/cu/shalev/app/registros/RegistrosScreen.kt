@@ -54,6 +54,9 @@ import cu.shalev.app.common.Compartir
 import cu.shalev.app.common.SecureWindow
 import cu.shalev.app.common.descripcionFiltro
 import cu.shalev.app.inicio.EstadoCarga
+import cu.shalev.core.format.NumberPresentation
+import cu.shalev.core.quantity.Cantidad
+import cu.shalev.domain.model.TipoEntidad
 import cu.shalev.app.navigation.Route
 import cu.shalev.designsystem.component.ShalevBadge
 import cu.shalev.designsystem.component.ShalevBottomSheet
@@ -511,10 +514,44 @@ private fun BarraSeleccionSola(n: Int, onQuitar: () -> Unit) {
 
 @Composable
 private fun Ficha(f: FichaRegistro, acciones: AccionesRegistros, zona: ZoneId) {
-    val (titulo, campos) = when (f) {
+    val (titulo, camposBase) = when (f) {
         is FichaRegistro.DeVenta -> TablasExport.tituloVenta(f.venta, zona) to TablasExport.camposVenta(f.venta, zona)
         is FichaRegistro.DeTransferencia -> TablasExport.tituloTransaccion(f.transaccion, zona) to TablasExport.camposTransaccion(f.transaccion, zona)
         is FichaRegistro.DeMovimiento -> TablasExport.tituloMovimiento(f.item, zona) to TablasExport.camposMovimiento(f.item, zona)
+    }
+    // Presentación de lectura solo en la ficha; TablasExport conserva cuentas/teléfonos y su formato de archivo.
+    val campos = when (f) {
+        is FichaRegistro.DeVenta -> camposBase.map { (campo, valor) ->
+            campo to when (campo) {
+                "Total" -> Money.format(f.venta.total)
+                "Costo" -> Money.format(f.venta.costoTotal)
+                "Ganancia" -> Money.format(f.venta.ganancia)
+                "Unidades" -> NumberPresentation.groupedInteger(f.venta.unidades)
+                else -> valor
+            }
+        }
+        is FichaRegistro.DeTransferencia -> camposBase.map { (campo, valor) ->
+            campo to when (campo) {
+                "Importe" -> Money.format(f.transaccion.importe)
+                "Teléfono", "Teléfono de cobro" -> NumberPresentation.phone(valor)
+                "Cobrado en la tarjeta" -> NumberPresentation.card(valor)
+                else -> valor
+            }
+        }
+        is FichaRegistro.DeMovimiento -> camposBase.map { (campo, valor) ->
+            val movimiento = f.item.movimiento
+            val esInsumo = movimiento.entidad == TipoEntidad.INSUMO
+            val presentarCantidad: (Long, Boolean) -> String = { cantidad, conSigno ->
+                val texto = if (esInsumo) Cantidad.format(Cantidad(cantidad)) else NumberPresentation.groupedInteger(cantidad)
+                (if (conSigno && cantidad > 0) "+$texto" else texto) +
+                    if (esInsumo && f.item.simbolo.isNotBlank()) " ${f.item.simbolo}" else ""
+            }
+            campo to when (campo) {
+                "Cambio" -> presentarCantidad(movimiento.delta, true)
+                "Existencia después" -> presentarCantidad(movimiento.existenciaResultante, false)
+                else -> valor
+            }
+        }
     }
     ShalevBottomSheet(
         onDismiss = acciones.onCerrarFicha,
@@ -529,7 +566,13 @@ private fun Ficha(f: FichaRegistro, acciones: AccionesRegistros, zona: ZoneId) {
                     ShalevTextoAjustable(valor, style = ShalevTextos.datoEn(MaterialTheme.typography.headlineSmall), textAlign = TextAlign.Center)
                 }
             }
-            val lineas = if (f is FichaRegistro.DeVenta) TablasExport.lineasVenta(f.venta) else emptyList()
+            val lineas = if (f is FichaRegistro.DeVenta) f.venta.detalles.map { detalle ->
+                Triple(
+                    "${NumberPresentation.groupedInteger(detalle.cantidad)} × ${detalle.nombre}",
+                    "${Money.format(detalle.precioUnitario)} c/u",
+                    Money.format(detalle.subtotal),
+                )
+            } else emptyList()
             val detalle = lineas.map { it.first }.toSet() // ya se muestran con el unitario debajo, no en campos
             (campos - setOfNotNull(total)).filterNot { it.first in detalle }.forEach { (campo, valor) ->
                 ShalevListItem(title = campo, value = valor, indicatorColor = null, valueMaxLines = 4)

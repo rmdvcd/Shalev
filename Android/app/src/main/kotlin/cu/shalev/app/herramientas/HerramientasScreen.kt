@@ -50,32 +50,6 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import kotlinx.coroutines.launch
 
-@Composable
-fun HerramientasScreen(onAbrirFicha: () -> Unit, onVerManual: () -> Unit, onGestionInventario: () -> Unit = {}) {
-    var ayuda by remember { mutableStateOf(false) }
-    var cambioAbierto by rememberSaveable { mutableStateOf(false) }
-    val permisos = cu.shalev.app.common.LocalPermisosApp.current
-    val modulos = permisos.modulos
-    Scaffold(topBar = { ShalevTopBar(title = "Herramientas", onAyuda = { ayuda = true }, ayudaDescripcion = "Ayuda de Herramientas") }) { padding ->
-        Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(ShalevSpacing.md),
-            verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
-        ) {
-            ShalevCard(onClick = onAbrirFicha) {
-                ShalevListItem("Fichas de costo", subtitle = "Crea, guarda y exporta varias fichas", leading = { Icon(ShalevIcons.FichaCosto, null) }, trailing = { Icon(ShalevIcons.Abrir, null) }, indicatorColor = null)
-            }
-            if (!permisos.esSecundaria && permisos.verInventario) ShalevCard(onClick = onGestionInventario) {
-                ShalevListItem("Gestión de inventario", subtitle = "Recepciones, proveedores, lotes, caducidades y ajustes con motivo", leading = { Icon(ShalevIcons.Inventario, null) }, trailing = { Icon(ShalevIcons.Abrir, null) }, indicatorColor = null)
-            }
-            ShalevCard(onClick = { cambioAbierto = true }) {
-                ShalevListItem("Calculadora de cambio", subtitle = "Convertir CUP y USD o calcular una tasa", leading = { Icon(ShalevIcons.CalculadoraCambio, null) }, trailing = { Icon(ShalevIcons.Abrir, null) }, indicatorColor = null)
-            }
-        }
-    }
-    if (cambioAbierto) CalculadoraCambio({ cambioAbierto = false })
-    if (ayuda) cu.shalev.app.ayuda.DialogoAyudaPestana(cu.shalev.app.ayuda.PestanaAyuda.HERRAMIENTAS, modulos, { ayuda = false }) { ayuda = false; onVerManual() }
-}
-
 private fun enteroDinero(valor: BigDecimal): String = valor.setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
 private fun totalCup(ficha: FichaCostoGuardada): BigDecimal? {
     val totales = CalculoFichaCosto.calcular(ficha.partidas, CalculoFichaCosto.numero(ficha.margen), ficha.unidadMargen)
@@ -90,6 +64,8 @@ fun FichaCostoScreen(
     onBack: () -> Unit,
     onExportarInventario: (nombre: String, costoCup: String, precioCup: String) -> Unit = { _, _, _ -> },
     onExportarServicio: (nombre: String, importeCup: String) -> Unit = { _, _ -> },
+    destinoAlta: String? = null,
+    onExportacionCompletada: (() -> Unit)? = null,
     vm: FichaCostoViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     var editorAbierto by rememberSaveable { mutableStateOf(false) }
@@ -132,16 +108,18 @@ fun FichaCostoScreen(
                     Text("${ficha.partidas.size} partidas")
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         ShalevIconAction(ShalevIcons.Editar, "Abrir ${ficha.nombre}", onClick = { vm.abrir(ficha) })
-                        ShalevIconAction(ShalevIcons.Inventario, "Exportar al Inventario", onClick = {
+                        if (destinoAlta != "SERVICIO") ShalevIconAction(ShalevIcons.Inventario, "Exportar al Inventario", onClick = {
                             scope.launch {
                                 val r = vm.exportarAInventario(ficha)
-                                aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
+                                if (r.isSuccess && destinoAlta != null && onExportacionCompletada != null) onExportacionCompletada()
+                                else aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
                             }
                         }, enabled = total != null && !vm.trabajando && principal)
-                        ShalevIconAction(ShalevIcons.Servicios, "Exportar a Servicios", onClick = {
+                        if (destinoAlta != "INVENTARIO") ShalevIconAction(ShalevIcons.Servicios, "Exportar a Servicios", onClick = {
                             scope.launch {
                                 val r = vm.exportarAServicio(ficha)
-                                aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
+                                if (r.isSuccess && destinoAlta != null && onExportacionCompletada != null) onExportacionCompletada()
+                                else aviso = r.getOrNull() ?: r.exceptionOrNull()?.message ?: "Error al exportar"
                             }
                         }, enabled = total != null && !vm.trabajando && principal)
                         ShalevIconAction(ShalevIcons.Eliminar, "Eliminar ${ficha.nombre}", onClick = { scope.launch { aviso = vm.eliminarFicha(ficha.id).exceptionOrNull()?.message } })

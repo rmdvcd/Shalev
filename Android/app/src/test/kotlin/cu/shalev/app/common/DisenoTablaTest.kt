@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DisenoTablaTest {
-    private fun filas(n: Int) = (1..n).map { listOf("Cat", "Producto $it", "1,450 CUP") }
+    private fun filas(n: Int) = (1..n).map { listOf("Cat", "Producto $it", "1\u202F450 CUP") }
 
     @Test fun paginasDe25FilasSinPerderNinguna() {
         assertEquals(1, DisenoTabla.paginas(filas(25)).size)

@@ -4,6 +4,7 @@ import cu.shalev.designsystem.component.ChartMath
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Locale
 
 class ChartMathTest {
 
@@ -33,5 +34,21 @@ class ChartMathTest {
         assertEquals(listOf(0, 1, 2), ChartMath.indicesEtiquetas(3))
         assertEquals(listOf(0, 8, 15, 23), ChartMath.indicesEtiquetas(24))
         assertTrue(ChartMath.indicesEtiquetas(0).isEmpty())
+    }
+
+    @Test fun marcasDelEjeYVanDelMaximoAlCero() {
+        assertEquals(listOf(300.0, 150.0, 0.0), ChartMath.marcasEjeY(300.0))
+        assertEquals(listOf(0.0), ChartMath.marcasEjeY(0.0))
+        assertEquals(listOf(0.0), ChartMath.marcasEjeY(-50.0))
+    }
+
+    @Test fun etiquetasDelEjeYUsanEspacioEstrechoParaLosMiles() {
+        val anterior = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.US)
+            assertEquals("1\u202F234.5", ChartMath.etiquetaEjeY(1234.5))
+        } finally {
+            Locale.setDefault(anterior)
+        }
     }
 }

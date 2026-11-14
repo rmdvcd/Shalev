@@ -22,16 +22,22 @@ sealed interface Route {
      * (checkbox + Continuar); [seleccion] = ids ya elegidos (CSV).
      */
     @Serializable data class Servicios(val venta: Boolean = false, val seleccion: String? = null) : Route
-    /** Crear (id = 0) o editar un servicio; Herramientas puede prellenar nombre e importe en CUP. */
+    /** Crear (id = 0) o editar un servicio; la ficha de costo puede prellenar nombre e importe en CUP. */
     @Serializable data class ServicioForm(
         val id: Long = 0,
         val nombre: String? = null,
         val importe: String? = null,
     ) : Route
     @Serializable data object Registros : Route
-    @Serializable data object Herramientas : Route
-    @Serializable data object FichaCosto : Route
-    @Serializable data object GestionInventario : Route
+    /** Fichas de costo; [destino] limita la exportación, [finalizarAlta] vuelve al catálogo desde un asistente. */
+    @Serializable data class FichaCosto(val destino: String? = null, val finalizarAlta: Boolean = false) : Route
+    /** Gestión de inventario; los datos opcionales preseleccionan una recepción recién iniciada. */
+    @Serializable data class GestionInventario(
+        val tipo: String? = null,
+        val articuloId: Long? = null,
+        val cantidadInicial: String? = null,
+        val costoInicial: String? = null,
+    ) : Route
     /** Registro de un turno (Registros → Turnos o "Ver" tras cerrar en Inicio). */
     @Serializable data class TurnoDetalle(val id: Long) : Route
     @Serializable data object Ajustes : Route
@@ -74,18 +80,18 @@ sealed interface Route {
     @Serializable data object Soporte : Route
 }
 
-/** Destinos de negocio de la barra inferior; Ajustes se abre desde la esquina superior derecha de Inicio. */
+/** Destinos principales de la barra inferior; Inventario y Servicios se filtran por permisos del negocio. */
 enum class TopLevel(val route: Route, val icon: ImageVector, val label: String) {
     INICIO(Route.Inicio, ShalevIcons.Inicio, "Inicio"),
     INVENTARIO(Route.Inventario(), ShalevIcons.Inventario, "Inventario"),
     SERVICIOS(Route.Servicios(), ShalevIcons.Servicios, "Servicios"),
     REGISTROS(Route.Registros, ShalevIcons.Registros, "Registros"),
-    HERRAMIENTAS(Route.Herramientas, ShalevIcons.Herramientas, "Herramientas"),
+    AJUSTES(Route.Ajustes, ShalevIcons.Ajustes, "Ajustes"),
 }
 
 /**
- * 0.21.0 (C12): secciones de la barra inferior según los módulos del negocio. Inventario solo con Ventas o Inventario;
- * Servicios solo con Servicios. Inicio y Registros siempre (Ajustes vive en Inicio y no forma parte del deslizado).
+ * Destinos principales según los módulos del negocio. Inventario solo con Ventas o Inventario; Servicios solo con
+ * Servicios. Inicio, Registros y Ajustes siempre están disponibles.
  */
 fun topLevelVisibles(p: cu.shalev.domain.model.PermisosApp): List<TopLevel> = TopLevel.entries.filter {
     when (it) {

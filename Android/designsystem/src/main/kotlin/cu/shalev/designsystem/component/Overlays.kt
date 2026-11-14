@@ -12,8 +12,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -127,16 +128,17 @@ fun ShalevAvisoExito(texto: String, onFin: () -> Unit, modifier: Modifier = Modi
 }
 
 /**
- * Diálogo con el título centrado arriba (0.27.0: sin logo). El pie muestra la acción de confirmación (icono) y, si se
- * piden, las [secundarias] en la misma fila; se descarta tocando fuera o con el botón atrás del sistema.
+ * Diálogo con el título centrado arriba (0.27.0: sin logo). El pie muestra la acción de confirmación con su etiqueta
+ * escrita y, si se piden, las [secundarias] en el pie. Las acciones se centran y se envuelven en varias filas si no
+ * caben juntas; se descarta tocando fuera o con el botón atrás del sistema.
  * [destructive] pinta la confirmación en color de error.
  *
  * P24: ventana emergente **centrada**; título centrado arriba; el botón de confirmar queda centrado. La confirmación
  * va rellena (Von Restorff). El contenido largo se desplaza dentro del diálogo y el botón sigue siempre a la vista.
  *
  * 1.0.3: sin botón Cancelar en el pie (redundante: se cierra tocando fuera o con Atrás).
- * 1.0.4: las acciones del asistente («Atrás», «Omitir»…) van en el pie, en la misma fila que la confirmación y
- * centradas como ella (antes flotaban dentro del contenido, en otra fila y con un hueco en medio).
+ * 1.0.4: las acciones del asistente («Atrás», «Omitir»…) van en el pie, centradas con la confirmación; si hace falta,
+ * se envuelven en otra fila (antes flotaban dentro del contenido, separadas del botón principal).
  */
 @Composable
 fun ShalevDialog(
@@ -153,12 +155,12 @@ fun ShalevDialog(
     confirmTag: String? = null,
     confirmIcon: ImageVector? = null,
     /**
-     * 1.0.4: acciones secundarias del pie (p. ej. «Atrás» y «Omitir» de un asistente). Van en la **misma fila**
-     * centrada que la confirmación, a su izquierda y en el orden en que se declaran. Antes cada pantalla las ponía
+     * 1.0.4: acciones secundarias del pie (p. ej. «Atrás» y «Omitir» de un asistente). Se centran con la confirmación
+     * y respetan el orden declarado; si no caben en una fila, pasan a la siguiente. Antes cada pantalla las ponía
      * dentro del contenido —o sueltas en una esquina— y quedaban flotando, desalineadas de la confirmación.
      * Va antes de [content] para no romper la lambda final de las llamadas.
      */
-    secundarias: (@Composable RowScope.() -> Unit)? = null,
+    secundarias: (@Composable () -> Unit)? = null,
     content: (@Composable () -> Unit)? = null,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -167,12 +169,18 @@ fun ShalevDialog(
         title = title,
         modifier = modifier,
         footer = { _ ->
-            // 1.0.4: una sola fila centrada: secundarias (Atrás, Omitir…) y luego la confirmación (Von Restorff).
-            secundarias?.invoke(this)
+            // 1.0.4/1.0.5: secundarias (Atrás, Omitir…) antes de la confirmación, en un pie centrado que se envuelve.
+            secundarias?.invoke()
             if (onConfirm != null) {
                 if (confirmLoading) {
-                    Box(Modifier.size(ShalevSize.touchTarget), contentAlignment = Alignment.Center) {
+                    Row(
+                        modifier = (if (confirmTag != null) Modifier.testTag(confirmTag) else Modifier)
+                            .heightIn(min = ShalevSize.touchTarget),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+                    ) {
                         CircularProgressIndicator(Modifier.size(ShalevSize.icon).semantics { contentDescription = confirmDescription })
+                        Text(confirmDescription, style = MaterialTheme.typography.labelLarge)
                     }
                 } else {
                     ShalevIconAction(
@@ -198,7 +206,8 @@ fun ShalevDialog(
 
 /**
  * Ventana emergente centrada para formularios rápidos, filtros, exportar, etc. (antes, hoja inferior).
- * Cabecera con el título centrado (0.27.0: sin logo), contenido desplazable y [footer] FIJO con las acciones, centradas.
+ * Cabecera con el título centrado (0.27.0: sin logo), contenido desplazable y [footer] FIJO con acciones centradas,
+ * que se envuelven en varias filas cuando el ancho no alcanza.
  *
  * P18 (A03): con [sinGuardar] = true, cerrar SIN querer (tocar fuera o el botón atrás) no descarta lo escrito:
  * pregunta «¿Salir sin guardar?». El botón Cancelar del pie es una decisión explícita y cierra directamente.
@@ -210,7 +219,7 @@ fun ShalevDialog(
 fun ShalevBottomSheet(
     onDismiss: () -> Unit,
     title: String? = null,
-    footer: (@Composable RowScope.() -> Unit)? = null,
+    footer: (@Composable () -> Unit)? = null,
     sinGuardar: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -230,7 +239,7 @@ fun ShalevBottomSheet(
     ShalevVentana(
         onDismiss = { if (sinGuardar) preguntar = true else onDismiss() },
         title = title,
-        footer = if (footer == null) null else { _ -> footer(this) },
+        footer = if (footer == null) null else { _ -> footer() },
         animarCierre = !sinGuardar,
         content = content,
     )
@@ -245,13 +254,13 @@ fun ShalevBottomSheet(
  * [animarCierre] = false (p. ej. una hoja con cambios sin guardar, que antes pregunta) la petición de cierre llega
  * directa. Si quien la usa ignora el cierre, la ventana vuelve a subir.
  */
-@OptIn(ExperimentalAnimationApi::class)
+@OptIn(ExperimentalAnimationApi::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ShalevVentana(
     onDismiss: () -> Unit,
     title: String?,
     modifier: Modifier = Modifier,
-    footer: (@Composable RowScope.(cerrar: () -> Unit) -> Unit)?,
+    footer: (@Composable (cerrar: () -> Unit) -> Unit)?,
     divisor: Boolean = true,
     animarCierre: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
@@ -325,7 +334,11 @@ private fun ShalevVentana(
                             }
                             footer?.let { pie ->
                                 if (divisor) HorizontalDivider(color = cs.outlineVariant)
-                                ShalevButtonRow(Modifier.padding(horizontal = ShalevSpacing.lg, vertical = ShalevSpacing.md)) { pie(this, cerrar) }
+                                FlowRow(
+                                    modifier = Modifier.padding(horizontal = ShalevSpacing.lg, vertical = ShalevSpacing.md).fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally),
+                                    verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+                                ) { pie(cerrar) }
                             } ?: Spacer(Modifier.height(ShalevSpacing.lg))
                         }
                     }
@@ -361,12 +374,14 @@ fun ShalevFab(
     modifier: Modifier = Modifier,
     /** Etiqueta visible corta cuando [soloIcono] es false; si es null se usa [contentDescription]. */
     etiqueta: String? = null,
-    /** Presenta un FAB compacto de 48dp con el icono, manteniendo [contentDescription] para TalkBack. */
+    /** Presenta un FAB compacto de 48dp con el icono fuera de ventanas; dentro de una ventana se muestra texto. */
     soloIcono: Boolean = true,
 ) {
     val accion = rememberAccionUnica(onClick)
     val cs = MaterialTheme.colorScheme
-    val forma = if (soloIcono) modifier.size(ShalevSize.touchTarget) else modifier
+    val enVentana = LocalShalevVentana.current
+    val iconoSolo = soloIcono && !enVentana
+    val forma = if (iconoSolo) modifier.size(ShalevSize.touchTarget) else modifier
     Surface(
         onClick = accion,
         modifier = forma.semantics { this.contentDescription = contentDescription },
@@ -375,9 +390,16 @@ fun ShalevFab(
         contentColor = cs.onPrimary,
         shadowElevation = ShalevElevation.mid,
     ) {
-        if (soloIcono) {
+        if (iconoSolo) {
             Box(Modifier.size(ShalevSize.touchTarget), contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
+            }
+        } else if (enVentana) {
+            Box(
+                Modifier.heightIn(min = ShalevSize.touchTarget).padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(etiqueta ?: contentDescription, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2)
             }
         } else {
             Row(

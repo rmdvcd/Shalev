@@ -26,7 +26,7 @@ class RegistrosLogicTest {
     @Test fun filasDeLasTresTablas() {
         val v = venta(12, 725, minutos = 5, unidades = 2, metodo = MetodoPago.TRANSFERENCIA)
         assertEquals("30/09/2026 12:05", tituloFila(v, habana)) // por fecha, nunca «Venta Nº 12»
-        assertEquals("1,450 CUP", valorFila(v))
+        assertEquals("1\u202F450 CUP", valorFila(v))
 
         val t = transferencia(3, 50)
         assertEquals("30/09/2026 12:03", tituloFila(t, habana))
@@ -88,6 +88,10 @@ class RegistrosLogicTest {
         val f = FiltroRegistrosLogic.desde(FiltroRegistros(importeMin = Cup(145050), importeMax = Cup.ofPesos(2000)))
         assertEquals("1450.5", f.importeMin)
         assertEquals("2000", f.importeMax)
+        val grande = FiltroRegistrosLogic.desde(FiltroRegistros(importeMin = Cup(123_456_789)))
+        assertEquals("1234567.89", grande.importeMin)
+        val grandeAplicado = FiltroRegistrosLogic.aplicar(grande, FiltroRegistros(), TipoRegistro.VENTAS).first
+        assertEquals(Cup(123_456_789), grandeAplicado?.importeMin)
         assertEquals("", FiltroRegistrosLogic.desde(FiltroRegistros()).importeMin)
     }
 

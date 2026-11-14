@@ -11,6 +11,7 @@ import cu.shalev.domain.model.ServicioDisponible
 import cu.shalev.domain.model.IdArticulo
 import cu.shalev.domain.model.ClaseArticulo
 import cu.shalev.app.inventario.textoAlcance
+import cu.shalev.core.format.NumberPresentation
 import cu.shalev.core.money.Cup
 import cu.shalev.core.money.Money
 import cu.shalev.core.money.sumOfCup
@@ -359,7 +360,7 @@ object TextosVenta {
     /** 0.27.0 (N2). */
     const val CLIENTE_FIJO = "Cliente fijo"
     const val CLIENTE_FIJO_AYUDA = "Guarda sus datos para rellenarlos solos la próxima vez."
-    fun sugerencia(c: cu.shalev.domain.model.ClienteFijo): String = "Carné ${c.ci}\nTel. ${c.telefono}"
+    fun sugerencia(c: cu.shalev.domain.model.ClienteFijo): String = "Carné ${c.ci}\nTel. ${NumberPresentation.phone(c.telefono)}"
     const val QR_AYUDA = "El QR oficial no incluye el importe. El cliente debe escribir el que aparece debajo."
     const val PAGO_RECIBIDO = "Ya pagó: pedir datos"
     const val PEGAR_SMS = "Pegar SMS"
@@ -382,14 +383,14 @@ object TextosVenta {
     fun titulo(servicios: Boolean) = if (servicios) TITULO_SERVICIOS else TITULO_VENTA
     fun metodo(m: MetodoPago) = if (m == MetodoPago.EFECTIVO) "Efectivo" else "Transferencia"
     /** P26: un Elaborado muestra siempre cuánto alcanza con sus insumos; un artículo, sus existencias. */
-    fun disponibles(l: LineaCarrito) = if (l.esElaborado || l.esServicio) textoAlcance(l.maximo) else "Hay ${l.producto.cantidad}"
+    fun disponibles(l: LineaCarrito) = if (l.esElaborado || l.esServicio) textoAlcance(l.maximo) else "Hay ${NumberPresentation.groupedInteger(l.producto.cantidad)}"
     /** Un servicio sin insumos no tiene tope: no se avisa nada. */
     fun avisarExistencias(l: LineaCarrito) = when {
         l.esServicio -> l.alcanza != null
         else -> l.esElaborado || l.cantidad >= l.maximo
     }
     fun unidad(l: LineaCarrito) = "${Money.format(l.producto.precioVenta)} c/u"
-    fun linea(cantidad: Long, precio: Cup) = "$cantidad × ${Money.format(precio)}"
+    fun linea(cantidad: Long, precio: Cup) = "${NumberPresentation.groupedInteger(cantidad)} × ${Money.format(precio)}"
     /** Etiqueta del total (P28: uno solo por paso, centrado arriba). */
     fun etiquetaTotal(paso: PasoVenta, estimado: Boolean) = when {
         paso == PasoVenta.QR -> IMPORTE
@@ -434,7 +435,7 @@ object TextosVenta {
         else -> when (c) {
             CampoCliente.NOMBRE -> "Usa solo letras y espacios."
             CampoCliente.CI -> "El carné tiene 11 dígitos y empieza por la fecha de nacimiento."
-            CampoCliente.TELEFONO -> "Teléfono no válido. Ej.: 51234567."
+            CampoCliente.TELEFONO -> "Teléfono no válido. Ej.: 5123\u202F4567."
             CampoCliente.NUMERO -> "Solo letras y números (6 a 30). Ej.: BR601ADLM8997."
         }
     }

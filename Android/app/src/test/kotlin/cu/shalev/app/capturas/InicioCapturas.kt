@@ -75,7 +75,7 @@ class InicioCapturas {
     private val completo = InicioUiState(
         banner = "Periodo de prueba restante: 5 días", bannerTono = BannerTone.Info,
         alertas = listOf(AlertaUi(TipoAlerta.STOCK_CRITICO, 2), AlertaUi(TipoAlerta.STOCK_BAJO, 5), AlertaUi(TipoAlerta.PROXIMO_A_CADUCAR, 1)),
-        pago = PagoResumen("5234 5678", "•••• 1234"), preajustesActivos = 1, preajustesTotal = 2,
+        pago = PagoResumen("5234\u202F5678", "•••• 1234"), preajustesActivos = 1, preajustesTotal = 2,
         turno = abierto, graficos = EstadoCarga.Exito(graficos), resumen = EstadoCarga.Exito(resumen),
     )
 
@@ -109,7 +109,7 @@ class InicioCapturas {
         completo.copy(banner = "Licencia mensual: 1 día restante", bannerTono = BannerTone.Critico),
     )
     @Test fun snackbarTurno() = rule.capturar("01g_inicio_snackbar_turno") {
-        InicioContent(completo.copy(turno = null), acciones, snackbar = snackbarCon("Turno cerrado: 23 ventas, 18,450 CUP."), zona = Captura.ZONA, acordeonesAbiertos = true)
+        InicioContent(completo.copy(turno = null), acciones, snackbar = snackbarCon("Turno cerrado: 23 ventas, 18\u202F450 CUP."), zona = Captura.ZONA, acordeonesAbiertos = true)
     }
     @Test fun dialogoNuevaVenta() = inicio("01e_inicio_dialogo_nueva_venta", completo.copy(dialogo = DialogoInicio.NuevaVenta))
     @Test fun dialogoCerrarTurno() = inicio("01f_inicio_dialogo_cerrar_turno", completo.copy(dialogo = DialogoInicio.CerrarTurno))

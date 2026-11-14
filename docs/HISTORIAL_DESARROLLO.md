@@ -17,6 +17,19 @@
 - **Cierre automatizado:** CI `43349968643`, código `44cf495`: 991 JVM y 205 instrumentados (100 data + 105 app), sin fallos ni omisiones; permisos, API mínima, lint y R8/debug aprobados. Lint tiene 0 errores y 102 avisos; el release de CI no está firmado. El cierre documental no modifica ese código verificado.
 - **Verificación:** ver [VERIFICACION.md](VERIFICACION.md) y [AUDITORIA_SHALEV_2026-11.md](AUDITORIA_SHALEV_2026-11.md). El CI distingue compilar `androidTest` de ejecutarlo; la tubería del emulador propaga el fallo y publica XML reales. Instalación firmada, revisión visual y dos teléfonos siguen siendo validaciones distintas.
 
+## Etiquetas de ventanas y ejes de los gráficos de Inicio (2026-11-13)
+
+- Las acciones de `ShalevDialog` y `ShalevBottomSheet` muestran el texto de cada acción en vez del icono; se aplica también al calendario y al diálogo a pantalla completa de corrección de venta. Campos de texto y barras superiores rotulan sus acciones dentro de una ventana. Durante una carga se conserva la etiqueta junto al progreso.
+- Los pies usan un `FlowRow` centrado para que las etiquetas pasen a otra fila en pantallas estrechas sin perder el orden. Se ampliaron las regresiones de `AuditoriaUiTest` para botones comunes y FAB, el progreso de carga, Limpiar, Aceptar del calendario, orden adaptativo y visibilidad de ejes X/Y con unidad.
+- Ventas y Ganancia bruta dibujan ejes X/Y, escala CUP y etiquetas temporales en ambos gráficos. La serie mantiene la granularidad del período seleccionado y llega hasta el cubo actual, omitiendo los cubos futuros; se cubren los cuatro presets con reloj fijo y una venta futura excluida.
+- Verificación Android sigue pendiente en este entorno: `./gradlew :app:testDebugUnitTest :domain:test :designsystem:test` se detuvo antes de compilar porque no hay JDK (`JAVA_HOME` no configurado y `java` ausente en `PATH`); tampoco está disponible el Android SDK. Las pruebas nuevas no tienen resultado de ejecución todavía.
+
+## Navegación y altas guiadas (2026-11-13)
+
+- Ajustes sustituye Herramientas como quinta sección principal y participa en el gesto de deslizamiento. Inicio abre la Calculadora de cambio desde la cabecera; Inventario y Servicios ofrecen accesos contextuales a Fichas de costo y Gestión de inventario según permisos.
+- Producto, insumo y servicio se organizan en asistentes de tres pasos con un helper compartido. En una alta física nueva, «Guardar y registrar compra inicial» guarda primero el artículo con existencia cero y abre una recepción prellenada; el saldo solo cambia al confirmar proveedor, comprobante, motivo, lote y cantidad.
+- Se amplió la cobertura de lógica y UI para los pasos y la recepción inicial; compilación, pruebas instrumentadas y capturas siguen pendientes hasta completar la verificación de esta rama.
+
 ## Limpieza documental y de artefactos (2026-11-13)
 
 - Se actualizaron las referencias activas al esquema Room v18, la persistencia del periodo de prueba al reinstalar, los límites de apps secundarias y el estado de verificación. Las decisiones P17 frente a `Shalev.txt` se conservaron aquí, con su contexto histórico de 0.14.0.

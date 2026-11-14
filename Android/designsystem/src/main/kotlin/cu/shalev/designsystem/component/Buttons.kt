@@ -87,21 +87,18 @@ private fun Modifier.feedbackPulsacion(interactionSource: MutableInteractionSour
 fun letraGrande(): Boolean = LocalDensity.current.fontScale >= ShalevFontScale.GRANDE
 
 /**
- * En ventanas emergentes y cuadros de diálogo los botones son siempre solo icono (1.0.3):
- * no se conservan etiquetas escritas. La etiqueta textual se usa como `contentDescription` para TalkBack.
+ * Marca el contenido de un diálogo o ventana emergente: sus acciones comunes muestran siempre una etiqueta escrita,
+ * además del icono en los contextos compactos fuera de estas ventanas.
  */
 val LocalShalevVentana = compositionLocalOf { false }
-
-private fun String.textoConservadoEnVentana(): String? = null
 
 @Composable
 private fun Modifier.formaBoton(mostrarTexto: Boolean): Modifier =
     if (mostrarTexto) alturaBoton(soloIcono = false) else size(ShalevSize.touchTarget)
 
 /**
- * Botón principal con icono visible y etiqueta accesible. [mostrarTexto] permite conservar una etiqueta cuando hace
- * falta (fuera de diálogos/ventanas); dentro de diálogos/ventanas todos los botones son solo icono (1.0.3).
- * Una doble pulsación seguida solo ejecuta la acción una vez (ver [GuardiaDobleToque]).
+ * Botón principal compacto con icono y etiqueta accesible. [mostrarTexto] muestra la etiqueta también fuera de
+ * ventanas; dentro de diálogos y ventanas emergentes la etiqueta siempre es visible. Protegido contra doble pulsación.
  */
 @Composable
 fun ShalevPrimaryButton(
@@ -115,7 +112,7 @@ fun ShalevPrimaryButton(
 ) {
     val accion = rememberAccionUnica(onClick)
     val interactionSource = remember { MutableInteractionSource() }
-    val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
+    val textoVentana = if (LocalShalevVentana.current) text else null
     val dibujarTexto = mostrarTexto || textoVentana != null
     Button(
         onClick = accion,
@@ -129,7 +126,7 @@ fun ShalevPrimaryButton(
     }
 }
 
-/** Acción secundaria con icono visible (o etiqueta si se solicita en un diálogo). Protegida contra la doble pulsación. */
+/** Acción secundaria compacta con icono; dentro de diálogos y ventanas emergentes muestra su etiqueta. */
 @Composable
 fun ShalevSecondaryButton(
     text: String,
@@ -142,7 +139,7 @@ fun ShalevSecondaryButton(
 ) {
     val accion = rememberAccionUnica(onClick)
     val interactionSource = remember { MutableInteractionSource() }
-    val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
+    val textoVentana = if (LocalShalevVentana.current) text else null
     val dibujarTexto = mostrarTexto || textoVentana != null
     OutlinedButton(
         onClick = accion,
@@ -157,7 +154,7 @@ fun ShalevSecondaryButton(
     }
 }
 
-/** Acción terciaria con icono visible y etiqueta accesible. Protegida contra la doble pulsación. */
+/** Acción terciaria compacta con icono; dentro de diálogos y ventanas emergentes muestra su etiqueta. */
 @Composable
 fun ShalevTextButton(
     text: String,
@@ -169,7 +166,7 @@ fun ShalevTextButton(
 ) {
     val accion = rememberAccionUnica(onClick)
     val interactionSource = remember { MutableInteractionSource() }
-    val textoVentana = if (LocalShalevVentana.current) text.textoConservadoEnVentana() else null
+    val textoVentana = if (LocalShalevVentana.current) text else null
     val dibujarTexto = mostrarTexto || textoVentana != null
     TextButton(
         onClick = accion,
@@ -218,8 +215,8 @@ private fun EtiquetaBoton(text: String, loading: Boolean) {
 enum class IconActionStyle { Standard, Tonal, Filled }
 
 /**
- * Acción de icono con área táctil mínima de 48dp y una descripción accesible completa.
- * En diálogos y ventanas emergentes conserva las etiquetas Confirmar, Eliminar, Omitir y Cancelar.
+ * Acción compacta con icono y descripción accesible. En diálogos y ventanas emergentes muestra su texto visible
+ * (`etiqueta` cuando se define, o la descripción completa en su defecto).
  */
 @Composable
 fun ShalevIconAction(
@@ -247,9 +244,7 @@ fun ShalevIconAction(
         else -> Color.Transparent to cs.onSurfaceVariant
     }
     val texto = etiqueta ?: contentDescription
-    val textoVentana = if (LocalShalevVentana.current) {
-        contentDescription.textoConservadoEnVentana() ?: etiqueta?.textoConservadoEnVentana()
-    } else null
+    val textoVentana = if (LocalShalevVentana.current) texto else null
     val textoVisible = textoVentana ?: texto
     val dibujarTexto = mostrarTexto || textoVentana != null
     val base = modifier
@@ -296,7 +291,7 @@ private fun EtiquetaAccion(texto: String) {
     Text(
         texto,
         style = MaterialTheme.typography.labelLarge,
-        maxLines = 1,
+        maxLines = 2,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
     )

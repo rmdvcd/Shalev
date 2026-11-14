@@ -4,6 +4,50 @@ import CryptoKit
 import Security
 import CommonCrypto
 
+// Formatos solo de presentación: los modelos, formularios y exportaciones mantienen los números originales.
+enum NumberPresentation {
+    static let narrowNoBreakSpace = "\u{202F}"
+
+    /// Agrupa un entero solo para lectura; el valor original sigue siendo el que se almacena o edita.
+    static func groupedInteger<T: BinaryInteger>(_ value: T) -> String {
+        let raw = String(value)
+        let negative = raw.hasPrefix("-")
+        let digits = Array(raw.dropFirst(negative ? 1 : 0))
+        let groups = stride(from: 0, to: digits.count, by: 3).map { offset -> String in
+            let end = digits.count - offset
+            let start = max(0, end - 3)
+            return String(digits[start..<end])
+        }
+        return (negative ? "-" : "") + groups.reversed().joined(separator: narrowNoBreakSpace)
+    }
+
+    /// Teléfonos habituales en grupos «XX XXXX XXXX»; los locales de ocho cifras se muestran con «+53».
+    static func phone(_ value: String) -> String {
+        let digits = String(value.filter(\.isNumber))
+        let prefix = value.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("+") ? "+" : ""
+        switch digits.count {
+        case 10:
+            let groups = [String(digits.prefix(2)), String(digits.dropFirst(2).prefix(4)), String(digits.suffix(4))]
+            return prefix + groups.joined(separator: narrowNoBreakSpace)
+        case 8:
+            guard prefix.isEmpty else { return value }
+            return "+53\(narrowNoBreakSpace)\(digits.prefix(4))\(narrowNoBreakSpace)\(digits.suffix(4))"
+        default:
+            return value
+        }
+    }
+
+    /// Agrupa en bloques de cuatro sin revelar nunca una tarjeta ya enmascarada.
+    static func card(_ value: String) -> String {
+        guard !value.contains("•") else { return value }
+        let digits = Array(value.filter(\.isNumber))
+        guard !digits.isEmpty else { return value }
+        return stride(from: 0, to: digits.count, by: 4)
+            .map { String(digits[$0..<min($0 + 4, digits.count)]) }
+            .joined(separator: "-")
+    }
+}
+
 // El prefijo se aplica al exportar, nunca a los datos originales.
 // Cubre también fórmulas precedidas de espacios y celdas que comienzan con controles.
 enum CSVSpreadsheetSafety {
@@ -26,11 +70,16 @@ struct Cup: Codable, Hashable, Comparable, Sendable {
     static let zero = Cup(cents: 0)
     static func < (lhs: Cup, rhs: Cup) -> Bool { lhs.cents < rhs.cents }
 
-    var formatted: String {
+    var formatted: String { formatAmount(groupingSeparator: NumberPresentation.narrowNoBreakSpace) }
+
+    /// Mantiene el separador histórico en informes externos; la interfaz usa [formatted].
+    var formattedForExport: String { formatAmount(groupingSeparator: ",") }
+
+    private func formatAmount(groupingSeparator: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.groupingSeparator = ","
+        formatter.groupingSeparator = groupingSeparator
         formatter.decimalSeparator = "."
         formatter.minimumFractionDigits = 0
         formatter.maximumFractionDigits = 0
@@ -106,12 +155,30 @@ enum FixedNumber {
         return groups.dropFirst().allSatisfy { $0.count == 3 && $0.allSatisfy(\.isNumber) }
     }
 
+    /// Presentación visual de cantidades con espacio estrecho de miles.
     static func formatMilli(_ value: Int64, unit: String = "") -> String {
+        formattedMilli(value, unit: unit, groupingSeparator: NumberPresentation.narrowNoBreakSpace)
+    }
+
+    /// Mantiene el separador histórico en archivos y textos persistidos.
+    static func formatMilliForExport(_ value: Int64, unit: String = "") -> String {
+        formattedMilli(value, unit: unit, groupingSeparator: ",")
+    }
+
+    /// Texto sin agrupación para campos editables; las fracciones usan punto y hasta tres decimales.
+    static func formatMilliForEditing(_ value: Int64) -> String {
+        formattedMilli(value, unit: "", groupingSeparator: nil)
+    }
+
+    private static func formattedMilli(_ value: Int64, unit: String, groupingSeparator: String?) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.locale = Locale(identifier: "es_US")
         formatter.minimumFractionDigits = 0
         formatter.maximumFractionDigits = 3
+        formatter.decimalSeparator = "."
+        formatter.usesGroupingSeparator = groupingSeparator != nil
+        if let groupingSeparator { formatter.groupingSeparator = groupingSeparator }
         let amount = Decimal(value) / Decimal(1_000)
         let number = formatter.string(from: NSDecimalNumber(decimal: amount)) ?? "0"
         return unit.isEmpty ? number : "\(number) \(unit)"
@@ -233,7 +300,7 @@ struct Product: Codable, Identifiable, Equatable {
     var displayStock: String {
         if kind == .prepared { return "Elaborado" }
         if kind == .ingredient { return FixedNumber.formatMilli(stockMilli, unit: unit) }
-        return "\(stockMilli / 1_000) \(unit)"
+        return "\(NumberPresentation.groupedInteger(stockMilli / 1_000)) \(unit)"
     }
 }
 
@@ -1473,7 +1540,7 @@ final class ShalevStore: ObservableObject {
             }
             next.products[index].stockMilli = adjusted.partialValue
             next.products[index].updatedAt = now
-            let note = "Conciliación de cierre · Esperado \(FixedNumber.formatMilli(line.expectedMilli)) · Contado \(FixedNumber.formatMilli(line.countedMilli)) · \(count.reason.trimmingCharacters(in: .whitespacesAndNewlines))"
+            let note = "Conciliación de cierre · Esperado \(FixedNumber.formatMilliForExport(line.expectedMilli)) · Contado \(FixedNumber.formatMilliForExport(line.countedMilli)) · \(count.reason.trimmingCharacters(in: .whitespacesAndNewlines))"
             next.inventoryMovements.insert(InventoryMovement(productID: line.productID, productName: line.productName,
                 deltaMilli: line.differenceMilli, reason: note, shiftID: current.id,
                 resultingStockMilli: adjusted.partialValue, actorName: actorName, localName: current.localName), at: 0)

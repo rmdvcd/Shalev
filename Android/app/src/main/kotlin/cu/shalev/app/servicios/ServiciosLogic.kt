@@ -50,6 +50,8 @@ object TextosServicios {
 }
 
 object ServiciosTags {
+    const val FICHAS_COSTO = "serv_fichas_costo"
+    const val GESTION_INVENTARIO = "serv_gestion_inventario"
     const val LISTA = "serv_lista"
     const val BUSCAR = "serv_buscar"
     const val FILTRO = "serv_filtro"

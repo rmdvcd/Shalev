@@ -71,6 +71,7 @@ class VentaLogicTest {
         assertEquals("Alcanza para 3", TextosVenta.disponibles(l[0]))
         assertEquals(5L, l[1].maximo)
         assertEquals("Hay 5", TextosVenta.disponibles(l[1]))
+        assertEquals("Hay 1\u202F234", TextosVenta.disponibles(LineaCarrito(prod(2, cantidad = 1_234), cantidad = 1)))
         val sinDato = Carrito.lineas(linkedMapOf(9L to 1L), mapOf(9L to pan)).single()
         assertEquals(0L, sinDato.maximo)
         assertEquals("Sin insumos suficientes", TextosVenta.disponibles(sinDato))
@@ -90,7 +91,7 @@ class VentaLogicTest {
             nombreApellidos = "Ana Díaz", ci = "85010112345", telefono = "5123 4567",
             creadoEn = T0, actualizadoEn = T0,
         )
-        assertEquals("Carné 85010112345\nTel. 5123 4567", TextosVenta.sugerencia(cliente))
+        assertEquals("Carné 85010112345\nTel. +53\u202F5123\u202F4567", TextosVenta.sugerencia(cliente))
     }
 
     @Test fun formularioVacioTieneCuatroErroresQueSoloSeVenTrasIntentar() {
@@ -116,6 +117,7 @@ class VentaLogicTest {
     @Test fun mensajesDeErrorSinJerga() {
         assertEquals("No alcanza: Pan, Sal. Ajusta las cantidades.", TextosVenta.mensaje(AppError.StockInsuficiente(listOf("Pan", "Sal"))))
         assertEquals("El turno está cerrado: ábrelo para vender.", TextosVenta.mensaje(AppError.TurnoCerrado))
+        assertEquals("Teléfono no válido. Ej.: 5123\u202F4567.", TextosVenta.error(CampoCliente.TELEFONO, AppError.Regla.FORMATO))
         assertEquals(TextosVenta.ERROR, TextosVenta.mensaje(AppError.Desconocido(IllegalStateException("interno"))))
     }
 

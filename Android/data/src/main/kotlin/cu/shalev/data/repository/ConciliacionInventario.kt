@@ -91,4 +91,4 @@ internal suspend fun ShalevDatabase.aplicarConteo(turnoId: Long, usuario: String
 }
 
 private fun cantidadConteo(n: Long, l: LineaConteo): String =
-    (if (l.entidad == TipoEntidad.INSUMO) cu.shalev.core.quantity.Cantidad.format(cu.shalev.core.quantity.Cantidad(n)) else n.toString()) + " ${l.unidad}"
+    (if (l.entidad == TipoEntidad.INSUMO) cu.shalev.core.quantity.Cantidad.formatExport(cu.shalev.core.quantity.Cantidad(n)) else n.toString()) + " ${l.unidad}"

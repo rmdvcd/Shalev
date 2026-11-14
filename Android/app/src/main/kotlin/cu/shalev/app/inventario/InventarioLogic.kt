@@ -8,6 +8,7 @@ import cu.shalev.domain.model.FiltroInventario
 import cu.shalev.domain.model.ItemInventario
 import cu.shalev.core.money.Cup
 import cu.shalev.core.quantity.Cantidad
+import cu.shalev.core.format.NumberPresentation
 import cu.shalev.domain.model.NivelStock
 import cu.shalev.domain.model.Producto
 import cu.shalev.domain.model.TipoAlerta
@@ -48,6 +49,8 @@ object TextosInventario {
 }
 
 object InventarioTags {
+    const val FICHAS_COSTO = "inventario_fichas_costo"
+    const val GESTION_INVENTARIO = "inventario_gestion"
     const val CONTINUAR_VENTA = "inventario_continuar_venta"
     const val LISTA = "inventario_lista"
     const val BUSCAR = "inventario_buscar"
@@ -135,7 +138,7 @@ fun subtituloFila(i: ItemInventario): String? = buildList {
 
 /** Dato principal de la fila: existencias; en un Elaborado (P26), cuánto alcanza con sus insumos. */
 fun valorFila(i: ItemInventario): String =
-    i.insumo?.let { "${Cantidad.format(it.cantidad)} ${it.unidad.simbolo}" } ?: i.alcanza?.let(::textoAlcance) ?: "${i.producto.cantidad} u"
+    i.insumo?.let { "${Cantidad.format(it.cantidad)} ${it.unidad.simbolo}" } ?: i.alcanza?.let(::textoAlcance) ?: "${NumberPresentation.groupedInteger(i.producto.cantidad)} u"
 
 /**
  * 0.31.0 (P2): precio de costo de la fila. Un insumo guarda su coste en [Producto.precioCosto] al verse como fila.
@@ -155,7 +158,7 @@ fun categoriaFila(i: ItemInventario): String = i.producto.categoria
  * P26: un Elaborado no tiene existencias; se vende mientras alcancen sus insumos (el más escaso manda).
  * P29: igual para un servicio que consume insumos. Mismo texto en Inventario, Servicios y el carrito de la venta.
  */
-fun textoAlcance(alcanza: Long): String = if (alcanza > 0) "Alcanza para $alcanza" else SIN_INSUMOS
+fun textoAlcance(alcanza: Long): String = if (alcanza > 0) "Alcanza para ${NumberPresentation.groupedInteger(alcanza)}" else SIN_INSUMOS
 
 const val SIN_INSUMOS = "Sin insumos suficientes"
 

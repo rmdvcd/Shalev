@@ -273,7 +273,7 @@ private fun EdicionSheet(e: EdicionPago, guardando: Boolean, acciones: AccionesL
             value = e.numero,
             onValueChange = { v -> acciones.onCambiarEdicion { it.copy(numero = v) } },
             label = if (telefono) "Número de teléfono" else "Número de tarjeta o cuenta",
-            placeholder = if (telefono) "5123 4567" else "9205 1299 0000 0000",
+            placeholder = if (telefono) "5123\u202F4567" else "9205-1299-0000-0000",
             leadingIcon = if (telefono) ShalevIcons.Telefono else ShalevIcons.PagoElectronico,
             isError = e.error != null, validarAlSalir = true, forzarError = e.mostrarErrores,
             errorText = e.error,

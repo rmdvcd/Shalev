@@ -97,9 +97,12 @@ class OnboardingLogicTest {
     }
 
     @Test fun formDesdeNivelesGuardadosSinSeparadorDeMiles() {
-        val f = NivelesForm.desde(NivelesMinimos(insumoBajo = Cantidad.enteras(1500)))
-        assertEquals("1500", f.insumoBajo)
-        assertEquals(Cantidad.enteras(1500), f.aNiveles()!!.insumoBajo)
+        val f = NivelesForm.desde(NivelesMinimos(
+            insumoBajo = Cantidad(1_234_500), insumoCritico = Cantidad(1_000_000),
+        ))
+        assertEquals("1234.5", f.insumoBajo)
+        assertEquals("1000", f.insumoCritico)
+        assertEquals(Cantidad(1_234_500), f.aNiveles()!!.insumoBajo)
     }
 
     // ---------- Estado de pantalla ----------

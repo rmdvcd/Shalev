@@ -9,12 +9,16 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class MoneyTest {
-    @Test fun `formato oficial de Shalev`() {
-        assertEquals("1,450 CUP", Money.format(Cup.ofPesos(1450)))
+    @Test fun `formato de pantalla agrupa con espacio estrecho`() {
+        assertEquals("1\u202F450 CUP", Money.format(Cup.ofPesos(1450)))
         assertEquals("0.05 CUP", Money.format(Cup(5)))
-        assertEquals("1,234,567.89 CUP", Money.format(Cup(123_456_789)))
+        assertEquals("1\u202F234\u202F567.89 CUP", Money.format(Cup(123_456_789)))
         assertEquals("-12.5 CUP", Money.format(Cup(-1250)))
-        assertEquals("90,000 CUP", Money.cup(90_000))
+        assertEquals("90\u202F000 CUP", Money.cup(90_000))
+    }
+
+    @Test fun `exportaciones conservan su separador anterior`() {
+        assertEquals("1,234,567.89 CUP", Money.formatExport(Cup(123_456_789)))
     }
 
     @Test fun `parse acepta lo que teclea el usuario`() {
@@ -43,7 +47,7 @@ class MoneyTest {
     @Test fun formatoYEdicionConservanCadaCentavoYElSigno() {
         listOf(0L, 1L, -1L, 2550L, -2550L, Long.MAX_VALUE, Long.MIN_VALUE).forEach { centavos ->
             val importe = Cup(centavos)
-            assertEquals(importe, Money.parse(Money.format(importe)))
+            assertEquals(importe, Money.parse(Money.formatExport(importe)))
             assertEquals(importe, Money.parse(Money.editar(importe)))
         }
     }
@@ -63,6 +67,10 @@ class MoneyTest {
         assertNull(Cantidad.parse("-1"))
         assertNull(Cantidad.parse("1.2345"))
         assertEquals("1.25", Cantidad.format(Cantidad(1250)))
-        assertEquals("1,000", Cantidad.format(Cantidad.enteras(1000)))
+        assertEquals("1\u202F000", Cantidad.format(Cantidad.enteras(1000)))
+        assertEquals("1\u202F234.5", Cantidad.format(Cantidad(1_234_500)))
+        assertEquals("1,234.5", Cantidad.formatExport(Cantidad(1_234_500)))
+        assertEquals("1234.5", Cantidad.editable(Cantidad(1_234_500)))
+        assertEquals(Cantidad(1_234_500), Cantidad.parse(Cantidad.editable(Cantidad(1_234_500))))
     }
 }

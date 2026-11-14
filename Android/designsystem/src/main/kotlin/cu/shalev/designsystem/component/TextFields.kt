@@ -136,8 +136,14 @@ fun ShalevTextField(
         leadingIcon = leadingIcon?.let { { Icon(it, contentDescription = null) } },
         trailingIcon = if (showClear) {
             {
-                IconButton(onClick = { cambiar("") }) {
-                    Icon(ShalevIcons.Limpiar, contentDescription = "Limpiar ${label ?: "campo"}", modifier = Modifier.size(ShalevSize.iconSmall))
+                if (LocalShalevVentana.current) {
+                    ShalevIconAction(
+                        ShalevIcons.Limpiar, "Limpiar ${label ?: "campo"}", etiqueta = "Limpiar", onClick = { cambiar("") },
+                    )
+                } else {
+                    IconButton(onClick = { cambiar("") }) {
+                        Icon(ShalevIcons.Limpiar, contentDescription = "Limpiar ${label ?: "campo"}", modifier = Modifier.size(ShalevSize.iconSmall))
+                    }
                 }
             }
         } else null,

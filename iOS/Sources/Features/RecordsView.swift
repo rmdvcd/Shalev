@@ -164,7 +164,7 @@ struct RecordsView: View {
     private func customerSummary(_ customer: Customer) -> String {
         let purchases = store.purchases(for: customer)
         let total = purchases.reduce(Int64(0)) { $0 + $1.totalCents }
-        return "\(purchases.count) compra\(purchases.count == 1 ? "" : "s") · \(Cup(cents: total).formatted)"
+        return "\(NumberPresentation.groupedInteger(purchases.count)) compra\(purchases.count == 1 ? "" : "s") · \(Cup(cents: total).formatted)"
     }
 
     private var shifts: [Shift] {
@@ -354,7 +354,7 @@ struct RecordsView: View {
             let headers = ["Fecha", "Tipo", "Detalle", "Variación", "Importe CUP"]
             let inventoryRows: [[String]] = canViewInventory ? store.activeInventoryMovements.filter {
                 search.isEmpty || $0.productName.localizedCaseInsensitiveContains(search) || $0.reason.localizedCaseInsensitiveContains(search)
-            }.map { [ $0.date.shalevDateTime, "Inventario", "\($0.productName) · \($0.reason)", FixedNumber.formatMilli($0.deltaMilli), "" ] } : []
+            }.map { [ $0.date.shalevDateTime, "Inventario", "\($0.productName) · \($0.reason)", FixedNumber.formatMilliForExport($0.deltaMilli), "" ] } : []
             let cashRows: [[String]] = canManageCash ? store.activeCashMovements.filter {
                 search.isEmpty || $0.reason.localizedCaseInsensitiveContains(search) || $0.kind.rawValue.localizedCaseInsensitiveContains(search)
             }.map { [ $0.date.shalevDateTime, "Caja · \($0.kind.rawValue)", $0.reason, "", Cup(cents: $0.amountCents).inputValue ] } : []
@@ -503,7 +503,7 @@ private struct CustomerRecordRow: View {
             Image(systemName: "person.crop.circle.fill").font(.shalev(23)).foregroundStyle(Color.shalevPrimary)
             VStack(alignment: .leading, spacing: 4) {
                 Text(customer.name).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                Text(maskedID.isEmpty ? customer.phone : "CI · \(maskedID)")
+                Text(maskedID.isEmpty ? NumberPresentation.phone(customer.phone) : "CI · \(maskedID)")
                     .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
                 Text(purchaseSummary).font(.shalev(11, weight: .medium)).foregroundStyle(Color.shalevPrimary)
             }
@@ -672,7 +672,7 @@ private struct SaleDetailView: View {
                                 HStack(alignment: .top) {
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(line.name).font(.shalev(14, weight: .semibold)).foregroundStyle(Color.shalevText)
-                                        Text("\(line.quantity) × \(Cup(cents: line.unitPriceCents).formatted)")
+                                        Text("\(NumberPresentation.groupedInteger(line.quantity)) × \(Cup(cents: line.unitPriceCents).formatted)")
                                             .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                                     }
                                     Spacer()
@@ -693,10 +693,10 @@ private struct SaleDetailView: View {
                             if let customer = sale.customer {
                                 detailRow("Cliente", customer.name)
                                 detailRow("Carné", customer.identification)
-                                detailRow("Teléfono", customer.phone)
+                                detailRow("Teléfono", NumberPresentation.phone(customer.phone))
                             }
-                            if let card = sale.paymentCard { detailRow("Cobrado en la tarjeta", card) }
-                            if let phone = sale.paymentPhone { detailRow("Teléfono de cobro", phone) }
+                            if let card = sale.paymentCard { detailRow("Cobrado en la tarjeta", NumberPresentation.card(card)) }
+                            if let phone = sale.paymentPhone { detailRow("Teléfono de cobro", NumberPresentation.phone(phone)) }
                             if let seller = sale.sellerName, !seller.isEmpty { detailRow("Vendedor", seller) }
                             if let correction = sale.correctionOfSaleID { detailRow("Corrige", "Venta \(correction.uuidString.prefix(8))") }
                             if sale.customerIsFixed { ShalevStatusPill(title: "Cliente fijo", symbol: "person.crop.circle.fill") }
@@ -854,7 +854,7 @@ private struct SaleEditView: View {
                                         ) {
                                             quantityBinding(for: line).wrappedValue = max(0, line.quantity - 1)
                                         }
-                                        Text("\(line.quantity)")
+                                        Text(NumberPresentation.groupedInteger(line.quantity))
                                             .font(.shalev(13, weight: .semibold))
                                             .monospacedDigit()
                                             .frame(minWidth: 28)

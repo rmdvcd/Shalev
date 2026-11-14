@@ -39,6 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.app.common.Contacto
 import cu.shalev.app.common.SecureWindow
+import cu.shalev.core.format.NumberPresentation
 import cu.shalev.core.money.Money
 import cu.shalev.designsystem.component.FiltroEntrada
 import cu.shalev.designsystem.component.AutoColapsarPanelesAlEscribir
@@ -428,7 +429,7 @@ private fun DatosCard(state: LicenciaUiState, acciones: LicenciaAcciones) {
             Column(Modifier.testTag(LicenciaTags.RESUMEN_DATOS), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("${form.nombre} ${form.apellidos}".trim(), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
                 ShalevSecondaryText("CI: ${form.ci}")
-                ShalevSecondaryText("Teléfono: ${form.telefono}")
+                ShalevSecondaryText("Teléfono: ${NumberPresentation.phone(form.telefono)}")
                 ShalevSecondaryText("De tu Perfil y de Pago electrónico.") // P28: los teléfonos ya no están en Perfil
                 ShalevButtonRow { ShalevTextButton(text = "Editar", icon = ShalevIcons.Editar, onClick = acciones.onAbrirEdicion) }
             }
@@ -473,7 +474,7 @@ private fun DatosForm(state: LicenciaUiState, acciones: LicenciaAcciones) {
             ShalevSecondaryText("Tus teléfonos")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs, Alignment.CenterHorizontally)) {
                 state.telefonosPerfil.forEach { n ->
-                    ShalevChip(label = n, selected = form.telefonoSeleccionado(n), onClick = { acciones.onEditar { it.conTelefono(n) } })
+                    ShalevChip(label = NumberPresentation.phone(n), selected = form.telefonoSeleccionado(n), onClick = { acciones.onEditar { it.conTelefono(n) } })
                 }
             }
         }

@@ -1,5 +1,6 @@
 package cu.shalev.app.registros
 
+import cu.shalev.core.format.NumberPresentation
 import cu.shalev.core.money.Money
 import cu.shalev.core.quantity.Cantidad
 import cu.shalev.core.time.Dates
@@ -83,7 +84,7 @@ fun valorTurno(t: Turno): String = t.resumen?.let { Money.format(it.total) } ?: 
 
 fun ventasTexto(n: Int): String = if (n == 1) "1 venta" else "$n ventas"
 
-fun unidadesTexto(n: Long): String = if (n == 1L) "1 unidad" else "$n unidades"
+fun unidadesTexto(n: Long): String = if (n == 1L) "1 unidad" else "${NumberPresentation.groupedInteger(n)} unidades"
 
 fun etiqueta(m: MetodoPago): String = cu.shalev.domain.service.Estadisticas.etiqueta(m)
 
@@ -93,7 +94,7 @@ fun etiqueta(t: TipoMovimiento): String = cu.shalev.domain.service.Estadisticas.
 fun cantidadConSigno(delta: Long, entidad: TipoEntidad, simbolo: String = ""): String {
     val signo = if (delta < 0) "-" else "+"
     return when (entidad) {
-        TipoEntidad.PRODUCTO -> "$signo${abs(delta)}"
+        TipoEntidad.PRODUCTO -> "$signo${NumberPresentation.groupedInteger(abs(delta))}"
         TipoEntidad.INSUMO -> "$signo${Cantidad.format(Cantidad(abs(delta)))}${if (simbolo.isBlank()) "" else " $simbolo"}"
     }
 }
@@ -109,6 +110,6 @@ fun tituloVenta(v: Venta, zona: ZoneId): String = "${hora(v.fecha, zona)} · ${e
 
 /** Subtítulo de una venta: artículos resumidos ("2 × Refresco, 1 × Pan"), recortado si son muchos. */
 fun subtituloVenta(v: Venta, max: Int = 3): String {
-    val partes = v.detalles.map { "${it.cantidad} × ${it.nombre}" }
+    val partes = v.detalles.map { "${NumberPresentation.groupedInteger(it.cantidad)} × ${it.nombre}" }
     return if (partes.size <= max) partes.joinToString(", ") else partes.take(max).joinToString(", ") + " y ${partes.size - max} más"
 }

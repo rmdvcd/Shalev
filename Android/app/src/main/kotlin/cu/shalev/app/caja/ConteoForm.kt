@@ -1,5 +1,6 @@
 package cu.shalev.app.caja
 
+import cu.shalev.core.format.NumberPresentation
 import cu.shalev.core.quantity.Cantidad
 import cu.shalev.domain.model.TipoEntidad
 
@@ -11,5 +12,5 @@ object ConteoForm {
             Cantidad.parse(texto.replace(',', '.'))?.milesimas else null
     }
     fun formato(valor: Long, entidad: TipoEntidad): String =
-        if (entidad == TipoEntidad.INSUMO) Cantidad.format(Cantidad(valor)) else valor.toString()
+        if (entidad == TipoEntidad.INSUMO) Cantidad.format(Cantidad(valor)) else NumberPresentation.groupedInteger(valor)
 }

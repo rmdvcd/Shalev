@@ -524,7 +524,7 @@ private struct InventoryRow: View {
                                     .lineLimit(apilar ? nil : 2)
                             }
                             Text(product.kind == .prepared
-                                 ? "Alcanza para \(available ?? 0)"
+                                 ? "Alcanza para \(NumberPresentation.groupedInteger(available ?? 0))"
                                  : "\(product.displayStock) \(product.unit)")
                                 .font(.shalev(12))
                                 .foregroundStyle(Color.shalevSecondaryText)
@@ -599,7 +599,7 @@ private struct ProductDetailSheet: View {
                                         detailRow("Caduca el", expiresAt.shalevDate)
                                     }
                                 } else {
-                                    detailRow("Alcanza para", "\(store.availableQuantity(kind: .product, sourceID: product.id) ?? 0)")
+                                    detailRow("Alcanza para", NumberPresentation.groupedInteger(store.availableQuantity(kind: .product, sourceID: product.id) ?? 0))
                                     if !product.uses.isEmpty {
                                         detailRow("Receta", product.uses.map { use in
                                             let name = store.activeProducts.first { $0.id == use.ingredientID }?.name ?? "Insumo"
@@ -799,7 +799,7 @@ private struct InventoryExportSheet: View {
             headers: ["Artículo", "Tipo", "Categoría", "Existencias", "Unidad", "Costo CUP", "Precio CUP", "Caducidad"],
             rows: products.map { product in
                 [product.name, product.kind.rawValue, product.category,
-                 product.kind == .prepared ? "Elaborado" : FixedNumber.formatMilli(product.stockMilli), product.unit,
+                 product.kind == .prepared ? "Elaborado" : FixedNumber.formatMilliForExport(product.stockMilli), product.unit,
                  Cup(cents: store.estimatedCostCents(for: product)).inputValue,
                  Cup(cents: product.priceCents).inputValue, product.expiresAt?.shalevDate ?? ""]
             })
@@ -886,13 +886,13 @@ private struct ProductEditorView: View {
         _category = State(initialValue: product?.category ?? "Otros")
         _kind = State(initialValue: product?.kind ?? .product)
         _description = State(initialValue: product?.description ?? "")
-        _stock = State(initialValue: product.map { FixedNumber.formatMilli($0.stockMilli) } ?? "0")
+        _stock = State(initialValue: product.map { FixedNumber.formatMilliForEditing($0.stockMilli) } ?? "0")
         _unit = State(initialValue: product?.unit ?? "u")
         let alertDefaults = store.data.settings.effectiveInventoryAlertDefaults
-        _lowStock = State(initialValue: product.map { FixedNumber.formatMilli($0.lowStockMilli) }
-            ?? FixedNumber.formatMilli(alertDefaults.productLowMilli))
-        _criticalStock = State(initialValue: product.map { FixedNumber.formatMilli($0.criticalStockMilli) }
-            ?? FixedNumber.formatMilli(alertDefaults.productCriticalMilli))
+        _lowStock = State(initialValue: product.map { FixedNumber.formatMilliForEditing($0.lowStockMilli) }
+            ?? FixedNumber.formatMilliForEditing(alertDefaults.productLowMilli))
+        _criticalStock = State(initialValue: product.map { FixedNumber.formatMilliForEditing($0.criticalStockMilli) }
+            ?? FixedNumber.formatMilliForEditing(alertDefaults.productCriticalMilli))
         _price = State(initialValue: product.map { Cup(cents: $0.priceCents).inputValue } ?? "")
         _cost = State(initialValue: product.map { Cup(cents: $0.costCents).inputValue } ?? "")
         _hasExpiry = State(initialValue: product?.expiresAt != nil)
@@ -962,9 +962,9 @@ private struct ProductEditorView: View {
                                     else if category == "Insumos" || category == "Elaborado" { category = "Otros" }
                                     if product == nil, newValue != .prepared {
                                         let defaults = store.data.settings.effectiveInventoryAlertDefaults
-                                        lowStock = FixedNumber.formatMilli(newValue == .ingredient
+                                        lowStock = FixedNumber.formatMilliForEditing(newValue == .ingredient
                                             ? defaults.ingredientLowMilli : defaults.productLowMilli)
-                                        criticalStock = FixedNumber.formatMilli(newValue == .ingredient
+                                        criticalStock = FixedNumber.formatMilliForEditing(newValue == .ingredient
                                             ? defaults.ingredientCriticalMilli : defaults.productCriticalMilli)
                                     }
                                 }

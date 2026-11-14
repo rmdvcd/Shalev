@@ -529,7 +529,7 @@ private struct SyncEmployeeEditor: View {
                             Picker("Cobrar en la tarjeta", selection: $cardID) {
                                 Text("La predeterminada").tag(UUID?.none)
                                 ForEach(cards) { card in
-                                    Text("\(card.alias) · \(card.number)").tag(UUID?.some(card.id))
+                                    Text("\(card.alias) · \(NumberPresentation.card(card.number))").tag(UUID?.some(card.id))
                                 }
                             }
                             .pickerStyle(.menu)
@@ -540,7 +540,7 @@ private struct SyncEmployeeEditor: View {
                                 Picker("Teléfono del empleado", selection: $phoneID) {
                                     Text("Lo escribe el empleado").tag(UUID?.none)
                                     ForEach(phones) { phone in
-                                        Text("\(phone.alias) · \(phone.number)").tag(UUID?.some(phone.id))
+                                        Text("\(phone.alias) · \(NumberPresentation.phone(phone.number))").tag(UUID?.some(phone.id))
                                     }
                                 }
                                 .pickerStyle(.menu)

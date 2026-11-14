@@ -26,6 +26,32 @@ final class DomainParityTests: XCTestCase {
         return ShalevStore(storage: MemoryStorage(initial))
     }
 
+    func testNumberPresentationDoesNotChangeStoredValuesOrExports() {
+        XCTAssertEqual(NumberPresentation.groupedInteger(0), "0")
+        XCTAssertEqual(NumberPresentation.groupedInteger(1_234_567), "1\u{202F}234\u{202F}567")
+        XCTAssertEqual(NumberPresentation.groupedInteger(-1_234), "-1\u{202F}234")
+        XCTAssertEqual(NumberPresentation.groupedInteger(Int64.min), "-9\u{202F}223\u{202F}372\u{202F}036\u{202F}854\u{202F}775\u{202F}808")
+
+        let amount = Cup(cents: 123_400)
+        XCTAssertEqual(amount.formatted, "1\u{202F}234 CUP")
+        XCTAssertEqual(amount.formattedForExport, "1,234 CUP")
+        XCTAssertEqual(amount.cents, 123_400)
+
+        let phone = "+5351234567"
+        XCTAssertEqual(NumberPresentation.phone(phone), "+53\u{202F}5123\u{202F}4567")
+        XCTAssertEqual(NumberPresentation.phone("51234567"), "+53\u{202F}5123\u{202F}4567")
+        XCTAssertEqual(NumberPresentation.phone("+12345678"), "+12345678")
+        XCTAssertEqual(NumberPresentation.phone("+34600111222"), "+34600111222")
+        XCTAssertEqual(phone, "+5351234567")
+
+        XCTAssertEqual(FixedNumber.formatMilli(1_234_500), "1\u{202F}234.5")
+        XCTAssertEqual(FixedNumber.formatMilliForExport(1_234_500), "1,234.5")
+        XCTAssertEqual(FixedNumber.formatMilliForEditing(1_234_500), "1234.5")
+
+        XCTAssertEqual(NumberPresentation.card("9205129900001234"), "9205-1299-0000-1234")
+        XCTAssertEqual(NumberPresentation.card("•••• 1234"), "•••• 1234")
+    }
+
     func testLocationsScopeCatalogAndBlockSwitchUntilShiftCloses() throws {
         let centerProduct = product(name: "Agua Centro")
         let northProduct = product(name: "Agua Norte")

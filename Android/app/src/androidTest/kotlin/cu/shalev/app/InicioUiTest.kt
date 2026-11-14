@@ -66,6 +66,11 @@ class InicioUiTest {
         rule.onNodeWithTag(InicioTags.BANNER).assertDoesNotExist()
     }
 
+    @Test fun cabeceraOfreceCalculadoraDeCambio() {
+        mostrar(InicioUiState())
+        rule.onNodeWithTag(InicioTags.CALCULADORA).assertIsDisplayed()
+    }
+
     @Test fun top3OcultoSinDatosYVisibleConDatos() {
         val sinTop = ResumenGeneral(listOf(Porcion("Bebidas", 10, 1.0)), emptyList(), Top3.VACIO, 30)
         mostrar(InicioUiState(resumen = EstadoCarga.Exito(sinTop)))

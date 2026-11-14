@@ -380,7 +380,7 @@ struct LicenseView: View {
                             .foregroundStyle(Color.shalevText)
                         Text("CI: \(identification)")
                             .font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
-                        Text("Teléfono: \(phone)")
+                        Text("Teléfono: \(NumberPresentation.phone(phone))")
                             .font(.shalev(13)).foregroundStyle(Color.shalevSecondaryText)
                         Text("De tu Perfil y de Pago electrónico.")
                             .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
@@ -419,7 +419,7 @@ struct LicenseView: View {
                     .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
                 HStack(spacing: 8) {
                     ForEach(profilePhones, id: \.self) { candidate in
-                        ShalevFilterChip(title: candidate, selected: phone == candidate) { phone = candidate }
+                        ShalevFilterChip(title: NumberPresentation.phone(candidate), selected: phone == candidate) { phone = candidate }
                     }
                 }
             }

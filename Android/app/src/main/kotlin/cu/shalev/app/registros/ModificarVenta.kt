@@ -16,6 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -46,6 +47,7 @@ import cu.shalev.core.money.sumOfCup
 import cu.shalev.core.result.AppError
 import cu.shalev.core.result.AppResult
 import cu.shalev.designsystem.component.IconActionStyle
+import cu.shalev.designsystem.component.LocalShalevVentana
 import cu.shalev.designsystem.component.ShalevButtonRow
 import cu.shalev.designsystem.component.ShalevIconAction
 import cu.shalev.designsystem.component.ShalevListItem
@@ -331,14 +333,15 @@ fun ModificarVentaPantalla(v: Venta, onCerrar: () -> Unit, onHecho: (String) -> 
     Dialog(onDismissRequest = onCerrar, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         SecureDialogWindow()
         Surface(Modifier.fillMaxSize()) {
-            ModificarVentaContent(
-                s,
-                AccionesModificar(
-                    onCerrar = onCerrar, onGuardar = vm::guardar, onCantidad = vm::cambiarCantidad, onQuitar = vm::quitar,
-                    onAbrirBusqueda = vm::abrirBusqueda, onCerrarBusqueda = vm::cerrarBusqueda, onBuscar = vm::buscar, onAnadir = vm::anadir,
-                    onMetodo = vm::elegirMetodo, onCampo = vm::editarCliente, onMotivo = vm::editarMotivo,
-                ),
-            )
+            CompositionLocalProvider(LocalShalevVentana provides true) {
+                ModificarVentaContent(
+                    s,
+                    AccionesModificar(
+                        onCerrar = onCerrar, onGuardar = vm::guardar, onCantidad = vm::cambiarCantidad, onQuitar = vm::quitar,
+                        onAbrirBusqueda = vm::abrirBusqueda, onCerrarBusqueda = vm::cerrarBusqueda, onBuscar = vm::buscar, onAnadir = vm::anadir,
+                        onMetodo = vm::elegirMetodo, onCampo = vm::editarCliente, onMotivo = vm::editarMotivo,
+                    ),
+                )
         }
     }
 }

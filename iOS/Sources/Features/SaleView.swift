@@ -282,7 +282,7 @@ struct SaleComposerView: View {
                 HStack(spacing: 9) {
                     ShalevSpinnerButton(isIncrement: false, label: "Una menos de \(lineName(for: draft))",
                                         enabled: draft.quantity > 1, size: 44, primaryTint: true) { adjust(draft.sourceID, by: -1) }
-                    Text("\(draft.quantity)")
+                    Text(NumberPresentation.groupedInteger(draft.quantity))
                         .font(.shalev(15, weight: .semibold))
                         .foregroundStyle(Color.shalevText)
                         .padding(.horizontal, 10)
@@ -290,7 +290,7 @@ struct SaleComposerView: View {
                         .frame(minWidth: 76, minHeight: 44)
                         .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 11).stroke(Color.shalevOutline, lineWidth: 1))
-                        .accessibilityLabel("Cantidad de \(lineName(for: draft)): \(draft.quantity)")
+                        .accessibilityLabel("Cantidad de \(lineName(for: draft)): \(NumberPresentation.groupedInteger(draft.quantity))")
                     ShalevSpinnerButton(isIncrement: true, label: "Una más de \(lineName(for: draft))",
                                         enabled: canIncrease(draft), size: 44, primaryTint: true) { adjust(draft.sourceID, by: 1) }
                     Spacer(minLength: 0)
@@ -312,10 +312,10 @@ struct SaleComposerView: View {
         let ceiling = store.maxAllowedQuantity(kind: itemKind, sourceID: draft.sourceID, in: cart)
         if itemKind == .product {
             let kind = store.activeProducts.first(where: { $0.id == draft.sourceID })?.kind
-            return kind == .prepared ? " · Alcanza para \(ceiling)" : " · Máx. \(ceiling)"
+            return kind == .prepared ? " · Alcanza para \(NumberPresentation.groupedInteger(ceiling))" : " · Máx. \(NumberPresentation.groupedInteger(ceiling))"
         }
         let service = store.activeServices.first(where: { $0.id == draft.sourceID })
-        return (service?.uses.isEmpty ?? true) ? "" : " · Alcanza para \(ceiling)"
+        return (service?.uses.isEmpty ?? true) ? "" : " · Alcanza para \(NumberPresentation.groupedInteger(ceiling))"
     }
 
     private func canIncrease(_ draft: CartDraft) -> Bool {
@@ -409,7 +409,7 @@ struct SaleComposerView: View {
                         Divider()
                         HStack { Text("Tarjeta"); Spacer(); Text(maskedCard).fontWeight(.semibold) }
                         if let phone = store.data.settings.profile.paymentPhone?.number {
-                            HStack { Text("Móvil"); Spacer(); Text(phone).fontWeight(.semibold) }
+                            HStack { Text("Móvil"); Spacer(); Text(NumberPresentation.phone(phone)).fontWeight(.semibold) }
                         }
                     }
                     .font(.shalev(14)).foregroundStyle(Color.shalevText)
@@ -712,7 +712,7 @@ private struct SaleCatalogSheet: View {
                                     let ceiling = store.maxAllowedQuantity(kind: .product, sourceID: product.id, in: cart)
                                     let quantity = cart[product.id, default: 0]
                                     SaleCatalogRow(name: product.name,
-                                                   detail: product.kind == .prepared ? "Alcanza para \(ceiling) · Elaborado" : "\(product.displayStock) · \(product.category)",
+                                                   detail: product.kind == .prepared ? "Alcanza para \(NumberPresentation.groupedInteger(ceiling)) · Elaborado" : "\(product.displayStock) · \(product.category)",
                                                    price: Cup(cents: product.priceCents).formatted,
                                                    quantity: quantity, canAdd: ceiling > quantity,
                                                    onMinus: { adjust(product.id, by: -1) }, onPlus: { adjust(product.id, by: 1) })
@@ -726,7 +726,7 @@ private struct SaleCatalogSheet: View {
                                 ForEach(services) { service in
                                     let ceiling = store.maxAllowedQuantity(kind: .service, sourceID: service.id, in: cart)
                                     let quantity = cart[service.id, default: 0]
-                                    let stockText = service.uses.isEmpty ? service.type : "Alcanza para \(ceiling) · \(service.type)"
+                                    let stockText = service.uses.isEmpty ? service.type : "Alcanza para \(NumberPresentation.groupedInteger(ceiling)) · \(service.type)"
                                     SaleCatalogRow(name: service.name, detail: stockText,
                                                    price: Cup(cents: service.priceCents).formatted,
                                                    quantity: quantity, canAdd: ceiling > quantity,
@@ -798,7 +798,7 @@ private struct SaleCatalogRow: View {
                         primaryTint: true,
                         action: onMinus
                     )
-                    Text("\(quantity)").font(.shalev(13, weight: .semibold)).monospacedDigit()
+                    Text(NumberPresentation.groupedInteger(quantity)).font(.shalev(13, weight: .semibold)).monospacedDigit()
                 }
                 ShalevSpinnerButton(
                     isIncrement: true,

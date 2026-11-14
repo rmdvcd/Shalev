@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,19 +33,25 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import cu.shalev.designsystem.theme.ShalevTheme
 import cu.shalev.designsystem.token.ShalevMotion
 import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 
 /**
- * Gráficos de Inicio dibujados con Canvas (sin librería): SIN rejilla, solo una línea base sutil, y animación
+ * Gráficos de Inicio dibujados con Canvas (sin librería): ejes X/Y con marcas numéricas, sin rejilla, y animación
  * de entrada con muelle (sin rebote) que se aplica en la fase de dibujo (no recompone). Cada gráfico expone una
  * [contentDescription] con el resumen para TalkBack; las donas llevan leyenda con nombre y porcentaje, así
  * que el color nunca es el único portador de información.
@@ -91,6 +99,16 @@ object ChartMath {
         n <= max -> (0 until n).toList()
         else -> (0 until max).map { i -> Math.round(i * (n - 1) / (max - 1).toDouble()).toInt() }.distinct()
     }
+
+    /** Marcas del eje Y, de arriba abajo: máximo, mitad y cero; una serie vacía solo muestra cero. */
+    fun marcasEjeY(maximo: Double): List<Double> {
+        val positivo = maximo.takeIf { it.isFinite() && it > 0.0 } ?: return listOf(0.0)
+        return listOf(positivo, positivo / 2.0, 0.0)
+    }
+
+    /** Etiqueta numérica del eje Y: separador de miles estrecho y separador decimal del dispositivo. */
+    fun etiquetaEjeY(valor: Double): String =
+        DecimalFormat("#,##0.##", DecimalFormatSymbols.getInstance().apply { groupingSeparator = '\u202F' }).format(valor)
 }
 
 @Immutable
@@ -121,60 +139,70 @@ fun ShalevBarChart(
     description: String,
     modifier: Modifier = Modifier,
     color: Color = ShalevTheme.colors.chart.first(),
+    yAxisUnit: String? = null,
 ) {
     val progreso = rememberEntrada()
     Box(modifier.fillMaxWidth().semantics { contentDescription = description }) {
-        Crossfade(targetState = values to labels, animationSpec = ShalevMotion.tween(ShalevMotion.SHORT), modifier = Modifier.clearAndSetSemantics { }, label = "barras") { (datos, nombres) ->
-            BarrasContenido(datos, nombres, color, progreso)
+        Crossfade(targetState = values to labels, animationSpec = ShalevMotion.tween(ShalevMotion.SHORT), label = "barras") { (datos, nombres) ->
+            BarrasContenido(datos, nombres, color, progreso, yAxisUnit)
         }
     }
 }
 
 @Composable
-private fun BarrasContenido(values: List<Double>, labels: List<String>, color: Color, progreso: Animatable<Float, *>) {
+private fun BarrasContenido(
+    values: List<Double>, labels: List<String>, color: Color, progreso: Animatable<Float, *>, yAxisUnit: String?,
+) {
     val alturas = remember(values) { ChartMath.normalizar(values) }
+    val maximo = remember(values) { values.maxOrNull()?.takeIf { it.isFinite() && it > 0.0 } ?: 0.0 }
     val base = MaterialTheme.colorScheme.outlineVariant
-    Column(Modifier.fillMaxWidth()) {
-        Canvas(Modifier.fillMaxWidth().height(ShalevSize.chartHeight).clearAndSetSemantics { }) {
-            if (alturas.isEmpty()) return@Canvas
-            val paso = size.width / alturas.size
-            val ancho = (paso * 0.64f).coerceAtMost(ShalevSize.chartBarMax.toPx())
-            val radio = CornerRadius(ancho / 3, ancho / 3)
-            alturas.forEachIndexed { i, h ->
-                val alto = h * size.height * progreso.value
-                if (alto <= 0f) return@forEachIndexed
-                drawRoundRect(
-                    color = color.copy(alpha = ChartMath.intensidad(h)),
-                    topLeft = Offset(i * paso + (paso - ancho) / 2, size.height - alto),
-                    size = Size(ancho, alto),
-                    cornerRadius = radio,
-                )
+    GraficoConEjes(maximo, labels, yAxisUnit) { plotModifier ->
+        Canvas(plotModifier.clearAndSetSemantics { }) {
+            if (alturas.isNotEmpty()) {
+                val paso = size.width / alturas.size
+                val ancho = (paso * 0.64f).coerceAtMost(ShalevSize.chartBarMax.toPx())
+                val radio = CornerRadius(ancho / 3, ancho / 3)
+                alturas.forEachIndexed { i, h ->
+                    val alto = h * size.height * progreso.value
+                    if (alto <= 0f) return@forEachIndexed
+                    drawRoundRect(
+                        color = color.copy(alpha = ChartMath.intensidad(h)),
+                        topLeft = Offset(i * paso + (paso - ancho) / 2, size.height - alto),
+                        size = Size(ancho, alto),
+                        cornerRadius = radio,
+                    )
+                }
             }
-            drawLine(base, Offset(0f, size.height), Offset(size.width, size.height), strokeWidth = ShalevSize.strokeHairline.toPx())
+            drawEjes(base, maximo > 0.0)
         }
-        EjeX(labels)
     }
 }
 
-/** Área bajo curva suavizada; varias series sobre el mismo máximo (Ganancia Neta: venta vs costo). */
+/** Área bajo curva suavizada; varias series sobre el mismo máximo (Ganancia bruta: venta vs costo). */
 @Composable
 fun ShalevAreaChart(
     series: List<ChartSeries>,
     labels: List<String>,
     description: String,
     modifier: Modifier = Modifier,
+    yAxisUnit: String? = null,
 ) {
     val progreso = rememberEntrada()
     Box(modifier.fillMaxWidth().semantics { contentDescription = description }) {
-        Crossfade(targetState = series to labels, animationSpec = ShalevMotion.tween(ShalevMotion.SHORT), modifier = Modifier.clearAndSetSemantics { }, label = "área") { (datos, nombres) ->
-            AreaContenido(datos, nombres, progreso)
+        Crossfade(targetState = series to labels, animationSpec = ShalevMotion.tween(ShalevMotion.SHORT), label = "área") { (datos, nombres) ->
+            AreaContenido(datos, nombres, progreso, yAxisUnit)
         }
     }
 }
 
 @Composable
-private fun AreaContenido(series: List<ChartSeries>, labels: List<String>, progreso: Animatable<Float, *>) {
+private fun AreaContenido(
+    series: List<ChartSeries>, labels: List<String>, progreso: Animatable<Float, *>, yAxisUnit: String?,
+) {
     val normalizadas = remember(series) { ChartMath.normalizarJuntas(series.map { it.values }) }
+    val maximo = remember(series) {
+        series.flatMap { it.values }.maxOrNull()?.takeIf { it.isFinite() && it > 0.0 } ?: 0.0
+    }
     val base = MaterialTheme.colorScheme.outlineVariant
     Column(
         Modifier.fillMaxWidth(),
@@ -182,43 +210,120 @@ private fun AreaContenido(series: List<ChartSeries>, labels: List<String>, progr
     ) {
         // P18 (A19): los Path se construyen una vez por tamaño y datos (drawWithCache), no en cada fotograma.
         // La animación de entrada solo escala en vertical desde la base.
-        Spacer(
-            Modifier.fillMaxWidth().height(ShalevSize.chartHeight).clearAndSetSemantics { }.drawWithCache {
-                val trazos = normalizadas.mapIndexedNotNull { s, ys ->
-                    if (ys.isEmpty()) return@mapIndexedNotNull null
-                    val dx = if (ys.size > 1) size.width / (ys.size - 1) else 0f
-                    val pts = ys.mapIndexed { i, y -> Offset(if (ys.size > 1) i * dx else size.width / 2, size.height - y * size.height) }
-                    val linea = Path().apply {
-                        moveTo(pts.first().x, pts.first().y)
-                        for (i in 1 until pts.size) {
-                            val a = pts[i - 1]; val b = pts[i]; val mx = (a.x + b.x) / 2
-                            cubicTo(mx, a.y, mx, b.y, b.x, b.y) // curva suave sin sobrepasar extremos
+        GraficoConEjes(maximo, labels, yAxisUnit) { plotModifier ->
+            Spacer(
+                plotModifier.clearAndSetSemantics { }.drawWithCache {
+                    val trazos = normalizadas.mapIndexedNotNull { s, ys ->
+                        if (ys.isEmpty()) return@mapIndexedNotNull null
+                        val dx = if (ys.size > 1) size.width / (ys.size - 1) else 0f
+                        val pts = ys.mapIndexed { i, y -> Offset(if (ys.size > 1) i * dx else size.width / 2, size.height - y * size.height) }
+                        val linea = Path().apply {
+                            moveTo(pts.first().x, pts.first().y)
+                            for (i in 1 until pts.size) {
+                                val a = pts[i - 1]; val b = pts[i]; val mx = (a.x + b.x) / 2
+                                cubicTo(mx, a.y, mx, b.y, b.x, b.y) // curva suave sin sobrepasar extremos
+                            }
                         }
-                    }
-                    val area = Path().apply {
-                        addPath(linea)
-                        lineTo(pts.last().x, size.height)
-                        lineTo(pts.first().x, size.height)
-                        close()
-                    }
-                    Triple(series[s].color, linea, area)
-                }
-                val grosor = Stroke(width = ShalevSize.strokeRegular.toPx(), cap = StrokeCap.Round)
-                onDrawBehind {
-                    scale(scaleX = 1f, scaleY = progreso.value, pivot = Offset(0f, size.height)) {
-                        trazos.forEach { (c, linea, area) ->
-                            drawPath(area, c.copy(alpha = 0.18f))
-                            drawPath(linea, c, style = grosor)
+                        val area = Path().apply {
+                            addPath(linea)
+                            lineTo(pts.last().x, size.height)
+                            lineTo(pts.first().x, size.height)
+                            close()
                         }
+                        Triple(series[s].color, linea, area)
                     }
-                    drawLine(base, Offset(0f, size.height), Offset(size.width, size.height), strokeWidth = ShalevSize.strokeHairline.toPx())
-                }
-            },
-        )
-        EjeX(labels)
+                    val grosor = Stroke(width = ShalevSize.strokeRegular.toPx(), cap = StrokeCap.Round)
+                    onDrawBehind {
+                        scale(scaleX = 1f, scaleY = progreso.value, pivot = Offset(0f, size.height)) {
+                            trazos.forEach { (c, linea, area) ->
+                                drawPath(area, c.copy(alpha = 0.18f))
+                                drawPath(linea, c, style = grosor)
+                            }
+                        }
+                        drawEjes(base, maximo > 0.0)
+                    }
+                },
+            )
+        }
         Leyenda(series.map { it.color to it.label })
     }
 }
+
+private val EJE_Y_ANCHO = 64.dp
+
+/** Estructura compartida: valores y unidad del eje Y a la izquierda, área de dibujo y rótulos X alineados. */
+@Composable
+private fun GraficoConEjes(
+    maximo: Double,
+    labels: List<String>,
+    unidadY: String?,
+    formatoY: (Double) -> String = ChartMath::etiquetaEjeY,
+    plot: @Composable (Modifier) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+        if (!unidadY.isNullOrBlank()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    unidadY,
+                    modifier = Modifier.width(EJE_Y_ANCHO),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                )
+                Spacer(Modifier.width(ShalevSpacing.xs))
+                Spacer(Modifier.weight(1f))
+            }
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            EjeY(maximo, formatoY)
+            Spacer(Modifier.width(ShalevSpacing.xs))
+            plot(Modifier.weight(1f).height(ShalevSize.chartHeight))
+        }
+        Row(Modifier.fillMaxWidth()) {
+            Spacer(Modifier.width(EJE_Y_ANCHO + ShalevSpacing.xs))
+            EjeX(labels, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun EjeY(maximo: Double, formato: (Double) -> String) {
+    val marcas = remember(maximo) { ChartMath.marcasEjeY(maximo) }
+    Box(Modifier.width(EJE_Y_ANCHO).height(ShalevSize.chartHeight)) {
+        if (marcas.size == 1) {
+            TextoEjeY(formato(marcas.single()), Modifier.align(Alignment.BottomEnd))
+        } else {
+            TextoEjeY(formato(marcas[0]), Modifier.align(Alignment.TopEnd))
+            TextoEjeY(formato(marcas[1]), Modifier.align(Alignment.CenterEnd))
+            TextoEjeY(formato(marcas[2]), Modifier.align(Alignment.BottomEnd))
+        }
+    }
+}
+
+@Composable
+private fun TextoEjeY(texto: String, modifier: Modifier = Modifier) {
+    Text(
+        texto,
+        modifier = modifier.fillMaxWidth(),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.End,
+    )
+}
+
+private fun DrawScope.drawEjes(color: Color, escalaPositiva: Boolean) {
+    val grosor = ShalevSize.strokeHairline.toPx()
+    val x = grosor / 2
+    val yBase = size.height - grosor / 2
+    val largoMarca = ShalevSpacing.xs.toPx()
+    drawLine(color, Offset(x, 0f), Offset(x, size.height), strokeWidth = grosor)
+    drawLine(color, Offset(x, yBase), Offset(size.width, yBase), strokeWidth = grosor)
+    val ys = if (escalaPositiva) listOf(0f, size.height / 2, yBase) else listOf(yBase)
+    ys.forEach { y -> drawLine(color, Offset(x, y), Offset(x + largoMarca, y), strokeWidth = grosor) }
+}
+
 
 /** Dona con texto central opcional y leyenda (nombre + porcentaje/valor). */
 @Composable
@@ -296,12 +401,25 @@ private fun Leyenda(items: List<Pair<Color, String>>) {
     }
 }
 
-/** Etiquetas del eje X (pocas, repartidas); sin marcas ni rejilla. */
+/** Etiquetas del eje X (pocas, repartidas), alineadas con la posición real de cada dato y sin rejilla. */
 @Composable
-private fun EjeX(labels: List<String>) {
+private fun EjeX(labels: List<String>, modifier: Modifier = Modifier) {
     if (labels.isEmpty()) return
     val idx = remember(labels) { ChartMath.indicesEtiquetas(labels.size) }
-    Row(Modifier.fillMaxWidth().clearAndSetSemantics { }, horizontalArrangement = Arrangement.SpaceBetween) {
-        idx.forEach { ShalevSecondaryText(labels[it]) }
+    Layout(
+        modifier = modifier.fillMaxWidth(),
+        content = { idx.forEach { ShalevSecondaryText(labels[it], maxLines = 1) } },
+    ) { measurables, constraints ->
+        val ancho = constraints.maxWidth
+        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, maxWidth = ancho)) }
+        val alto = placeables.maxOfOrNull { it.height } ?: 0
+        layout(ancho, alto) {
+            placeables.forEachIndexed { i, etiqueta ->
+                val indiceDato = idx[i]
+                val centro = if (labels.size == 1) ancho / 2 else ancho * indiceDato / (labels.size - 1)
+                val x = (centro - etiqueta.width / 2).coerceIn(0, (ancho - etiqueta.width).coerceAtLeast(0))
+                etiqueta.placeRelative(x, 0)
+            }
+        }
     }
 }

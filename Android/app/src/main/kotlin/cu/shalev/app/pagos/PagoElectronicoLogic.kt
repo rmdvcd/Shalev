@@ -1,5 +1,6 @@
 package cu.shalev.app.pagos
 
+import cu.shalev.core.format.NumberPresentation
 import cu.shalev.core.result.AppError
 import cu.shalev.core.validation.Phone
 import cu.shalev.domain.validation.Validadores
@@ -48,7 +49,7 @@ object TextosPago {
     const val NUEVO_TELEFONO = "Otro teléfono"
     const val NUEVA_TARJETA = "Otra tarjeta o cuenta"
     const val EN_USO = "En uso"
-    const val ERROR_TELEFONO = "Escribe un teléfono válido, por ejemplo 5123 4567"
+    const val ERROR_TELEFONO = "Escribe un teléfono válido, por ejemplo 5123\u202F4567"
     const val ERROR_TARJETA = "Escribe solo los números de la tarjeta o cuenta (12 a 20 dígitos)"
     const val DUPLICADO = "Ese número ya está en la lista"
     const val ERROR_GENERICO = "No se pudo guardar. Inténtalo de nuevo."
@@ -68,8 +69,8 @@ fun errorNumero(tipo: TipoCuentaPago, texto: String): String? = when {
     else -> errorTarjeta(texto)
 }
 
-/** "9205129900001234" → "9205 1299 0000 1234" (solo en la hoja de edición; en listas va enmascarado). */
-fun formatoCuenta(numero: String): String = numero.chunked(4).joinToString(" ")
+/** Formato visual de la cuenta en edición; en listas el número completo sigue enmascarado. */
+fun formatoCuenta(numero: String): String = NumberPresentation.card(numero)
 
 /** Error de dominio → texto simple (sin detalles internos). */
 fun mensajePago(e: AppError): String = when (e) {

@@ -305,7 +305,7 @@ struct OnboardingView: View {
                           focus: .lastName, submit: .next) { focusedField = .ci }
                     field("Carné de identidad (opcional)", text: $identification, placeholder: "CI", capitalization: .characters,
                           focus: .ci, submit: .done) { focusedField = nil }
-                    field("Teléfono de contacto (opcional)", text: $phone, placeholder: "+53 5XXX XXXX", keyboard: .phonePad)
+                    field("Teléfono de contacto (opcional)", text: $phone, placeholder: "+53\u{202F}5XXX\u{202F}XXXX", keyboard: .phonePad)
                 }
             }
             ShalevCard {
@@ -552,8 +552,8 @@ struct OnboardingView: View {
         let defaults = store.data.settings.effectiveInventoryAlertDefaults
         productLow = String(defaults.productLowMilli / 1_000)
         productCritical = String(defaults.productCriticalMilli / 1_000)
-        ingredientLow = FixedNumber.formatMilli(defaults.ingredientLowMilli)
-        ingredientCritical = FixedNumber.formatMilli(defaults.ingredientCriticalMilli)
+        ingredientLow = FixedNumber.formatMilliForEditing(defaults.ingredientLowMilli)
+        ingredientCritical = FixedNumber.formatMilliForEditing(defaults.ingredientCriticalMilli)
         plannedEmployees = min(maximumPlannedEmployees, store.data.settings.effectivePlannedEmployees)
     }
 

@@ -6,6 +6,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ConteoFormTest {
+    @Test fun cantidadesVisiblesAgrupanMilesPeroLaEntradaSigueSinSeparadores() {
+        val producto = TipoEntidad.PRODUCTO
+        val insumo = TipoEntidad.INSUMO
+        assertEquals("1\u202F234", ConteoForm.formato(1_234, producto))
+        assertEquals("1\u202F234.5", ConteoForm.formato(1_234_500, insumo))
+        assertEquals(1_234L, ConteoForm.cantidad("1234", producto))
+        assertEquals(1_234_500L, ConteoForm.cantidad("1234.5", insumo))
+    }
+
     @Test fun productosSoloEnterosYConCeroExplicito() {
         val p = TipoEntidad.PRODUCTO
         assertEquals(0L, ConteoForm.cantidad("0", p))

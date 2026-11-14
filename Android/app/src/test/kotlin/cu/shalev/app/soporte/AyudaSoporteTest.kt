@@ -53,7 +53,13 @@ class AyudaSoporteTest {
         assertTrue(cu.shalev.app.ayuda.pestanaTemas(cu.shalev.app.ayuda.PestanaAyuda.INVENTARIO, setOf(Modulo.SERVICIOS)).isEmpty())
         assertTrue(secciones.any { it.first == CategoriaAyuda.RESPALDO })
         assertTrue(secciones.any { it.first == CategoriaAyuda.VENTA })
-        assertEquals(listOf("Manual de usuario: Herramientas"), cu.shalev.app.ayuda.pestanaTemas(cu.shalev.app.ayuda.PestanaAyuda.HERRAMIENTAS, todos).map { it.titulo })
+        val inventario = cu.shalev.app.ayuda.pestanaTemas(cu.shalev.app.ayuda.PestanaAyuda.INVENTARIO, todos).single()
+        val servicios = cu.shalev.app.ayuda.pestanaTemas(cu.shalev.app.ayuda.PestanaAyuda.SERVICIOS, todos).single()
+        assertTrue(inventario.pasos.any { it.contains("ficha de costo") })
+        assertTrue(inventario.pasos.any { it.contains("Gestión de inventario") })
+        assertTrue(inventario.pasos.any { it.contains("existencia cero") && it.contains("prellenada") })
+        assertTrue(servicios.pasos.any { it.contains("ficha de costo") })
+        assertTrue(servicios.pasos.any { it.contains("Gestión de inventario") })
     }
 
 }

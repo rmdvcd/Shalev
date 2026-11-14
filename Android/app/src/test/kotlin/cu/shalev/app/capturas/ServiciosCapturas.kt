@@ -2,6 +2,8 @@ package cu.shalev.app.capturas
 
 import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import cu.shalev.app.inicio.EstadoCarga
 import cu.shalev.app.producto.LineaRecetaForm
 import cu.shalev.app.servicios.AccionesServicioForm
@@ -53,7 +55,13 @@ class ServiciosCapturas {
     @Test fun modoVenta() = servicios("09c_servicios_venta", lista.copy(modoVenta = true, seleccion = setOf(1L)))
     @Test fun ficha() = servicios("09d_servicios_ficha", lista.copy(ficha = items[1]))
 
-    @Test fun formulario() = rule.capturar("09e_servicio_form") {
+    @Test fun formulario() = rule.capturar(
+        "09e_servicio_form",
+        antes = {
+            onNodeWithTag("alta.siguiente").performClick()
+            waitForIdle()
+        },
+    ) {
         ServicioFormContent(
             ServicioFormUiState(
                 form = ServicioForm(
