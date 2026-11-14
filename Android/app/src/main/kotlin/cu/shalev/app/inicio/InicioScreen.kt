@@ -1,5 +1,9 @@
 package cu.shalev.app.inicio
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.designsystem.component.coachMark
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -232,38 +236,42 @@ fun InicioScreen(
         onDismiss = cajaVm::cerrarMovimiento,
         efectivoDisponible = caja.arqueo?.esperado,
     )
-    InicioContent(
-        state = state,
-        acciones = AccionesInicio(
-            onNavigate = onNavigate,
-            onVerAlerta = onVerAlerta,
-            onTurno = { abrir -> if (abrir) pedirPermisoAviso(); viewModel.cambiarTurno(abrir) },
-            // 0.21.0 (C12): con un solo tipo de venta permitido se va directo, sin el diálogo.
-            onNuevaVenta = { tiposVenta(permisos).singleOrNull()?.let(viewModel::elegirVenta) ?: viewModel.nuevaVenta() },
-            onElegirVenta = viewModel::elegirVenta,
-            onConfirmarCierre = viewModel::confirmarCierreTurno,
-            onCerrarDialogo = viewModel::cerrarDialogo,
-            onPeriodo = viewModel::elegirPeriodo,
-            onPago = { onNavigate(Route.PagoElectronico) }, // P28: la misma pantalla que en Ajustes
-            onReintentar = viewModel::refrescar,
-            onDescartarAvisoCierre = viewModel::descartarAvisoCierre,
-            onConfirmarSolicitudCierre = viewModel::confirmarSolicitudCierre,
-            onAbrirTurno = viewModel::abrirTurnoCon,
-            onMovimientoCaja = cajaVm::abrirMovimiento,
-            onDeclararContado = viewModel::declararContado,
-            onPosponerConteo = viewModel::posponerConteo,
-            onContar = viewModel::contarAhora,
-            onActualizar = actVm::actualizar,
-            onDescartarActualizacion = actVm::descartar,
-            onCancelarDescarga = actVm::cancelar,
-        ),
-        actualizacion = actualizacion,
-        solicitudesCierre = solicitudes,
-        caja = caja,
-        snackbar = snackbar,
-        conteoVm = conteoVm,
-        localViewModel = localViewModel,
-    )
+    // Recorrido de turno y caja (primera visita a Inicio): sin diálogos de turno, conteo ni movimiento abiertos.
+    val listoRecorrido = state.dialogo == null && !state.debeContar && !caja.dialogoMovimiento
+    RecorridoModulo(Recorrido.CAJA, listo = listoRecorrido) {
+        InicioContent(
+            state = state,
+            acciones = AccionesInicio(
+                onNavigate = onNavigate,
+                onVerAlerta = onVerAlerta,
+                onTurno = { abrir -> if (abrir) pedirPermisoAviso(); viewModel.cambiarTurno(abrir) },
+                // 0.21.0 (C12): con un solo tipo de venta permitido se va directo, sin el diálogo.
+                onNuevaVenta = { tiposVenta(permisos).singleOrNull()?.let(viewModel::elegirVenta) ?: viewModel.nuevaVenta() },
+                onElegirVenta = viewModel::elegirVenta,
+                onConfirmarCierre = viewModel::confirmarCierreTurno,
+                onCerrarDialogo = viewModel::cerrarDialogo,
+                onPeriodo = viewModel::elegirPeriodo,
+                onPago = { onNavigate(Route.PagoElectronico) }, // P28: la misma pantalla que en Ajustes
+                onReintentar = viewModel::refrescar,
+                onDescartarAvisoCierre = viewModel::descartarAvisoCierre,
+                onConfirmarSolicitudCierre = viewModel::confirmarSolicitudCierre,
+                onAbrirTurno = viewModel::abrirTurnoCon,
+                onMovimientoCaja = cajaVm::abrirMovimiento,
+                onDeclararContado = viewModel::declararContado,
+                onPosponerConteo = viewModel::posponerConteo,
+                onContar = viewModel::contarAhora,
+                onActualizar = actVm::actualizar,
+                onDescartarActualizacion = actVm::descartar,
+                onCancelarDescarga = actVm::cancelar,
+            ),
+            actualizacion = actualizacion,
+            solicitudesCierre = solicitudes,
+            caja = caja,
+            snackbar = snackbar,
+            conteoVm = conteoVm,
+            localViewModel = localViewModel,
+        )
+    }
 }
 
 /** Contenido sin estado (testeable sin Hilt). */
@@ -556,14 +564,14 @@ private fun BloqueFijo(state: InicioUiState, acciones: AccionesInicio, permisos:
                     "Nueva venta",
                     onClick = acciones.onNuevaVenta,
                     soloIcono = true,
-                    modifier = Modifier.testTag(InicioTags.NUEVA_VENTA),
+                    modifier = Modifier.testTag(InicioTags.NUEVA_VENTA).coachMark(ObjetivosRecorrido.CAJA_VENDER),
                 )
                 ShalevFab(
                     ShalevIcons.CajaRegistradora,
                     cu.shalev.app.caja.TextosCaja.MOVIMIENTO_TITULO,
                     onClick = acciones.onMovimientoCaja,
                     soloIcono = true,
-                    modifier = Modifier.testTag(InicioTags.CAJA),
+                    modifier = Modifier.testTag(InicioTags.CAJA).coachMark(ObjetivosRecorrido.CAJA_MOVIMIENTO),
                 )
             }
         }
@@ -579,7 +587,7 @@ private fun TurnoContenedor(
 ) {
     val abierto = state.turnoAbierto
     // 1.0.2: contenedor ajustado a su texto, con relleno vertical ligero.
-    ShalevCard(modifier = Modifier.testTag(InicioTags.TURNO), paddingVertical = ShalevSpacing.xs) {
+    ShalevCard(modifier = Modifier.testTag(InicioTags.TURNO).coachMark(ObjetivosRecorrido.CAJA_TURNO), paddingVertical = ShalevSpacing.xs) {
         Row(
             Modifier.fillMaxWidth()
                 .toggleable(value = abierto, enabled = !state.cambiandoTurno, role = Role.Switch, onValueChange = acciones.onTurno),
@@ -767,7 +775,7 @@ private fun SelectorPeriodo(opcion: OpcionPeriodo, onPeriodo: (OpcionPeriodo) ->
         onSeleccion = onPeriodo,
         leadingIcon = ShalevIcons.Fecha,
         tagOpcion = { InicioTags.periodo(it) },
-        modifier = Modifier.testTag(InicioTags.PERIODO),
+        modifier = Modifier.testTag(InicioTags.PERIODO).coachMark(ObjetivosRecorrido.CAJA_RESUMEN),
     )
 }
 

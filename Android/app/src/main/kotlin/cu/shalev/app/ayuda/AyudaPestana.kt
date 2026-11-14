@@ -11,7 +11,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.testTag
+import cu.shalev.designsystem.component.LocalCoachMarkState
 import cu.shalev.designsystem.component.ShalevDialog
+import cu.shalev.designsystem.component.ShalevSecondaryButton
 import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.domain.model.Modulo
 
@@ -29,6 +32,13 @@ enum class PestanaAyuda(val titulo: String) {
     RESPALDO("Respaldo"),
     EMPLEADOS("Apps vinculadas"),
     SOPORTE("Soporte"),
+}
+
+/** Botón del diálogo de ayuda que repite el recorrido guiado de la pantalla. */
+const val VER_RECORRIDO = "Ver recorrido"
+
+object AyudaPestanaTags {
+    const val VER_RECORRIDO = "ayuda_pestana_ver_recorrido"
 }
 
 /** Obtiene las ayudas de ventana para una pestaña dada y los módulos activos. */
@@ -59,6 +69,18 @@ fun DialogoAyudaPestana(
     onVerManual: (() -> Unit)? = null,
 ) {
     val ayudas = remember(pestana, modulos) { pestanaTemas(pestana, modulos) }
+    // Recorrido guiado de la pantalla (si la pantalla tiene uno y hay algo que resaltar): repetirlo no cambia el
+    // indicador «ya visto».
+    val recorrido = LocalCoachMarkState.current?.takeIf { it.hayObjetivos() }
+    val verRecorrido: (@Composable () -> Unit)? = if (recorrido == null) null else {
+        {
+            ShalevSecondaryButton(
+                VER_RECORRIDO, icon = cu.shalev.designsystem.icon.ShalevIcons.Restablecer,
+                onClick = { onDismiss(); recorrido.iniciar() },
+                modifier = Modifier.testTag(AyudaPestanaTags.VER_RECORRIDO),
+            )
+        }
+    }
     ShalevDialog(
         title = "Manual · ${pestana.titulo}",
         onDismiss = onDismiss,
@@ -66,6 +88,7 @@ fun DialogoAyudaPestana(
         confirmDescription = "Ver manual completo",
         confirmIcon = cu.shalev.designsystem.icon.ShalevIcons.Ayuda,
         dismissDescription = "Cerrar",
+        secundarias = verRecorrido,
     ) {
         Column(
             Modifier.fillMaxWidth(),

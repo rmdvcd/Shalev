@@ -1,5 +1,9 @@
 package cu.shalev.app.venta
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.designsystem.component.coachMark
 import androidx.compose.material3.Icon
 import cu.shalev.designsystem.component.ShalevCheckbox
 import cu.shalev.domain.model.nombreCompleto
@@ -183,27 +187,33 @@ fun VentaScreen(
         onConfirmar = { f -> pedirFondo = false; pedirPermisoAviso(); viewModel.abrirTurno(f) },
         onDismiss = { pedirFondo = false },
     )
-    VentaContent(
-        tipo = tipo,
-        state = state,
-        snackbar = snackbar,
-        capturaSmsAutomaticaActiva = capturaSmsAutomaticaActiva,
-        acciones = AccionesVenta(
-            onAtras = viewModel::atras, onAbrirTurno = { cajaVm.cargarSugerido(); pedirFondo = true }, onElegir = viewModel::elegirProductos,
-            onCantidad = viewModel::cambiarCantidad, onQuitar = viewModel::quitar, onMetodo = viewModel::elegirMetodo,
-            onContinuar = viewModel::continuar, onConfirmarEfectivo = viewModel::confirmarEfectivo,
-            onDescartar = viewModel::descartar, onSolicitarDescartar = viewModel::solicitarDescartar,
-            onCancelarSalir = viewModel::cancelarSalir,
-            onPagoRecibido = viewModel::pagoRecibido,
-            onConfigurarPago = viewModel::configurarPago,
-            onCampo = viewModel::editarCliente,
-            onElegirCliente = viewModel::elegirCliente, onClienteFijo = viewModel::clienteFijo,
-            // El portapapeles se lee SOLO aquí, al tocar «Pegar SMS» (nunca en segundo plano).
-            onPegarSms = { viewModel.pegarSms(clipboard.getText()?.text) },
-            onConfirmarTransferencia = viewModel::confirmarTransferencia,
-            onConfigurarCapturaSms = { AccesoCapturaSms.abrirAjustes(context) },
-        ),
-    )
+    // Recorrido de la primera venta: cuando el carrito ya tiene artículos (están el carrito, la forma de pago,
+    // «Agregar» y «Continuar») y no hay ningún diálogo abierto.
+    val listoRecorrido = state.permiso is Permiso.Permitido && state.paso == PasoVenta.CARRITO && state.lineas.isNotEmpty() &&
+        !state.confirmarSalir && !pedirFondo
+    RecorridoModulo(Recorrido.VENTAS, listo = listoRecorrido) {
+        VentaContent(
+            tipo = tipo,
+            state = state,
+            snackbar = snackbar,
+            capturaSmsAutomaticaActiva = capturaSmsAutomaticaActiva,
+            acciones = AccionesVenta(
+                onAtras = viewModel::atras, onAbrirTurno = { cajaVm.cargarSugerido(); pedirFondo = true }, onElegir = viewModel::elegirProductos,
+                onCantidad = viewModel::cambiarCantidad, onQuitar = viewModel::quitar, onMetodo = viewModel::elegirMetodo,
+                onContinuar = viewModel::continuar, onConfirmarEfectivo = viewModel::confirmarEfectivo,
+                onDescartar = viewModel::descartar, onSolicitarDescartar = viewModel::solicitarDescartar,
+                onCancelarSalir = viewModel::cancelarSalir,
+                onPagoRecibido = viewModel::pagoRecibido,
+                onConfigurarPago = viewModel::configurarPago,
+                onCampo = viewModel::editarCliente,
+                onElegirCliente = viewModel::elegirCliente, onClienteFijo = viewModel::clienteFijo,
+                // El portapapeles se lee SOLO aquí, al tocar «Pegar SMS» (nunca en segundo plano).
+                onPegarSms = { viewModel.pegarSms(clipboard.getText()?.text) },
+                onConfirmarTransferencia = viewModel::confirmarTransferencia,
+                onConfigurarCapturaSms = { AccesoCapturaSms.abrirAjustes(context) },
+            ),
+        )
+    }
 }
 
 @Composable
@@ -300,7 +310,7 @@ private fun PasoCarrito(state: VentaUiState, acciones: AccionesVenta) {
         return
     }
     LazyColumn(
-        Modifier.fillMaxSize().testTag(VentaTags.CARRITO),
+        Modifier.fillMaxSize().testTag(VentaTags.CARRITO).coachMark(ObjetivosRecorrido.VENTA_CARRITO),
         contentPadding = PaddingValues(ShalevSpacing.md),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
     ) {
@@ -446,7 +456,7 @@ private fun PasoQr(state: VentaUiState, acciones: AccionesVenta, capturaSmsAutom
 /** P28: título y chips centrados como grupo. 0.25.1: también en Modificar venta. */
 @Composable
 internal fun SelectorMetodo(metodo: MetodoPago, onMetodo: (MetodoPago) -> Unit) {
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.fillMaxWidth().coachMark(ObjetivosRecorrido.VENTA_METODO), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(TextosVenta.METODO, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = ShalevSpacing.md).semantics { heading() })
         Row(horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs), modifier = Modifier.padding(top = ShalevSpacing.xs)) {
             MetodoPago.entries.forEach { m ->
@@ -604,12 +614,12 @@ private fun BarraAcciones(state: VentaUiState, acciones: AccionesVenta) {
         when (state.paso) {
             PasoVenta.CARRITO -> {
                 ShalevIconAction(ShalevIcons.AgregarCarrito, TextosVenta.AGREGAR, onClick = acciones.onElegir,
-                    enabled = habilitado, style = IconActionStyle.Tonal)
+                    enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.coachMark(ObjetivosRecorrido.VENTA_AGREGAR))
                 ShalevPrimaryButton(
                     // El icono representa continuar; el método elegido se ve en los chips.
                     "Continuar", onClick = acciones.onContinuar, enabled = state.puedeContinuar, loading = state.trabajando,
                     icon = ShalevIcons.Siguiente,
-                    modifier = Modifier.testTag(VentaTags.CONTINUAR),
+                    modifier = Modifier.testTag(VentaTags.CONTINUAR).coachMark(ObjetivosRecorrido.VENTA_COBRAR),
                 )
             }
             PasoVenta.COMPROBANTE -> {

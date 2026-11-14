@@ -1,5 +1,9 @@
 package cu.shalev.app.registros
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.designsystem.component.coachMark
 import androidx.compose.foundation.layout.size
 import cu.shalev.designsystem.component.ShalevCheckbox
 import cu.shalev.designsystem.token.ShalevSize
@@ -162,50 +166,54 @@ fun RegistrosScreen(
     val orden = pestanasVisibles(LocalPermisosApp.current)
     // 0.21.0 (C12): si la pestaña elegida es de un módulo desactivado, se pasa a la primera visible.
     LaunchedEffect(orden, state.pestana) { if (state.pestana !in orden) viewModel.pestana(orden.first()) }
-    RegistrosContent(
-        state = state,
-        turnos = turnos,
-        snackbar = snackbar,
-        clientes = clientes,
-        accionesClientes = AccionesClientes(
-            onAbrir = clientesViewModel::abrir, onCerrar = clientesViewModel::cerrar, onPedirQuitar = clientesViewModel::pedirQuitar,
-            onCancelarQuitar = clientesViewModel::cancelarQuitar, onQuitar = clientesViewModel::quitar,
-            onEditar = clientesViewModel::editar, onCampoEdicion = clientesViewModel::campoEdicion,
-            onCancelarEdicion = clientesViewModel::cancelarEdicion, onGuardarEdicion = clientesViewModel::guardarEdicion,
-        ),
-        acciones = AccionesRegistros(
-            onAyuda = { onNavigate(Route.Ayuda) },
-            onPestana = viewModel::pestana, onBuscar = viewModel::buscar, onAbrirFiltro = viewModel::abrirFiltro,
-            onCerrarFiltro = viewModel::cerrarFiltro, onAplicarFiltro = viewModel::aplicarFiltro, onQuitarFiltros = viewModel::quitarFiltros,
-            onReintentar = viewModel::reintentar, onAbrirVenta = viewModel::abrirVenta,
-            onAbrirExportar = viewModel::abrirExportar, onCerrarExportar = viewModel::cerrarExportar,
-            onEnviar = viewModel::enviar, onGuardar = viewModel::pedirGuardar,
-            onAbrirTransferencia = viewModel::abrirTransferencia, onAbrirMovimiento = viewModel::abrirMovimiento,
-            onCerrarFicha = viewModel::cerrarFicha, onVerVenta = viewModel::verVentaDeTransferencia,
-            onTurno = { onNavigate(Route.TurnoDetalle(it)) }, onReintentarTurnos = turnosViewModel::reintentar,
-            onAlternar = viewModel::alternar, onSeleccionarTodo = viewModel::seleccionarTodo,
-            onLimpiarSeleccion = viewModel::limpiarSeleccion,
-            accionesVenta = { v, verVenta ->
-                val accionesVm: VentaAccionesViewModel = hiltViewModel()
-                val scope = androidx.compose.runtime.rememberCoroutineScope()
-                AccionesFichaVenta(
-                    v, accionesVm,
-                    onMensaje = { m -> scope.launch { snackbar.showSnackbar(m) } },
-                    onHecho = { viewModel.cerrarFicha(); viewModel.reintentar() },
-                    verVenta = verVenta,
-                )
-            },
-            accionesMovimiento = { i ->
-                val accionesVm: MovimientoAccionesViewModel = hiltViewModel()
-                val scope = androidx.compose.runtime.rememberCoroutineScope()
-                AccionesFichaMovimiento(
-                    i, accionesVm,
-                    onMensaje = { m -> scope.launch { snackbar.showSnackbar(m) } },
-                    onHecho = { viewModel.cerrarFicha(); viewModel.reintentar() },
-                )
-            },
-        ),
-    )
+    // Recorrido de la primera visita: sin fichas ni hojas abiertas (Clientes tiene sus propias ventanas de edición).
+    val listoRecorrido = state.ficha == null && !state.hojaFiltro && !state.hojaExportar && state.pestana != PestanaRegistros.CLIENTES
+    RecorridoModulo(Recorrido.REGISTROS, listo = listoRecorrido) {
+        RegistrosContent(
+            state = state,
+            turnos = turnos,
+            snackbar = snackbar,
+            clientes = clientes,
+            accionesClientes = AccionesClientes(
+                onAbrir = clientesViewModel::abrir, onCerrar = clientesViewModel::cerrar, onPedirQuitar = clientesViewModel::pedirQuitar,
+                onCancelarQuitar = clientesViewModel::cancelarQuitar, onQuitar = clientesViewModel::quitar,
+                onEditar = clientesViewModel::editar, onCampoEdicion = clientesViewModel::campoEdicion,
+                onCancelarEdicion = clientesViewModel::cancelarEdicion, onGuardarEdicion = clientesViewModel::guardarEdicion,
+            ),
+            acciones = AccionesRegistros(
+                onAyuda = { onNavigate(Route.Ayuda) },
+                onPestana = viewModel::pestana, onBuscar = viewModel::buscar, onAbrirFiltro = viewModel::abrirFiltro,
+                onCerrarFiltro = viewModel::cerrarFiltro, onAplicarFiltro = viewModel::aplicarFiltro, onQuitarFiltros = viewModel::quitarFiltros,
+                onReintentar = viewModel::reintentar, onAbrirVenta = viewModel::abrirVenta,
+                onAbrirExportar = viewModel::abrirExportar, onCerrarExportar = viewModel::cerrarExportar,
+                onEnviar = viewModel::enviar, onGuardar = viewModel::pedirGuardar,
+                onAbrirTransferencia = viewModel::abrirTransferencia, onAbrirMovimiento = viewModel::abrirMovimiento,
+                onCerrarFicha = viewModel::cerrarFicha, onVerVenta = viewModel::verVentaDeTransferencia,
+                onTurno = { onNavigate(Route.TurnoDetalle(it)) }, onReintentarTurnos = turnosViewModel::reintentar,
+                onAlternar = viewModel::alternar, onSeleccionarTodo = viewModel::seleccionarTodo,
+                onLimpiarSeleccion = viewModel::limpiarSeleccion,
+                accionesVenta = { v, verVenta ->
+                    val accionesVm: VentaAccionesViewModel = hiltViewModel()
+                    val scope = androidx.compose.runtime.rememberCoroutineScope()
+                    AccionesFichaVenta(
+                        v, accionesVm,
+                        onMensaje = { m -> scope.launch { snackbar.showSnackbar(m) } },
+                        onHecho = { viewModel.cerrarFicha(); viewModel.reintentar() },
+                        verVenta = verVenta,
+                    )
+                },
+                accionesMovimiento = { i ->
+                    val accionesVm: MovimientoAccionesViewModel = hiltViewModel()
+                    val scope = androidx.compose.runtime.rememberCoroutineScope()
+                    AccionesFichaMovimiento(
+                        i, accionesVm,
+                        onMensaje = { m -> scope.launch { snackbar.showSnackbar(m) } },
+                        onHecho = { viewModel.cerrarFicha(); viewModel.reintentar() },
+                    )
+                },
+            ),
+        )
+    }
 }
 
 @Composable
@@ -236,14 +244,14 @@ fun RegistrosContent(
                         }) {
                             ShalevIconAction(
                                 ShalevIcons.Filtrar, descripcionFiltro(textoFiltro, n),
-                                onClick = acciones.onAbrirFiltro, selected = n > 0, modifier = Modifier.testTag(RegistrosTags.FILTRO),
+                                onClick = acciones.onAbrirFiltro, selected = n > 0, modifier = Modifier.testTag(RegistrosTags.FILTRO).coachMark(ObjetivosRecorrido.REGISTROS_FILTRO),
                                 etiqueta = textoFiltro,
                             )
                         }
                         val exportar = LocalPermisosApp.current.exportar
                         if (exportar) ShalevIconAction(
                             ShalevIcons.Compartir, TextosRegistros.EXPORTAR, onClick = acciones.onAbrirExportar,
-                            enabled = state.puedeCompartir && !state.exportando, modifier = Modifier.testTag(RegistrosTags.EXPORTAR),
+                            enabled = state.puedeCompartir && !state.exportando, modifier = Modifier.testTag(RegistrosTags.EXPORTAR).coachMark(ObjetivosRecorrido.REGISTROS_EXPORTAR),
                         )
                     }
                 }
@@ -305,7 +313,7 @@ private fun Pestanas(actual: PestanaRegistros, acciones: AccionesRegistros, orde
         tabs = orden.map { ShalevTab(it.etiqueta, testTag = RegistrosTags.pestana(it)) },
         selectedIndex = orden.indexOf(actual).coerceAtLeast(0),
         onSelect = { acciones.onPestana(orden[it]) },
-        modifier = Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.xs),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.xs).coachMark(ObjetivosRecorrido.REGISTROS_PESTANAS),
     )
 }
 
@@ -359,7 +367,7 @@ private fun Buscador(state: RegistrosUiState, tipo: TipoRegistro, acciones: Acci
             filtro = FiltroEntrada.BUSQUEDA,
             value = state.filtro.texto, onValueChange = acciones.onBuscar, label = "Buscar",
             placeholder = TextosRegistros.buscar(tipo), leadingIcon = ShalevIcons.Buscar, anchoCompleto = true,
-            modifier = Modifier.fillMaxWidth().testTag(RegistrosTags.BUSCAR),
+            modifier = Modifier.fillMaxWidth().testTag(RegistrosTags.BUSCAR).coachMark(ObjetivosRecorrido.REGISTROS_BUSCAR),
         )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally)) { // P28: contador (+ filtro) centrados
             state.datos?.let {

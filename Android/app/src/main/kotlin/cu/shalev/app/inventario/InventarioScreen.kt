@@ -1,5 +1,9 @@
 package cu.shalev.app.inventario
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.designsystem.component.coachMark
 import cu.shalev.designsystem.component.ShalevCheckbox
 import cu.shalev.domain.model.nombreCompleto
 import cu.shalev.app.common.LocalPermisosApp
@@ -163,23 +167,29 @@ fun InventarioScreen(
             }
         }
     }
-    InventarioContent(
-        state = state,
-        snackbar = snackbar,
-        acciones = AccionesInventario(
-            onAyuda = { onNavigate(Route.Ayuda) },
-            onBuscar = viewModel::buscar, onFiltro = viewModel::aplicarFiltro, onQuitarFiltros = viewModel::quitarFiltros,
-            onReintentar = viewModel::reintentar, onAlternar = viewModel::alternar, onSeleccionarTodo = viewModel::seleccionarTodo,
-            onLimpiarSeleccion = viewModel::limpiarSeleccion, onAbrirFicha = viewModel::abrirFicha, onCerrarFicha = viewModel::cerrarFicha,
-            onEditar = viewModel::editar, onHoja = viewModel::mostrarHoja, onCerrarHoja = viewModel::cerrarHoja,
-            onAgregar = viewModel::agregar,
-            onEliminarFicha = viewModel::pedirEliminarFicha,
-            onEliminarSeleccion = viewModel::pedirEliminarSeleccion, onConfirmarEliminar = viewModel::confirmarEliminar,
-            onCancelarEliminar = viewModel::cancelarEliminar, onComentarioPromocion = viewModel::comentarioPromocion, onExportar = viewModel::exportar, onGuardar = viewModel::pedirGuardar,
-            onCompartirFicha = viewModel::compartirFicha,
-            onContinuarVenta = viewModel::confirmarSeleccionVenta, onAtras = onBack,
-        ),
-    )
+    // Recorrido de la primera visita: solo en la pestaña normal (no al elegir qué vender), con la lista cargada y sin
+    // fichas, hojas, diálogos ni selección abiertos.
+    val listoRecorrido = state.modoVenta == null && state.vista !is EstadoCarga.Idle && state.vista !is EstadoCarga.Cargando &&
+        state.ficha == null && state.fichaInsumo == null && state.hoja == null && state.confirmar == null && state.seleccion.isEmpty()
+    RecorridoModulo(Recorrido.INVENTARIO, listo = listoRecorrido) {
+        InventarioContent(
+            state = state,
+            snackbar = snackbar,
+            acciones = AccionesInventario(
+                onAyuda = { onNavigate(Route.Ayuda) },
+                onBuscar = viewModel::buscar, onFiltro = viewModel::aplicarFiltro, onQuitarFiltros = viewModel::quitarFiltros,
+                onReintentar = viewModel::reintentar, onAlternar = viewModel::alternar, onSeleccionarTodo = viewModel::seleccionarTodo,
+                onLimpiarSeleccion = viewModel::limpiarSeleccion, onAbrirFicha = viewModel::abrirFicha, onCerrarFicha = viewModel::cerrarFicha,
+                onEditar = viewModel::editar, onHoja = viewModel::mostrarHoja, onCerrarHoja = viewModel::cerrarHoja,
+                onAgregar = viewModel::agregar,
+                onEliminarFicha = viewModel::pedirEliminarFicha,
+                onEliminarSeleccion = viewModel::pedirEliminarSeleccion, onConfirmarEliminar = viewModel::confirmarEliminar,
+                onCancelarEliminar = viewModel::cancelarEliminar, onComentarioPromocion = viewModel::comentarioPromocion, onExportar = viewModel::exportar, onGuardar = viewModel::pedirGuardar,
+                onCompartirFicha = viewModel::compartirFicha,
+                onContinuarVenta = viewModel::confirmarSeleccionVenta, onAtras = onBack,
+            ),
+        )
+    }
 }
 
 @Composable
@@ -202,7 +212,7 @@ fun InventarioContent(
                 onAyuda = { ayudaPestana.value = true },
                 ayudaDescripcion = "Ayuda de Inventario",
                 actions = {
-                    BotonFiltro(state.filtro.activos, TextosInventario.FILTRAR, onClick = { acciones.onHoja(HojaInventario.FILTRO) }, modifier = Modifier.testTag(InventarioTags.FILTRO))
+                    BotonFiltro(state.filtro.activos, TextosInventario.FILTRAR, onClick = { acciones.onHoja(HojaInventario.FILTRO) }, modifier = Modifier.testTag(InventarioTags.FILTRO).coachMark(ObjetivosRecorrido.INVENTARIO_FILTRO))
                     if (LocalPermisosApp.current.exportar) ShalevIconAction(
                         ShalevIcons.Compartir, TextosInventario.EXPORTAR, onClick = { acciones.onHoja(HojaInventario.EXPORTAR) },
                         enabled = state.items.isNotEmpty() || state.seleccion.isNotEmpty(), modifier = Modifier.testTag(InventarioTags.EXPORTAR),
@@ -225,7 +235,7 @@ fun InventarioContent(
                 ShalevFab(
                     ShalevIcons.Agregar, TextosInventario.AGREGAR, onClick = acciones.onAgregar,
                     // 1.0.2: el botón flotante lleva texto corto; la descripción completa queda para TalkBack.
-                    etiqueta = "Agregar", modifier = Modifier.testTag(InventarioTags.AGREGAR),
+                    etiqueta = "Agregar", modifier = Modifier.testTag(InventarioTags.AGREGAR).coachMark(ObjetivosRecorrido.INVENTARIO_AGREGAR),
                 )
             }
         },
@@ -313,7 +323,7 @@ private fun Buscador(state: InventarioUiState, acciones: AccionesInventario) {
             filtro = FiltroEntrada.BUSQUEDA,
             value = state.filtro.texto, onValueChange = acciones.onBuscar, label = "Buscar",
             leadingIcon = ShalevIcons.Buscar, anchoCompleto = true,
-            modifier = Modifier.fillMaxWidth().testTag(InventarioTags.BUSCAR),
+            modifier = Modifier.fillMaxWidth().testTag(InventarioTags.BUSCAR).coachMark(ObjetivosRecorrido.INVENTARIO_BUSCAR),
         )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally)) { // P28: contador (+ filtro) centrados
             if (state.vista is EstadoCarga.Exito) ShalevSecondaryText(TextosInventario.contador(state.items.size, state.total))
@@ -354,7 +364,7 @@ private fun Tabla(state: InventarioUiState, acciones: AccionesInventario) {
     val visibles = state.items.filterNot { it.producto.id in state.seleccion }
     val desplazamiento = rememberLazyListState()
     LazyColumn(
-        Modifier.fillMaxSize().testTag(InventarioTags.LISTA)
+        Modifier.fillMaxSize().testTag(InventarioTags.LISTA).coachMark(ObjetivosRecorrido.INVENTARIO_LISTA)
             .shalevIndicadorDesplazamiento(MaterialTheme.colorScheme.background, { desplazamiento.canScrollBackward }, { desplazamiento.canScrollForward }),
         state = desplazamiento,
         contentPadding = PaddingValues(start = ShalevSpacing.md, end = ShalevSpacing.md, top = ShalevSpacing.xs, bottom = ShalevSize.fabClearance),
