@@ -17,6 +17,13 @@
 - **Cierre automatizado:** CI `43349968643`, código `44cf495`: 991 JVM y 205 instrumentados (100 data + 105 app), sin fallos ni omisiones; permisos, API mínima, lint y R8/debug aprobados. Lint tiene 0 errores y 102 avisos; el release de CI no está firmado. El cierre documental no modifica ese código verificado.
 - **Verificación:** ver [VERIFICACION.md](VERIFICACION.md) y [AUDITORIA_SHALEV_2026-11.md](AUDITORIA_SHALEV_2026-11.md). El CI distingue compilar `androidTest` de ejecutarlo; la tubería del emulador propaga el fallo y publica XML reales. Instalación firmada, revisión visual y dos teléfonos siguen siendo validaciones distintas.
 
+## Aviso de turno con ventas acumuladas (2026-11-13)
+
+- La notificación añade el total en vivo de ventas válidas del turno abierto en este teléfono: suma efectivo y transferencia, excluye ventas anuladas y se omite si no hay turno propio. El importe aparece en la línea principal y en el detalle.
+- Se conserva el conteo (no los nombres) de apps secundarias conectadas en la app Principal. Se usa el estado de sesiones autenticadas del servidor; no se infiere conexión a partir de actividad de sincronización. Por decisión del usuario, el importe es visible en la pantalla bloqueada; no se muestran datos de clientes.
+- La consulta Room reactiva suma el importe persistido de las ventas del turno y actualiza al registrar o anular, sin cargar los detalles ni congelar el total en `Turno.resumen`. Se añadieron pruebas de presentación y de datos Room para efectivo, transferencia y anulación.
+- Verificación pendiente en este entorno: falta Java/JDK (`java` no está en `PATH` y `JAVA_HOME` está vacío); las pruebas nuevas no se han ejecutado.
+
 ## Etiquetas de ventanas y ejes de los gráficos de Inicio (2026-11-13)
 
 - Las acciones de `ShalevDialog` y `ShalevBottomSheet` muestran el texto de cada acción en vez del icono; se aplica también al calendario y al diálogo a pantalla completa de corrección de venta. Campos de texto y barras superiores rotulan sus acciones dentro de una ventana. Durante una carga se conserva la etiqueta junto al progreso.

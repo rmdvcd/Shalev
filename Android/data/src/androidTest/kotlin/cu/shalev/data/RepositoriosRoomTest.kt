@@ -18,6 +18,7 @@ import cu.shalev.data.repository.ProductoRepositoryImpl
 import cu.shalev.data.repository.RegistroRepositoryImpl
 import cu.shalev.data.repository.TurnoRepositoryImpl
 import cu.shalev.data.repository.VentaRepositoryImpl
+import cu.shalev.domain.model.Anulacion
 import cu.shalev.domain.model.Categorias
 import cu.shalev.domain.model.DatosCliente
 import cu.shalev.domain.model.DetalleVenta
@@ -34,8 +35,13 @@ import cu.shalev.domain.model.Venta
 import cu.shalev.domain.repository.FiltroRegistro
 import java.time.Duration
 import java.time.Instant
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -115,6 +121,35 @@ class RepositoriosRoomTest {
         assertNull(v.transaccion)
         assertEquals(listOf(id), ventas.deTurno(t.id).map { it.id })
         assertTrue(turnos.movimientosDe(t.id).any { it.tipo == TipoMovimiento.VENTA && it.ventaId == id && it.delta == -4L })
+    }
+
+    @Test fun totalReactivoDelTurnoSumaAmbosPagosYRestaVentasAnuladas() = runBlocking {
+        val p = productos.obtener(ok(productos.crear(producto("Refresco", 10), null)))!!
+        val turno = ok(turnos.abrir(ahora, "Ana"))
+        val totales = Channel<Cup>(Channel.UNLIMITED)
+        val observador = launch { ventas.observarTotalDeTurno(turno.id).collect { totales.send(it) } }
+        suspend fun leerTotal() = withTimeout(5_000) { totales.receive() }
+
+        try {
+            assertEquals(Cup.ZERO, leerTotal())
+            val efectivo = ok(ventas.registrar(Venta(
+                turnoId = turno.id, fecha = ahora, metodoPago = MetodoPago.EFECTIVO, detalles = listOf(detalle(p, 2)),
+            )))
+            assertEquals(Cup.ofPesos(200), leerTotal())
+
+            ok(ventas.registrar(Venta(
+                turnoId = turno.id, fecha = ahora, metodoPago = MetodoPago.TRANSFERENCIA,
+                detalles = listOf(detalle(p, 1)),
+                transaccion = Transaccion(fecha = ahora, importe = Cup.ofPesos(100), numero = "BR601ADLM8998", cliente = cliente),
+            )))
+            assertEquals(Cup.ofPesos(300), leerTotal())
+
+            ok(ventas.anular(efectivo, Anulacion(ahora.plusSeconds(1), "Venta repetida", "Ana")))
+            assertEquals(Cup.ofPesos(100), leerTotal())
+        } finally {
+            observador.cancelAndJoin()
+            totales.close()
+        }
     }
 
     /**

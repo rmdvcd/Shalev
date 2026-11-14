@@ -182,7 +182,7 @@ En Shalev rige una regla sencilla que mantiene tus cuentas claras todos los día
    - En las apps de empleados también escribe el fondo quien abre el turno (al abrirlo, su teléfono se sincroniza automáticamente con la principal para trabajar con el catálogo al día).
 3. Pulsa **Confirmar**. En **Inicio** aparecerán, debajo del banner de licencia y antes de las alertas, los iconos de **Vender** (carrito) y **Caja** (caja registradora).
 
-> **Consejo:** mientras tu turno esté abierto, verás una notificación discreta de Shalev en la barra superior de Android con el tiempo transcurrido. No muestra importes ni nombres de clientes para proteger tu privacidad, y tocarla te devuelve enseguida a la app.
+> **Consejo:** mientras tu turno esté abierto, verás una notificación de Shalev con el tiempo transcurrido y el total de ventas válidas del turno de este teléfono (no suma los turnos de otras apps). En la App Principal también indica cuántas apps secundarias están conectadas. El importe es visible en la pantalla bloqueada; no se muestran datos de clientes. Tócala para volver enseguida a Shalev.
 
 ### 5.2 Registrar entradas y salidas de efectivo durante el turno
 

@@ -1,5 +1,6 @@
 package cu.shalev.data.repository
 
+import cu.shalev.core.money.Cup
 import cu.shalev.domain.model.ClaseArticulo
 import cu.shalev.core.result.AppError
 import cu.shalev.core.result.AppResult
@@ -29,6 +30,7 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
     override fun observarCambios() = db.ventaDao().observarCambios().map { Unit }
 
     private val ventas = db.ventaDao()
+    override fun observarTotalDeTurno(turnoId: Long) = ventas.observarTotalValidoDeTurno(turnoId).map { Cup(it) }
     private val servicios = db.servicioDao()
     private val productos = db.productoDao()
     private val turnos = db.turnoDao()

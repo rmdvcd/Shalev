@@ -1,5 +1,7 @@
 package cu.shalev.app.notificacion
 
+import cu.shalev.core.money.Cup
+import cu.shalev.core.money.Money
 import cu.shalev.data.sync.AtencionSync
 import java.time.Instant
 
@@ -12,7 +14,8 @@ import java.time.Instant
  *   abierto (el suyo o el de una secundaria). Sin turnos y fuera de la app se detiene: no gasta batería de noche.
  * - **Notificación:** una sola. Con servicio siempre se ve (Android lo exige). Sin servicio, como en P29: solo con un
  *   turno propio abierto y Shalev fuera de la vista.
- * - Texto sin importes ni datos de clientes.
+ * - Muestra el total de ventas válidas del turno de esta app y el conteo de secundarias conectadas. Por decisión del
+ *   usuario, el importe también es visible en la pantalla bloqueada; no se muestran datos de clientes.
  */
 data class PlanAviso(
     val servicio: Boolean,
@@ -21,9 +24,16 @@ data class PlanAviso(
     val turnoDesde: Instant?,
     val conectadas: Int,
     val turnosAbiertos: Int = 0,
+    /** Total de ventas válidas del turno de esta app; null cuando esta app no tiene un turno abierto. */
+    val ventasTurno: Cup? = null,
 ) {
     companion object {
-        fun calcular(visible: Boolean, turnoPropioDesde: Instant?, atencion: AtencionSync): PlanAviso {
+        fun calcular(
+            visible: Boolean,
+            turnoPropioDesde: Instant?,
+            atencion: AtencionSync,
+            ventasTurno: Cup? = null,
+        ): PlanAviso {
             val servicio = atencion.principalConSecundarias && (visible || atencion.turnosAbiertos > 0)
             return PlanAviso(
                 servicio = servicio,
@@ -31,6 +41,7 @@ data class PlanAviso(
                 turnoDesde = turnoPropioDesde,
                 conectadas = if (servicio) atencion.conectadas else 0,
                 turnosAbiertos = if (servicio) atencion.turnosAbiertos else 0,
+                ventasTurno = ventasTurno.takeIf { turnoPropioDesde != null },
             )
         }
 
@@ -40,18 +51,19 @@ data class PlanAviso(
         fun apps(n: Int) = if (n == 1) "1 app conectada" else "$n apps conectadas"
 
         /**
-         * - Turno propio: «Turno abierto desde las 9:30», más « · 2 apps conectadas» si el servicio está activo y hay
-         *   secundarias conectadas.
+         * - Turno propio: antepone el total acumulado y, si el servicio está activo, el conteo de apps conectadas antes
+         *   de la hora del turno.
          * - Solo servicio: «2 apps conectadas» o, sin ninguna conectada, «Esperando a tus apps vinculadas».
          */
         fun texto(plan: PlanAviso, hora: String?): String {
             val conectadas = plan.servicio && plan.conectadas > 0
-            return when {
-                hora != null && conectadas -> "${AvisoTurno.texto(hora)} · ${apps(plan.conectadas)}"
+            val estado = when {
+                hora != null && conectadas -> "${apps(plan.conectadas)} · ${AvisoTurno.texto(hora)}"
                 hora != null -> AvisoTurno.texto(hora)
                 conectadas -> apps(plan.conectadas)
                 else -> ESPERANDO
             }
+            return plan.ventasTurno?.let { "Ventas del turno: ${Money.format(it)} · $estado" } ?: estado
         }
 
         fun detalle(plan: PlanAviso, hora: String?): String = buildList {

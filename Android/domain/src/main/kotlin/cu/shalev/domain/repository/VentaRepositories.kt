@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.Flow
 
 interface VentaRepository {
     fun observarCambios(): Flow<Unit> = kotlinx.coroutines.flow.flowOf(Unit)
+    /** Total reactivo de las ventas válidas (efectivo + transferencia) de [turnoId]. */
+    fun observarTotalDeTurno(turnoId: Long): Flow<Cup>
     /**
      * Registra la venta de forma ATÓMICA: comprueba que [Venta.turnoId] sigue abierto, re-verifica
      * existencias, inserta venta + detalles + transacción, descuenta stock de los artículos y crea los movimientos VENTA.

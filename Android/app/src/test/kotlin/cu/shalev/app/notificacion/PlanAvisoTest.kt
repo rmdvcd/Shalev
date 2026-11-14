@@ -1,5 +1,7 @@
 package cu.shalev.app.notificacion
 
+import cu.shalev.core.money.Cup
+import cu.shalev.core.money.Money
 import cu.shalev.data.sync.AtencionSync
 import java.time.Instant
 import org.junit.Assert.assertEquals
@@ -9,11 +11,27 @@ import org.junit.Test
 
 /** 0.19.2 · Cuándo corre el servicio en primer plano de la principal y qué dice la notificación única. */
 class PlanAvisoTest {
-    @Test fun detalleExpandidoNoIncluyeDatosFinancieros() {
+    @Test fun detalleExpandidoSinTurnoPropioNoMuestraImporte() {
         val texto = PlanAviso.detalle(PlanAviso(servicio = true, mostrar = true, turnoDesde = null, conectadas = 2), null)
         org.junit.Assert.assertTrue(texto.contains("Turno de esta app cerrado"))
         org.junit.Assert.assertTrue(texto.contains("Sincronización local activa"))
-        org.junit.Assert.assertFalse(texto.contains("CUP"))
+        org.junit.Assert.assertFalse(texto.contains("Ventas del turno:"))
+        org.junit.Assert.assertTrue(texto.contains("2 apps conectadas"))
+    }
+
+    @Test fun detalleExpandidoMuestraElTotalValidoDelTurnoPropio() {
+        val total = Cup.ofPesos(12_345)
+        val plan = PlanAviso.calcular(visible = false, turnoPropioDesde = desde, atencion = principal(abiertos = 1, conectadas = 2), ventasTurno = total)
+        val texto = PlanAviso.detalle(plan, "9:30")
+        val compacto = PlanAviso.texto(plan, "9:30")
+        assertTrue(compacto.startsWith("Ventas del turno: ${Money.format(total)} · 2 apps conectadas"))
+        assertTrue(texto.contains("2 apps conectadas"))
+    }
+
+    @Test fun totalSeOmiteSiNoHayTurnoDeEstaAppAunqueLlegueUnValor() {
+        val plan = PlanAviso.calcular(visible = true, turnoPropioDesde = null, atencion = principal(), ventasTurno = Cup.ofPesos(50))
+        assertEquals(null, plan.ventasTurno)
+        assertFalse(PlanAviso.detalle(plan, null).contains("Ventas del turno:"))
     }
 
 

@@ -17,21 +17,29 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import cu.shalev.app.MainActivity
 import cu.shalev.app.R
+import cu.shalev.core.money.Cup
 import cu.shalev.data.sync.ArranqueSync
 import cu.shalev.data.sync.AtencionSync
 import cu.shalev.domain.repository.TurnoRepository
+import cu.shalev.domain.repository.VentaRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.Instant
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -39,7 +47,8 @@ import kotlinx.coroutines.launch
  * con Atrás). Decisiones (respuestas del usuario):
  * - Solo POST_NOTIFICATIONS (Android 13+); sin RECEIVE_BOOT_COMPLETED: si el teléfono
  *   se reinicia, el aviso no vuelve hasta abrir la app.
- * - Texto sin importes ni datos de clientes: «Turno abierto desde las HH:MM» (formato de hora del dispositivo).
+ * - Muestra la hora del turno, el total de ventas válidas de esta app y el conteo de secundarias conectadas; el total
+ *   está visible en la pantalla bloqueada por decisión del usuario. No se muestran datos de clientes.
  * - Canal «Turno» de importancia baja: sin sonido ni vibración. Tocarlo abre Shalev donde estaba.
  * - Se quita al volver a la app o al cerrar el turno.
  *
@@ -51,8 +60,11 @@ import kotlinx.coroutines.launch
 class AvisoTurno @Inject constructor(
     @ApplicationContext private val context: Context,
     private val turnos: TurnoRepository,
+    private val ventas: VentaRepository,
     private val arranque: ArranqueSync,
 ) {
+    private data class TurnoAviso(val desde: Instant, val ventas: Cup?)
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val enPrimerPlano = MutableStateFlow(false)
     private var iniciado = false
@@ -64,6 +76,7 @@ class AvisoTurno @Inject constructor(
     private var servicioActivo = false
 
     /** Desde [android.app.Application.onCreate]: cuenta las actividades visibles y vigila el turno activo. */
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun iniciar(app: Application) {
         if (iniciado) return
         iniciado = true
@@ -83,8 +96,18 @@ class AvisoTurno @Inject constructor(
         })
         scope.launch {
             val atencion: Flow<AtencionSync> = arranque.atencion.catch { emit(AtencionSync()) }
-            combine(enPrimerPlano, turnos.observarActivo().catch { emit(null) }, atencion) { visible, turno, at ->
-                PlanAviso.calcular(visible, turno?.takeIf { it.abierto }?.abiertoEn, at)
+            val turnoYVentas: Flow<TurnoAviso?> = turnos.observarActivo()
+                .catch { emit(null) }
+                .distinctUntilChangedBy { it?.id }
+                .flatMapLatest { turno ->
+                    if (turno == null || !turno.abierto) flowOf(null)
+                    else ventas.observarTotalDeTurno(turno.id)
+                        .map { total -> TurnoAviso(turno.abiertoEn, total) }
+                        .catch { emit(TurnoAviso(turno.abiertoEn, null)) }
+                }
+                .catch { emit(null) }
+            combine(enPrimerPlano, turnoYVentas, atencion) { visible, turno, at ->
+                PlanAviso.calcular(visible, turno?.desde, at, turno?.ventas)
             }
                 .distinctUntilChanged()
                 .collect { aplicar(it) }
@@ -179,7 +202,7 @@ class AvisoTurno @Inject constructor(
             .setShowWhen(p.turnoDesde != null)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC) // no contiene datos sensibles
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC) // el total del turno se hace visible en bloqueo, según lo autorizado
             // Android 12+: sin el retraso de 10 s de las notificaciones de servicio (es la misma del turno).
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()

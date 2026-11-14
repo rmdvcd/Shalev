@@ -222,12 +222,19 @@ class TurnoRepo : TurnoRepository {
 /** [fallar] = simula un error de la base de datos. */
 class VentaRepo : VentaRepository {
     val ventas = mutableListOf<Venta>()
+    private val versionVentas = MutableStateFlow(0)
+    override fun observarCambios() = versionVentas.map { Unit }
+    override fun observarTotalDeTurno(turnoId: Long) = versionVentas.map {
+        ventas.asSequence().filter { it.turnoId == turnoId && !it.anulada }
+            .fold(Cup.ZERO) { total, venta -> total + venta.total }
+    }
+    private fun notificarCambio() { versionVentas.value++ }
     var fallar = false
     /** No null = el registro devuelve este error (stock, turno…) sin guardar nada. */
     var errorRegistro: AppError? = null
     override suspend fun registrar(venta: Venta, elaborados: List<cu.shalev.domain.model.ElaboradoEnVenta>): AppResult<Long> {
         errorRegistro?.let { return AppResult.Err(it) }
-        ventas += venta.copy(id = ventas.size + 1L); return AppResult.Ok(ventas.size.toLong())
+        ventas += venta.copy(id = ventas.size + 1L); notificarCambio(); return AppResult.Ok(ventas.size.toLong())
     }
     override suspend fun obtener(id: Long) = ventas.firstOrNull { it.id == id }
     override suspend fun entre(desde: Instant, hasta: Instant): List<Venta> {
@@ -244,7 +251,7 @@ class VentaRepo : VentaRepository {
         errorRegistro?.let { return AppResult.Err(it) }
         val i = ventas.indexOfFirst { it.id == ventaId }
         if (i < 0) return AppResult.Err(AppError.NoEncontrado)
-        ventas[i] = ventas[i].copy(anulacion = anulacion); return AppResult.Ok(Unit)
+        ventas[i] = ventas[i].copy(anulacion = anulacion); notificarCambio(); return AppResult.Ok(Unit)
     }
     override suspend fun modificar(
         ventaId: Long, anulacion: cu.shalev.domain.model.Anulacion, nueva: Venta, elaborados: List<cu.shalev.domain.model.ElaboradoEnVenta>,

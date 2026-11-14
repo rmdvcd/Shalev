@@ -1,5 +1,18 @@
 # Shalev — Verificación real
 
+## Aviso de turno con ventas acumuladas — 2026-11-13
+
+**Rama:** `arena/9b68c574-shalev`, basada en `a5febcdf4d05c60018c140df777662d439e015ca`. Cambios sin commit; esta entrada no representa un SHA nuevo.
+
+| Comprobación | Resultado observado |
+|---|---|
+| `PYTHONPATH=/tmp/shalev-manual-deps python3 tools/manual/generar_pdf.py` | **OK**: manual regenerado, 32 páginas, 5.72 MB, 7 diagramas vectoriales y 20 capítulos. |
+| Texto del PDF regenerado | **OK**: comprobado que describe el total del turno propio, el conteo de secundarias conectadas y que el importe se ve en bloqueo. |
+| `git diff --check` | **OK**. |
+| `./gradlew shalevTests` | **No llegó a iniciar**: exit 1, `JAVA_HOME is not set and no 'java' command could be found in your PATH`. Las pruebas JVM, Room y Compose siguen pendientes. |
+
+No se atribuye a este cambio una compilación ni una ejecución de pruebas Android. `java` no está instalado/configurado en este entorno.
+
 ## Reorganización de carpetas — 2026-11-13
 
 **Rama:** `arena/7904f1fb-shalev`. **HEAD base:** `67592b0bbd2efdaf071a3e4d57a7affa9c6f9ab6`; los cambios de esta reorganización siguen en el working tree y esta entrada no representa un commit nuevo.
