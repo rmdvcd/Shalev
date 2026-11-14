@@ -1,3 +1,11 @@
+## Recorridos en todas las ventanas, botones de una palabra y textos breves (2026-11-13)
+
+- **Recorridos:** 50 recorridos (antes 5). Cubren las pestañas, Ajustes y cada uno de sus módulos, las pantallas secundarias (formularios, detalle de turno) y las ventanas emergentes con controles (fondo de caja, movimiento, conteo, cierre, filtros, exportar, fichas, modificar/anular, cuentas, ajustes de precio, locales, empleados, importar). Los controles relacionados comparten paso; máximo 8. Las confirmaciones simples de Sí/No no tienen recorrido.
+- **Ventanas:** `ShalevDialog` y `ShalevBottomSheet` aceptan `recorrido` y ponen un `CoachMarkHost` dentro de su propia ventana; `recorridoVentana()` lo crea desde `LocalRecorridos` (lo provee `MainScaffold`, así que las pruebas sueltas no ven recorridos). Se mantiene: un indicador `<clave>_tour_shown` por recorrido, se guarda solo con Finalizar, Omitir o Atrás, y nunca bloquea.
+- **Botones:** todos muestran icono + una palabra (`etiqueta`, `confirmEtiqueta`, `actionEtiqueta`, `palabraBoton`), también las acciones de fila. Excepciones: −1/+1 y los botones del propio recorrido, adelante/atrás, filtro y exportar/compartir. `tools/verificacion/botones.py` lo audita en CI (0 incumplimientos) con sus pruebas en `tools/verificacion/tests/test_botones.py`.
+- **Textos:** se acortaron 63 textos descriptivos de más de 60 caracteres: empiezan por la acción y quitan redundancias, sin perder avisos de seguridad (importar, contraseña, SMS).
+- Sin cambios en la lógica de negocio ni en Room.
+
 ## Auditoría integral de Shalev Android (2026-11-13, versión de trabajo 1.0.1/54)
 
 - **Integridad:** dinero con centavos/signos en edición y Excel; detección de desbordamientos; cotización/consumos revalidados dentro de la transacción de cobro y antes de modificar una venta. Precios/costos anteriores siguen congelados. Referencias normalizadas repetidas rechazadas localmente; conflictos offline señalados sin descartar ventas reales.

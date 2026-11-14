@@ -170,10 +170,9 @@ class LicenciaViewModel @Inject constructor(
 /** 0.25.0 (§3): textos de la recuperación automática de la licencia. */
 object TextosRecuperacion {
     const val TITULO = "¿Ya tenías licencia en otro teléfono?"
-    const val DETALLE = "Escribe o pega el ID de tu licencia anterior: el desarrollador la pasa a este teléfono gratis, con el " +
-        "mismo vencimiento y secundarias. El teléfono anterior se bloquea, borra sus datos y pide desinstalar Shalev."
+    const val DETALLE = "Pega el ID de tu licencia anterior para pasarla gratis aquí. El teléfono anterior se bloquea y borra sus datos."
     const val CAMPO = "ID de la licencia anterior (opcional)"
-    const val ID_INVALIDO = "El ID de la licencia anterior no es válido. Cópialo del mensaje de licencia (ID: …)."
+    const val ID_INVALIDO = "ID no válido. Cópialo del mensaje de tu licencia (ID: …)."
     const val DESDE_RESPALDO = "Rellenado con la licencia del respaldo importado."
 }
 

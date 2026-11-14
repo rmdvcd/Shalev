@@ -105,7 +105,7 @@ Shalev está pensada para manejarse con una sola mano de forma ágil detrás del
 
 ### 3.2 Iconos de acción y ayuda contextual
 
-Fuera de las ventanas emergentes, algunas acciones usan **iconos** para dejar espacio al contenido y TalkBack puede leer su descripción. En las acciones de la aplicación dentro de diálogos y ventanas emergentes verás su etiqueta escrita (por ejemplo, **Guardar**, **Eliminar** o **Aceptar**) en vez del icono. Si las acciones del pie no caben en una sola fila, se distribuyen en varias sin cambiar el orden; los controles internos de selectores conservan sus iconos y descripciones accesibles. Para mantener las listas compactas, cada fila limita su texto a tres líneas y recorta lo que no cabe con puntos suspensivos.
+Cada botón muestra **su icono y una palabra** que dice lo que hace: **Guardar**, **Vender**, **Editar**, **Quitar**… También las acciones de cada fila de una lista. Solo se quedan con el icono, por espacio, **−1 / +1** de las cantidades, las flechas **Adelante** y **Atrás**, el **Embudo** (filtrar) y **Exportar/Compartir**; TalkBack lee igualmente su nombre. Si los botones del pie no caben en una fila, pasan a otra sin cambiar el orden. Cada fila de una lista muestra hasta tres líneas de texto.
 
 ![Mapa de navegación y botones de Shalev](docs/manual/diagramas/01_navegacion_general.svg)
 
@@ -122,7 +122,12 @@ Fuera de las ventanas emergentes, algunas acciones usan **iconos** para dejar es
 
 #### Recorridos guiados de la primera visita
 
-La primera vez que abres **Inicio** (turno y caja), **Inventario**, **Servicios**, **Registros** o una **venta** con artículos en el carrito, la pantalla se oscurece un poco y un círculo de luz resalta, uno a uno, sus botones principales. Cada globo explica en una frase qué hacer y trae **Siguiente**, **Anterior** y **Omitir** (en el último paso, **Finalizar**). Son de 2 a 4 pasos y no bloquean nada: puedes seguir tocando la pantalla mientras el globo está abierto, y el botón Atrás también lo cierra.
+La primera vez que abres una pantalla o una ventana con varios controles, la pantalla se oscurece un poco y un círculo de luz resalta, uno a uno, sus partes. Cada globo dice en una frase qué hacer y trae **Siguiente**, **Anterior** y **Omitir** (en el último paso, **Finalizar**).
+
+- **Pantallas:** Inicio, la venta (con artículos en el carrito), Inventario, Servicios, Registros, el detalle de un turno, los formularios de producto, servicio e insumo, y **Ajustes con cada uno de sus apartados** (Perfil, Licencia, Apps vinculadas, Pago electrónico, Ajustes de precio, Respaldo, Manual y Soporte).
+- **Ventanas:** fondo de caja, entrada o salida de efectivo, conteo y cierre de turno, filtros, exportar, fichas, modificar o anular una venta, cuentas de cobro, ajustes de precio, locales, apps de empleados e importar un respaldo.
+- Los controles relacionados comparten un paso, así que nunca son más de 8. Las confirmaciones simples de Sí/No no tienen recorrido.
+- No bloquean nada: puedes seguir tocando la pantalla mientras el globo está abierto, y Atrás también lo cierra.
 
 El recorrido no vuelve a salir después de **Finalizar** u **Omitir**. Si cierras la app a mitad, saldrá de nuevo la próxima vez. Para repetirlo cuando quieras, toca **Ayuda** *(arriba a la izquierda)* y luego **Ver recorrido**.
 

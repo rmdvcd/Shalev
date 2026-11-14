@@ -16,8 +16,7 @@ import cu.shalev.designsystem.ilustracion.ShalevIlustracion
 
 object TextosTransferida {
     const val TITULO = "Licencia transferida"
-    const val DETALLE = "La licencia de Shalev se recuperó en otro teléfono. Por seguridad, aquí se borraron los datos del " +
-        "negocio y la app quedó bloqueada. Puedes desinstalarla."
+    const val DETALLE = "Tu licencia se recuperó en otro teléfono. Aquí se borraron los datos y la app quedó bloqueada. Desinstálala."
     const val DESINSTALAR = "Desinstalar Shalev"
     const val TAG = "licencia_transferida"
 }

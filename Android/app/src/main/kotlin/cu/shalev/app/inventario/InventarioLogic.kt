@@ -22,7 +22,7 @@ object TextosInventario {
     const val SIN_RESULTADOS_TITULO = "Sin resultados"
     const val SIN_RESULTADOS_DETALLE = "Prueba otra búsqueda o quita los filtros."
     const val SELECCIONADOS_TITULO = "Todos los resultados están seleccionados"
-    const val SELECCIONADOS_DETALLE = "Los elementos seleccionados están fijados encima del buscador."
+    const val SELECCIONADOS_DETALLE = "Los seleccionados quedan fijos sobre el buscador."
     const val QUITAR_FILTROS = "Quitar filtros"
     const val ERROR_CARGA = "No se pudo cargar el inventario."
     const val AGREGAR = "Agregar producto"

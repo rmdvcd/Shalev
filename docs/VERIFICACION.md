@@ -1,5 +1,15 @@
 # Shalev — Verificación real
 
+## Recorridos en todas las ventanas y botones de una palabra — 2026-11-13
+
+**Rama:** `arena/940dc5f1-shalev`, basada en `0540b764787e6dc0258378b7ae3ef4033c7f9450`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| `python3 tools/verificacion/botones.py` | **0 incumplimientos** (5 textos calculados en ejecución). Nuevo paso de CI «Regla de botones». |
+| `python3 -m unittest discover -s tools/verificacion/tests -p 'test_*.py'` | **24 pruebas OK**, 10 de ellas de `test_botones.py`. |
+| Compilación y pruebas JVM/Robolectric | En el CI de la rama (sin JDK local). |
+
 ## Aviso de turno con ventas acumuladas — 2026-11-13
 
 **Rama:** `arena/9b68c574-shalev`, basada en `a5febcdf4d05c60018c140df777662d439e015ca`. Cambios sin commit; esta entrada no representa un SHA nuevo.

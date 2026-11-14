@@ -208,8 +208,8 @@ fun LicenciaForm.igualQue(instalada: LicenciaInstalada): LicenciaForm =
 object TextosRenovacion {
     const val BOTON = "Renovar igual"
     const val BOTON_AMPLIAR = "Ampliar secundarias"
-    const val SIN_PERDER_DIAS = "Si renuevas antes de que venza no pierdes días: la nueva licencia empieza cuando termine la actual."
-    const val CONSERVA_VENCIMIENTO = "Conserva el vencimiento actual de tu licencia y cobra solo las secundarias añadidas."
+    const val SIN_PERDER_DIAS = "Renueva antes de que venza: la nueva empieza al terminar la actual."
+    const val CONSERVA_VENCIMIENTO = "Mantiene tu vencimiento y cobra solo las secundarias nuevas."
     fun detalle(i: LicenciaInstalada): String =
         "${i.tipo.etiqueta} · ${TextosLicencia.secundarias(i.secundarias)} · ${Money.cup(i.tipo.precio(i.secundarias))}"
 }

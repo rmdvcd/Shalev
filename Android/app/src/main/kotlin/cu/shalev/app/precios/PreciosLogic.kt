@@ -14,7 +14,7 @@ enum class TipoSeleccionPrecio(val titulo: String) { PRODUCTOS("Productos"), SER
 
 object TextosPrecios {
     const val TITULO = "Precios"
-    const val EXPLICACION = "Sube o baja precios al cobrar según el método de pago. El precio guardado no cambia."
+    const val EXPLICACION = "Sube o baja precios al cobrar según el pago. El precio guardado no cambia."
     const val VACIO_TITULO = "Aún no hay ajustes de precio"
     const val VACIO_DETALLE = "Ej.: +5 % con transferencia."
     const val SIN_PRODUCTOS = "Primero agrega productos en Inventario."

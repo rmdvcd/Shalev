@@ -97,14 +97,13 @@ import kotlinx.coroutines.launch
 
 /** 0.25.1 (B): textos de la pantalla Modificar venta. */
 object TextosModificar {
-    const val TEXTO = "Cambia cantidades, quita o añade artículos y elige el método de pago. Lo que ya estaba conserva su precio de " +
-        "entonces; lo nuevo, el precio actual."
+    const val TEXTO = "Cambia cantidades, artículos o el pago. Lo que ya estaba conserva su precio; lo nuevo usa el actual."
     const val ANADIR = "Añadir artículo"
     const val BUSCAR = "Buscar por nombre o descripción"
     const val SIN_RESULTADOS = "No hay artículos disponibles con ese nombre."
     const val CERRAR_BUSQUEDA = "Terminar de añadir"
     const val CLIENTE = "Datos de la transferencia"
-    const val TRANSFERENCIA_INCOMPLETA = "Completa los datos de la transferencia (el número de transacción es obligatorio)."
+    const val TRANSFERENCIA_INCOMPLETA = "Completa la transferencia. El nº de transacción es obligatorio."
     const val SIN_CAMBIOS = "No hay cambios que guardar."
     const val NUEVO = "Nuevo"
     fun total(t: Cup) = "Total estimado: ${Money.format(t)}"

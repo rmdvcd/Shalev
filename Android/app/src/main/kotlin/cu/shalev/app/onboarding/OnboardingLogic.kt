@@ -60,18 +60,18 @@ val PASOS_TOUR = listOf(PasoWizard.TIPO_APP, PasoWizard.ACCESO_CLAVE, PasoWizard
 /** 0.21.0 (C12): textos del recorrido inicial (puros, probados en JVM). */
 object TextosTour {
     const val PRINCIPAL = "Principal (dueño)"
-    const val PRINCIPAL_DETALLE = "Este teléfono controla el negocio: inventario, precios, empleados y licencia."
+    const val PRINCIPAL_DETALLE = "Controla el negocio: inventario, precios, empleados y licencia."
     const val SECUNDARIA = "Secundaria (empleado)"
-    const val SECUNDARIA_DETALLE = "Este teléfono es de un empleado: vende con el inventario y los permisos que le dé el dueño."
-    const val TIPO_EXPLICACION = "Solo hay un teléfono principal por negocio. Cada empleado usa una app secundaria vinculada a él."
-    const val SECUNDARIA_SIGUIENTE = "Al continuar escribirás tu número de teléfono y escanearás el código que te muestre el dueño."
-    const val OBJETIVO_EXPLICACION = "Marca lo que harás con Shalev. Lo que no marques no aparecerá."
+    const val SECUNDARIA_DETALLE = "Para un empleado: vende con el inventario y los permisos del dueño."
+    const val TIPO_EXPLICACION = "Hay un solo teléfono principal. Cada empleado usa una app secundaria vinculada."
+    const val SECUNDARIA_SIGUIENTE = "Luego escribirás tu número y escanearás el código del dueño."
+    const val OBJETIVO_EXPLICACION = "Marca lo que harás con Shalev. Lo demás se oculta."
     const val VENTAS_ACTIVA_INVENTARIO = "Vender productos necesita el inventario: se activa también."
     const val EMPLEADOS_EXPLICACION = "Cada empleado usa su propia app secundaria."
-    const val EMPLEADOS_AYUDA = "Puedes elegir hasta el límite de tu prueba o licencia. Para más apps, solicita una ampliación de licencia."
+    const val EMPLEADOS_AYUDA = "Elige hasta el límite de tu prueba o licencia. Para más, amplía la licencia."
     /** 0.27.0 (T11/T9). */
-    const val ACCESO_EXPLICACION = "Si quieres, Shalev pedirá tu huella, tu cara o el PIN del teléfono al abrirla."
-    const val TIPO_DEFINITIVO = "El tipo de app no se puede cambiar después. Para cambiarlo habría que borrar los datos de la app."
+    const val ACCESO_EXPLICACION = "Opcional: pide huella, cara o PIN al abrir Shalev."
+    const val TIPO_DEFINITIVO = "No podrás cambiar el tipo después sin borrar los datos de la app."
     fun empleados(n: Int): String = when (n) { 0 -> "Sin empleados"; 1 -> "1 empleado"; else -> "$n empleados" }
 }
 

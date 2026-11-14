@@ -49,7 +49,7 @@ object TextosFoto {
     const val QUITAR = "Quitar foto"
     const val SIN_FOTO = "Sin foto"
     const val PREPARANDO = "Preparando la foto…"
-    const val SIN_PERMISO = "Permite la cámara en los ajustes del teléfono para hacer fotos."
+    const val SIN_PERMISO = "Permite la cámara en los ajustes del teléfono."
 }
 
 object SelectorFotoTags {

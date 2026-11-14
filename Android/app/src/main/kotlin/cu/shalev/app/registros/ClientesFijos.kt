@@ -149,7 +149,7 @@ class ClientesFijosViewModel @Inject constructor(private val repo: ClienteFijoRe
 
 object TextosClientes {
     const val VACIO_TITULO = "Aún no hay clientes fijos"
-    const val VACIO_DETALLE = "En una venta por transferencia, marca «Cliente fijo» para guardar sus datos."
+    const val VACIO_DETALLE = "Marca «Cliente fijo» en una venta por transferencia para guardarlo."
     /** 0.31.0: corrección del nombre, el carné y el teléfono desde la ficha. */
     const val EDITAR = "Editar"
     const val EDITAR_TITULO = "Editar cliente"
@@ -158,7 +158,7 @@ object TextosClientes {
     const val CARNE_OCUPADO = "Ese carné ya es de otro cliente."
     const val QUITAR = "Quitar de clientes fijos"
     const val QUITAR_TITULO = "¿Quitar de clientes fijos?"
-    const val QUITAR_TEXTO = "Sus datos ya no se sugerirán en las ventas. Sus compras siguen en Registros."
+    const val QUITAR_TEXTO = "Ya no se sugerirá en las ventas. Sus compras siguen en Registros."
     fun resumen(c: ClienteFijo): String =
         if (c.compras == 0) "Sin compras" else "${c.compras} ${if (c.compras == 1) "compra" else "compras"} · ${Money.format(c.total)}"
     fun campos(c: ClienteFijo, zona: ZoneId = ZoneId.systemDefault()): List<Pair<String, String>> = buildList {

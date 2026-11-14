@@ -65,7 +65,7 @@ import cu.shalev.domain.model.TipoMovimientoCaja
 object TextosCaja {
     const val FONDO = "Fondo de caja (CUP)"
     const val FONDO_TITULO = "Abrir turno"
-    const val FONDO_TEXTO = "Escribe el efectivo con el que empieza la caja (puede ser 0)."
+    const val FONDO_TEXTO = "Escribe el efectivo inicial de la caja. Puede ser 0."
     const val FONDO_SUGERIDO = "Propuesto: lo contado al cerrar el turno anterior."
     /** 0.26.0 (P73 §4): en una secundaria, el fondo lo asigna el encargado. */
     const val CONTADO = "Efectivo contado (CUP)"
@@ -75,7 +75,7 @@ object TextosCaja {
     const val SALIDA = "Salida"
     const val IMPORTE = "Importe (CUP)"
     const val MOTIVO = "Motivo"
-    const val MOTIVO_AYUDA = "De 3 a 60 caracteres. No se borra: un error se corrige con el movimiento contrario."
+    const val MOTIVO_AYUDA = "De 3 a 60 caracteres. Para corregir, registra el movimiento contrario."
     const val IMPORTE_INVALIDO = "Escribe un importe válido (máximo 2 decimales)."
     const val SIN_ARQUEO = "Sin arqueo (turno de una versión anterior de Shalev)"
     const val MOVIMIENTO_GUARDADO = "Movimiento de caja registrado."
