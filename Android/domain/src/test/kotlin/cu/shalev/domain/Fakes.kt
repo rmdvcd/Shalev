@@ -161,6 +161,13 @@ class FakeTurnos : TurnoRepository {
 class FakeVentas(private val productos: FakeProductos, private val turnos: FakeTurnos) : VentaRepository {
     val ventas = mutableListOf<Venta>()
     val elaborados = mutableListOf<ElaboradoEnVenta>()
+    private val versionVentas = MutableStateFlow(0)
+    override fun observarCambios() = versionVentas.map { Unit }
+    override fun observarTotalDeTurno(turnoId: Long) = versionVentas.map {
+        ventas.asSequence().filter { it.turnoId == turnoId && !it.anulada }
+            .fold(Cup.ZERO) { total, venta -> total + venta.total }
+    }
+    private fun notificarCambio() { versionVentas.value++ }
     init { turnos.ventasDe = { id -> ventas.filter { it.turnoId == id } } }
     override suspend fun registrar(venta: Venta, elaborados: List<ElaboradoEnVenta>): AppResult<Long> {
         if (turnos.obtener(venta.turnoId)?.abierto != true) return AppResult.Err(AppError.TurnoCerrado)
@@ -182,6 +189,7 @@ class FakeVentas(private val productos: FakeProductos, private val turnos: FakeT
                 entidadId = it.productoId, nombre = it.nombre, delta = -it.cantidad, existenciaResultante = existencia, turnoId = venta.turnoId, ventaId = id)
         }
         ventas += venta.copy(id = id, transaccion = venta.transaccion?.copy(ventaId = id))
+        notificarCambio()
         return AppResult.Ok(id)
     }
     override suspend fun obtener(id: Long) = ventas.firstOrNull { it.id == id }
@@ -194,6 +202,7 @@ class FakeVentas(private val productos: FakeProductos, private val turnos: FakeT
         if (v.anulacion != null) return AppResult.Err(AppError.Validacion("venta", AppError.Regla.NO_PERMITIDO))
         if (turnos.obtener(v.turnoId)?.abierto != true) return AppResult.Err(AppError.TurnoCerrado)
         ventas[ventas.indexOf(v)] = v.copy(anulacion = anulacion)
+        notificarCambio()
         turnos.movimientos.filter { it.ventaId == ventaId && it.delta < 0 && it.entidad == cu.shalev.domain.model.TipoEntidad.PRODUCTO }.toList().forEach { m ->
             val existencia = (productos.ajustarStock(m.entidadId, -m.delta, null) as AppResult.Ok).value
             turnos.movimientos += m.copy(id = 0, tipo = TipoMovimiento.ANULACION, delta = -m.delta, existenciaResultante = existencia)

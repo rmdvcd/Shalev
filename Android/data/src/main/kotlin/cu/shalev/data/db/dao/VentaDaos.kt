@@ -47,6 +47,10 @@ interface VentaDao {
     @Query("SELECT * FROM venta WHERE turnoId = :turnoId ORDER BY fecha, id")
     suspend fun deTurno(turnoId: Long): List<VentaCompleta>
 
+    /** Total en vivo del turno: suma ambos métodos de pago y omite ventas anuladas. */
+    @Query("SELECT COALESCE(SUM(totalCent), 0) FROM venta WHERE turnoId = :turnoId AND anuladaEn IS NULL")
+    fun observarTotalValidoDeTurno(turnoId: Long): Flow<Long>
+
     /** Registros → Ventas. [texto] busca en los nombres de los artículos vendidos. */
     @Transaction
     @Query(
