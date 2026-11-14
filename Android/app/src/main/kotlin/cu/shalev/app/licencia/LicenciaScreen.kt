@@ -180,7 +180,10 @@ object LicenciaTags {
     const val SIN_PERDER_DIAS = "licencia.sin_perder_dias"
     const val RECUPERA = "licencia.recupera"
     const val PRECIOS = "licencia.precios"
+    const val VIA_WHATSAPP = "licencia.via_whatsapp"
+    const val VIA_SMS = "licencia.via_sms"
     fun precio(t: TipoLicencia) = "licencia.precio_${t.name}"
+    fun tipo(t: TipoLicencia) = "licencia.tipo_${t.name}"
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -334,13 +337,15 @@ fun LicenciaContent(
                             SelectorSecundarias(form, acciones, previasAmpliacion = instalada.secundarias)
                         } else {
                             ShalevSecondaryText("Tipo de licencia")
-                            // 0.28.0: un tipo debajo del otro, a todo lo ancho.
+                            // Cada tipo ocupa una fila con nombre a la izquierda y precio alineado a la derecha.
                             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
                                 TipoLicencia.entries.forEach { t ->
-                                    ShalevChip(
-                                        label = t.etiqueta, supportingLabel = Money.cup(t.precioCup), supportingEsDato = true,
-                                        selected = form.tipo == t, onClick = { acciones.onEditar { it.copy(tipo = t) } },
-                                        modifier = Modifier.fillMaxWidth(),
+                                    ShalevListItem(
+                                        title = t.etiqueta,
+                                        value = Money.cup(t.precioCup),
+                                        selected = form.tipo == t,
+                                        onClick = { acciones.onEditar { it.copy(tipo = t) } },
+                                        modifier = Modifier.testTag(LicenciaTags.tipo(t)),
                                     )
                                 }
                             }
@@ -364,10 +369,14 @@ fun LicenciaContent(
                                 ShalevIcons.WhatsApp, "Enviar por WhatsApp", onClick = { acciones.onEditar { it.copy(via = Via.WHATSAPP) } },
                                 selected = form.via == Via.WHATSAPP,
                                 containerColor = ShalevTheme.colors.whatsapp.takeIf { form.via != Via.WHATSAPP },
+                                etiqueta = "WhatsApp", mostrarTexto = true,
+                                modifier = Modifier.testTag(LicenciaTags.VIA_WHATSAPP),
                             )
                             ShalevIconAction(
                                 ShalevIcons.Sms, "Enviar por SMS", onClick = { acciones.onEditar { it.copy(via = Via.SMS) } },
                                 selected = form.via == Via.SMS, style = IconActionStyle.Tonal,
+                                etiqueta = "SMS", mostrarTexto = true,
+                                modifier = Modifier.testTag(LicenciaTags.VIA_SMS),
                             )
                         }
                         ShalevSecondaryText(

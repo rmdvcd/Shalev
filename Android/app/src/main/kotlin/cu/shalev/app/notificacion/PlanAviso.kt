@@ -14,8 +14,9 @@ import java.time.Instant
  *   abierto (el suyo o el de una secundaria). Sin turnos y fuera de la app se detiene: no gasta batería de noche.
  * - **Notificación:** una sola. Con servicio siempre se ve (Android lo exige). Sin servicio, como en P29: solo con un
  *   turno propio abierto y Shalev fuera de la vista.
- * - Muestra el total de ventas válidas del turno de esta app y el conteo de secundarias conectadas. Por decisión del
- *   usuario, el importe también es visible en la pantalla bloqueada; no se muestran datos de clientes.
+ * - Muestra si el turno de esta app está abierto (con el total de sus ventas válidas) o cerrado, y cuántas
+ *   secundarias vinculadas están conectadas. Por decisión del usuario, el importe también es visible en la pantalla
+ *   bloqueada; no se muestran datos de clientes.
  */
 data class PlanAviso(
     val servicio: Boolean,
@@ -26,6 +27,8 @@ data class PlanAviso(
     val turnosAbiertos: Int = 0,
     /** Total de ventas válidas del turno de esta app; null cuando esta app no tiene un turno abierto. */
     val ventasTurno: Cup? = null,
+    /** Secundarias vinculadas (denominador de «conectadas»). */
+    val vinculadas: Int = 0,
 ) {
     companion object {
         fun calcular(
@@ -42,6 +45,7 @@ data class PlanAviso(
                 conectadas = if (servicio) atencion.conectadas else 0,
                 turnosAbiertos = if (servicio) atencion.turnosAbiertos else 0,
                 ventasTurno = ventasTurno.takeIf { turnoPropioDesde != null },
+                vinculadas = if (servicio) atencion.vinculadas.coerceAtLeast(atencion.conectadas) else 0,
             )
         }
 
@@ -50,17 +54,22 @@ data class PlanAviso(
 
         fun apps(n: Int) = if (n == 1) "1 app conectada" else "$n apps conectadas"
 
+        /** «2 de 3 apps conectadas»; sin total conocido conserva el texto corto. */
+        fun apps(conectadas: Int, vinculadas: Int): String =
+            if (vinculadas <= 0) apps(conectadas)
+            else "$conectadas de $vinculadas ${if (vinculadas == 1) "app conectada" else "apps conectadas"}"
+
         /**
-         * - Turno propio: antepone el total acumulado y, si el servicio está activo, el conteo de apps conectadas antes
+         * - Turno propio: antepone el total acumulado y, si el servicio está activo, «N de M apps conectadas» antes
          *   de la hora del turno.
-         * - Solo servicio: «2 apps conectadas» o, sin ninguna conectada, «Esperando a tus apps vinculadas».
+         * - Solo servicio: «Turno cerrado» con el conteo de apps o, sin ninguna conectada, la espera de las vinculadas.
          */
         fun texto(plan: PlanAviso, hora: String?): String {
-            val conectadas = plan.servicio && plan.conectadas > 0
+            val conteo = if (plan.servicio && plan.vinculadas > 0) apps(plan.conectadas, plan.vinculadas) else null
             val estado = when {
-                hora != null && conectadas -> "${apps(plan.conectadas)} · ${AvisoTurno.texto(hora)}"
+                hora != null && conteo != null -> "$conteo · ${AvisoTurno.texto(hora)}"
                 hora != null -> AvisoTurno.texto(hora)
-                conectadas -> apps(plan.conectadas)
+                conteo != null -> "$TURNO_CERRADO · $conteo"
                 else -> ESPERANDO
             }
             return plan.ventasTurno?.let { "Ventas del turno: ${Money.format(it)} · $estado" } ?: estado
@@ -77,5 +86,6 @@ data class PlanAviso(
         }.joinToString("\n")
 
         const val ESPERANDO = "Esperando a tus apps vinculadas"
+        const val TURNO_CERRADO = "Turno cerrado"
     }
 }

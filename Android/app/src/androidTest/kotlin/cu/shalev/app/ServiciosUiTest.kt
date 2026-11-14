@@ -1,15 +1,12 @@
 package cu.shalev.app
 
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import cu.shalev.app.common.LocalPermisosApp
 import cu.shalev.app.inicio.EstadoCarga
 import cu.shalev.app.servicios.AccionesServicioForm
 import cu.shalev.app.servicios.AccionesServicios
@@ -22,11 +19,8 @@ import cu.shalev.app.servicios.ServiciosContent
 import cu.shalev.app.servicios.ServiciosTags
 import cu.shalev.app.servicios.ServiciosUiState
 import cu.shalev.core.money.Cup
-import cu.shalev.designsystem.component.GuardiaDobleToque
 import cu.shalev.designsystem.theme.ShalevTheme
 import cu.shalev.domain.model.FiltroServicios
-import cu.shalev.domain.model.Modulo
-import cu.shalev.domain.model.PermisosApp
 import cu.shalev.domain.model.Servicio
 import cu.shalev.domain.model.ServicioDisponible
 import cu.shalev.domain.model.VistaServicios
@@ -40,12 +34,6 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ServiciosUiTest {
     @get:Rule val rule = createComposeRule()
-
-    private fun avanzarPaso() {
-        val desde = android.os.SystemClock.elapsedRealtime()
-        rule.onNodeWithTag("alta.siguiente").performClick()
-        rule.waitUntil(2_000) { android.os.SystemClock.elapsedRealtime() - desde >= GuardiaDobleToque.VENTANA_MS }
-    }
 
     private val t0 = Instant.parse("2026-09-30T16:00:00Z")
     private fun servicio(id: Long, nombre: String, tipo: String) = ServicioDisponible(
@@ -92,42 +80,24 @@ class ServiciosUiTest {
         assertEquals(FiltroServicios(tipo = "Belleza"), aplicado)
     }
 
-    @Test fun accesosContextualesDeServiciosDeleganEnSusAcciones() {
-        var fichas = false
-        var gestion = false
-        mostrar(estado(), AccionesServicios(onFichasCosto = { fichas = true }, onGestionInventario = { gestion = true }))
-
-        rule.onNodeWithTag(ServiciosTags.FICHAS_COSTO).assertIsDisplayed().performClick()
-        rule.onNodeWithTag(ServiciosTags.GESTION_INVENTARIO).assertIsDisplayed().performClick()
-        assertTrue(fichas)
-        assertTrue(gestion)
+    @Test fun fichasDeCostoYGestionDeInventarioYaNoAparecen() {
+        mostrar(estado())
+        rule.onAllNodesWithTag(ServiciosTags.FICHAS_COSTO).assertCountEquals(0)
+        rule.onAllNodesWithTag(ServiciosTags.GESTION_INVENTARIO).assertCountEquals(0)
     }
 
-    @Test fun gestionDeInventarioSeOcultaSiElModuloNoEstaHabilitado() {
-        rule.setContent {
-            CompositionLocalProvider(LocalPermisosApp provides PermisosApp.PRINCIPAL.copy(modulos = setOf(Modulo.SERVICIOS))) {
-                ShalevTheme(darkTheme = false) { ServiciosContent(estado(), AccionesServicios()) }
-            }
-        }
-        rule.onNodeWithTag(ServiciosTags.FICHAS_COSTO).assertIsDisplayed()
-        rule.onNodeWithTag(ServiciosTags.GESTION_INVENTARIO).assertDoesNotExist()
-    }
-
-    @Test fun formularioDeServicioDistribuyeLosCamposEnTresPasos() {
+    @Test fun formularioDeServicioMuestraTodosLosCamposEnUnaSolaPantalla() {
         rule.setContent {
             ShalevTheme(darkTheme = false) {
                 ServicioFormContent(ServicioFormUiState(form = ServicioForm()), AccionesServicioForm())
             }
         }
-        rule.onNodeWithTag(ServicioFormTags.NOMBRE).assertIsDisplayed()
-        rule.onNodeWithTag(ServicioFormTags.IMPORTE).assertDoesNotExist()
-
-        avanzarPaso()
-        rule.onNodeWithTag(ServicioFormTags.INSUMOS).assertExists()
-        rule.onNodeWithTag(ServicioFormTags.IMPORTE).assertDoesNotExist()
-
-        avanzarPaso()
-        rule.onNodeWithTag(ServicioFormTags.IMPORTE).assertExists()
-        rule.onNodeWithTag("alta.guardar").assertExists()
+        listOf(
+            ServicioFormTags.NOMBRE, ServicioFormTags.TIPO, ServicioFormTags.IMPORTE,
+            ServicioFormTags.DESCRIPCION, ServicioFormTags.INSUMOS, ServicioFormTags.GUARDAR,
+        ).forEach { rule.onNodeWithTag(it).assertExists() }
+        rule.onAllNodesWithTag("alta.siguiente").assertCountEquals(0)
+        rule.onAllNodesWithTag("alta.guardar_recibir").assertCountEquals(0)
     }
+
 }

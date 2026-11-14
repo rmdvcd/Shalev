@@ -364,12 +364,17 @@ class ArranqueSync @Inject constructor(
      */
     val atencion: Flow<AtencionSync> = combine(
         config.tipo,
-        db.syncDao().observarEmpleados().map { it.isNotEmpty() }.distinctUntilChanged(),
+        db.syncDao().observarEmpleados().map { it.size }.distinctUntilChanged(),
         db.syncDao().observarTurnosAbiertos(),
         servidor.estado.map { it.conectadas.size }.distinctUntilChanged(),
-    ) { tipo, hayEmpleados, abiertos, conectadas ->
-        val principal = tipo == TipoApp.PRINCIPAL && hayEmpleados
-        AtencionSync(principal, if (principal) abiertos else 0, if (principal) conectadas else 0)
+    ) { tipo, vinculadas, abiertos, conectadas ->
+        val principal = tipo == TipoApp.PRINCIPAL && vinculadas > 0
+        AtencionSync(
+            principalConSecundarias = principal,
+            turnosAbiertos = if (principal) abiertos else 0,
+            conectadas = if (principal) conectadas.coerceAtMost(vinculadas) else 0,
+            vinculadas = if (principal) vinculadas else 0,
+        )
     }.distinctUntilChanged()
 
     fun iniciar() {
@@ -400,4 +405,6 @@ data class AtencionSync(
     val turnosAbiertos: Int = 0,
     /** Secundarias conectadas ahora mismo. */
     val conectadas: Int = 0,
+    /** Secundarias vinculadas a la principal, conectadas o no. */
+    val vinculadas: Int = 0,
 )

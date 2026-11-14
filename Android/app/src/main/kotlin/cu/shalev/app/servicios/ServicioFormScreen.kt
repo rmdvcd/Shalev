@@ -30,7 +30,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,19 +42,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.app.common.HojaAgregarInsumo
-import cu.shalev.app.common.LocalPermisosApp
-import cu.shalev.app.common.AccionesAsistenteAlta
-import cu.shalev.app.common.EncabezadoAsistenteAlta
-import cu.shalev.app.common.NavegacionAsistenteAlta
 import cu.shalev.app.common.rememberSalidaProtegida
 import cu.shalev.core.money.Money
 import cu.shalev.designsystem.component.FiltroEntrada
 import cu.shalev.designsystem.component.CardTone
+import cu.shalev.designsystem.component.ShalevBarraAcciones
 import cu.shalev.designsystem.component.ShalevButtonRow
 import cu.shalev.designsystem.component.ShalevCard
 import cu.shalev.designsystem.component.ShalevEmptyState
 import cu.shalev.designsystem.component.ShalevIconAction
 import cu.shalev.designsystem.component.ShalevLoading
+import cu.shalev.designsystem.component.ShalevPrimaryButton
 import cu.shalev.designsystem.component.ShalevSecondaryButton
 import cu.shalev.designsystem.component.ShalevSecondaryText
 import cu.shalev.designsystem.component.ShalevSnackbarHost
@@ -75,7 +72,6 @@ object ServicioFormTags {
     const val FOTO = "servicio_foto"
     const val INSUMOS = "servicio_insumos"
     const val AGREGAR_INSUMO = "servicio_agregar_insumo"
-    const val GESTION_INVENTARIO = "servicio_gestion_inventario"
     const val GUARDAR = "servicio_guardar"
     fun cantidadInsumo(id: Long) = "servicio_insumo_$id"
 }
@@ -95,19 +91,11 @@ class AccionesServicioForm(
     val onCantidadInsumo: (Long, String) -> Unit = { _, _ -> },
     val onQuitarInsumo: (Long) -> Unit = {},
     val onGuardar: () -> Unit = {},
-    val onFichasCosto: () -> Unit = {},
-    val onGestionInventario: () -> Unit = {},
     val onBack: () -> Unit = {},
 )
 
 @Composable
-fun ServicioFormScreen(
-    onBack: () -> Unit,
-    onGuardado: (String) -> Unit,
-    onFichasCosto: () -> Unit = {},
-    onGestionInventario: () -> Unit = {},
-    viewModel: ServicioFormViewModel = hiltViewModel(),
-) {
+fun ServicioFormScreen(onBack: () -> Unit, onGuardado: (String) -> Unit, viewModel: ServicioFormViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     // Selector de fotos del sistema: no necesita permisos de almacenamiento.
@@ -127,8 +115,7 @@ fun ServicioFormScreen(
             onCostoAdicional = viewModel::costoAdicional, onNombre = viewModel::nombre, onTipo = viewModel::tipo, onImporte = viewModel::importe, onDescripcion = viewModel::descripcion,
             onElegirFoto = { elegirFoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onQuitarFoto = viewModel::quitarFoto, onFoto = { viewModel.fotoElegida(it) }, onMostrarInsumos = viewModel::mostrarInsumos, onAgregarInsumo = viewModel::agregarInsumo,
-            onCantidadInsumo = viewModel::cantidadInsumo, onQuitarInsumo = viewModel::quitarInsumo, onGuardar = viewModel::guardar,
-            onFichasCosto = onFichasCosto, onGestionInventario = onGestionInventario, onBack = onBack,
+            onCantidadInsumo = viewModel::cantidadInsumo, onQuitarInsumo = viewModel::quitarInsumo, onGuardar = viewModel::guardar, onBack = onBack,
         ),
     )
 }
@@ -137,27 +124,17 @@ fun ServicioFormScreen(
 fun ServicioFormContent(state: ServicioFormUiState, acciones: AccionesServicioForm, snackbar: SnackbarHostState = remember { SnackbarHostState() }) {
     BackHandler(enabled = state.hojaInsumos) { acciones.onMostrarInsumos(false) }
     val atras = rememberSalidaProtegida(state.sinGuardar && !state.hojaInsumos, acciones.onBack)
-    var paso by rememberSaveable(state.form.id) { mutableStateOf(1) }
-    LaunchedEffect(state.intentado, state.errores) {
-        if (state.intentado) NavegacionAsistenteAlta.pasoConError(
-            state.errores.keys,
-            listOf(
-                setOf(CamposServicio.NOMBRE, CamposServicio.TIPO, CamposServicio.DESCRIPCION),
-                setOf(CamposServicio.COSTO_ADICIONAL, CamposServicio.INSUMOS),
-                setOf(CamposServicio.IMPORTE),
-            ),
-        )?.let { paso = it }
-    }
     Scaffold(
         topBar = { ShalevTopBar(title = if (state.esNuevo) "Nuevo servicio" else "Editar servicio", onBack = atras) },
         bottomBar = {
-            if (!state.noEncontrado && !state.cargando) AccionesAsistenteAlta(
-                actual = paso, total = 3,
-                etiquetaGuardar = if (state.esNuevo) "Guardar servicio" else "Guardar cambios",
-                guardando = state.guardando,
-                onSiguiente = { paso = NavegacionAsistenteAlta.siguiente(paso, 3) },
-                onGuardar = acciones.onGuardar,
-            )
+            if (!state.noEncontrado && !state.cargando) {
+                ShalevBarraAcciones {
+                    ShalevPrimaryButton(
+                        if (state.esNuevo) "Guardar servicio" else "Guardar cambios", onClick = acciones.onGuardar, loading = state.guardando,
+                        icon = ShalevIcons.Guardar, modifier = Modifier.testTag(ServicioFormTags.GUARDAR),
+                    )
+                }
+            }
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
     ) { padding ->
@@ -168,7 +145,7 @@ fun ServicioFormContent(state: ServicioFormUiState, acciones: AccionesServicioFo
                     ShalevSecondaryButton("Volver", icon = ShalevIcons.Atras, onClick = acciones.onBack)
                 }
             }
-            else -> Formulario(state, acciones, paso, Modifier.padding(padding).consumeWindowInsets(padding))
+            else -> Formulario(state, acciones, Modifier.padding(padding).consumeWindowInsets(padding))
         }
     }
     if (state.hojaInsumos) HojaAgregarInsumo(
@@ -178,80 +155,42 @@ fun ServicioFormContent(state: ServicioFormUiState, acciones: AccionesServicioFo
 }
 
 @Composable
-private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, paso: Int, modifier: Modifier) {
+private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, modifier: Modifier) {
     val f = state.form
     val err = state.errores
-    val titulo = when (paso) { 1 -> "Datos del servicio"; 2 -> "Costos e insumos"; else -> "Precio y revisión" }
     Column(
         modifier.fillMaxSize().shalevContentWidth().imePadding().verticalScroll(rememberScrollState()).padding(ShalevSpacing.md),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
     ) {
-        EncabezadoAsistenteAlta(
-            paso, 3, titulo,
-            onAnterior = if (paso > 1) ({ paso = NavegacionAsistenteAlta.anterior(paso, 3) }) else null,
+        // 0.27.0 (T13): la foto es lo primero.
+        Foto(f.fotoUri, f.nombre, state.importandoFoto, a)
+        ShalevSecondaryText("* Obligatorio")
+        ShalevTextField(
+            filtro = FiltroEntrada.NOMBRE,
+            value = f.nombre, onValueChange = a.onNombre, label = "Nombre *", placeholder = "Corte de pelo",
+            isError = CamposServicio.NOMBRE in err, errorText = err[CamposServicio.NOMBRE], validarAlSalir = true, forzarError = state.intentado,
+            imeAction = ImeAction.Next, modifier = Modifier.testTag(ServicioFormTags.NOMBRE),
         )
-        when (paso) {
-            1 -> {
-                Foto(f.fotoUri, f.nombre, state.importandoFoto, a)
-                ShalevSecondaryText("* Obligatorio")
-                ShalevTextField(
-                    filtro = FiltroEntrada.NOMBRE,
-                    value = f.nombre, onValueChange = a.onNombre, label = "Nombre *", placeholder = "Corte de pelo",
-                    isError = CamposServicio.NOMBRE in err, errorText = err[CamposServicio.NOMBRE], validarAlSalir = true, forzarError = state.intentado,
-                    imeAction = ImeAction.Next, modifier = Modifier.testTag(ServicioFormTags.NOMBRE),
-                )
-                CampoTipo(f.tipo, state.tipos, err[CamposServicio.TIPO], state.intentado, a.onTipo)
-                ShalevTextField(
-                    filtro = FiltroEntrada.TEXTO,
-                    value = f.descripcion, onValueChange = a.onDescripcion, label = "Descripción", placeholder = "A domicilio, 30 minutos",
-                    supportingText = cu.shalev.app.producto.ProductoFormLogic.ayudaDescripcion(f.descripcion),
-                    isError = CamposServicio.DESCRIPCION in err, errorText = err[CamposServicio.DESCRIPCION], validarAlSalir = true, forzarError = state.intentado,
-                    modifier = Modifier.testTag(ServicioFormTags.DESCRIPCION),
-                )
-            }
-            2 -> {
-                ShalevTextField(
-                    f.costoAdicional, a.onCostoAdicional, label = "Mano de obra y otros costos (CUP)", filtro = FiltroEntrada.DINERO,
-                    isError = CamposServicio.COSTO_ADICIONAL in err, errorText = err[CamposServicio.COSTO_ADICIONAL],
-                    supportingText = "Costo adicional de UNA prestación, además de los insumos",
-                )
-                Insumos(state, a)
-                ShalevCard(tone = CardTone.Tonal) {
-                    Text("Costo completo: ${state.costo?.let(Money::format) ?: "—"}", style = MaterialTheme.typography.bodyLarge)
-                    ShalevSecondaryText("Insumos utilizados + mano de obra y otros costos")
-                }
-                if (state.esNuevo) {
-                    ShalevSecondaryButton(
-                        "Usar una ficha de costo", a.onFichasCosto, ShalevIcons.FichaCosto,
-                        Modifier.fillMaxWidth(), mostrarTexto = true,
-                    )
-                    ShalevSecondaryText("La exportación crea el servicio con su receta y costo completo, usando los insumos vigentes del local.")
-                }
-            }
-            else -> {
-                ShalevSecondaryText("* Obligatorio")
-                ShalevTextField(
-                    filtro = FiltroEntrada.DINERO,
-                    value = f.importe, onValueChange = a.onImporte, label = "Importe (CUP) *", placeholder = "0.00",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    isError = CamposServicio.IMPORTE in err, errorText = err[CamposServicio.IMPORTE], validarAlSalir = true, forzarError = state.intentado,
-                    supportingText = "Lo que cobras cada vez", imeAction = ImeAction.Done,
-                    modifier = Modifier.testTag(ServicioFormTags.IMPORTE),
-                )
-                ShalevCard(tone = CardTone.Tonal) {
-                    Text(f.nombre.ifBlank { "Servicio nuevo" }, style = MaterialTheme.typography.titleMedium)
-                    ShalevSecondaryText("${f.tipo.ifBlank { "Sin tipo" }} · ${f.insumos.size} insumos · Costo ${state.costo?.let(Money::format) ?: "por definir"}")
-                    Text("Importe: ${f.importe.ifBlank { "por definir" }} CUP")
-                }
-                if (!LocalPermisosApp.current.esSecundaria && LocalPermisosApp.current.verInventario) {
-                    ShalevSecondaryButton(
-                        "Gestionar existencias de los insumos", a.onGestionInventario, ShalevIcons.Inventario,
-                        Modifier.fillMaxWidth().testTag(ServicioFormTags.GESTION_INVENTARIO), mostrarTexto = true,
-                    )
-                    ShalevSecondaryText("El borrador del servicio se conserva; al volver podrás seguir editándolo.")
-                }
-            }
-        }
+        CampoTipo(f.tipo, state.tipos, err[CamposServicio.TIPO], state.intentado, a.onTipo)
+        ShalevTextField(f.costoAdicional, a.onCostoAdicional, label = "Mano de obra y otros costos (CUP)", filtro = FiltroEntrada.DINERO,
+            isError = CamposServicio.COSTO_ADICIONAL in err, errorText = err[CamposServicio.COSTO_ADICIONAL], supportingText = "Costo adicional de UNA prestación, además de los insumos")
+        ShalevTextField(
+            filtro = FiltroEntrada.DINERO,
+            value = f.importe, onValueChange = a.onImporte, label = "Importe (CUP) *", placeholder = "0.00",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            isError = CamposServicio.IMPORTE in err, errorText = err[CamposServicio.IMPORTE], validarAlSalir = true, forzarError = state.intentado,
+            supportingText = "Lo que cobras cada vez", imeAction = ImeAction.Next,
+            modifier = Modifier.testTag(ServicioFormTags.IMPORTE),
+        )
+        ShalevTextField(
+            filtro = FiltroEntrada.TEXTO,
+            // 0.24.0: una línea; obligatoria solo si ya hay otro servicio con el mismo nombre.
+            value = f.descripcion, onValueChange = a.onDescripcion, label = "Descripción", placeholder = "A domicilio, 30 minutos",
+            supportingText = cu.shalev.app.producto.ProductoFormLogic.ayudaDescripcion(f.descripcion),
+            isError = CamposServicio.DESCRIPCION in err, errorText = err[CamposServicio.DESCRIPCION], validarAlSalir = true, forzarError = state.intentado,
+            modifier = Modifier.testTag(ServicioFormTags.DESCRIPCION),
+        )
+        Insumos(state, a)
         if (state.intentado && err.isNotEmpty()) {
             Text(
                 "Revisa ${if (err.size == 1) "el campo marcado" else "los ${err.size} campos marcados"} en rojo.",

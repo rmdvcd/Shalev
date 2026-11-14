@@ -30,7 +30,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,18 +43,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.app.common.CampoFecha
 import cu.shalev.app.common.HojaAgregarInsumo
-import cu.shalev.app.common.AccionesAsistenteAlta
-import cu.shalev.app.common.EncabezadoAsistenteAlta
-import cu.shalev.app.common.NavegacionAsistenteAlta
 import cu.shalev.app.common.rememberSalidaProtegida
 import cu.shalev.core.money.Money
 import cu.shalev.designsystem.component.FiltroEntrada
 import cu.shalev.designsystem.component.CardTone
+import cu.shalev.designsystem.component.ShalevBarraAcciones
 import cu.shalev.designsystem.component.ShalevButtonRow
 import cu.shalev.designsystem.component.ShalevCard
 import cu.shalev.designsystem.component.ShalevEmptyState
 import cu.shalev.designsystem.component.ShalevIconAction
 import cu.shalev.designsystem.component.ShalevLoading
+import cu.shalev.designsystem.component.ShalevPrimaryButton
 import cu.shalev.designsystem.component.ShalevSecondaryButton
 import cu.shalev.designsystem.component.ShalevSecondaryText
 import cu.shalev.designsystem.component.ShalevSnackbarHost
@@ -82,7 +80,6 @@ object ProductoFormTags {
     const val CANTIDAD = "producto.cantidad"
     const val BAJO = "producto.bajo"
     const val CRITICO = "producto.critico"
-    const val GESTION_INVENTARIO = "producto.gestion_inventario"
     fun cantidadInsumo(id: Long) = "producto.insumo.$id"
 }
 
@@ -106,9 +103,6 @@ class AccionesForm(
     val onCantidadInsumo: (Long, String) -> Unit = { _, _ -> },
     val onQuitarInsumo: (Long) -> Unit = {},
     val onGuardar: () -> Unit = {},
-    val onGuardarYRegistrar: () -> Unit = {},
-    val onFichasCosto: () -> Unit = {},
-    val onGestionInventario: () -> Unit = {},
     val onBack: () -> Unit = {},
 )
 
@@ -120,9 +114,6 @@ fun ProductoFormScreen(
     onBack: () -> Unit,
     onGuardado: (String) -> Unit,
     onCrearInsumo: (String) -> Unit = {},
-    onFichasCosto: () -> Unit = {},
-    onGestionInventario: () -> Unit = {},
-    onRecepcionInicial: (id: Long, cantidad: String, costo: String) -> Unit = { _, _, _ -> },
     viewModel: ProductoFormViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -132,7 +123,7 @@ fun ProductoFormScreen(
     LaunchedEffect(viewModel) {
         viewModel.eventos.collect { e ->
             when (e) {
-                is EventoForm.Guardado -> e.recepcionInicial?.let { onRecepcionInicial(it.articuloId, it.cantidad, it.costo) } ?: onGuardado(e.mensaje)
+                is EventoForm.Guardado -> onGuardado(e.mensaje)
                 is EventoForm.Mensaje -> snackbar.showSnackbar(e.texto)
                 is EventoForm.EsInsumo -> onCrearInsumo(e.nombre)
             }
@@ -149,8 +140,7 @@ fun ProductoFormScreen(
             onCritico = viewModel::nivelCritico, onCostoAdicional = viewModel::costoAdicional,
             onMostrarInsumos = viewModel::mostrarInsumos, onAgregarInsumo = viewModel::agregarInsumo,
             onCantidadInsumo = viewModel::cantidadInsumo, onQuitarInsumo = viewModel::quitarInsumo,
-            onGuardar = { viewModel.guardar() }, onGuardarYRegistrar = { viewModel.guardar(abrirRecepcion = true) },
-            onFichasCosto = onFichasCosto, onGestionInventario = onGestionInventario, onBack = onBack,
+            onGuardar = { viewModel.guardar() }, onBack = onBack,
         ),
     )
 }
@@ -159,28 +149,23 @@ fun ProductoFormScreen(
 fun ProductoFormContent(state: ProductoFormUiState, acciones: AccionesForm, snackbar: SnackbarHostState = remember { SnackbarHostState() }) {
     BackHandler(enabled = state.hojaInsumos) { acciones.onMostrarInsumos(false) }
     val atras = rememberSalidaProtegida(state.sinGuardar && !state.hojaInsumos, acciones.onBack)
-    var paso by rememberSaveable(state.form.id) { mutableStateOf(1) }
-    LaunchedEffect(state.intentado, state.errores) {
-        if (state.intentado) NavegacionAsistenteAlta.pasoConError(
-            state.errores.keys,
-            listOf(
-                setOf(Campos.CATEGORIA, Campos.NOMBRE, Campos.DESCRIPCION),
-                setOf(Campos.RECETA, Campos.COSTO_ADICIONAL, Campos.PRECIO_COSTO),
-                setOf(Campos.PRECIO_VENTA, Campos.CANTIDAD, Campos.NIVEL_BAJO, Campos.NIVEL_CRITICO),
-            ),
-        )?.let { paso = it }
-    }
     Scaffold(
-        topBar = { ShalevTopBar(title = if (state.esNuevo) "Nuevo producto" else "Editar producto", onBack = atras) },
-        bottomBar = {
-            if (!state.noEncontrado && !state.cargando) AccionesAsistenteAlta(
-                actual = paso, total = 3,
-                etiquetaGuardar = if (state.esNuevo) "Guardar producto" else "Guardar cambios",
-                guardando = state.guardando,
-                onSiguiente = { paso = NavegacionAsistenteAlta.siguiente(paso, 3) },
-                onGuardar = acciones.onGuardar,
-                onGuardarYRegistrar = if (state.esNuevo && !state.form.esElaborado && !cu.shalev.app.common.LocalPermisosApp.current.esSecundaria && cu.shalev.app.common.LocalPermisosApp.current.verInventario) acciones.onGuardarYRegistrar else null,
+        topBar = {
+            ShalevTopBar(
+                title = if (state.esNuevo) "Nuevo producto" else "Editar producto",
+                onBack = atras,
             )
+        },
+        // P24: un único Guardar, fijo abajo y centrado (antes estaba arriba y al final del formulario).
+        bottomBar = {
+            if (!state.noEncontrado && !state.cargando) {
+                ShalevBarraAcciones {
+                    ShalevPrimaryButton(
+                        if (state.esNuevo) "Guardar producto" else "Guardar cambios", onClick = acciones.onGuardar, loading = state.guardando,
+                        icon = ShalevIcons.Guardar, modifier = Modifier.testTag(ProductoFormTags.GUARDAR),
+                    )
+                }
+            }
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
     ) { padding ->
@@ -191,7 +176,7 @@ fun ProductoFormContent(state: ProductoFormUiState, acciones: AccionesForm, snac
                     ShalevSecondaryButton("Volver", icon = ShalevIcons.Atras, onClick = acciones.onBack)
                 }
             }
-            else -> Formulario(state, acciones, paso, Modifier.padding(padding).consumeWindowInsets(padding))
+            else -> Formulario(state, acciones, Modifier.padding(padding).consumeWindowInsets(padding))
         }
     }
     if (state.hojaInsumos) HojaAgregarInsumo(
@@ -201,122 +186,93 @@ fun ProductoFormContent(state: ProductoFormUiState, acciones: AccionesForm, snac
 }
 
 @Composable
-private fun Formulario(state: ProductoFormUiState, a: AccionesForm, paso: Int, modifier: Modifier) {
+private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Modifier) {
     val f = state.form
     val err = state.errores
     val numero = KeyboardOptions(keyboardType = KeyboardType.Decimal)
     val entero = KeyboardOptions(keyboardType = KeyboardType.Number)
-    val titulo = when (paso) { 1 -> "Datos del producto"; 2 -> "Costos y receta"; else -> "Precio e inventario" }
     Column(
         modifier.fillMaxSize().shalevContentWidth().imePadding().verticalScroll(rememberScrollState()).padding(ShalevSpacing.md),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
     ) {
-        EncabezadoAsistenteAlta(
-            paso, 3, titulo,
-            onAnterior = if (paso > 1) ({ paso = NavegacionAsistenteAlta.anterior(paso, 3) }) else null,
+        // 0.27.0 (T13): la foto es lo primero (los Elaborados no llevan foto).
+        if (!f.esElaborado) Foto(f.fotoUri, f.nombre, state.importandoFoto, a)
+        ShalevSecondaryText("* Obligatorio")
+        CampoCategoria(f.categoria, state.categorias, err[Campos.CATEGORIA], state.intentado, a.onCategoria, ofrecerInsumos = state.esNuevo)
+
+        ShalevTextField(
+            filtro = FiltroEntrada.NOMBRE,
+            value = f.nombre, onValueChange = a.onNombre, label = "Nombre *", isError = Campos.NOMBRE in err, errorText = err[Campos.NOMBRE], validarAlSalir = true, forzarError = state.intentado,
+            imeAction = ImeAction.Next,
+            modifier = Modifier.testTag(ProductoFormTags.NOMBRE),
         )
-        when (paso) {
-            1 -> {
-                if (!f.esElaborado) Foto(f.fotoUri, f.nombre, state.importandoFoto, a)
-                ShalevSecondaryText("* Obligatorio")
-                CampoCategoria(f.categoria, state.categorias, err[Campos.CATEGORIA], state.intentado, a.onCategoria, ofrecerInsumos = state.esNuevo)
+        ShalevTextField(
+            filtro = FiltroEntrada.TEXTO,
+            // 0.24.0: una línea; obligatoria solo si ya hay otro producto con el mismo nombre.
+            value = f.descripcion, onValueChange = a.onDescripcion, label = "Descripción", placeholder = ProductoFormLogic.EJEMPLO_DESCRIPCION,
+            supportingText = ProductoFormLogic.ayudaDescripcion(f.descripcion), imeAction = ImeAction.Next,
+            isError = Campos.DESCRIPCION in err, errorText = err[Campos.DESCRIPCION], validarAlSalir = true, forzarError = state.intentado,
+            modifier = Modifier.testTag(ProductoFormTags.DESCRIPCION),
+        )
+
+        if (f.esElaborado) {
+            Receta(state, a)
+        } else {
+            CampoFecha(
+                fecha = f.fechaCaducidad, onFecha = a.onFecha, label = "Fecha de caducidad (opcional)",
+                modifier = Modifier.fillMaxWidth(), tag = ProductoFormTags.FECHA,
+            )
+        }
+
+        if (f.esElaborado) {
+            ShalevTextField(f.costoAdicional, a.onCostoAdicional, label = "Mano de obra y otros costos (CUP)", filtro = FiltroEntrada.DINERO,
+                isError = Campos.COSTO_ADICIONAL in err, errorText = err[Campos.COSTO_ADICIONAL], supportingText = "Costo adicional de UNA unidad, además de los insumos")
+            ShalevCard(tone = CardTone.Tonal) {
+                Text("Precio de costo: ${state.costoReceta?.let(Money::format) ?: "—"}", style = MaterialTheme.typography.bodyLarge)
+                ShalevSecondaryText("Receta + mano de obra y otros costos")
+            }
+        } else {
+            ShalevTextField(
+                filtro = FiltroEntrada.DINERO,
+                value = f.precioCosto, onValueChange = a.onCosto, label = "Precio de costo (CUP) *", placeholder = "0.00", keyboardOptions = numero,
+                isError = Campos.PRECIO_COSTO in err, errorText = err[Campos.PRECIO_COSTO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Por unidad",
+                imeAction = ImeAction.Next,
+            modifier = Modifier.testTag(ProductoFormTags.COSTO),
+            )
+        }
+        ShalevTextField(
+            filtro = FiltroEntrada.DINERO,
+            value = f.precioVenta, onValueChange = a.onVenta, label = "Precio de venta (CUP) *", placeholder = "0.00", keyboardOptions = numero,
+            isError = f.precioVenta.isNotBlank() && Campos.PRECIO_VENTA in err, errorText = err[Campos.PRECIO_VENTA], validarAlSalir = false, forzarError = state.intentado, supportingText = "Por unidad",
+            imeAction = if (f.esElaborado) ImeAction.Done else ImeAction.Next, onImeAction = if (f.esElaborado) a.onGuardar else null,
+            modifier = Modifier.testTag(ProductoFormTags.VENTA),
+        )
+        // P26: un Elaborado no tiene existencias ni niveles propios (alcanza según sus insumos).
+        if (!f.esElaborado) {
+            ShalevTextField(
+                filtro = FiltroEntrada.ENTERO,
+                value = f.cantidad, onValueChange = a.onCantidad, label = "Cantidad *", placeholder = "0", keyboardOptions = entero,
+                isError = Campos.CANTIDAD in err, errorText = err[Campos.CANTIDAD], validarAlSalir = true, forzarError = state.intentado, supportingText = "Unidades que tienes",
+                imeAction = ImeAction.Next,
+                modifier = Modifier.testTag(ProductoFormTags.CANTIDAD),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
                 ShalevTextField(
-                    filtro = FiltroEntrada.NOMBRE,
-                    value = f.nombre, onValueChange = a.onNombre, label = "Nombre *", isError = Campos.NOMBRE in err, errorText = err[Campos.NOMBRE], validarAlSalir = true, forzarError = state.intentado,
-                    imeAction = ImeAction.Next, modifier = Modifier.testTag(ProductoFormTags.NOMBRE),
+                    filtro = FiltroEntrada.ENTERO,
+                    value = f.nivelBajo, onValueChange = a.onBajo, label = "Nivel bajo", placeholder = "5", keyboardOptions = entero,
+                    isError = Campos.NIVEL_BAJO in err, errorText = err[Campos.NIVEL_BAJO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Opcional",
+                    imeAction = ImeAction.Next,
+                modifier = Modifier.weight(1f).testTag(ProductoFormTags.BAJO),
                 )
                 ShalevTextField(
-                    filtro = FiltroEntrada.TEXTO,
-                    value = f.descripcion, onValueChange = a.onDescripcion, label = "Descripción", placeholder = ProductoFormLogic.EJEMPLO_DESCRIPCION,
-                    supportingText = ProductoFormLogic.ayudaDescripcion(f.descripcion), imeAction = ImeAction.Next,
-                    isError = Campos.DESCRIPCION in err, errorText = err[Campos.DESCRIPCION], validarAlSalir = true, forzarError = state.intentado,
-                    modifier = Modifier.testTag(ProductoFormTags.DESCRIPCION),
-                )
-                if (!f.esElaborado) CampoFecha(
-                    fecha = f.fechaCaducidad, onFecha = a.onFecha, label = "Fecha de caducidad (opcional)",
-                    modifier = Modifier.fillMaxWidth(), tag = ProductoFormTags.FECHA,
+                    filtro = FiltroEntrada.ENTERO,
+                    value = f.nivelCritico, onValueChange = a.onCritico, label = "Nivel crítico", placeholder = "1", keyboardOptions = entero,
+                    isError = Campos.NIVEL_CRITICO in err, errorText = err[Campos.NIVEL_CRITICO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Opcional",
+                    imeAction = ImeAction.Next,
+                modifier = Modifier.weight(1f).testTag(ProductoFormTags.CRITICO),
                 )
             }
-            2 -> {
-                if (f.esElaborado) {
-                    Receta(state, a)
-                    ShalevTextField(
-                        f.costoAdicional, a.onCostoAdicional, label = "Mano de obra y otros costos (CUP)", filtro = FiltroEntrada.DINERO,
-                        isError = Campos.COSTO_ADICIONAL in err, errorText = err[Campos.COSTO_ADICIONAL],
-                        supportingText = "Costo adicional de UNA unidad, además de los insumos",
-                    )
-                    ShalevCard(tone = CardTone.Tonal) {
-                        Text("Precio de costo: ${state.costoReceta?.let(Money::format) ?: "—"}", style = MaterialTheme.typography.bodyLarge)
-                        ShalevSecondaryText("Receta + mano de obra y otros costos")
-                    }
-                } else {
-                    ShalevSecondaryText("* Obligatorio")
-                    ShalevTextField(
-                        filtro = FiltroEntrada.DINERO,
-                        value = f.precioCosto, onValueChange = a.onCosto, label = "Precio de costo (CUP) *", placeholder = "0.00", keyboardOptions = numero,
-                        isError = Campos.PRECIO_COSTO in err, errorText = err[Campos.PRECIO_COSTO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Por unidad",
-                        imeAction = ImeAction.Next, modifier = Modifier.testTag(ProductoFormTags.COSTO),
-                    )
-                }
-                if (state.esNuevo && !cu.shalev.app.common.LocalPermisosApp.current.esSecundaria) {
-                    ShalevSecondaryButton(
-                        "Usar una ficha de costo", a.onFichasCosto, ShalevIcons.FichaCosto,
-                        Modifier.fillMaxWidth(), mostrarTexto = true,
-                    )
-                    ShalevSecondaryText("Exportar una ficha crea un elaborado con receta y finaliza este asistente.")
-                }
-            }
-            else -> {
-                ShalevSecondaryText("* Obligatorio")
-                ShalevTextField(
-                    filtro = FiltroEntrada.DINERO,
-                    value = f.precioVenta, onValueChange = a.onVenta, label = "Precio de venta (CUP) *", placeholder = "0.00", keyboardOptions = numero,
-                    isError = Campos.PRECIO_VENTA in err, errorText = err[Campos.PRECIO_VENTA], validarAlSalir = true, forzarError = state.intentado, supportingText = "Por unidad",
-                    imeAction = ImeAction.Done, onImeAction = a.onGuardar, modifier = Modifier.testTag(ProductoFormTags.VENTA),
-                )
-                if (!f.esElaborado) {
-                    ShalevTextField(
-                        filtro = FiltroEntrada.ENTERO,
-                        value = f.cantidad, onValueChange = a.onCantidad, label = "Cantidad *", placeholder = "0", keyboardOptions = entero,
-                        isError = Campos.CANTIDAD in err, errorText = err[Campos.CANTIDAD], validarAlSalir = true, forzarError = state.intentado, supportingText = "Unidades que tienes",
-                        imeAction = ImeAction.Next, modifier = Modifier.testTag(ProductoFormTags.CANTIDAD),
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
-                        ShalevTextField(
-                            filtro = FiltroEntrada.ENTERO,
-                            value = f.nivelBajo, onValueChange = a.onBajo, label = "Nivel bajo", placeholder = "5", keyboardOptions = entero,
-                            isError = Campos.NIVEL_BAJO in err, errorText = err[Campos.NIVEL_BAJO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Opcional",
-                            imeAction = ImeAction.Next, modifier = Modifier.weight(1f).testTag(ProductoFormTags.BAJO),
-                        )
-                        ShalevTextField(
-                            filtro = FiltroEntrada.ENTERO,
-                            value = f.nivelCritico, onValueChange = a.onCritico, label = "Nivel crítico", placeholder = "1", keyboardOptions = entero,
-                            isError = Campos.NIVEL_CRITICO in err, errorText = err[Campos.NIVEL_CRITICO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Opcional",
-                            imeAction = ImeAction.Next, modifier = Modifier.weight(1f).testTag(ProductoFormTags.CRITICO),
-                        )
-                    }
-                    ShalevSecondaryText("Vacíos: se usan los niveles de Ajustes.")
-                    if (!state.esNuevo && !cu.shalev.app.common.LocalPermisosApp.current.esSecundaria && cu.shalev.app.common.LocalPermisosApp.current.verInventario) {
-                        ShalevSecondaryButton(
-                            "Gestión de inventario", a.onGestionInventario, ShalevIcons.Inventario,
-                            Modifier.fillMaxWidth().testTag(ProductoFormTags.GESTION_INVENTARIO), mostrarTexto = true,
-                        )
-                        ShalevSecondaryText("Gestiona compras, lotes y ajustes; el formulario conserva tus cambios al volver.")
-                    }
-                } else {
-                    ShalevCard(tone = CardTone.Tonal) {
-                        Text(f.nombre.ifBlank { "Producto elaborado" }, style = MaterialTheme.typography.titleMedium)
-                        ShalevSecondaryText("Costo completo: ${state.costoReceta?.let(Money::format) ?: "por definir"} · ${f.receta.size} insumos")
-                        ShalevSecondaryText("Elaborado: las existencias dependen de los insumos de la receta.")
-                    }
-                    if (!cu.shalev.app.common.LocalPermisosApp.current.esSecundaria && cu.shalev.app.common.LocalPermisosApp.current.verInventario) {
-                        ShalevSecondaryButton(
-                            "Gestionar existencias de insumos", a.onGestionInventario, ShalevIcons.Inventario,
-                            Modifier.fillMaxWidth().testTag(ProductoFormTags.GESTION_INVENTARIO), mostrarTexto = true,
-                        )
-                    }
-                }
-            }
+            ShalevSecondaryText("Vacíos: se usan los niveles de Ajustes.")
         }
         if (state.intentado && err.isNotEmpty()) {
             Text(

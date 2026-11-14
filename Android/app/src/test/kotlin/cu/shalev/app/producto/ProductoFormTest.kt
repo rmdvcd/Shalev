@@ -194,32 +194,6 @@ class ProductoFormViewModelTest {
         assertEquals("Producto agregado.", (eventos.single() as EventoForm.Guardado).mensaje)
     }
 
-    @Test fun guardarYRegistrarDejaElProductoEnCeroYEntregaLaCantidadUnaSolaVez() = runTest {
-        val vm = vm()
-        vm.completar()
-        vm.guardar(abrirRecepcion = true)
-
-        val guardado = productos.items.value.single()
-        assertEquals(0L, guardado.cantidad)
-        assertEquals(0L, productos.guardados.single().cantidad)
-        val recepcion = (eventos.single() as EventoForm.Guardado).recepcionInicial!!
-        assertEquals("PRODUCTO", recepcion.tipo.name)
-        assertEquals(guardado.id, recepcion.articuloId)
-        assertEquals("24", recepcion.cantidad)
-        assertEquals("80", recepcion.costo)
-    }
-
-    @Test fun recepcionInicialDeProductoExigeCantidadPositiva() = runTest {
-        val vm = vm()
-        vm.completar()
-        vm.cantidad("0")
-        vm.guardar(abrirRecepcion = true)
-
-        assertTrue(productos.guardados.isEmpty())
-        assertEquals("Escribe una cantidad mayor que cero para la recepción inicial.", vm.state.value.errores[Campos.CANTIDAD])
-        assertTrue(eventos.isEmpty())
-    }
-
     @Test fun prellenadoDesdeLaRutaLlegaAlFormulario() = runTest {
         val vm = vm("nombre" to "Malta Guajira", "foto" to "file:///f.jpg")
         val f = vm.state.value.form

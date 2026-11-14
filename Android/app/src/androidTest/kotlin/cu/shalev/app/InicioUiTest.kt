@@ -8,6 +8,8 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -66,9 +68,9 @@ class InicioUiTest {
         rule.onNodeWithTag(InicioTags.BANNER).assertDoesNotExist()
     }
 
-    @Test fun cabeceraOfreceCalculadoraDeCambio() {
+    @Test fun cabeceraNoOfreceCalculadoraDeCambio() {
         mostrar(InicioUiState())
-        rule.onNodeWithTag(InicioTags.CALCULADORA).assertIsDisplayed()
+        rule.onAllNodesWithContentDescription("Calculadora de cambio").assertCountEquals(0)
     }
 
     @Test fun top3OcultoSinDatosYVisibleConDatos() {

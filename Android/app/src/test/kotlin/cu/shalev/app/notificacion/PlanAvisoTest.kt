@@ -12,20 +12,21 @@ import org.junit.Test
 /** 0.19.2 · Cuándo corre el servicio en primer plano de la principal y qué dice la notificación única. */
 class PlanAvisoTest {
     @Test fun detalleExpandidoSinTurnoPropioNoMuestraImporte() {
-        val texto = PlanAviso.detalle(PlanAviso(servicio = true, mostrar = true, turnoDesde = null, conectadas = 2), null)
+        val texto = PlanAviso.detalle(PlanAviso(servicio = true, mostrar = true, turnoDesde = null, conectadas = 2, vinculadas = 3), null)
         org.junit.Assert.assertTrue(texto.contains("Turno de esta app cerrado"))
         org.junit.Assert.assertTrue(texto.contains("Sincronización local activa"))
         org.junit.Assert.assertFalse(texto.contains("Ventas del turno:"))
-        org.junit.Assert.assertTrue(texto.contains("2 apps conectadas"))
+        org.junit.Assert.assertTrue(texto.contains("Turno cerrado · 2 de 3 apps conectadas"))
     }
 
     @Test fun detalleExpandidoMuestraElTotalValidoDelTurnoPropio() {
         val total = Cup.ofPesos(12_345)
-        val plan = PlanAviso.calcular(visible = false, turnoPropioDesde = desde, atencion = principal(abiertos = 1, conectadas = 2), ventasTurno = total)
+        val plan = PlanAviso.calcular(visible = false, turnoPropioDesde = desde, atencion = principal(abiertos = 1, conectadas = 2, vinculadas = 3), ventasTurno = total)
         val texto = PlanAviso.detalle(plan, "9:30")
         val compacto = PlanAviso.texto(plan, "9:30")
-        assertTrue(compacto.startsWith("Ventas del turno: ${Money.format(total)} · 2 apps conectadas"))
-        assertTrue(texto.contains("2 apps conectadas"))
+        assertTrue(compacto.startsWith("Ventas del turno: ${Money.format(total)} · 2 de 3 apps conectadas"))
+        assertTrue(compacto.endsWith("Turno abierto desde las 9:30"))
+        assertTrue(texto.contains("2 de 3 apps conectadas"))
     }
 
     @Test fun totalSeOmiteSiNoHayTurnoDeEstaAppAunqueLlegueUnValor() {
@@ -37,7 +38,8 @@ class PlanAvisoTest {
 
     private val desde = Instant.parse("2026-10-02T13:30:00Z")
     private val sinSecundarias = AtencionSync()
-    private fun principal(abiertos: Int = 0, conectadas: Int = 0) = AtencionSync(true, abiertos, conectadas)
+    private fun principal(abiertos: Int = 0, conectadas: Int = 0, vinculadas: Int = 0) =
+        AtencionSync(true, abiertos, conectadas, vinculadas)
 
     @Test fun sinSecundariasEsComoEnP29() {
         val fuera = PlanAviso.calcular(visible = false, turnoPropioDesde = desde, atencion = sinSecundarias)
@@ -64,14 +66,17 @@ class PlanAvisoTest {
     }
 
     @Test fun textos() {
-        val turnoYApps = PlanAviso.calcular(false, desde, principal(abiertos = 2, conectadas = 2))
-        assertEquals("Turno abierto desde las 9:30 · 2 apps conectadas", PlanAviso.texto(turnoYApps, "9:30"))
-        val turnoSinApps = PlanAviso.calcular(false, desde, principal(abiertos = 1))
-        assertEquals("Turno abierto desde las 9:30", PlanAviso.texto(turnoSinApps, "9:30"))
-        val unaApp = PlanAviso.calcular(true, null, principal(conectadas = 1))
-        assertEquals("1 app conectada", PlanAviso.texto(unaApp, null))
+        val turnoYApps = PlanAviso.calcular(false, desde, principal(abiertos = 2, conectadas = 2, vinculadas = 3))
+        assertEquals("2 de 3 apps conectadas · Turno abierto desde las 9:30", PlanAviso.texto(turnoYApps, "9:30"))
+        val turnoSinConectadas = PlanAviso.calcular(false, desde, principal(abiertos = 1, vinculadas = 2))
+        assertEquals("0 de 2 apps conectadas · Turno abierto desde las 9:30", PlanAviso.texto(turnoSinConectadas, "9:30"))
+        val unaApp = PlanAviso.calcular(true, null, principal(conectadas = 1, vinculadas = 1))
+        assertEquals("Turno cerrado · 1 de 1 app conectada", PlanAviso.texto(unaApp, null))
         val esperando = PlanAviso.calcular(true, null, principal())
         assertEquals(PlanAviso.ESPERANDO, PlanAviso.texto(esperando, null))
+        // Datos antiguos sin total de vinculadas: nunca se muestra un denominador menor que las conectadas.
+        val antiguo = PlanAviso.calcular(true, null, principal(conectadas = 2))
+        assertEquals("Turno cerrado · 2 de 2 apps conectadas", PlanAviso.texto(antiguo, null))
     }
 
     @Test fun detalleMuestraTurnosDeLaRedSinDatosPersonales() {

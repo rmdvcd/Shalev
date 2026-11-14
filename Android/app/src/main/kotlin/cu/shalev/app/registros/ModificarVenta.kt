@@ -342,6 +342,7 @@ fun ModificarVentaPantalla(v: Venta, onCerrar: () -> Unit, onHecho: (String) -> 
                         onMetodo = vm::elegirMetodo, onCampo = vm::editarCliente, onMotivo = vm::editarMotivo,
                     ),
                 )
+            }
         }
     }
 }

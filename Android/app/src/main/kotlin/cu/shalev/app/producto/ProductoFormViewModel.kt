@@ -3,17 +3,14 @@ package cu.shalev.app.producto
 import cu.shalev.domain.model.identidad
 import cu.shalev.core.result.runCatchingCancelable
 import cu.shalev.app.common.mensajeSync
-import cu.shalev.app.common.RecepcionInicialAlta
 import cu.shalev.domain.repository.FotoRepository
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cu.shalev.core.result.AppResult
-import cu.shalev.core.money.Money
 import cu.shalev.core.time.Clock
 import cu.shalev.domain.model.Categorias
 import cu.shalev.domain.model.Insumo
-import cu.shalev.domain.model.TipoEntidad
 import cu.shalev.domain.validation.Validadores
 import cu.shalev.domain.repository.InsumoRepository
 import cu.shalev.domain.repository.ProductoRepository
@@ -71,7 +68,7 @@ data class ProductoFormUiState(
 }
 
 sealed interface EventoForm {
-    data class Guardado(val mensaje: String, val recepcionInicial: RecepcionInicialAlta? = null) : EventoForm
+    data class Guardado(val mensaje: String) : EventoForm
     data class Mensaje(val texto: String) : EventoForm
     /** P31: se eligió la categoría «Insumos» en un artículo nuevo: seguir en el formulario de insumo con [nombre]. */
     data class EsInsumo(val nombre: String) : EventoForm
@@ -114,8 +111,6 @@ class ProductoFormViewModel @Inject constructor(
                         categoria = saved.get<String>("categoria")?.trim()?.take(40).orEmpty(),
                         nombre = saved.get<String>("nombre")?.let { n -> ProductoFormLogic.limpiarNombre(n, Validadores.MAX_NOMBRE) }.orEmpty(),
                         fotoUri = saved.get<String>("foto"),
-                        precioCosto = saved.get<String>("costo").orEmpty(),
-                        precioVenta = saved.get<String>("precio").orEmpty(),
                     ),
                 )
             }
@@ -197,38 +192,18 @@ class ProductoFormViewModel @Inject constructor(
 
     // ---------------- Guardar ----------------
 
-    fun guardar(abrirRecepcion: Boolean = false) {
+    fun guardar() {
         val s = _state.value
         if (s.guardando) return
         val listo = ProductoFormLogic.aProducto(s.form, clock.now())
         if (listo == null) { _state.update { it.copy(intentado = true) }; return }
         val (productoListo, receta) = listo
-        val registrarRecepcion = abrirRecepcion && s.esNuevo && !productoListo.esElaborado
-        if (registrarRecepcion && productoListo.cantidad <= 0) {
-            _state.update {
-                it.copy(
-                    intentado = true,
-                    erroresGuardado = it.erroresGuardado + (Campos.CANTIDAD to "Escribe una cantidad mayor que cero para la recepción inicial."),
-                )
-            }
-            return
-        }
         _state.update { it.copy(intentado = true, guardando = true) }
         viewModelScope.launch {
-            val productoAGuardar = if (registrarRecepcion) productoListo.copy(cantidad = 0) else productoListo
-            when (val r = guardarProducto(productoAGuardar, receta, s.cantidadLeida)) {
+            when (val r = guardarProducto(productoListo, receta, s.cantidadLeida)) {
                 is AppResult.Ok -> {
                     _state.update { it.copy(guardando = false) }
-                    val inicial = if (registrarRecepcion) RecepcionInicialAlta(
-                        tipo = TipoEntidad.PRODUCTO,
-                        articuloId = r.value,
-                        cantidad = productoListo.cantidad.toString(),
-                        costo = Money.editar(productoListo.precioCosto),
-                    ) else null
-                    eventosCh.trySend(EventoForm.Guardado(
-                        if (s.esNuevo) "Producto agregado." else "Cambios guardados.",
-                        recepcionInicial = inicial,
-                    ))
+                    eventosCh.trySend(EventoForm.Guardado(if (s.esNuevo) "Producto agregado." else "Cambios guardados."))
                 }
                 is AppResult.Err -> {
                     val campo = (r.error as? cu.shalev.core.result.AppError.Validacion)?.campo ?: (r.error as? cu.shalev.core.result.AppError.Duplicado)?.campo

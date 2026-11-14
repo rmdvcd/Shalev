@@ -120,7 +120,6 @@ object InicioTags {
     const val DESACTUALIZADAS = "inicio_desactualizadas"
     const val PERIODO = "inicio_periodo"
     const val PAGO = "inicio_pago"
-    const val CALCULADORA = "inicio_calculadora"
     const val PRECIOS = "inicio_precios"
     const val VENTAS = "inicio_ventas"
     const val GANANCIA = "inicio_ganancia"
@@ -287,7 +286,6 @@ fun InicioContent(
     val acordeones = remember { AcordeonesInicio(acordeonesAbiertos) }
     // 1.0.2: ayuda de la pestaña (botón «?» de la esquina superior izquierda).
     var ayudaPestana by remember { mutableStateOf(false) }
-    var calculadoraAbierta by remember { mutableStateOf(false) }
     // 0.27.0 (T2): con letra grande caben menos alertas por fila (ancho de pantalla menos el relleno lateral).
     val maxAlertas = alertasPorFila(
         androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp - 2 * ShalevSpacing.md.value,
@@ -298,12 +296,6 @@ fun InicioContent(
             ShalevTopBar(
                 title = "Shalev", marca = true,
                 onAyuda = { ayudaPestana = true }, ayudaDescripcion = "Ayuda de Inicio",
-                actions = {
-                    cu.shalev.designsystem.component.ShalevIconAction(
-                        ShalevIcons.CalculadoraCambio, "Calculadora de cambio", onClick = { calculadoraAbierta = true },
-                        modifier = Modifier.testTag(InicioTags.CALCULADORA),
-                    )
-                },
             )
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
@@ -447,8 +439,6 @@ fun InicioContent(
             }
         }
     }
-
-    if (calculadoraAbierta) cu.shalev.app.herramientas.CalculadoraCambio({ calculadoraAbierta = false })
 
     when (state.dialogo) {
         DialogoInicio.NuevaVenta -> NuevaVentaDialog(state.turnoAbierto, acciones, tiposVenta(permisos))
@@ -829,7 +819,7 @@ private fun VentasCard(g: GraficosPeriodo, opcion: OpcionPeriodo, zona: ZoneId, 
             values = puntos.map { it.ventas.enPesos() },
             labels = puntos.map { etiquetaPunto(it.inicio, g.serie.granularidad, zona) },
             description = descripcionVentas(g, zona),
-            yAxisUnit = "CUP",
+            valueUnit = "CUP",
         )
     }
 }
@@ -853,7 +843,6 @@ private fun GananciaCard(g: GraficosPeriodo, zona: ZoneId, ac: AcordeonesInicio)
             ),
             labels = puntos.map { etiquetaPunto(it.inicio, g.serie.granularidad, zona) },
             description = descripcionGanancia(g),
-            yAxisUnit = "CUP",
         )
     }
 }

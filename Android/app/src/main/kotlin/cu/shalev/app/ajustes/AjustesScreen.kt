@@ -142,7 +142,7 @@ fun AjustesContent(
     onPermisos: () -> Unit,
     actualizacion: cu.shalev.app.actualizacion.EstadoActualizacion = cu.shalev.app.actualizacion.EstadoActualizacion(),
     onBuscarAhora: () -> Unit = {},
-    /** 0.31.0 (P5): «Actualizar» (cuadro con barra de progreso) y cerrar ese cuadro. */
+    /** «Actualizar» (cuadro con progreso circular) y cerrar ese cuadro. */
     onActualizarAhora: () -> Unit = {},
     onCerrarActualizar: () -> Unit = {},
     /** 1.0.4: «Confirmar» del cuadro «Actualización descargada». */
@@ -153,8 +153,7 @@ fun AjustesContent(
     onBack: (() -> Unit)? = null,
     onLocales: () -> Unit = {},
 ) {
-    // 0.31.0 (P5): el cuadro de «Actualizar» lo abre el propio proceso (barra circular + resultado).
-    // 1.0.1: al terminar con «Actualizado» o «Estas al día» el cuadro se cierra solo (el proceso lo cierra).
+    // El cuadro de «Actualizar» lo abre el propio proceso y permanece hasta que se elija una acción explícita.
     val dialogoActualizaciones = actualizacion.proceso != null
     Scaffold(
         topBar = {
@@ -221,63 +220,93 @@ fun AjustesContent(
         }
     }
     if (dialogoActualizaciones) {
-        val T = cu.shalev.app.actualizacion.TextosActualizacion
-        val proceso = actualizacion.proceso
-        if (proceso is cu.shalev.app.actualizacion.ProcesoActualizar.Descargada) {
-            // 1.0.4: descarga terminada → el usuario confirma si se instala ahora (y Shalev se reabre solo).
-            ShalevDialog(
-                title = T.DESCARGADA_TITULO,
-                text = T.DESCARGADA_TEXTO,
-                onDismiss = onCerrarActualizar,
-                dismissDescription = "Omitir",
-                onConfirm = onAplicarActualizar,
-                confirmDescription = "Confirmar",
-            ) {
-                Column(
-                    Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(T.DESCARGADA_TEXTO, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-                    cu.shalev.designsystem.component.ShalevSecondaryText(
-                        T.DESCARGADA_DETALLE + (actualizacion.version?.let { " Versión $it." } ?: ""),
-                        maxLines = 4, textAlign = TextAlign.Center,
-                    )
-                }
-            }
-        } else {
-            ShalevDialog(
-                title = T.BUSCAR,
-                onDismiss = onCerrarActualizar,
-                onConfirm = null,
-                dismissDescription = "Cerrar",
-                content = {
-                    Column(
-                        Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        if (!actualizacion.repoConfigurado) {
-                            cu.shalev.designsystem.component.ShalevSecondaryText(T.SIN_REPO, maxLines = 3, textAlign = TextAlign.Center)
-                        } else {
-                            // 1.0.4: barra horizontal con el progreso real de la descarga (indeterminada solo al comprobar).
-                            val avance = (proceso as? cu.shalev.app.actualizacion.ProcesoActualizar.EnCurso)?.progreso
-                            cu.shalev.designsystem.component.ShalevLinearProgress(progress = avance)
-                            Text(
-                                if (avance != null) "${T.DESCARGANDO} ${(avance * 100).toInt()} %" else proceso?.texto().orEmpty(),
-                                style = MaterialTheme.typography.titleMedium,
-                                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
-                            )
-                            cu.shalev.designsystem.component.ShalevSecondaryText(
-                                T.BUSCAR_DETALLE_CORTO, maxLines = 4, textAlign = TextAlign.Center,
-                            )
-                        }
-                    }
-                },
-            )
-        }
+        DialogoActualizar(actualizacion, onCerrarActualizar, onAplicarActualizar)
     }
 
+}
+
+object ActualizarTags {
+    const val PROGRESO = "ajustes.actualizar.progreso"
+    const val CERRAR = "ajustes.actualizar.cerrar"
+    const val CONFIRMAR = "ajustes.actualizar.confirmar"
+}
+
+/** Cuadro de actualización: progreso circular mientras trabaja y acción visible para confirmar o cerrar el resultado. */
+@Composable
+internal fun DialogoActualizar(
+    actualizacion: cu.shalev.app.actualizacion.EstadoActualizacion,
+    onCerrar: () -> Unit,
+    onAplicar: () -> Unit,
+) {
+    val T = cu.shalev.app.actualizacion.TextosActualizacion
+    val proceso = actualizacion.proceso
+    if (proceso is cu.shalev.app.actualizacion.ProcesoActualizar.Descargada) {
+        ShalevDialog(
+            title = T.DESCARGADA_TITULO,
+            onDismiss = onCerrar,
+            dismissDescription = "Cerrar",
+            onConfirm = onAplicar,
+            confirmDescription = "Confirmar",
+            confirmTag = ActualizarTags.CONFIRMAR,
+            secundarias = {
+                cu.shalev.designsystem.component.ShalevTextButton(
+                    "Cerrar", onClick = onCerrar, icon = ShalevIcons.Cancelar, mostrarTexto = true,
+                    modifier = Modifier.testTag(ActualizarTags.CERRAR),
+                )
+            },
+        ) {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(T.DESCARGADA_TEXTO, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                cu.shalev.designsystem.component.ShalevSecondaryText(
+                    T.DESCARGADA_DETALLE + (actualizacion.version?.let { " Versión $it." } ?: ""),
+                    maxLines = 4, textAlign = TextAlign.Center,
+                )
+            }
+        }
+        return
+    }
+
+    val enCurso = proceso as? cu.shalev.app.actualizacion.ProcesoActualizar.EnCurso
+    ShalevDialog(
+        title = T.BUSCAR,
+        onDismiss = onCerrar,
+        onConfirm = if (enCurso == null) onCerrar else null,
+        confirmDescription = "Cerrar",
+        confirmIcon = ShalevIcons.Cancelar,
+        confirmTag = ActualizarTags.CERRAR,
+        dismissDescription = "Cerrar",
+    ) {
+        Column(
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (!actualizacion.repoConfigurado) {
+                cu.shalev.designsystem.component.ShalevSecondaryText(T.SIN_REPO, maxLines = 3, textAlign = TextAlign.Center)
+            } else {
+                val avance = enCurso?.progreso
+                if (enCurso != null) {
+                    cu.shalev.designsystem.component.ShalevCircularProgress(
+                        progress = avance,
+                        contentDescription = if (avance != null) "${T.DESCARGANDO} ${(avance * 100).toInt()} %" else enCurso.texto(),
+                        modifier = Modifier.testTag(ActualizarTags.PROGRESO),
+                    )
+                }
+                Text(
+                    if (avance != null) "${T.DESCARGANDO} ${(avance * 100).toInt()} %" else proceso?.texto().orEmpty(),
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                )
+                cu.shalev.designsystem.component.ShalevSecondaryText(
+                    T.BUSCAR_DETALLE_CORTO, maxLines = 4, textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
 }
 
 @Composable

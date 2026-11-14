@@ -99,18 +99,20 @@ class ProcesoActualizarTest {
         assertTrue(github.llamadas == 1)
     }
 
-    /** 1.0.1: al comprobar que estás al día el cuadro se cierra solo, sin que nadie lo toque. */
-    @Test fun alDiaSeCierraSolo() = runBlocking {
+    /** El resultado «Estás al día» permanece hasta que la persona cierra el aviso. */
+    @Test fun alDiaEsperaCierreExplicito() = runBlocking<Unit> {
         val g = gestor()
         g.actualizarAhora()
         withTimeout(10_000) { g.estado.first { it.proceso is ProcesoActualizar.EnCurso } }
         github.puerta.complete(AppResult.Ok(null)) // no hay versión nueva
         withTimeout(10_000) { g.estado.first { it.proceso == ProcesoActualizar.AlDia } }
+        delay(2_000) // más que el cierre automático anterior: ahora se espera la acción «Cerrar»
+        assertEquals(ProcesoActualizar.AlDia, g.estado.value.proceso)
+        g.cerrarProceso()
         withTimeout(10_000) { g.estado.first { it.proceso == null } }
-        assertNull(g.estado.value.proceso)
     }
 
-    /** 1.0.1: «Sin conexión» NO se cierra solo: el usuario tiene que leerlo y cerrarlo. */
+    /** «Sin conexión» también permanece hasta que el usuario lo cierra. */
     // `runBlocking<Unit>`: la última expresión (`withTimeout { first { … } }`) devuelve el estado, y un
     // método @Test de JUnit 4 tiene que ser void. Sin el <Unit> la clase entera se rechaza al inicializar
     // (InvalidTestClassError) y no corre ninguno de los cuatro tests.
@@ -120,7 +122,7 @@ class ProcesoActualizarTest {
         withTimeout(10_000) { g.estado.first { it.proceso is ProcesoActualizar.EnCurso } }
         github.puerta.complete(AppResult.Err(AppError.Red.SinConexion))
         withTimeout(10_000) { g.estado.first { it.proceso == ProcesoActualizar.SinConexion } }
-        delay(GestorActualizacion.CIERRE_AUTO_MS * 2)
+        delay(2_000)
         assertEquals(ProcesoActualizar.SinConexion, g.estado.value.proceso)
         g.cerrarProceso()
         withTimeout(10_000) { g.estado.first { it.proceso == null } }

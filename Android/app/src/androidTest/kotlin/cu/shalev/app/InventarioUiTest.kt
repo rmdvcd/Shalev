@@ -1,8 +1,6 @@
 package cu.shalev.app
 
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -20,7 +18,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import cu.shalev.app.common.LocalPermisosApp
 import cu.shalev.app.inicio.EstadoCarga
 import cu.shalev.app.insumos.AccionesInsumoForm
 import cu.shalev.app.insumos.InsumoForm
@@ -39,14 +36,11 @@ import cu.shalev.app.producto.ProductoFormContent
 import cu.shalev.app.producto.ProductoFormTags
 import cu.shalev.app.producto.ProductoFormUiState
 import cu.shalev.core.money.Cup
-import cu.shalev.designsystem.component.GuardiaDobleToque
 import cu.shalev.designsystem.theme.ShalevTheme
 import cu.shalev.domain.model.EstadoCaducidad
 import cu.shalev.domain.model.FichaProducto
 import cu.shalev.domain.model.ItemInventario
-import cu.shalev.domain.model.Modulo
 import cu.shalev.domain.model.NivelStock
-import cu.shalev.domain.model.PermisosApp
 import cu.shalev.domain.model.Producto
 import cu.shalev.domain.model.VistaInventario
 import java.time.Instant
@@ -59,12 +53,6 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class InventarioUiTest {
     @get:Rule val rule = createComposeRule()
-
-    private fun avanzarPaso() {
-        val desde = android.os.SystemClock.elapsedRealtime()
-        rule.onNodeWithTag("alta.siguiente").performClick()
-        rule.waitUntil(2_000) { android.os.SystemClock.elapsedRealtime() - desde >= GuardiaDobleToque.VENTANA_MS }
-    }
 
     private val t0 = Instant.parse("2026-09-30T16:00:00Z")
     private fun p(id: Long, nombre: String, cantidad: Long = 10) = Producto(
@@ -163,25 +151,12 @@ class InventarioUiTest {
         assertEquals(true, quitado)
     }
 
-    @Test fun accesosContextualesDeInventarioDeleganEnSusAcciones() {
-        var fichas = false
-        var gestion = false
-        inventario(lista(), AccionesInventario(onFichasCosto = { fichas = true }, onGestionInventario = { gestion = true }))
-
-        rule.onNodeWithTag(InventarioTags.FICHAS_COSTO).assertIsDisplayed().performClick()
-        rule.onNodeWithTag(InventarioTags.GESTION_INVENTARIO).assertIsDisplayed().performClick()
-        assertTrue(fichas)
-        assertTrue(gestion)
-    }
-
-    @Test fun gestionDeInventarioSeOcultaSinPermiso() {
-        rule.setContent {
-            CompositionLocalProvider(LocalPermisosApp provides PermisosApp.PRINCIPAL.copy(modulos = setOf(Modulo.SERVICIOS))) {
-                ShalevTheme(darkTheme = false) { InventarioContent(lista(), AccionesInventario()) }
-            }
-        }
-        rule.onNodeWithTag(InventarioTags.FICHAS_COSTO).assertIsDisplayed()
-        rule.onNodeWithTag(InventarioTags.GESTION_INVENTARIO).assertDoesNotExist()
+    @Test fun fichasDeCostoYGestionDeInventarioYaNoAparecen() {
+        inventario(lista())
+        rule.onAllNodesWithTag(InventarioTags.FICHAS_COSTO).assertCountEquals(0)
+        rule.onAllNodesWithTag(InventarioTags.GESTION_INVENTARIO).assertCountEquals(0)
+        rule.onAllNodesWithText("Fichas de costo").assertCountEquals(0)
+        rule.onAllNodesWithText("Gestión de inventario").assertCountEquals(0)
     }
 
     @Test fun fichaConEditarCompartirYEliminar() {
@@ -195,62 +170,46 @@ class InventarioUiTest {
         assertEquals(2L, editado)
     }
 
-    // ---------- Formulario ----------
+    // ---------- Formularios anteriores a los asistentes ----------
 
     private fun formulario(state: ProductoFormUiState) =
         rule.setContent { ShalevTheme(darkTheme = false) { ProductoFormContent(state, AccionesForm()) } }
 
-    @Test fun elaboradoOcultaFotoFechaCantidadYNivelesYMuestraRecetaEnSuPaso() {
+    @Test fun productoFisicoMuestraTodosLosCamposYUnSoloGuardar() {
+        formulario(ProductoFormUiState(form = ProductoForm(categoria = "Bebidas")))
+        listOf(
+            ProductoFormTags.CATEGORIA, ProductoFormTags.NOMBRE, ProductoFormTags.COSTO,
+            ProductoFormTags.VENTA, ProductoFormTags.CANTIDAD, ProductoFormTags.BAJO,
+            ProductoFormTags.CRITICO, ProductoFormTags.GUARDAR,
+        ).forEach { rule.onNodeWithTag(it).assertExists() }
+        rule.onAllNodesWithTag("alta.siguiente").assertCountEquals(0)
+        rule.onAllNodesWithTag("alta.guardar_recibir").assertCountEquals(0)
+    }
+
+    @Test fun elaboradoConservaRecetaPeroNoTieneExistenciaPropia() {
         formulario(ProductoFormUiState(form = ProductoForm(categoria = "Elaborado")))
-        avanzarPaso()
         rule.onNodeWithTag(ProductoFormTags.RECETA).assertExists()
-        rule.onNodeWithTag(ProductoFormTags.FOTO).assertDoesNotExist()
-        rule.onNodeWithTag(ProductoFormTags.FECHA).assertDoesNotExist()
-        rule.onNodeWithTag(ProductoFormTags.COSTO).assertDoesNotExist() // se calcula con la receta
-        avanzarPaso()
-        // P26: sin existencias ni niveles propios (alcanza según sus insumos).
-        rule.onNodeWithTag(ProductoFormTags.CANTIDAD).assertDoesNotExist()
-        rule.onNodeWithTag(ProductoFormTags.BAJO).assertDoesNotExist()
-        rule.onNodeWithTag(ProductoFormTags.CRITICO).assertDoesNotExist()
+        rule.onAllNodesWithTag(ProductoFormTags.FOTO).assertCountEquals(0)
+        rule.onAllNodesWithTag(ProductoFormTags.CANTIDAD).assertCountEquals(0)
+        rule.onAllNodesWithTag(ProductoFormTags.BAJO).assertCountEquals(0)
+        rule.onAllNodesWithTag(ProductoFormTags.CRITICO).assertCountEquals(0)
+        rule.onNodeWithTag(ProductoFormTags.GUARDAR).assertExists()
     }
 
-    @Test fun articuloAvanzaPorTresPasosYOfreceRecepcionInicialAlFinal() {
-        formulario(ProductoFormUiState(form = ProductoForm(categoria = "Bebidas"), intentado = true))
-        rule.onNodeWithTag("alta.paso.1").assertExists()
-        rule.onNodeWithTag(ProductoFormTags.FOTO).assertExists()
-        rule.onNodeWithTag(ProductoFormTags.COSTO).assertDoesNotExist()
-        rule.onNodeWithText("Escribe el nombre.", useUnmergedTree = true).assertExists()
-
-        avanzarPaso()
-        rule.onNodeWithTag("alta.paso.2").assertExists()
-        rule.onNodeWithTag(ProductoFormTags.COSTO).assertExists()
-        rule.onNodeWithTag(ProductoFormTags.VENTA).assertDoesNotExist()
-
-        avanzarPaso()
-        rule.onNodeWithTag("alta.paso.3").assertExists()
-        rule.onNodeWithTag(ProductoFormTags.VENTA).assertExists()
-        rule.onNodeWithTag(ProductoFormTags.CANTIDAD).assertExists()
-        rule.onNodeWithTag("alta.guardar_recibir").assertExists()
-        rule.onNodeWithTag("alta.guardar").assertExists()
-    }
-
-    @Test fun insumoAvanzaPorTresPasosYOfreceRecepcionInicialAlFinal() {
+    @Test fun insumoMuestraSusCamposEnUnFormularioUnico() {
         rule.setContent {
             ShalevTheme(darkTheme = false) {
                 InsumoFormContent(InsumoFormUiState(form = InsumoForm()), AccionesInsumoForm())
             }
         }
-        rule.onNodeWithTag(InsumoFormTags.NOMBRE).assertExists()
-        rule.onNodeWithTag(InsumoFormTags.PRECIO).assertDoesNotExist()
-
-        avanzarPaso()
-        rule.onNodeWithTag(InsumoFormTags.PRECIO).assertExists()
-        rule.onNodeWithTag(InsumoFormTags.CANTIDAD).assertExists()
-        rule.onNodeWithTag(InsumoFormTags.PRECIO_VENTA).assertDoesNotExist()
-
-        avanzarPaso()
-        rule.onNodeWithTag(InsumoFormTags.PRECIO_VENTA).assertExists()
-        rule.onNodeWithTag("alta.guardar_recibir").assertExists()
-        rule.onNodeWithTag("alta.guardar").assertExists()
+        listOf(
+            InsumoFormTags.NOMBRE, InsumoFormTags.CANTIDAD,
+            InsumoFormTags.PRECIO, InsumoFormTags.PRECIO_VENTA, InsumoFormTags.BAJO,
+            InsumoFormTags.CRITICO, InsumoFormTags.GUARDAR,
+        ).forEach { rule.onNodeWithTag(it).assertExists() }
+        rule.onNodeWithText("Unidad de medida").assertExists()
+        rule.onAllNodesWithTag("alta.siguiente").assertCountEquals(0)
+        rule.onAllNodesWithTag("alta.guardar_recibir").assertCountEquals(0)
     }
+
 }

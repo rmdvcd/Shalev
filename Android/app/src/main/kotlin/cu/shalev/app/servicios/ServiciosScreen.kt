@@ -105,8 +105,6 @@ class AccionesServicios(
     val onComentarioPromocion: (String) -> Unit = {},
     val onExportar: (FormatoSalida) -> Unit = {},
     val onGuardar: (FormatoSalida) -> Unit = {},
-    val onFichasCosto: () -> Unit = {},
-    val onGestionInventario: () -> Unit = {},
     val onContinuarVenta: () -> Unit = {},
     val onAtras: () -> Unit = {},
     val onAyuda: (() -> Unit)? = null,
@@ -155,8 +153,6 @@ fun ServiciosScreen(
             onCerrarHoja = viewModel::cerrarHoja, onAgregar = viewModel::agregar, onEliminarFicha = viewModel::pedirEliminarFicha,
             onEliminarSeleccion = viewModel::pedirEliminarSeleccion, onConfirmarEliminar = viewModel::confirmarEliminar,
             onCancelarEliminar = viewModel::cancelarEliminar, onComentarioPromocion = viewModel::comentarioPromocion, onExportar = viewModel::exportar, onGuardar = viewModel::pedirGuardar,
-            onFichasCosto = { onNavigate(Route.FichaCosto()) },
-            onGestionInventario = { onNavigate(Route.GestionInventario()) },
             onContinuarVenta = viewModel::confirmarSeleccionVenta, onAtras = onBack,
         ),
     )
@@ -210,10 +206,6 @@ fun ServiciosContent(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) { // con el teclado abierto la lista queda por encima
             if (state.trabajando) ShalevLinearProgress(Modifier.fillMaxWidth())
-            if (!venta && state.seleccion.isEmpty()) AccesosServicios(
-                acciones,
-                puedeGestionarInventario = !LocalPermisosApp.current.esSecundaria && LocalPermisosApp.current.verInventario,
-            )
             ElementosFijados(state, acciones)
             Buscador(state, acciones)
             if (!venta && state.seleccion.isNotEmpty()) BarraSeleccion(
@@ -280,25 +272,6 @@ fun ServiciosContent(
         onDismiss = { ayudaPestana.value = false },
         onVerManual = acciones.onAyuda?.let { ir -> { ayudaPestana.value = false; ir() } },
     )
-}
-
-@Composable
-private fun AccesosServicios(acciones: AccionesServicios, puedeGestionarInventario: Boolean) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
-        horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-    ) {
-        ShalevSecondaryButton(
-            "Fichas de costo", acciones.onFichasCosto, ShalevIcons.FichaCosto,
-            (if (puedeGestionarInventario) Modifier.weight(1f) else Modifier.fillMaxWidth())
-                .testTag(ServiciosTags.FICHAS_COSTO),
-            mostrarTexto = true,
-        )
-        if (puedeGestionarInventario) ShalevSecondaryButton(
-            "Gestión de inventario", acciones.onGestionInventario, ShalevIcons.Inventario,
-            Modifier.weight(1f).testTag(ServiciosTags.GESTION_INVENTARIO), mostrarTexto = true,
-        )
-    }
 }
 
 @Composable

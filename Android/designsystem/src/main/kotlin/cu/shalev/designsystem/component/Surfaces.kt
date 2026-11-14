@@ -280,6 +280,8 @@ fun ShalevListItem(
     /** 0.28.0: como [subtitleResaltado] pero para el título («Turno abierto desde las 09:30»). */
     titleResaltado: AnnotatedString? = null,
     titleMaxLines: Int = 2,
+    /** Fondo de la fila seleccionada cuando una pantalla necesita un estado semántico distinto del azul general. */
+    selectedContainerColor: Color? = null,
 ) {
     val cs = MaterialTheme.colorScheme
     val apilar = letraGrande()
@@ -300,7 +302,7 @@ fun ShalevListItem(
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .background(if (selected) cs.primaryContainer else Color.Transparent)
+                .background(if (selected) selectedContainerColor ?: cs.primaryContainer else Color.Transparent)
                 .then(clickable)
                 .semantics(mergeDescendants = true) { if (selected) this.selected = true }
                 .heightIn(min = ShalevSize.touchTarget)

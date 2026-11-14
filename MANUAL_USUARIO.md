@@ -101,7 +101,6 @@ Shalev está pensada para manejarse con una sola mano de forma ágil detrás del
 
 - **Tocar una sección de la barra inferior:** cada sección muestra su icono y **su nombre escrito debajo**; la que tienes abierta se destaca con fondo relleno.
 - **Abrir Ajustes:** toca **Ajustes** en la última posición de la barra inferior. Desde ahí puedes tocar otra sección o usar Atrás para volver.
-- **Calculadora de cambio:** el botón de cambio en la cabecera de Inicio la abre directamente; también está disponible desde Fichas de costo.
 - **Deslizar el dedo hacia la izquierda o la derecha:** puedes pasar entre las secciones principales disponibles. Para evitar errores mientras trabajas, el gesto se desactiva al escribir, filtrar, seleccionar filas o abrir una ventana emergente.
 
 ### 3.2 Iconos de acción y ayuda contextual
@@ -114,7 +113,6 @@ Fuera de las ventanas emergentes, algunas acciones usan **iconos** para dejar es
 |---|---|---|
 | **Ayuda** *(arriba a la izquierda)* | Abre la guía de la sección y el acceso al manual resumido | Inicio, Inventario, Servicios y Registros |
 | **Ajustes** *(barra inferior)* | Abre configuración, permisos, respaldo y demás opciones del negocio | Quinta posición de la barra inferior |
-| **Cambio** *(arriba a la derecha de Inicio)* | Abre la Calculadora de cambio CUP/USD | Inicio |
 | **Carrito** / **Caja registradora** | Inician una nueva venta / registran una entrada o salida de efectivo | Inicio, debajo del banner de licencia y antes de las alertas (con el turno abierto) |
 | **Embudo** | Abre los filtros disponibles | Inventario, Servicios y Registros |
 | **Exportar** | Guarda o comparte informes, listas, imágenes o tarjetas | Inventario, Servicios, Registros y detalle de Turno |
@@ -157,7 +155,7 @@ Debajo del banner fijo de licencia, con el turno abierto, aparecen los iconos de
 - **Gráficos y rankings plegables (acordeones):** empiezan cerrados para mantener el orden visual; toca cualquiera para desplegarlo:
   - **Ventas:** evolución de tus ingresos en CUP durante el período elegido.
   - **Ganancia bruta:** comparativa de **Venta** y **Costo**.
-  - Ambos gráficos muestran las fechas u horas en el eje X y los importes en CUP en el eje Y. En Hoy, 7 días, Este mes y Este año se llega hasta el período actual; no se añade a la derecha el tramo futuro todavía sin datos.
+  - Ambos gráficos muestran las fechas u horas en el eje X, sin eje Y, para aprovechar todo el ancho. En **Ventas**, toca una barra para ver su fecha u hora y su importe en CUP; vuelve a tocarla para ocultarlo. En Hoy, 7 días, Este mes y Este año se llega hasta el período actual; no se añade a la derecha el tramo futuro todavía sin datos.
   - **Inventario:** gráfico circular de distribución de tus existencias por categoría.
   - **Métodos de pago:** proporción cobrada en efectivo frente a transferencia.
   - **Rankings Top 3 con medallas de oro, plata y bronce:** productos más vendidos, artículos de lento movimiento, mayor rentabilidad y —en los últimos 30 días— los **3 mejores vendedores (empleados)** y los **3 mejores clientes por transferencia**. Los **insumos con precio de venta** cuentan como productos en estos rankings (los de solo receta no).
@@ -182,7 +180,7 @@ En Shalev rige una regla sencilla que mantiene tus cuentas claras todos los día
    - En las apps de empleados también escribe el fondo quien abre el turno (al abrirlo, su teléfono se sincroniza automáticamente con la principal para trabajar con el catálogo al día).
 3. Pulsa **Confirmar**. En **Inicio** aparecerán, debajo del banner de licencia y antes de las alertas, los iconos de **Vender** (carrito) y **Caja** (caja registradora).
 
-> **Consejo:** mientras tu turno esté abierto, verás una notificación de Shalev con el tiempo transcurrido y el total de ventas válidas del turno de este teléfono (no suma los turnos de otras apps). En la App Principal también indica cuántas apps secundarias están conectadas. El importe es visible en la pantalla bloqueada; no se muestran datos de clientes. Tócala para volver enseguida a Shalev.
+> **Consejo:** mientras tu turno esté abierto, verás una notificación de Shalev con el tiempo transcurrido y el total de ventas válidas del turno de este teléfono (no suma los turnos de otras apps). Si el turno de este teléfono está cerrado, la notificación lo indica. En la App Principal también muestra cuántas apps secundarias están conectadas del total vinculado (por ejemplo, *«2 de 3 apps conectadas»*). El importe es visible en la pantalla bloqueada; no se muestran datos de clientes. Tócala para volver enseguida a Shalev.
 
 ### 5.2 Registrar entradas y salidas de efectivo durante el turno
 
@@ -233,10 +231,10 @@ Cada fila te da de un vistazo toda la información clave sin tener que abrirla:
 ### 6.2 Agregar un artículo físico paso a paso
 
 1. Entra en **Inventario** y pulsa el botón **+** de la esquina inferior derecha.
-2. El asistente tiene **3 pasos**. En **Datos del producto**, añade una foto opcional, elige o escribe la categoría y completa nombre, descripción y caducidad opcional (Shalev avisa en Inicio **7 días antes**).
-3. En **Costos y receta**, escribe el **Precio de costo (CUP)**. En un producto físico es el costo por unidad; para un Elaborado, agrega la receta y el costo se calcula con los insumos. Al crear un artículo nuevo también puedes abrir una ficha de costo.
-4. En **Precio e inventario**, escribe el **Precio de venta (CUP)**, mayor que el costo, y la **cantidad inicial** que tienes. Los niveles bajo y crítico son opcionales; si quedan vacíos, se usan los de Ajustes.
-5. Pulsa **Guardar producto** para registrar directamente la cantidad escrita. Si es un producto físico nuevo y quieres dejar documentada la compra con proveedor y lote, usa **Guardar y registrar compra inicial**; se explica en «Gestión de inventario» más adelante.
+2. Se abre un **formulario único**. Añade una foto opcional, elige o escribe la categoría y completa nombre, descripción y caducidad opcional (Shalev avisa en Inicio **7 días antes**).
+3. Escribe el **Precio de costo (CUP)**. En un producto físico es el costo por unidad; para un Elaborado, agrega la receta y el costo se calcula con los insumos.
+4. Escribe el **Precio de venta (CUP)**, mayor que el costo, y la **cantidad** que tienes. Los niveles bajo y crítico son opcionales; si quedan vacíos, se usan los de Ajustes.
+5. Pulsa **Guardar producto** para registrar el artículo con la cantidad escrita.
 
 ### 6.3 Insumos y Productos Elaborados (recetas)
 
@@ -244,12 +242,11 @@ Si tienes una cafetería, pizzería, dulcería o taller de producción, Shalev c
 
 1. **Primero crea tus materias primas (Insumos):**
    - Ve a **Inventario → +** y en **Categoría** elige **Insumos** para abrir el formulario específico.
-   - El asistente reúne en tres pasos el nombre y la unidad (`kg`, `g`, `L`, `ml`, `u`), el costo y cantidad actual (hasta **3 decimales**, como `2.500 kg`), y el precio de venta opcional.
-   - Si el insumo es nuevo y vas a registrar su primera compra con proveedor y lote, al final puedes elegir **Guardar y registrar compra inicial**. El insumo se guarda con existencia cero y la recepción se confirma después en Gestión de inventario.
+   - El formulario reúne el nombre, la **Unidad de medida** (`kg`, `g`, `L`, `ml`, `u`), el costo, la cantidad actual (hasta **3 decimales**, como `2.500 kg`) y el precio de venta opcional. Pulsa **Guardar insumo**.
    - Si vendes ese insumo suelto, escribe un **Precio de venta** (se venderá por unidades enteras). Si solo lo usas para cocinar o producir, déjalo vacío.
 2. **Después crea el Producto Elaborado con su receta:**
    - Ve a **Inventario → +** y en **Categoría** elige **Elaborado** (en singular).
-   - El asistente guía sus datos, la receta y los costos, y después el precio y la revisión. En **Costos y receta**, agrega cada ingrediente e indica cuánto gasta **una sola unidad** (por ejemplo: `0.25 kg` de harina, `0.10 kg` de puré de tomate y `0.08 kg` de queso).
+   - En el mismo formulario, agrega cada ingrediente e indica cuánto gasta **una sola unidad** (por ejemplo: `0.25 kg` de harina, `0.10 kg` de puré de tomate y `0.08 kg` de queso).
    - Verás que Shalev calcula sola el **Precio de costo** sumando los ingredientes de la receta. Tú solo eliges el **Precio de venta** y guardas con **Guardar producto**.
 
 > **¿Qué ocurre al vender un Elaborado?** En la lista de Inventario y en el carrito verás siempre **«Alcanza para N»** calculado según el ingrediente más escaso. Cada vez que vendas uno, Shalev descontará automáticamente las porciones exactas de cada insumo. Cuando algún ingrediente no alcance, Shalev impedirá venderlo para que el inventario nunca quede en negativo.
@@ -275,10 +272,10 @@ La tercera pestaña de la barra inferior, **Servicios**, está dedicada a todo l
 
 ### Cómo crear y usar tus servicios
 
-1. Entra en **Servicios** y toca el botón **+** (abajo a la derecha). El asistente tiene tres pasos.
-2. En **Datos del servicio**, añade una foto opcional, escribe el **Nombre \*** (p. ej. *Corte de cabello*), el **Tipo \*** (*Barbería*, *Belleza*, *Lavandería*…) y una descripción breve si hace falta.
-3. En **Costos e insumos**, agrega opcionalmente los materiales que consumes cada vez (champú, tinte, detergente, bolsas…) y su cantidad; añade también mano de obra y otros costos. Puedes usar una ficha guardada para exportar el servicio con su receta.
-4. En **Precio y revisión**, escribe el **Importe (CUP) \*** que cobras cada vez y revisa el resumen. Pulsa **Guardar servicio**. Al venderlo, Shalev descuenta automáticamente sus insumos y calcula la ganancia bruta considerando su costo.
+1. Entra en **Servicios** y toca el botón **+** (abajo a la derecha). Se abre un **formulario único**.
+2. Añade una foto opcional, escribe el **Nombre \*** (p. ej. *Corte de cabello*), el **Tipo \*** (*Barbería*, *Belleza*, *Lavandería*…) y una descripción breve si hace falta.
+3. Agrega opcionalmente los materiales que consumes cada vez (champú, tinte, detergente, bolsas…) y su cantidad; añade también mano de obra y otros costos.
+4. Escribe el **Importe (CUP) \*** que cobras cada vez. Pulsa **Guardar servicio**. Al venderlo, Shalev descuenta automáticamente sus insumos y calcula la ganancia bruta considerando su costo.
 
 | <img src="promocion/capturas/shot_servicios_claro.png" alt="Catálogo de Servicios" width="240"/> | <img src="Android/app/capturas/claro/09e_servicio_form.png" alt="Formulario Nuevo servicio" width="240"/> |
 |:---:|:---:|
@@ -491,7 +488,7 @@ Como todos tus datos viven únicamente en tu teléfono y no en internet, hacer c
 | Sí va dentro del respaldo `.shalev` | No va dentro del respaldo (tómalo en cuenta) |
 |---|---|
 | Productos, recetas, insumos, servicios y **fotos guardadas por Shalev** | Archivos externos o fotos que ya no existan en el teléfono |
-| Fichas de costo, locales, recepciones, lotes e historial de correcciones | La vinculación activa y las claves privadas del dispositivo |
+| Locales, recepciones, lotes e historial de correcciones | La vinculación activa y las claves privadas del dispositivo |
 | Todos los turnos, arqueos de caja, ventas, transferencias y movimientos | **La licencia activa en sí** (está ligada al teléfono, aunque el respaldo **sí guarda el ID** para que la recuperes gratis en el nuevo) |
 | Perfil, tarjetas, teléfonos, preajustes, **clientes fijos y preferencias del negocio** | **Los códigos QR activos de vinculación** (los nombres y permisos de los empleados se conservan, pero deberás generarles un QR nuevo) |
 
@@ -539,9 +536,9 @@ Entra en **Ajustes → Licencia**:
 
 1. **Paso 1 — Revisa tus datos:** comprueba tu nombre, apellidos, carné de identidad y teléfono (se toman de tu *Perfil*). Pulsa **Siguiente (→)**.
 2. **Paso 2 — Pide la licencia:**
-   - Elige el tipo (**Mensual**, **Semestral**, **Anual** o **Perpetua**) y ajusta con **− / +** cuántas **Apps secundarias (empleados)** necesitas. Verás el total exacto calculado debajo.
+   - Elige el tipo (**Mensual**, **Semestral**, **Anual** o **Perpetua**): cada fila muestra el nombre a la izquierda y el precio alineado a la derecha. Ajusta con **− / +** cuántas **Apps secundarias (empleados)** necesitas. Verás el total exacto calculado debajo.
    - *(Solo si estás cambiando de teléfono: verifica que aparezca el **ID de la licencia anterior** para que el traspaso sea gratuito; el teléfono viejo quedará revocado y pedirá desinstalar la app).*
-   - Elige enviar por **WhatsApp** *(recomendado por rapidez y porque cabe en un solo mensaje)* o por **SMS**, y toca el botón de **Enviar**. Se abrirá tu app de mensajería con tus datos y el código cifrado `SPVIR1:` listos: solo pulsa enviar.
+   - En **Enviar por**, toca el botón con texto visible **WhatsApp** *(recomendado por rapidez y porque cabe en un solo mensaje)* o **SMS**, y toca el botón de **Enviar**. Se abrirá tu app de mensajería con tus datos y el código cifrado `SPVIR1:` listos: solo pulsa enviar.
 3. **Paso 3 — Activa la licencia:**
    - Cuando el desarrollador te responda con tu mensaje de activación (`SPVI2:`), cópialo completo (si te llegó por SMS dividido en varias partes, copia todas) o compártelo directamente hacia Shalev.
    - En el Paso 3 toca el botón de **Pegar** y luego **Confirmar**. ¡Listo!
@@ -558,52 +555,9 @@ Entra en **Ajustes → Licencia**:
 
 Para que disfrutes siempre de las últimas mejoras y que la App Principal y las Secundarias hablen el mismo idioma:
 
-- **Búsqueda manual o semanal:** entra en **Ajustes → Actualizar** cuando tengas conexión; aparecerá un cuadro con progreso circular que te indicará *«Estás al día»*, *«Sin conexión»* o descargará e instalará la nueva versión verificada. Al terminar de actualizar o de comprobar que estás al día, el cuadro **se cierra solo**; si fue *«Sin conexión»*, se queda a la vista para que lo leas y lo cierres. Además, Shalev comprueba automáticamente una vez por semana si salió una actualización oficial y la reparte a las apps secundarias de tus empleados.
+- **Búsqueda manual o semanal:** entra en **Ajustes → Actualizar** cuando tengas conexión; aparecerá un cuadro con progreso circular que te indicará *«Estás al día»*, *«Sin conexión»* o descargará e instalará la nueva versión verificada. El resultado se queda a la vista hasta que toques **Cerrar**; si la actualización ya está descargada, toca **Confirmar** para instalarla o **Cerrar** para hacerlo más tarde. Además, Shalev comprueba automáticamente una vez por semana si salió una actualización oficial y la reparte a las apps secundarias de tus empleados.
 - **Copia previa antes de instalar:** justo antes de abrir el instalador, Shalev guarda una copia interna. Al abrir la versión actualizada, adapta la base de datos normalmente: **no restaura esa copia automáticamente ni borra operaciones posteriores**. Si necesitas recuperarla, usa **Ajustes → Respaldo → Guardar copia previa** y luego el asistente normal de Importar. Esa copia no tiene contraseña: guárdala en lugar seguro y recuerda que importarla reemplaza el negocio por el estado de aquel momento.
 - **Plazo de 30 días:** cuando el teléfono detecta una versión nueva, puedes posponerla con *«Más tarde»* durante **30 días** (viendo la fecha límite). Cumplido ese plazo, Shalev pedirá actualizar para continuar, permitiéndote siempre cerrar tu turno abierto y exportar un respaldo antes.
-
----
-
-## Fichas de costo, Gestión de inventario y calculadora de cambio
-
-Estas funciones ya no ocupan una pestaña propia: abre **Fichas de costo** desde Inventario o Servicios, y también desde los asistentes de alta que las ofrecen. **Gestión de inventario** se abre desde Inventario o Servicios; las operaciones de stock se realizan en la App Principal con el permiso correspondiente. La **Calculadora de cambio** está en el botón de cambio de la cabecera de Inicio y en Fichas de costo.
-
-En **Fichas de costo**, agrega partidas con categoría, cantidad, unidad, costo unitario y moneda. Puedes editar o eliminar partidas y consultar los totales por categoría, separados en CUP y USD. El margen opcional permite estimar un precio como porcentaje o factor; no es una fórmula normativa. Las fichas se guardan en este teléfono: puedes buscarlas por nombre, abrirlas para seguir editándolas y eliminarlas cuando ya no las necesites.
-
-**Exportar una ficha (solo en la App Principal):** las materias primas forman la receta y el resto de las categorías suma **mano de obra y otros costos**. La ficha representa una unidad de producto o una prestación de servicio.
-- **Al Inventario:** crea un producto **Elaborado** con receta; no crea existencias del producto elaborado. Los materiales nuevos se crean con existencia **cero**: recibe o ajusta su existencia antes de vender.
-- **A Servicios:** crea un servicio con sus insumos y costos adicionales; los insumos se descuentan al prestar el servicio.
-- Se reutiliza un insumo del mismo nombre solo si es inequívoco y su medida es compatible. Admite unidades, kg, g, L y ml; convierte masa con masa y volumen con volumen, sin adivinar densidades y con hasta tres decimales de la medida de destino. Si hay dos candidatos o una unidad no reconocida, corrige la ficha antes de exportar.
-- Si el insumo ya existe, **no se cambia su costo por el de la ficha**: se usa el costo vigente del local. El precio estimado sigue siendo el de la ficha; revisa el margen si el costo vigente subió. Si falla una línea, no se crea ninguna parte de la receta ni del artículo.
-- Si hay partidas en USD, escribe una **tasa CUP por 1 USD** positiva. Es una tasa manual, no una consulta bancaria. El costo adicional puede editarse después en el formulario del elaborado o del servicio.
-
-Las fichas guardadas pertenecen al local y **sí se incluyen en el respaldo `.shalev` y en Borrar todo**. Las fichas antiguas se incorporan sin descartar las que tengan el mismo identificador. No se sincronizan entre Principal y Secundaria y no sustituyen una ficha oficial. Si falla su lectura, toca **Reintentar carga**; no hace falta borrar fichas ni cambiar filtros.
-
-### Gestión de inventario: recepciones, ajustes y lotes
-
-Entra en **Inventario → Gestión de inventario** (o desde **Servicios** si tienes habilitado Inventario), en la App Principal y con el local correcto.
-
-**Compra inicial desde un alta:** en el último paso de un producto físico o insumo nuevo, elige **Guardar y registrar compra inicial**. Shalev guarda primero el artículo con existencia cero y abre una recepción con artículo, cantidad y costo prellenados. Completa proveedor, referencia del comprobante, motivo y lote; confirma la recepción para que la existencia se registre una sola vez. No se suma stock hasta confirmar.
-
-1. **Origen:** escribe proveedor, referencia del comprobante y motivo (3–120 caracteres). El comprobante es un texto; no se adjunta una foto o PDF.
-2. **Artículos y lotes:** elige un producto o insumo, cantidad, costo por unidad de su medida, código de lote y caducidad opcional `AAAA-MM-DD`. Añade todas las líneas. Los productos usan unidades enteras; los insumos admiten tres decimales.
-3. **Revisar recepción:** confirma una vez. Existencias, costo promedio ponderado, movimientos y lotes se guardan juntos. Un reintento de la misma recepción no vuelve a sumar la compra. Las ventas anteriores conservan su costo de entonces; revisa tus precios si la compra encareció el costo.
-
-Una recepción confirmada no se reescribe: registra un ajuste con explicación si debes corregirla. **Ajuste con motivo** permite merma y consumo interno (solo salidas), corrección de conteo o devolución. El autor y el motivo quedan en el movimiento. Corregir la cantidad de un ajuste en el turno abierto deja el antes/después de cada corrección; no borra el historial.
-
-**Lotes y caducidades** muestra cantidades recibidas y disponibles, y señala los vencidos. Shalev asigna las salidas primero al lote con caducidad más próxima (**FEFO contable**). No bloquea automáticamente la entrega de un lote vencido: revisa físicamente qué entregas. Los saldos anteriores o las entradas sin recepción pueden no tener lote. En una secundaria offline la asignación se hace al sincronizar: no es seguimiento físico garantizado. Anular una venta devuelve sus lotes registrados; reducir una salida corregida restituye los lotes que le correspondían.
-
-La venta suelta de insumos **sigue siendo entera de su medida**: 1 kg, 2 L, etc. Las fracciones corresponden a recetas, existencias y recepciones. No cambies la unidad de un insumo que ya tiene existencias, recetas o historial; crea otro para la medida nueva.
-
-### Revisiones de cobro, locales y conexión
-
-- Al confirmar, Shalev vuelve a comprobar precios, costos y receta. Si cambiaron desde el comprobante, **revisa la venta** antes de cobrar. Las líneas ya existentes de una venta modificada mantienen sus precios/costos originales; las nuevas usan los actuales.
-- Una referencia de transferencia ya usada en otra venta válida se rechaza, aunque tenga espacios o minúsculas. Una referencia repetida que llegue en ventas offline reales se señala en Registros: no se eliminan esas ventas. **Comprueba el ingreso con el banco**; reconocer un SMS o notificación no verifica el pago.
-- Cada empleado conserva el local que se le asignó aunque la principal cambie su selector o renombre el local. Para cambiar de local, cierra los turnos abiertos de la principal **y de las secundarias**.
-- Si una operación remota queda sin respuesta, conecta con la principal y sincroniza: se recupera con la misma clave para no duplicarla. Antes de enviar una acción diferente revisa el resultado recuperado en Vinculación. Si el catálogo sigue pendiente, vuelve a sincronizar; no repitas una operación ya confirmada.
-- En Inicio, **Ganancia bruta** = venta menos costo guardado; no es ganancia neta porque no descuenta otros gastos del negocio. La distribución del inventario usa **valor al costo en CUP**, no una suma de kg, litros y unidades.
-
-Desde el botón de cambio de **Inicio** o el icono de cambio de **Fichas de costo**, puedes convertir importes en ambos sentidos. Introduce la tasa como **CUP por 1 USD** y el importe; el resultado se redondea a dos decimales, sin convertir los centavos en cero (por ejemplo, 2 CUP a una tasa de 400 dan 0.01 USD). También puedes calcular una tasa orientativa indicando importes equivalentes positivos en CUP y USD, y usarla para convertir. La tasa es manual, no se consulta por internet y no modifica los totales de la ficha. La calculadora recuerda en este teléfono la operación, la moneda de origen y la última tasa que usaste, para no escribirla cada vez; los importes no se guardan.
 
 ---
 
@@ -650,14 +604,14 @@ En el carrito, si escribes una cantidad superior a la existencia disponible, Sha
 
 ## Local (Android)
 
-En Ajustes → Local puedes añadir nombres y tocar uno para editarlo. Se admiten de 1 a
+En Ajustes → Local puedes añadir nombres y tocar uno para editarlo. El local seleccionado se destaca en verde, con una marca de verificación y el texto «Local seleccionado». Se admiten de 1 a
 80 caracteres, sin duplicados por mayúsculas o espacios sobrantes. En Inicio, abre el
 selector de Local y elige uno de los nombres existentes; no se escribe en el selector.
 El primer local añadido queda seleccionado automáticamente y la selección se conserva
 en ese equipo.
 
 Cada local tiene su propio catálogo e inventario de productos e insumos, además de sus
-servicios, fichas de costo, recepciones y lotes. Las ventas, turnos y movimientos quedan
+servicios, recepciones y lotes. Las ventas, turnos y movimientos quedan
 asociados al local activo. El respaldo incluye los locales y sus datos; uno antiguo puede
 no contenerlos. El local delimita los datos del establecimiento; no registra ubicaciones
 internas de cada artículo, como pasillos o estantes.

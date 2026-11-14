@@ -4,9 +4,11 @@ import cu.shalev.designsystem.theme.ShalevTextos
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -14,16 +16,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -36,9 +43,11 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,7 +60,7 @@ import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 
 /**
- * Gráficos de Inicio dibujados con Canvas (sin librería): ejes X/Y con marcas numéricas, sin rejilla, y animación
+ * Gráficos de Inicio dibujados con Canvas (sin librería): eje X con etiquetas, sin eje Y ni rejilla, y animación
  * de entrada con muelle (sin rebote) que se aplica en la fase de dibujo (no recompone). Cada gráfico expone una
  * [contentDescription] con el resumen para TalkBack; las donas llevan leyenda con nombre y porcentaje, así
  * que el color nunca es el único portador de información.
@@ -100,14 +109,8 @@ object ChartMath {
         else -> (0 until max).map { i -> Math.round(i * (n - 1) / (max - 1).toDouble()).toInt() }.distinct()
     }
 
-    /** Marcas del eje Y, de arriba abajo: máximo, mitad y cero; una serie vacía solo muestra cero. */
-    fun marcasEjeY(maximo: Double): List<Double> {
-        val positivo = maximo.takeIf { it.isFinite() && it > 0.0 } ?: return listOf(0.0)
-        return listOf(positivo, positivo / 2.0, 0.0)
-    }
-
-    /** Etiqueta numérica del eje Y: separador de miles estrecho y separador decimal del dispositivo. */
-    fun etiquetaEjeY(valor: Double): String =
+    /** Importe del tooltip: separador de miles estrecho y separador decimal del dispositivo. */
+    fun etiquetaValor(valor: Double): String =
         DecimalFormat("#,##0.##", DecimalFormatSymbols.getInstance().apply { groupingSeparator = '\u202F' }).format(valor)
 }
 
@@ -128,7 +131,7 @@ private fun rememberEntrada(): Animatable<Float, *> {
 
 /**
  * Barras redondeadas (Ventas).
- * P24: la **intensidad** del color de cada barra depende de su valor respecto al máximo de la escala Y
+ * P24: la **intensidad** del color de cada barra depende de su valor respecto al máximo de la serie
  * ([ChartMath.intensidad]): las barras más altas, más intensas. La altura sigue diciendo el valor, así que el color
  * nunca es el único portador de la información.
  */
@@ -139,41 +142,95 @@ fun ShalevBarChart(
     description: String,
     modifier: Modifier = Modifier,
     color: Color = ShalevTheme.colors.chart.first(),
-    yAxisUnit: String? = null,
+    valueUnit: String? = null,
 ) {
+    var indiceSeleccionado by remember(values, labels) { mutableStateOf<Int?>(null) }
+    val textoTooltip = indiceSeleccionado?.let { indice ->
+        val nombre = labels.getOrNull(indice).orEmpty()
+        val valor = values.getOrNull(indice)?.let(ChartMath::etiquetaValor).orEmpty()
+        listOf(nombre, valor + valueUnit?.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty())
+            .filter { it.isNotBlank() }.joinToString(" · ")
+    }
     val progreso = rememberEntrada()
-    Box(modifier.fillMaxWidth().semantics { contentDescription = description }) {
+    Box(modifier.fillMaxWidth().semantics {
+        contentDescription = description
+        textoTooltip?.let { stateDescription = it }
+    }) {
         Crossfade(targetState = values to labels, animationSpec = ShalevMotion.tween(ShalevMotion.SHORT), label = "barras") { (datos, nombres) ->
-            BarrasContenido(datos, nombres, color, progreso, yAxisUnit)
+            BarrasContenido(datos, nombres, color, progreso, valueUnit, indiceSeleccionado) { elegido ->
+                indiceSeleccionado = if (indiceSeleccionado == elegido) null else elegido
+            }
         }
     }
 }
 
 @Composable
 private fun BarrasContenido(
-    values: List<Double>, labels: List<String>, color: Color, progreso: Animatable<Float, *>, yAxisUnit: String?,
+    values: List<Double>,
+    labels: List<String>,
+    color: Color,
+    progreso: Animatable<Float, *>,
+    valueUnit: String?,
+    indiceSeleccionado: Int?,
+    onSeleccionar: (Int) -> Unit,
 ) {
     val alturas = remember(values) { ChartMath.normalizar(values) }
-    val maximo = remember(values) { values.maxOrNull()?.takeIf { it.isFinite() && it > 0.0 } ?: 0.0 }
     val base = MaterialTheme.colorScheme.outlineVariant
-    GraficoConEjes(maximo, labels, yAxisUnit) { plotModifier ->
-        Canvas(plotModifier.clearAndSetSemantics { }) {
-            if (alturas.isNotEmpty()) {
-                val paso = size.width / alturas.size
-                val ancho = (paso * 0.64f).coerceAtMost(ShalevSize.chartBarMax.toPx())
-                val radio = CornerRadius(ancho / 3, ancho / 3)
-                alturas.forEachIndexed { i, h ->
-                    val alto = h * size.height * progreso.value
-                    if (alto <= 0f) return@forEachIndexed
-                    drawRoundRect(
-                        color = color.copy(alpha = ChartMath.intensidad(h)),
-                        topLeft = Offset(i * paso + (paso - ancho) / 2, size.height - alto),
-                        size = Size(ancho, alto),
-                        cornerRadius = radio,
+    GraficoConEjeX(labels) { plotModifier ->
+        BoxWithConstraints(plotModifier) {
+            Canvas(
+                Modifier.fillMaxWidth().height(ShalevSize.chartHeight)
+                    .pointerInput(values, labels, indiceSeleccionado) {
+                        detectTapGestures { toque ->
+                            if (values.isEmpty() || size.width <= 0) return@detectTapGestures
+                            val paso = size.width.toFloat() / values.size
+                            val indice = (toque.x / paso).toInt().coerceIn(values.indices)
+                            if (values[indice].isFinite() && values[indice] > 0.0) onSeleccionar(indice)
+                        }
+                    }
+                    .clearAndSetSemantics { },
+            ) {
+                if (alturas.isNotEmpty()) {
+                    val paso = size.width / alturas.size
+                    val ancho = (paso * 0.64f).coerceAtMost(ShalevSize.chartBarMax.toPx())
+                    val radio = CornerRadius(ancho / 3, ancho / 3)
+                    alturas.forEachIndexed { i, h ->
+                        val alto = h * size.height * progreso.value
+                        if (alto <= 0f) return@forEachIndexed
+                        drawRoundRect(
+                            color = color.copy(alpha = ChartMath.intensidad(h)),
+                            topLeft = Offset(i * paso + (paso - ancho) / 2, size.height - alto),
+                            size = Size(ancho, alto),
+                            cornerRadius = radio,
+                        )
+                    }
+                }
+                drawEjeX(base)
+            }
+            indiceSeleccionado?.takeIf { it in values.indices }?.let { indice ->
+                val texto = buildString {
+                    labels.getOrNull(indice)?.takeIf { it.isNotBlank() }?.let { append(it); append(" · ") }
+                    append(ChartMath.etiquetaValor(values[indice]))
+                    valueUnit?.takeIf { it.isNotBlank() }?.let { append(" $it") }
+                }
+                val centro = maxWidth * ((indice + 0.5f) / values.size) - maxWidth / 2
+                val margen = (maxWidth / 2 - 48.dp).coerceAtLeast(0.dp)
+                Surface(
+                    modifier = Modifier.align(Alignment.TopCenter).offset(x = centro.coerceIn(-margen, margen)),
+                    color = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    shape = RoundedCornerShape(ShalevSpacing.xs),
+                    shadowElevation = ShalevSpacing.xs,
+                ) {
+                    Text(
+                        texto,
+                        modifier = Modifier.padding(horizontal = ShalevSpacing.sm, vertical = ShalevSpacing.xs),
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
-            drawEjes(base, maximo > 0.0)
         }
     }
 }
@@ -185,24 +242,20 @@ fun ShalevAreaChart(
     labels: List<String>,
     description: String,
     modifier: Modifier = Modifier,
-    yAxisUnit: String? = null,
 ) {
     val progreso = rememberEntrada()
     Box(modifier.fillMaxWidth().semantics { contentDescription = description }) {
         Crossfade(targetState = series to labels, animationSpec = ShalevMotion.tween(ShalevMotion.SHORT), label = "área") { (datos, nombres) ->
-            AreaContenido(datos, nombres, progreso, yAxisUnit)
+            AreaContenido(datos, nombres, progreso)
         }
     }
 }
 
 @Composable
 private fun AreaContenido(
-    series: List<ChartSeries>, labels: List<String>, progreso: Animatable<Float, *>, yAxisUnit: String?,
+    series: List<ChartSeries>, labels: List<String>, progreso: Animatable<Float, *>,
 ) {
     val normalizadas = remember(series) { ChartMath.normalizarJuntas(series.map { it.values }) }
-    val maximo = remember(series) {
-        series.flatMap { it.values }.maxOrNull()?.takeIf { it.isFinite() && it > 0.0 } ?: 0.0
-    }
     val base = MaterialTheme.colorScheme.outlineVariant
     Column(
         Modifier.fillMaxWidth(),
@@ -210,7 +263,7 @@ private fun AreaContenido(
     ) {
         // P18 (A19): los Path se construyen una vez por tamaño y datos (drawWithCache), no en cada fotograma.
         // La animación de entrada solo escala en vertical desde la base.
-        GraficoConEjes(maximo, labels, yAxisUnit) { plotModifier ->
+        GraficoConEjeX(labels) { plotModifier ->
             Spacer(
                 plotModifier.clearAndSetSemantics { }.drawWithCache {
                     val trazos = normalizadas.mapIndexedNotNull { s, ys ->
@@ -240,7 +293,7 @@ private fun AreaContenido(
                                 drawPath(linea, c, style = grosor)
                             }
                         }
-                        drawEjes(base, maximo > 0.0)
+                        drawEjeX(base)
                     }
                 },
             )
@@ -249,79 +302,19 @@ private fun AreaContenido(
     }
 }
 
-private val EJE_Y_ANCHO = 64.dp
-
-/** Estructura compartida: valores y unidad del eje Y a la izquierda, área de dibujo y rótulos X alineados. */
+/** Estructura compartida sin eje de ordenadas: el área ocupa todo el ancho y conserva las etiquetas del eje X. */
 @Composable
-private fun GraficoConEjes(
-    maximo: Double,
-    labels: List<String>,
-    unidadY: String?,
-    formatoY: (Double) -> String = ChartMath::etiquetaEjeY,
-    plot: @Composable (Modifier) -> Unit,
-) {
+private fun GraficoConEjeX(labels: List<String>, plot: @Composable (Modifier) -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-        if (!unidadY.isNullOrBlank()) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    unidadY,
-                    modifier = Modifier.width(EJE_Y_ANCHO),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.End,
-                )
-                Spacer(Modifier.width(ShalevSpacing.xs))
-                Spacer(Modifier.weight(1f))
-            }
-        }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            EjeY(maximo, formatoY)
-            Spacer(Modifier.width(ShalevSpacing.xs))
-            plot(Modifier.weight(1f).height(ShalevSize.chartHeight))
-        }
-        Row(Modifier.fillMaxWidth()) {
-            Spacer(Modifier.width(EJE_Y_ANCHO + ShalevSpacing.xs))
-            EjeX(labels, Modifier.weight(1f))
-        }
+        plot(Modifier.fillMaxWidth().height(ShalevSize.chartHeight))
+        EjeX(labels, Modifier.fillMaxWidth())
     }
 }
 
-@Composable
-private fun EjeY(maximo: Double, formato: (Double) -> String) {
-    val marcas = remember(maximo) { ChartMath.marcasEjeY(maximo) }
-    Box(Modifier.width(EJE_Y_ANCHO).height(ShalevSize.chartHeight)) {
-        if (marcas.size == 1) {
-            TextoEjeY(formato(marcas.single()), Modifier.align(Alignment.BottomEnd))
-        } else {
-            TextoEjeY(formato(marcas[0]), Modifier.align(Alignment.TopEnd))
-            TextoEjeY(formato(marcas[1]), Modifier.align(Alignment.CenterEnd))
-            TextoEjeY(formato(marcas[2]), Modifier.align(Alignment.BottomEnd))
-        }
-    }
-}
-
-@Composable
-private fun TextoEjeY(texto: String, modifier: Modifier = Modifier) {
-    Text(
-        texto,
-        modifier = modifier.fillMaxWidth(),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        textAlign = TextAlign.End,
-    )
-}
-
-private fun DrawScope.drawEjes(color: Color, escalaPositiva: Boolean) {
+private fun DrawScope.drawEjeX(color: Color) {
     val grosor = ShalevSize.strokeHairline.toPx()
-    val x = grosor / 2
     val yBase = size.height - grosor / 2
-    val largoMarca = ShalevSpacing.xs.toPx()
-    drawLine(color, Offset(x, 0f), Offset(x, size.height), strokeWidth = grosor)
-    drawLine(color, Offset(x, yBase), Offset(size.width, yBase), strokeWidth = grosor)
-    val ys = if (escalaPositiva) listOf(0f, size.height / 2, yBase) else listOf(yBase)
-    ys.forEach { y -> drawLine(color, Offset(x, y), Offset(x + largoMarca, y), strokeWidth = grosor) }
+    drawLine(color, Offset(0f, yBase), Offset(size.width, yBase), strokeWidth = grosor)
 }
 
 

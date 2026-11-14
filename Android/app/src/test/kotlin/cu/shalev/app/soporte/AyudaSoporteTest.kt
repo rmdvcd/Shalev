@@ -55,11 +55,17 @@ class AyudaSoporteTest {
         assertTrue(secciones.any { it.first == CategoriaAyuda.VENTA })
         val inventario = cu.shalev.app.ayuda.pestanaTemas(cu.shalev.app.ayuda.PestanaAyuda.INVENTARIO, todos).single()
         val servicios = cu.shalev.app.ayuda.pestanaTemas(cu.shalev.app.ayuda.PestanaAyuda.SERVICIOS, todos).single()
-        assertTrue(inventario.pasos.any { it.contains("ficha de costo") })
-        assertTrue(inventario.pasos.any { it.contains("Gestión de inventario") })
-        assertTrue(inventario.pasos.any { it.contains("existencia cero") && it.contains("prellenada") })
-        assertTrue(servicios.pasos.any { it.contains("ficha de costo") })
-        assertTrue(servicios.pasos.any { it.contains("Gestión de inventario") })
+        assertTrue(inventario.pasos.any { it.contains("solo formulario") })
+        assertTrue(inventario.pasos.any { it.contains("receta") && it.contains("Alcanza para N") })
+        assertTrue(servicios.pasos.any { it.contains("solo formulario") })
+        val todo = AyudaContenido.temas.flatMap { it.pasos }.joinToString(" ")
+        listOf("Calculadora", "ficha de costo", "Gestión de inventario", "compra inicial", "asistente").forEach {
+            assertTrue("Ayuda obsoleta: $it", !todo.contains(it, ignoreCase = true))
+        }
+        val ajustes = AyudaContenido.ayudaPara(CategoriaAyuda.AJUSTES).pasos.joinToString(" ")
+        assertTrue(ajustes.contains("verde") && ajustes.contains("circular"))
+        val licencia = AyudaContenido.ayudaPara(CategoriaAyuda.LICENCIA).pasos.joinToString(" ")
+        assertTrue(licencia.contains("precio") && licencia.contains("WhatsApp") && licencia.contains("SMS"))
     }
 
 }
