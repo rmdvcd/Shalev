@@ -1,5 +1,6 @@
 package cu.shalev.app
 
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -18,6 +19,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import cu.shalev.app.actualizacion.EstadoActualizacion
+import cu.shalev.app.actualizacion.ProcesoActualizar
+import cu.shalev.app.actualizacion.TextosActualizacion
+import cu.shalev.app.ajustes.ActualizarTags
+import cu.shalev.app.ajustes.DialogoActualizar
 import cu.shalev.app.ayuda.AyudaContenido
 import cu.shalev.app.ayuda.AyudaScreen
 import cu.shalev.app.ayuda.AyudaTags
@@ -92,7 +98,7 @@ class AjustesPantallasUiTest {
             }
         }
         rule.onNodeWithTag(PerfilTags.GUARDAR).assertIsNotEnabled() // sin cambios
-        rule.onNodeWithText("•••• 1234").assertDoesNotExist()
+        rule.onAllNodesWithText("•••• 1234").assertCountEquals(0)
         assertEquals(0, guardar)
     }
 
@@ -240,6 +246,54 @@ class AjustesPantallasUiTest {
             }
         }
         rule.onAllNodesWithText("Documento PDF").assertCountEquals(0)
+    }
+
+    // ---------- Actualizar ----------
+
+    @Test fun actualizarMuestraProgresoCircularSinCerrarMientrasTrabaja() {
+        rule.setContent {
+            ShalevTheme(darkTheme = false) {
+                DialogoActualizar(
+                    EstadoActualizacion(repoConfigurado = true, proceso = ProcesoActualizar.EnCurso(null)),
+                    onCerrar = {}, onAplicar = {},
+                )
+            }
+        }
+        rule.onNodeWithTag(ActualizarTags.PROGRESO).assertIsDisplayed()
+        rule.onAllNodesWithTag(ActualizarTags.CERRAR).assertCountEquals(0)
+    }
+
+    @Test fun actualizarAlDiaEsperaCerrarExplicito() {
+        var cerrar = 0
+        rule.setContent {
+            ShalevTheme(darkTheme = false) {
+                DialogoActualizar(
+                    EstadoActualizacion(repoConfigurado = true, proceso = ProcesoActualizar.AlDia),
+                    onCerrar = { cerrar++ }, onAplicar = {},
+                )
+            }
+        }
+        rule.onNodeWithText(TextosActualizacion.RESULTADO_AL_DIA).assertIsDisplayed()
+        rule.onAllNodesWithTag(ActualizarTags.PROGRESO).assertCountEquals(0)
+        rule.onNodeWithTag(ActualizarTags.CERRAR).assertIsDisplayed().performClick()
+        assertEquals(1, cerrar)
+    }
+
+    @Test fun actualizacionDescargadaOfreceConfirmarYCerrar() {
+        var aplicar = 0
+        var cerrar = 0
+        rule.setContent {
+            ShalevTheme(darkTheme = false) {
+                DialogoActualizar(
+                    EstadoActualizacion(repoConfigurado = true, proceso = ProcesoActualizar.Descargada),
+                    onCerrar = { cerrar++ }, onAplicar = { aplicar++ },
+                )
+            }
+        }
+        rule.onNodeWithTag(ActualizarTags.CONFIRMAR).assertIsDisplayed().performClick()
+        rule.onNodeWithTag(ActualizarTags.CERRAR).assertIsDisplayed().performClick()
+        assertEquals(1, aplicar)
+        assertEquals(1, cerrar)
     }
 
     // ---------- Ayuda y Soporte ----------

@@ -9,12 +9,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import cu.shalev.app.common.CampoFecha
 import cu.shalev.app.common.descripcionFiltro
@@ -49,7 +53,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Auditoría de UI: comprueba semántica accesible, acciones de ventanas adaptables, etiquetas de ejes de gráficos y el
+ * Auditoría de UI: comprueba semántica accesible, acciones de ventanas adaptables, gráficos sin eje Y y tooltip, y el
  * formulario de Precios a 360 dp. Son pruebas de comportamiento, no capturas: detectan etiquetas visibles incorrectas,
  * selección anunciada sin estado conmutable y el chip de Transferencia aplastado.
  */
@@ -88,7 +92,7 @@ class AuditoriaUiTest {
 
         rule.onNodeWithText("1\u202F000 CUP").assertExists()
         rule.onNodeWithText("Ventas").performClick()
-        rule.onNodeWithText("1\u202F000 CUP").assertDoesNotExist()
+        rule.onAllNodesWithText("1\u202F000 CUP").assertCountEquals(0)
     }
 
     @Test
@@ -112,7 +116,7 @@ class AuditoriaUiTest {
         rule.setContent { ShalevTheme { ShalevIconAction(ShalevIcons.Agregar, "Agregar producto", onClick = {}) } }
 
         rule.onNodeWithContentDescription("Agregar producto").assertExists()
-        rule.onNodeWithText("Agregar producto").assertDoesNotExist()
+        rule.onAllNodesWithText("Agregar producto").assertCountEquals(0)
     }
 
     @Test
@@ -120,7 +124,7 @@ class AuditoriaUiTest {
         rule.setContent { ShalevTheme { ShalevFab(ShalevIcons.Agregar, "Agregar producto", onClick = {}) } }
 
         rule.onNodeWithContentDescription("Agregar producto").assertExists()
-        rule.onNodeWithText("Agregar producto").assertDoesNotExist()
+        rule.onAllNodesWithText("Agregar producto").assertCountEquals(0)
     }
 
     @Test
@@ -133,22 +137,31 @@ class AuditoriaUiTest {
     }
 
     @Test
-    fun graficoDeVentasMuestraUnidadEscalaYEtiquetasDeHora() {
+    fun graficoDeVentasOmiteEjeYConservaEtiquetasYAlternaTooltipAlTocar() {
         rule.setContent {
             ShalevTheme {
                 ShalevBarChart(
                     values = listOf(100.0, 200.0), labels = listOf("08:00", "09:00"),
-                    description = "Ventas de hoy", yAxisUnit = "CUP",
+                    description = "Ventas de hoy", valueUnit = "CUP",
                 )
             }
         }
 
-        rule.onNodeWithContentDescription("Ventas de hoy").assertExists()
-        listOf("CUP", "200", "100", "0", "08:00", "09:00").forEach { rule.onNodeWithText(it, useUnmergedTree = true).assertIsDisplayed() }
+        val grafico = rule.onNodeWithContentDescription("Ventas de hoy")
+        grafico.assertExists()
+        listOf("08:00", "09:00").forEach { rule.onNodeWithText(it, useUnmergedTree = true).assertIsDisplayed() }
+        listOf("CUP", "200", "100", "0").forEach {
+            rule.onAllNodesWithText(it, useUnmergedTree = true).assertCountEquals(0)
+        }
+
+        grafico.performTouchInput { click(center) }
+        rule.onNodeWithText("09:00 · 200 CUP", useUnmergedTree = true).assertIsDisplayed()
+        grafico.performTouchInput { click(center) }
+        rule.onAllNodesWithText("09:00 · 200 CUP", useUnmergedTree = true).assertCountEquals(0)
     }
 
     @Test
-    fun graficoDeGananciaMuestraUnidadEscalaYEtiquetasDeFecha() {
+    fun graficoDeGananciaConservaEtiquetasDeFechaSinEjeY() {
         rule.setContent {
             ShalevTheme {
                 ShalevAreaChart(
@@ -156,13 +169,18 @@ class AuditoriaUiTest {
                         ChartSeries("Venta", listOf(500.0, 300.0), Color.Blue),
                         ChartSeries("Costo", listOf(250.0, 150.0), Color.Red),
                     ),
-                    labels = listOf("01/09", "02/09"), description = "Ganancia bruta", yAxisUnit = "CUP",
+                    labels = listOf("01/09", "02/09"), description = "Ganancia bruta",
                 )
             }
         }
 
         rule.onNodeWithContentDescription("Ganancia bruta").assertExists()
-        listOf("CUP", "500", "250", "0", "01/09", "02/09").forEach { rule.onNodeWithText(it, useUnmergedTree = true).assertIsDisplayed() }
+        listOf("01/09", "02/09", "Venta", "Costo").forEach {
+            rule.onNodeWithText(it, useUnmergedTree = true).assertIsDisplayed()
+        }
+        listOf("CUP", "500", "250", "0").forEach {
+            rule.onAllNodesWithText(it, useUnmergedTree = true).assertCountEquals(0)
+        }
     }
 
     // 1.0.5: las acciones de diálogos y ventanas muestran su etiqueta escrita, también durante una carga.
@@ -198,8 +216,8 @@ class AuditoriaUiTest {
         rule.onNodeWithText("Nuevo", useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithContentDescription("Limpiar Buscar").assertExists()
         rule.onNodeWithText("Limpiar", useUnmergedTree = true).assertIsDisplayed()
-        rule.onNodeWithText("Cerrar").assertDoesNotExist()
-        rule.onNodeWithContentDescription("Cerrar").assertDoesNotExist()
+        rule.onAllNodesWithText("Cerrar").assertCountEquals(0)
+        rule.onAllNodesWithText("Cerrar").assertCountEquals(0)
     }
 
     // 1.0.5: el pie conserva el orden y centra las etiquetas; si no caben en una fila, fluyen a la siguiente.
@@ -226,8 +244,8 @@ class AuditoriaUiTest {
             rule.onNodeWithText(etiqueta, useUnmergedTree = true).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         }
         assertTrue("el pie estrecho debe envolver al menos una acción", orden.map { it.center.y }.distinct().size > 1)
-        rule.onNodeWithText("Cancelar").assertDoesNotExist()
-        rule.onNodeWithContentDescription("Cancelar").assertDoesNotExist()
+        rule.onAllNodesWithText("Cancelar").assertCountEquals(0)
+        rule.onAllNodesWithText("Cancelar").assertCountEquals(0)
         orden.zipWithNext().forEach { (anterior, siguiente) ->
             val mismaFila = kotlin.math.abs(anterior.center.y - siguiente.center.y) <= 1f
             assertTrue(

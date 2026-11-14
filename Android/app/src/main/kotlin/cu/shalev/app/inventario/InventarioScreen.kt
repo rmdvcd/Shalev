@@ -124,8 +124,6 @@ class AccionesInventario(
     val onExportar: (FormatoSalida) -> Unit = {},
     val onGuardar: (FormatoSalida) -> Unit = {},
     val onCompartirFicha: (FormatoSalida) -> Unit = {},
-    val onFichasCosto: () -> Unit = {},
-    val onGestionInventario: () -> Unit = {},
     /** Modo venta (Prompt 13). */
     val onContinuarVenta: () -> Unit = {},
     val onAtras: () -> Unit = {},
@@ -179,8 +177,6 @@ fun InventarioScreen(
             onEliminarSeleccion = viewModel::pedirEliminarSeleccion, onConfirmarEliminar = viewModel::confirmarEliminar,
             onCancelarEliminar = viewModel::cancelarEliminar, onComentarioPromocion = viewModel::comentarioPromocion, onExportar = viewModel::exportar, onGuardar = viewModel::pedirGuardar,
             onCompartirFicha = viewModel::compartirFicha,
-            onFichasCosto = { onNavigate(Route.FichaCosto()) },
-            onGestionInventario = { onNavigate(Route.GestionInventario()) },
             onContinuarVenta = viewModel::confirmarSeleccionVenta, onAtras = onBack,
         ),
     )
@@ -237,10 +233,6 @@ fun InventarioContent(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) { // con el teclado abierto la lista queda por encima
             if (state.trabajando) ShalevLinearProgress(Modifier.fillMaxWidth())
-            if (venta == null && state.seleccion.isEmpty()) AccesosDeInventario(
-                acciones,
-                puedeGestionarInventario = !LocalPermisosApp.current.esSecundaria && LocalPermisosApp.current.verInventario,
-            )
             ElementosFijados(state, acciones)
             Buscador(state, acciones)
             if (venta == null && state.seleccion.isNotEmpty()) BarraSeleccion(
@@ -312,25 +304,6 @@ fun InventarioContent(
         onDismiss = { ayudaPestana.value = false },
         onVerManual = acciones.onAyuda?.let { ir -> { ayudaPestana.value = false; ir() } },
     )
-}
-
-@Composable
-private fun AccesosDeInventario(acciones: AccionesInventario, puedeGestionarInventario: Boolean) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
-        horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-    ) {
-        ShalevSecondaryButton(
-            "Fichas de costo", acciones.onFichasCosto, ShalevIcons.FichaCosto,
-            (if (puedeGestionarInventario) Modifier.weight(1f) else Modifier.fillMaxWidth())
-                .testTag(InventarioTags.FICHAS_COSTO),
-            mostrarTexto = true,
-        )
-        if (puedeGestionarInventario) ShalevSecondaryButton(
-            "Gestión de inventario", acciones.onGestionInventario, ShalevIcons.Inventario,
-            Modifier.weight(1f).testTag(InventarioTags.GESTION_INVENTARIO), mostrarTexto = true,
-        )
-    }
 }
 
 @Composable

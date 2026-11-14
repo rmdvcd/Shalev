@@ -4,12 +4,12 @@ import cu.shalev.domain.model.Modulo
 
 /** Secciones del manual resumido, una por ventana principal de la app. */
 enum class CategoriaAyuda(val titulo: String, val detalle: String) {
-    INICIO("Inicio", "Barra inferior, turno, período y conversión de cambio"),
-    INVENTARIO("Inventario", "Productos, insumos, fichas de costo y gestión de existencias"),
-    SERVICIOS("Servicios", "Catálogo, fichas de costo e insumos consumidos"),
+    INICIO("Inicio", "Barra inferior, turno, período y gráficos"),
+    INVENTARIO("Inventario", "Productos, insumos, elaborados con receta y existencias"),
+    SERVICIOS("Servicios", "Catálogo, importe e insumos consumidos"),
     VENTA("Venta", "Carrito, cobro en efectivo o por transferencia"),
     REGISTROS("Registros", "Historial, correcciones y exportación de informes"),
-    AJUSTES("Ajustes", "Configuración, pago electrónico y precios"),
+    AJUSTES("Ajustes", "Configuración, locales, actualizaciones y precios"),
     RESPALDO("Respaldo", "Copias de seguridad y restauración"),
     LICENCIA("Licencia", "Solicitud, activación y renovación"),
     EMPLEADOS("Apps vinculadas", "Trabajo en equipo con empleados en red local"),
@@ -32,10 +32,10 @@ object AyudaContenido {
         titulo = "Manual de usuario: Inicio",
         pasos = listOf(
             "Usa la barra inferior para cambiar de sección o desliza entre pantallas principales",
-            "Abre la Calculadora de cambio con el botón de la cabecera",
             "Activa el interruptor del turno cuando empieces a trabajar",
-            "Ganancia bruta no descuenta otros gastos; el inventario se distribuye por valor al costo en CUP",
-            "Abre Ajustes desde la última posición de la barra inferior"
+            "Elige el período para actualizar las alertas, los gráficos y el Top 3",
+            "Toca una barra de Ventas para ver su importe; vuelve a tocarla para ocultarlo",
+            "Ganancia bruta no descuenta otros gastos; el inventario se distribuye por valor al costo en CUP"
         ),
         categoria = CategoriaAyuda.INICIO
     )
@@ -44,11 +44,11 @@ object AyudaContenido {
     val inventario = AyudaVentana(
         titulo = "Manual de usuario: Inventario",
         pasos = listOf(
-            "Toca + para iniciar el asistente de producto o insumo",
-            "Completa los pasos guiados; puedes abrir una ficha de costo para crear un elaborado con receta",
-            "«Guardar y registrar compra inicial» guarda con existencia cero y abre una recepción prellenada",
-            "Confirma la recepción; Gestión de inventario registra compras, proveedores, lotes y ajustes con motivo",
-            "Marca la caducidad opcional; las recepciones usan costo promedio ponderado y las ventas conservan su costo"
+            "Toca + y elige la categoría; Insumos abre su propio formulario",
+            "Completa nombre, costos, precio de venta, cantidad y caducidad opcional en un solo formulario",
+            "En un Elaborado agrega insumos a la receta: el costo se calcula solo y verás «Alcanza para N»",
+            "Los niveles bajo y crítico son opcionales; si quedan vacíos, se usan los de Ajustes",
+            "Usa el buscador, Filtrar y la selección múltiple para exportar o borrar artículos"
         ),
         categoria = CategoriaAyuda.INVENTARIO
     )
@@ -57,11 +57,11 @@ object AyudaContenido {
     val servicios = AyudaVentana(
         titulo = "Manual de usuario: Servicios",
         pasos = listOf(
-            "Toca + para iniciar el asistente y completa nombre, tipo y precio",
-            "Añade los insumos que consume cada prestación",
-            "Usa una ficha de costo guardada para exportar el servicio con su receta",
-            "Abre Gestión de inventario para registrar la compra de los insumos",
-            "Guarda el servicio para que aparezca en el catálogo"
+            "Toca + y completa nombre, tipo, descripción e importe en un solo formulario",
+            "Agrega los insumos que consume cada prestación y su cantidad",
+            "Suma mano de obra y otros costos para calcular la ganancia bruta",
+            "Pulsa Guardar servicio para que aparezca en el catálogo",
+            "Al venderlo, Shalev descuenta sus insumos automáticamente"
         ),
         categoria = CategoriaAyuda.SERVICIOS
     )
@@ -96,8 +96,9 @@ object AyudaContenido {
         pasos = listOf(
             "Abre Ajustes desde la última posición de la barra inferior",
             "Completa la configuración: permisos, avisos y perfil",
-            "Gestiona pago electrónico y tarifas de precios",
-            "Exporta respaldos y administra licencias"
+            "En Local, el local seleccionado aparece en verde; toca uno para editar su nombre",
+            "Actualizar muestra un indicador circular; luego cierra el resultado o confirma la instalación",
+            "Gestiona pago electrónico, precios, respaldos y licencia"
         ),
         categoria = CategoriaAyuda.AJUSTES
     )
@@ -120,7 +121,8 @@ object AyudaContenido {
         titulo = "Manual de usuario: Licencia",
         pasos = listOf(
             "En Ajustes → Licencia revisa tus datos personales",
-            "Solicita la licencia por WhatsApp o SMS desde la pantalla Licencia",
+            "Elige el tipo de licencia; cada fila muestra su precio alineado a la derecha",
+            "En «Enviar por», toca WhatsApp o SMS y solicita la licencia",
             "Copia el código recibido (SPVI2:) y tócalo en Pegar",
             "Confirma la activación para desbloquear todas las funciones"
         ),
@@ -188,7 +190,6 @@ object AyudaContenido {
         "Servicios" -> ayudaPara(CategoriaAyuda.SERVICIOS)
         "Venta" -> ayudaPara(CategoriaAyuda.VENTA)
         "Registros" -> ayudaPara(CategoriaAyuda.REGISTROS)
-        "Herramientas" -> ayudaPara(CategoriaAyuda.INVENTARIO) // compatibilidad con enlaces al manual anterior
         "Ajustes" -> ayudaPara(CategoriaAyuda.AJUSTES)
         "Respaldo" -> ayudaPara(CategoriaAyuda.RESPALDO)
         "Licencia" -> ayudaPara(CategoriaAyuda.LICENCIA)

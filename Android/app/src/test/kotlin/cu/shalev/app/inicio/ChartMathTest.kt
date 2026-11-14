@@ -36,17 +36,11 @@ class ChartMathTest {
         assertTrue(ChartMath.indicesEtiquetas(0).isEmpty())
     }
 
-    @Test fun marcasDelEjeYVanDelMaximoAlCero() {
-        assertEquals(listOf(300.0, 150.0, 0.0), ChartMath.marcasEjeY(300.0))
-        assertEquals(listOf(0.0), ChartMath.marcasEjeY(0.0))
-        assertEquals(listOf(0.0), ChartMath.marcasEjeY(-50.0))
-    }
-
-    @Test fun etiquetasDelEjeYUsanEspacioEstrechoParaLosMiles() {
+    @Test fun importesDelTooltipUsanEspacioEstrechoParaLosMiles() {
         val anterior = Locale.getDefault()
         try {
             Locale.setDefault(Locale.US)
-            assertEquals("1\u202F234.5", ChartMath.etiquetaEjeY(1234.5))
+            assertEquals("1\u202F234.5", ChartMath.etiquetaValor(1234.5))
         } finally {
             Locale.setDefault(anterior)
         }

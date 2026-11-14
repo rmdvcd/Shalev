@@ -6,6 +6,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -118,6 +120,18 @@ class LicenciaUiTest {
         // Arranque directo en «Pide la licencia» (los datos ya vienen del Perfil).
         rule.onNodeWithTag(LicenciaTags.BOTON_SOLICITAR).performScrollTo().assertIsEnabled().performClick()
         assertTrue(solicitudes == 1)
+    }
+
+    @Test fun tiposMuestranPrecioAlineadoYViasConTextoVisible() {
+        licencia(LicenciaUiState(vencida, LicenciaForm().desdePerfil(perfil), perfilVacio = false))
+        TipoLicencia.entries.forEach { tipo ->
+            rule.onNodeWithTag(LicenciaTags.tipo(tipo)).performScrollTo().assertIsDisplayed()
+            rule.onAllNodesWithText(cu.shalev.core.money.Money.cup(tipo.precioCup), useUnmergedTree = true).onFirst().assertExists()
+        }
+        rule.onNodeWithTag(LicenciaTags.VIA_WHATSAPP).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("WhatsApp", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithTag(LicenciaTags.VIA_SMS).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("SMS", useUnmergedTree = true).assertIsDisplayed()
     }
 
     // ---------- P18 (A08): asistente en 3 pasos ----------

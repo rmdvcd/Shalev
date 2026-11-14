@@ -22,22 +22,9 @@ sealed interface Route {
      * (checkbox + Continuar); [seleccion] = ids ya elegidos (CSV).
      */
     @Serializable data class Servicios(val venta: Boolean = false, val seleccion: String? = null) : Route
-    /** Crear (id = 0) o editar un servicio; la ficha de costo puede prellenar nombre e importe en CUP. */
-    @Serializable data class ServicioForm(
-        val id: Long = 0,
-        val nombre: String? = null,
-        val importe: String? = null,
-    ) : Route
+    /** Crear (id = 0) o editar un servicio. */
+    @Serializable data class ServicioForm(val id: Long = 0) : Route
     @Serializable data object Registros : Route
-    /** Fichas de costo; [destino] limita la exportación, [finalizarAlta] vuelve al catálogo desde un asistente. */
-    @Serializable data class FichaCosto(val destino: String? = null, val finalizarAlta: Boolean = false) : Route
-    /** Gestión de inventario; los datos opcionales preseleccionan una recepción recién iniciada. */
-    @Serializable data class GestionInventario(
-        val tipo: String? = null,
-        val articuloId: Long? = null,
-        val cantidadInicial: String? = null,
-        val costoInicial: String? = null,
-    ) : Route
     /** Registro de un turno (Registros → Turnos o "Ver" tras cerrar en Inicio). */
     @Serializable data class TurnoDetalle(val id: Long) : Route
     @Serializable data object Ajustes : Route
@@ -52,19 +39,13 @@ sealed interface Route {
     @Serializable data object VincularSecundaria : Route
     /** Lector QR mínimo (solo vinculación): devuelve el texto tal cual; lo inválido lo informa quien lo usa. */
     @Serializable data object QrVinculacion : Route
-    /**
-     * Crear (id = 0) o editar producto: [nombre] inicial y [foto]/[categoria] opcionales;
-     * el usuario completa el resto.
-     */
+    /** Crear (id = 0) o editar producto: [nombre], [foto] y [categoria] son prellenados opcionales. */
     @Serializable data class ProductoForm(
         val id: Long = 0,
         val nombre: String? = null,
         val foto: String? = null,
         /** Categoría inicial de un producto nuevo (p. ej. "Elaborado"). */
         val categoria: String? = null,
-        /** Importes enteros en CUP prellenados al exportar una ficha de costo. */
-        val costo: String? = null,
-        val precio: String? = null,
     ) : Route
     /**
      * Crear (id = 0) o editar un insumo (P29: viven en Inventario, categoría «Insumos»).

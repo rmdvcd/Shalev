@@ -2,16 +2,13 @@ package cu.shalev.app.insumos
 
 import cu.shalev.core.quantity.Cantidad
 import cu.shalev.app.common.mensajeSync
-import cu.shalev.app.common.RecepcionInicialAlta
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cu.shalev.core.result.AppError
 import cu.shalev.core.result.AppResult
-import cu.shalev.core.money.Money
 import cu.shalev.core.time.Clock
 import cu.shalev.domain.model.Insumo
-import cu.shalev.domain.model.TipoEntidad
 import cu.shalev.domain.model.UnidadMedida
 import cu.shalev.domain.repository.InsumoRepository
 import cu.shalev.domain.usecase.GuardarInsumo
@@ -50,7 +47,7 @@ data class InsumoFormUiState(
 }
 
 sealed interface EventoInsumoForm {
-    data class Guardado(val mensaje: String, val recepcionInicial: RecepcionInicialAlta? = null) : EventoInsumoForm
+    data class Guardado(val mensaje: String) : EventoInsumoForm
     data class Mensaje(val texto: String) : EventoInsumoForm
 }
 
@@ -105,33 +102,16 @@ class InsumoFormViewModel @Inject constructor(
     fun nivelBajo(v: String) = editar(CamposInsumo.NIVEL_BAJO) { it.copy(nivelBajo = v.take(12)) }
     fun nivelCritico(v: String) = editar(CamposInsumo.NIVEL_CRITICO) { it.copy(nivelCritico = v.take(12)) }
 
-    fun guardar(abrirRecepcion: Boolean = false) {
+    fun guardar() {
         val s = _state.value
         if (s.guardando) return
         _state.update { it.copy(intentado = true) }
         val insumoListo = InsumoFormLogic.aInsumo(s.form, clock.now()) ?: return
-        val registrarRecepcion = abrirRecepcion && s.esNuevo
-        if (registrarRecepcion && insumoListo.cantidad.milesimas <= 0) {
-            _state.update {
-                it.copy(erroresGuardado = it.erroresGuardado + (CamposInsumo.CANTIDAD to "Escribe una cantidad mayor que cero para la recepción inicial."))
-            }
-            return
-        }
-        val insumoAGuardar = if (registrarRecepcion) insumoListo.copy(cantidad = Cantidad.ZERO) else insumoListo
         _state.update { it.copy(guardando = true) }
         viewModelScope.launch {
-            when (val r = guardarInsumo(insumoAGuardar, s.cantidadLeida)) {
+            when (val r = guardarInsumo(insumoListo, s.cantidadLeida)) {
                 is AppResult.Ok -> {
-                    val inicial = if (registrarRecepcion) RecepcionInicialAlta(
-                        tipo = TipoEntidad.INSUMO,
-                        articuloId = r.value,
-                        cantidad = Cantidad.editable(insumoListo.cantidad),
-                        costo = Money.editar(insumoListo.precio),
-                    ) else null
-                    eventosCh.trySend(EventoInsumoForm.Guardado(
-                        if (s.esNuevo) "Insumo guardado." else "Cambios guardados.",
-                        recepcionInicial = inicial,
-                    ))
+                    eventosCh.trySend(EventoInsumoForm.Guardado(if (s.esNuevo) "Insumo guardado." else "Cambios guardados."))
                 }
                 is AppResult.Err -> {
                     val e = r.error

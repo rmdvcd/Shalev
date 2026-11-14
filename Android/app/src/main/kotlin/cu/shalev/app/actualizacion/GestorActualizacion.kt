@@ -139,7 +139,7 @@ object TextosActualizacion {
     const val DESCARGADA_TEXTO = "La actualización está lista. Toca Confirmar para instalarla."
     const val DESCARGADA_DETALLE = "Shalev se cerrará, se instalará la versión nueva y se volverá a abrir sola."
     const val RESULTADO_ACTUALIZADO = "Actualizado"
-    const val RESULTADO_AL_DIA = "Estas al día"
+    const val RESULTADO_AL_DIA = "Estás al día"
     const val RESULTADO_SIN_CONEXION = "Sin conexión"
     const val COMPROBANDO = "Comprobando si hay una versión nueva…"
     const val BUSCAR_DETALLE_CORTO = "Se comprueba si hay una versión nueva y, si la hay, se descarga y se instala."
@@ -182,8 +182,6 @@ class GestorActualizacion @Inject constructor(
     private var apkListo: File? = null
     /** Trabajo del cuadro de «Actualizar»: cerrarlo lo cancela para que no reaparezca solo. */
     private var procesoJob: Job? = null
-    /** 1.0.1: cierre automático del cuadro tras «Actualizado» o «Estas al día» (null = no hay cierre pendiente). */
-    private var cierreAuto: Job? = null
 
     /** Re-evalúa el plazo cada hora con la app abierta (el día 30 llega sin reiniciar). */
     private val reloj = flow { while (true) { emit(Unit); delay(3_600_000) } }
@@ -272,13 +270,12 @@ class GestorActualizacion @Inject constructor(
     /**
      * 0.31.0 (P5): «Actualizar» de Ajustes. Comprueba si hay versión nueva y, si la hay, la descarga y abre el
      * instalador. El cuadro de Ajustes muestra la barra circular mientras tanto y, al terminar, el resultado:
-     * «Actualizado», «Estas al día» o «Sin conexión». 1.0.1: con «Actualizado» o «Estas al día» el cuadro **se cierra
-     * solo** tras mostrar el resultado; «Sin conexión» se queda abierto para que el usuario lo lea y lo cierre.
+     * «Actualizado», «Estás al día» o «Sin conexión». El cuadro conserva el resultado hasta que el usuario lo cierre
+     * explícitamente; si hay una actualización descargada, pide confirmación antes de instalarla.
      */
     fun actualizarAhora() {
         if (local.value.proceso?.enCurso == true) return
         procesoJob?.cancel()
-        cierreAuto?.cancel() // 1.0.1: un proceso nuevo no lo debe cerrar el cierre automático pendiente del anterior
         procesoJob = scope.launch {
             local.update { it.copy(proceso = ProcesoActualizar.EnCurso(null)) }
             val r = if (github.repoConfigurado) seguro { comprobar(info.versionName, forzar = true) } else null
@@ -306,7 +303,6 @@ class GestorActualizacion @Inject constructor(
             mensajes.trySend(TextosActualizacion.ERROR_DESCARGA)
             return
         }
-        cierreAuto?.cancel()
         procesoJob?.cancel()
         procesoJob = scope.launch {
             local.update { it.copy(proceso = ProcesoActualizar.EnCurso(1f)) }
@@ -322,28 +318,12 @@ class GestorActualizacion @Inject constructor(
     fun cerrarProceso() {
         procesoJob?.cancel()
         procesoJob = null
-        cierreAuto?.cancel()
-        cierreAuto = null
         local.update { it.copy(proceso = null) }
     }
 
-    /**
-     * Escribe el resultado del cuadro solo si sigue abierto: si el usuario lo cerró a mitad, el resultado
-     * tardío no lo reabre solo (el cuadro se quedaba colgado).
-     *
-     * 1.0.1: al terminar con «Actualizado» o «Estas al día» el cuadro se cierra **solo** tras [CIERRE_AUTO_MS]
-     * (tiempo de leer el resultado). El cierre solo surte efecto si ese resultado sigue a la vista: un proceso
-     * nuevo abierto entretanto no se cierra.
-     */
+    /** El resultado solo se escribe si sigue abierto: cerrar durante la consulta cancela el proceso y no lo reabre. */
     private fun resultadoProceso(p: ProcesoActualizar) {
         local.update { if (it.proceso is ProcesoActualizar.EnCurso) it.copy(proceso = p) else it }
-        if (p == ProcesoActualizar.Actualizado || p == ProcesoActualizar.AlDia) {
-            cierreAuto?.cancel()
-            cierreAuto = scope.launch {
-                delay(CIERRE_AUTO_MS)
-                local.update { if (it.proceso == p) it.copy(proceso = null) else it }
-            }
-        }
     }
 
     /**
@@ -446,10 +426,6 @@ class GestorActualizacion @Inject constructor(
         null
     }
 
-    companion object {
-        /** 1.0.1: cuánto se muestra el resultado («Actualizado» / «Estas al día») antes de cerrar el cuadro solo. */
-        const val CIERRE_AUTO_MS = 1_500L
-    }
 }
 
 /** Puente para Compose: Inicio y Ajustes leen el mismo [GestorActualizacion]. */

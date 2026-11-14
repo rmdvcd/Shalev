@@ -55,13 +55,7 @@ class ServiciosCapturas {
     @Test fun modoVenta() = servicios("09c_servicios_venta", lista.copy(modoVenta = true, seleccion = setOf(1L)))
     @Test fun ficha() = servicios("09d_servicios_ficha", lista.copy(ficha = items[1]))
 
-    @Test fun formulario() = rule.capturar(
-        "09e_servicio_form",
-        antes = {
-            onNodeWithTag("alta.siguiente").performClick()
-            waitForIdle()
-        },
-    ) {
+    @Test fun formulario() = rule.capturar("09e_servicio_form") {
         ServicioFormContent(
             ServicioFormUiState(
                 form = ServicioForm(

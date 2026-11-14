@@ -114,31 +114,6 @@ class InsumoFormTest {
         assertEquals(listOf("ALTA" to Cantidad.enteras(2)), insumos.movimientos)
     }
 
-    @Test fun guardarYRegistrarDejaElInsumoEnCeroYEntregaLaCantidadUnaSolaVez() = runTest {
-        val vm = vm()
-        vm.nombre("Aceite"); vm.precio("300"); vm.cantidad("1234.5"); vm.unidad(UnidadMedida.LITRO)
-        vm.guardar(abrirRecepcion = true)
-
-        val guardado = insumos.guardados.single()
-        assertEquals(Cantidad.ZERO, guardado.cantidad)
-        assertTrue(insumos.movimientos.isEmpty())
-        val recepcion = (eventos.single() as EventoInsumoForm.Guardado).recepcionInicial!!
-        assertEquals("INSUMO", recepcion.tipo.name)
-        assertEquals(guardado.id, recepcion.articuloId)
-        assertEquals("1234.5", recepcion.cantidad)
-        assertEquals("300", recepcion.costo)
-    }
-
-    @Test fun recepcionInicialDeInsumoExigeCantidadPositiva() = runTest {
-        val vm = vm()
-        vm.nombre("Aceite"); vm.precio("300"); vm.cantidad("0")
-        vm.guardar(abrirRecepcion = true)
-
-        assertTrue(insumos.guardados.isEmpty())
-        assertEquals("Escribe una cantidad mayor que cero para la recepción inicial.", vm.state.value.errores[CamposInsumo.CANTIDAD])
-        assertTrue(eventos.isEmpty())
-    }
-
     @Test fun editarCargaYAlCambiarPrecioRecalculaElCostoDelElaborado() = runTest {
         insumos.put(ins(1, "Harina", cantidad = 10, precio = 100))
         productos.items.value = listOf(prod(50, "Pan", categoria = Categorias.ELABORADO, costo = 50))

@@ -242,14 +242,6 @@ fun MainScaffold(snapshot: Licencia) {
                     onCrearInsumo = { nombre ->
                         nav.navigate(Route.InsumoForm(nombre = nombre.ifBlank { null })) { popUpTo<Route.ProductoForm> { inclusive = true } }
                     },
-                    onFichasCosto = { nav.navigateTo(Route.FichaCosto(destino = "INVENTARIO", finalizarAlta = true)) },
-                    onGestionInventario = { nav.navigateTo(Route.GestionInventario()) },
-                    onRecepcionInicial = { id, cantidad, costo ->
-                        cu.shalev.app.common.AvisoExito.mostrar("Producto guardado sin existencia. Completa la recepción inicial.")
-                        nav.navigate(Route.GestionInventario(tipo = "PRODUCTO", articuloId = id, cantidadInicial = cantidad, costoInicial = costo)) {
-                            popUpTo<Route.ProductoForm> { inclusive = true }
-                        }
-                    },
                 )
             }
             composable<Route.Servicios> { e ->
@@ -273,8 +265,6 @@ fun MainScaffold(snapshot: Licencia) {
                         cu.shalev.app.common.AvisoExito.mostrar(msg)
                         nav.popBackStack()
                     },
-                    onFichasCosto = { nav.navigateTo(Route.FichaCosto(destino = "SERVICIO", finalizarAlta = true)) },
-                    onGestionInventario = { nav.navigateTo(Route.GestionInventario()) },
                 )
             }
             composable<Route.InsumoForm> {
@@ -286,44 +276,10 @@ fun MainScaffold(snapshot: Licencia) {
                         val volvio = nav.popBackStack<Route.Inventario>(inclusive = false)
                         if (!volvio) nav.navigate(Route.Inventario()) { popUpTo<Route.InsumoForm> { inclusive = true } }
                     },
-                    onFichasCosto = { nav.navigateTo(Route.FichaCosto()) },
-                    onGestionInventario = { nav.navigateTo(Route.GestionInventario()) },
-                    onRecepcionInicial = { id, cantidad, costo ->
-                        cu.shalev.app.common.AvisoExito.mostrar("Insumo guardado sin existencias. Completa la recepción inicial.")
-                        nav.navigate(Route.GestionInventario(tipo = "INSUMO", articuloId = id, cantidadInicial = cantidad, costoInicial = costo)) {
-                            popUpTo<Route.InsumoForm> { inclusive = true }
-                        }
-                    },
                 )
             }
             composable<Route.Registros> {
                 RegistrosScreen(onNavigate = nav::navigateTo)
-            }
-            composable<Route.GestionInventario> { e ->
-                val ruta = e.toRoute<Route.GestionInventario>()
-                cu.shalev.app.herramientas.GestionInventarioScreen(
-                    onBack = { nav.popBackStack() },
-                    tipoInicial = ruta.tipo,
-                    articuloIdInicial = ruta.articuloId,
-                    cantidadInicial = ruta.cantidadInicial,
-                    costoInicial = ruta.costoInicial,
-                )
-            }
-            composable<Route.FichaCosto> { e ->
-                val ruta = e.toRoute<Route.FichaCosto>()
-                cu.shalev.app.herramientas.FichaCostoScreen(
-                    onBack = { nav.popBackStack() },
-                    destinoAlta = ruta.destino,
-                    onExportacionCompletada = {
-                        cu.shalev.app.common.AvisoExito.mostrar("Ficha exportada con su receta y costo completo.")
-                        if (ruta.finalizarAlta) {
-                            when (ruta.destino) {
-                                "SERVICIO" -> nav.navigateTopLevel(Route.Servicios())
-                                else -> nav.navigateTopLevel(Route.Inventario())
-                            }
-                        }
-                    },
-                )
             }
             composable<Route.TurnoDetalle> { TurnoDetalleScreen(onBack = { nav.popBackStack() }) }
             composable<Route.Ajustes> { AjustesScreen(onNavigate = nav::navigateTo, onBack = { nav.popBackStack() }) }
