@@ -120,6 +120,12 @@ Fuera de las ventanas emergentes, algunas acciones usan **iconos** para dejar es
 | **SMS** / **WhatsApp** | Envía o comparte el mensaje de contacto | Soporte |
 | **Confirmar**, **Eliminar**, **Omitir** y **Cancelar** | Conservan el nombre escrito para que la decisión quede clara | Diálogos y ventanas emergentes |
 
+#### Recorridos guiados de la primera visita
+
+La primera vez que abres **Inicio** (turno y caja), **Inventario**, **Servicios**, **Registros** o una **venta** con artículos en el carrito, la pantalla se oscurece un poco y un círculo de luz resalta, uno a uno, sus botones principales. Cada globo explica en una frase qué hacer y trae **Siguiente**, **Anterior** y **Omitir** (en el último paso, **Finalizar**). Son de 2 a 4 pasos y no bloquean nada: puedes seguir tocando la pantalla mientras el globo está abierto, y el botón Atrás también lo cierra.
+
+El recorrido no vuelve a salir después de **Finalizar** u **Omitir**. Si cierras la app a mitad, saldrá de nuevo la próxima vez. Para repetirlo cuando quieras, toca **Ayuda** *(arriba a la izquierda)* y luego **Ver recorrido**.
+
 Mientras una pantalla carga sus datos verás **huesos grises** con la forma aproximada de la lista, tarjeta o gráfico que aparecerá, en vez de una rueda de espera.
 
 ### 3.3 Tema claro, tema oscuro y letra grande

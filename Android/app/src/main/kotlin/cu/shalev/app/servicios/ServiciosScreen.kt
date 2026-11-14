@@ -1,5 +1,9 @@
 package cu.shalev.app.servicios
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.designsystem.component.coachMark
 import androidx.compose.foundation.layout.size
 import cu.shalev.designsystem.component.ShalevCheckbox
 import cu.shalev.domain.model.nombreCompleto
@@ -141,21 +145,26 @@ fun ServiciosScreen(
             }
         }
     }
-    ServiciosContent(
-        state = state,
-        snackbar = snackbar,
-        acciones = AccionesServicios(
-            onAyuda = { onNavigate(Route.Ayuda) },
-            onBuscar = viewModel::buscar, onFiltro = viewModel::aplicarFiltro, onQuitarFiltros = viewModel::quitarFiltros,
-            onReintentar = viewModel::reintentar, onAlternar = viewModel::alternar, onSeleccionarTodo = viewModel::seleccionarTodo,
-            onLimpiarSeleccion = viewModel::limpiarSeleccion, onAbrirFicha = viewModel::abrirFicha, onCerrarFicha = viewModel::cerrarFicha,
-            onEditar = viewModel::editar, onHoja = viewModel::mostrarHoja,
-            onCerrarHoja = viewModel::cerrarHoja, onAgregar = viewModel::agregar, onEliminarFicha = viewModel::pedirEliminarFicha,
-            onEliminarSeleccion = viewModel::pedirEliminarSeleccion, onConfirmarEliminar = viewModel::confirmarEliminar,
-            onCancelarEliminar = viewModel::cancelarEliminar, onComentarioPromocion = viewModel::comentarioPromocion, onExportar = viewModel::exportar, onGuardar = viewModel::pedirGuardar,
-            onContinuarVenta = viewModel::confirmarSeleccionVenta, onAtras = onBack,
-        ),
-    )
+    // Recorrido de la primera visita: solo en la pestaña normal, con la lista cargada y sin nada abierto encima.
+    val listoRecorrido = !state.modoVenta && state.vista !is EstadoCarga.Idle && state.vista !is EstadoCarga.Cargando &&
+        state.ficha == null && state.hoja == null && state.confirmar == null && state.seleccion.isEmpty()
+    RecorridoModulo(Recorrido.SERVICIOS, listo = listoRecorrido) {
+        ServiciosContent(
+            state = state,
+            snackbar = snackbar,
+            acciones = AccionesServicios(
+                onAyuda = { onNavigate(Route.Ayuda) },
+                onBuscar = viewModel::buscar, onFiltro = viewModel::aplicarFiltro, onQuitarFiltros = viewModel::quitarFiltros,
+                onReintentar = viewModel::reintentar, onAlternar = viewModel::alternar, onSeleccionarTodo = viewModel::seleccionarTodo,
+                onLimpiarSeleccion = viewModel::limpiarSeleccion, onAbrirFicha = viewModel::abrirFicha, onCerrarFicha = viewModel::cerrarFicha,
+                onEditar = viewModel::editar, onHoja = viewModel::mostrarHoja,
+                onCerrarHoja = viewModel::cerrarHoja, onAgregar = viewModel::agregar, onEliminarFicha = viewModel::pedirEliminarFicha,
+                onEliminarSeleccion = viewModel::pedirEliminarSeleccion, onConfirmarEliminar = viewModel::confirmarEliminar,
+                onCancelarEliminar = viewModel::cancelarEliminar, onComentarioPromocion = viewModel::comentarioPromocion, onExportar = viewModel::exportar, onGuardar = viewModel::pedirGuardar,
+                onContinuarVenta = viewModel::confirmarSeleccionVenta, onAtras = onBack,
+            ),
+        )
+    }
 }
 
 @Composable
@@ -178,7 +187,7 @@ fun ServiciosContent(
                 onAyuda = { ayudaPestana.value = true },
                 ayudaDescripcion = "Ayuda de Servicios",
                 actions = {
-                    BotonFiltro(state.filtro.activos, TextosServicios.FILTRAR, onClick = { acciones.onHoja(HojaServicios.FILTRO) }, modifier = Modifier.testTag(ServiciosTags.FILTRO), enabled = state.tipos.isNotEmpty() || state.filtro.activos > 0)
+                    BotonFiltro(state.filtro.activos, TextosServicios.FILTRAR, onClick = { acciones.onHoja(HojaServicios.FILTRO) }, modifier = Modifier.testTag(ServiciosTags.FILTRO).coachMark(ObjetivosRecorrido.SERVICIOS_FILTRO), enabled = state.tipos.isNotEmpty() || state.filtro.activos > 0)
                     if (LocalPermisosApp.current.exportar) ShalevIconAction(
                         ShalevIcons.Compartir, TextosServicios.EXPORTAR, onClick = { acciones.onHoja(HojaServicios.EXPORTAR) },
                         enabled = state.items.isNotEmpty() || state.seleccion.isNotEmpty(), modifier = Modifier.testTag(ServiciosTags.EXPORTAR),
@@ -199,7 +208,7 @@ fun ServiciosContent(
         floatingActionButton = {
             if (!venta && state.seleccion.isEmpty() && LocalPermisosApp.current.editarInventario) {
                 // 1.0.2: el botón flotante lleva texto corto; la descripción completa queda para TalkBack.
-                ShalevFab(ShalevIcons.Agregar, TextosServicios.AGREGAR, onClick = acciones.onAgregar, etiqueta = "Agregar", modifier = Modifier.testTag(ServiciosTags.AGREGAR))
+                ShalevFab(ShalevIcons.Agregar, TextosServicios.AGREGAR, onClick = acciones.onAgregar, etiqueta = "Agregar", modifier = Modifier.testTag(ServiciosTags.AGREGAR).coachMark(ObjetivosRecorrido.SERVICIOS_AGREGAR))
             }
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
@@ -281,7 +290,7 @@ private fun Buscador(state: ServiciosUiState, acciones: AccionesServicios) {
             filtro = FiltroEntrada.BUSQUEDA,
             value = state.filtro.texto, onValueChange = acciones.onBuscar, label = "Buscar",
             leadingIcon = ShalevIcons.Buscar, anchoCompleto = true,
-            modifier = Modifier.fillMaxWidth().testTag(ServiciosTags.BUSCAR),
+            modifier = Modifier.fillMaxWidth().testTag(ServiciosTags.BUSCAR).coachMark(ObjetivosRecorrido.SERVICIOS_BUSCAR),
         )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally)) {
             if (state.vista is EstadoCarga.Exito) ShalevSecondaryText(TextosServicios.contador(state.items.size, state.total))
@@ -324,7 +333,7 @@ private fun ElementosFijados(state: ServiciosUiState, acciones: AccionesServicio
 private fun Lista(state: ServiciosUiState, acciones: AccionesServicios) {
     val visibles = state.items.filterNot { it.servicio.id in state.seleccion }
     LazyColumn(
-        Modifier.fillMaxSize().testTag(ServiciosTags.LISTA),
+        Modifier.fillMaxSize().testTag(ServiciosTags.LISTA).coachMark(ObjetivosRecorrido.SERVICIOS_LISTA),
         contentPadding = PaddingValues(start = ShalevSpacing.md, end = ShalevSpacing.md, top = ShalevSpacing.xs, bottom = ShalevSize.fabClearance),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
     ) {

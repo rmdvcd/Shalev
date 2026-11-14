@@ -154,6 +154,9 @@ dependencies {
     // Auditoría 2026-10-14 (D-04): fuera androidx-profileinstaller: sin baseline profile generado no aportaba
     // nada y sumaba un permiso/dependencia. Si se genera el perfil (Macrobenchmark), se repone junto con él.
     implementation(libs.kotlinx.serialization.core)
+    // Recorridos guiados (coach marks): indicador «ya visto» por módulo en un Preferences DataStore propio.
+    // Misma versión que usa :data (catálogo); el recorrido en sí es nativo (designsystem/CoachMarks.kt), sin librería.
+    implementation(libs.androidx.datastore.preferences)
 
     // Vinculación: lector QR con CameraX + ML Kit (modelo empaquetado, sin Play Services). Fotos locales: Coil.
     implementation(libs.camerax.core)
