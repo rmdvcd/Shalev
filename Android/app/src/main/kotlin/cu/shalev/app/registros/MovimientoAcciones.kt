@@ -1,5 +1,9 @@
 package cu.shalev.app.registros
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.recorridoVentana
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -178,7 +182,7 @@ fun AccionesFichaMovimiento(i: ItemMovimiento, vm: MovimientoAccionesViewModel, 
     if (s.puede) {
         ShalevButtonRow {
             ShalevIconAction(
-                ShalevIcons.Editar, TextosMovimiento.EDITAR, onClick = { vm.abrir(i) },
+                ShalevIcons.Editar, TextosMovimiento.EDITAR, etiqueta = "Editar", onClick = { vm.abrir(i) },
                 style = IconActionStyle.Tonal, modifier = Modifier.testTag(MovimientoAccionesTags.EDITAR),
             )
         }
@@ -190,9 +194,10 @@ fun AccionesFichaMovimiento(i: ItemMovimiento, vm: MovimientoAccionesViewModel, 
 private fun DialogoCorregir(i: ItemMovimiento, s: MovimientoAccionesUiState, vm: MovimientoAccionesViewModel, onHecho: () -> Unit) {
     ShalevDialog(
         title = TextosMovimiento.EDITAR, text = TextosMovimiento.AVISO,
-        onDismiss = vm::cerrar, onConfirm = { vm.guardar(i, onHecho) }, confirmDescription = TextosMovimiento.EDITAR,
+        onDismiss = vm::cerrar, onConfirm = { vm.guardar(i, onHecho) }, confirmDescription = TextosMovimiento.EDITAR, confirmEtiqueta = "Guardar",
         confirmEnabled = s.puedeGuardar(i.movimiento), confirmLoading = s.trabajando,
         confirmTag = MovimientoAccionesTags.GUARDAR,
+        recorrido = recorridoVentana(Recorrido.VENTANA_CORREGIR),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             Text(
@@ -203,11 +208,11 @@ private fun DialogoCorregir(i: ItemMovimiento, s: MovimientoAccionesUiState, vm:
             ShalevTextField(
                 value = s.cantidad, onValueChange = vm::cantidad, label = "${TextosMovimiento.CANTIDAD} *",
                 supportingText = TextosMovimiento.ayuda(i), isError = s.error, errorText = TextosMovimiento.FORMATO,
-                filtro = FiltroEntrada.CANTIDAD, modifier = Modifier.testTag(MovimientoAccionesTags.CANTIDAD),
+                filtro = FiltroEntrada.CANTIDAD, modifier = Modifier.testTag(MovimientoAccionesTags.CANTIDAD).coachMark(ObjetivosRecorrido.VENTANA_CANTIDAD),
             )
             ShalevTextField(
                 value = s.motivo, onValueChange = vm::motivo, label = "${TextosMovimiento.MOTIVO} *",
-                supportingText = TextosMovimiento.MOTIVO_AYUDA, modifier = Modifier.testTag(MovimientoAccionesTags.MOTIVO),
+                supportingText = TextosMovimiento.MOTIVO_AYUDA, modifier = Modifier.testTag(MovimientoAccionesTags.MOTIVO).coachMark(ObjetivosRecorrido.VENTANA_MOTIVO),
             )
         }
     }

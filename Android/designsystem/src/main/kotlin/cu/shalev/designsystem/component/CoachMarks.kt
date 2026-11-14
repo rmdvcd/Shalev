@@ -4,6 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -21,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -87,6 +91,15 @@ val CoachMarkVelo: Color = Color.Black.copy(alpha = 0.5f)
 @Immutable
 data class CoachMarkPaso(val objetivo: String, val titulo: String, val descripcion: String)
 
+/**
+ * Objetivos que el propio sistema de diseño marca, para que cualquier recorrido los pueda usar sin tocar cada pantalla:
+ * el botón «?» de la barra superior ([ShalevTopBar]) y la confirmación de [ShalevDialog].
+ */
+object CoachMarkObjetivos {
+    const val AYUDA = "pestana_ayuda"
+    const val CONFIRMAR = "ventana_confirmar"
+}
+
 object CoachMarkTags {
     const val VELO = "coach_velo"
     const val GLOBO = "coach_globo"
@@ -108,13 +121,15 @@ object TextosCoachMark {
 /**
  * Estado de un recorrido: qué objetivos hay en pantalla (y dónde) y en qué paso va.
  *
- * Al [iniciar] se fijan los pasos de la vuelta: solo los que tienen su objetivo visible en ese momento (así «2 de 3»
- * no cambia a mitad). Si durante el recorrido un objetivo desaparece (p. ej. se desplazó la lista), el globo se
- * muestra centrado y sin hueco hasta que vuelva.
+ * Al [iniciar] se fijan los pasos de la vuelta: los que tienen su objetivo en pantalla o compuesto en un contenedor
+ * desplazable (así «2 de 3» no cambia a mitad). Al llegar a cada paso, [CoachMarkHost] desplaza su contenedor hasta
+ * que el objetivo se ve ([traer]); si aun así no aparece, el globo se muestra centrado y sin hueco.
  */
 @Stable
 class CoachMarkState(val pasos: List<CoachMarkPaso>) {
     private val objetivos = mutableStateMapOf<String, Rect>()
+    /** Objetivos compuestos (aunque estén fuera de la vista) y cómo desplazarse hasta ellos. */
+    private val presentes = mutableStateMapOf<String, suspend () -> Unit>()
 
     /** Pasos de la vuelta en curso; vacío = recorrido cerrado. */
     var enCurso: List<CoachMarkPaso> by mutableStateOf(emptyList())
@@ -130,9 +145,9 @@ class CoachMarkState(val pasos: List<CoachMarkPaso>) {
     /** true si al menos un paso tiene su objetivo en pantalla (se puede iniciar). */
     fun hayObjetivos(): Boolean = pasos.any { it.objetivo in objetivos }
 
-    /** Empieza (o repite) el recorrido con los pasos visibles. Devuelve false si no hay ninguno. */
+    /** Empieza (o repite) el recorrido con los pasos visibles o alcanzables desplazando. False si no hay ninguno. */
     fun iniciar(): Boolean {
-        val visibles = pasos.filter { it.objetivo in objetivos }
+        val visibles = pasos.filter { it.objetivo in objetivos || it.objetivo in presentes }
         if (visibles.isEmpty()) return false
         enCurso = visibles
         indice = 0
@@ -148,6 +163,11 @@ class CoachMarkState(val pasos: List<CoachMarkPaso>) {
 
     internal fun registrar(objetivo: String, limites: Rect) { objetivos[objetivo] = limites }
     internal fun quitar(objetivo: String) { objetivos.remove(objetivo) }
+    internal fun presentar(objetivo: String, traer: suspend () -> Unit) { presentes[objetivo] = traer }
+    internal fun ausentar(objetivo: String) { presentes.remove(objetivo) }
+
+    /** Desplaza el contenedor del [objetivo] hasta que se vea (no hace nada si ya se ve o no está compuesto). */
+    suspend fun traer(objetivo: String) { presentes[objetivo]?.invoke() }
 
     private fun restaurar(ids: List<String>, indiceGuardado: Int) {
         enCurso = pasos.filter { it.objetivo in ids }
@@ -167,6 +187,13 @@ class CoachMarkState(val pasos: List<CoachMarkPaso>) {
 fun rememberCoachMarkState(pasos: List<CoachMarkPaso>): CoachMarkState =
     rememberSaveable(saver = CoachMarkState.saver(pasos)) { CoachMarkState(pasos) }
 
+/**
+ * Recorrido propio de una ventana emergente ([ShalevDialog], [ShalevBottomSheet]). Una ventana es otra ventana de
+ * Android: el recorrido de la pantalla no puede dibujar encima, así que cada ventana envuelve su contenido con el
+ * suyo. Lo crea la app (sabe si ya se vio); el sistema de diseño solo lo coloca dentro de la ventana.
+ */
+typealias EnvoltorioRecorrido = @Composable (contenido: @Composable () -> Unit) -> Unit
+
 /** Recorrido de la pantalla actual, o null fuera de un [CoachMarkHost] (p. ej. «Ver recorrido» de la ayuda). */
 val LocalCoachMarkState = staticCompositionLocalOf<CoachMarkState?> { null }
 
@@ -174,10 +201,15 @@ val LocalCoachMarkState = staticCompositionLocalOf<CoachMarkState?> { null }
  * Marca este elemento como objetivo [objetivo] del recorrido. Fuera de un [CoachMarkHost] no hace nada.
  * Usa los límites ya recortados por sus contenedores: lo que queda fuera de una lista desplazada no se resalta.
  */
+@OptIn(ExperimentalFoundationApi::class)
 fun Modifier.coachMark(objetivo: String): Modifier = composed {
     val estado = LocalCoachMarkState.current ?: return@composed Modifier
-    DisposableEffect(estado, objetivo) { onDispose { estado.quitar(objetivo) } }
-    Modifier.onGloballyPositioned { c ->
+    val traer = remember { BringIntoViewRequester() }
+    DisposableEffect(estado, objetivo) {
+        estado.presentar(objetivo) { traer.bringIntoView() }
+        onDispose { estado.quitar(objetivo); estado.ausentar(objetivo) }
+    }
+    Modifier.bringIntoViewRequester(traer).onGloballyPositioned { c ->
         val r = if (c.isAttached) c.boundsInRoot() else Rect.Zero
         if (r.width <= 0f || r.height <= 0f) estado.quitar(objetivo) else estado.registrar(objetivo, r)
     }
@@ -198,6 +230,11 @@ fun CoachMarkHost(
     content: @Composable () -> Unit,
 ) {
     var origen by remember { mutableStateOf(Offset.Zero) }
+    val objetivoActual = estado.pasoActual?.objetivo
+    LaunchedEffect(objetivoActual, visible) {
+        // Cada paso desplaza su lista o formulario hasta el objetivo (p. ej. las últimas filas de Ajustes).
+        if (objetivoActual != null && visible) runCatching { estado.traer(objetivoActual) }
+    }
     CompositionLocalProvider(LocalCoachMarkState provides estado) {
         Box(modifier.onGloballyPositioned { origen = it.positionInRoot() }) {
             content()

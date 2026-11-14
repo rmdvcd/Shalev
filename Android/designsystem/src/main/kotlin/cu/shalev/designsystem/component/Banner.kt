@@ -62,6 +62,8 @@ fun ShalevStatusBanner(
     detail: String? = null,
     actionIcon: ImageVector? = null,
     actionDescription: String? = null,
+    /** Palabra visible de la acción (regla de botones); si falta, la de [actionDescription] o [text]. */
+    actionEtiqueta: String? = null,
     onAction: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -79,7 +81,7 @@ fun ShalevStatusBanner(
                 detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             }
             if (actionIcon != null && onAction != null) {
-                ShalevIconAction(actionIcon, actionDescription ?: text, onClick = onAction)
+                ShalevIconAction(actionIcon, actionDescription ?: text, onClick = onAction, etiqueta = actionEtiqueta)
             } else if (onClick != null) {
                 // El banner entero es clicable: la flecha lo hace evidente sin añadir otra acción.
                 Icon(ShalevIcons.Abrir, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))

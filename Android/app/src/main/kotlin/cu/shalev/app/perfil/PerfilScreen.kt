@@ -1,5 +1,9 @@
 package cu.shalev.app.perfil
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import cu.shalev.designsystem.component.ShalevCheckbox
 import cu.shalev.designsystem.component.ShalevSecondaryText
 import cu.shalev.designsystem.component.ShalevListItem
@@ -72,12 +76,14 @@ fun PerfilScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(viewModel) { viewModel.mensajes.collect { snackbar.showSnackbar(it) } }
-    PerfilContent(
-        state = state,
-        onBack = onBack,
-        acciones = AccionesPerfil(viewModel::editar, viewModel::guardar, viewModel::descartar, viewModel::alternarModulo),
-        snackbar = snackbar,
-    )
+    RecorridoModulo(Recorrido.PERFIL, listo = true) {
+        PerfilContent(
+            state = state,
+            onBack = onBack,
+            acciones = AccionesPerfil(viewModel::editar, viewModel::guardar, viewModel::descartar, viewModel::alternarModulo),
+            snackbar = snackbar,
+        )
+    }
 }
 
 @Composable
@@ -120,7 +126,7 @@ private fun DatosPersonales(state: PerfilUiState, acciones: AccionesPerfil) {
             isError = f.errorNombre != null, errorText = f.errorNombre, validarAlSalir = false, forzarError = f.mostrarErrores,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
             imeAction = ImeAction.Next,
-            modifier = Modifier.testTag(PerfilTags.NOMBRE),
+            modifier = Modifier.testTag(PerfilTags.NOMBRE).coachMark(ObjetivosRecorrido.PERFIL_DATOS),
         )
         ShalevTextField(
             filtro = FiltroEntrada.NOMBRE,
@@ -144,7 +150,7 @@ private fun DatosPersonales(state: PerfilUiState, acciones: AccionesPerfil) {
         ShalevButtonRow {
             ShalevPrimaryButton(
                 "Guardar", onClick = acciones.onGuardar, enabled = state.sinGuardar, loading = state.guardando,
-                icon = ShalevIcons.Guardar, modifier = Modifier.testTag(PerfilTags.GUARDAR),
+                icon = ShalevIcons.Guardar, modifier = Modifier.testTag(PerfilTags.GUARDAR).coachMark(ObjetivosRecorrido.PERFIL_GUARDAR),
             )
         }
     }
@@ -153,7 +159,7 @@ private fun DatosPersonales(state: PerfilUiState, acciones: AccionesPerfil) {
 /** 0.21.0 (C12): «Tu negocio»: qué secciones usa Shalev. Lo desmarcado desaparece de la barra inferior, Inicio y Registros. */
 @Composable
 private fun ModulosNegocio(modulos: Set<cu.shalev.domain.model.Modulo>, acciones: AccionesPerfil) {
-    ShalevCard(title = TextosPerfil.MODULOS_TITULO, modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag(PerfilTags.MODULOS)) {
+    ShalevCard(title = TextosPerfil.MODULOS_TITULO, modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag(PerfilTags.MODULOS).coachMark(ObjetivosRecorrido.PERFIL_MODULOS)) {
         ShalevSecondaryText(TextosPerfil.MODULOS_EXPLICACION)
         cu.shalev.domain.model.Modulo.entries.forEach { m ->
             val marcado = m in modulos

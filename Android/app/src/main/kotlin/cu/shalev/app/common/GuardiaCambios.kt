@@ -41,6 +41,7 @@ fun rememberSalidaProtegida(
             onDismiss = { preguntar = false },
             onConfirm = { preguntar = false; salir() },
             confirmDescription = TextosGuardia.SALIR,
+            confirmEtiqueta = "Salir",
             dismissDescription = TextosGuardia.SEGUIR,
             destructive = true,
             confirmIcon = ShalevIcons.Salir,

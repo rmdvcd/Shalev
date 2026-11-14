@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -118,6 +121,11 @@ fun AjustesScreen(
     val localVm: cu.shalev.app.ubicacion.LocalViewModel = hiltViewModel()
     var mostrarLocales by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     if (mostrarLocales) cu.shalev.app.ubicacion.LocalesAjustes(localVm) { mostrarLocales = false }
+    // 1.1: recorrido de Ajustes (sin ventanas abiertas encima).
+    cu.shalev.app.recorrido.RecorridoModulo(
+        cu.shalev.app.recorrido.Recorrido.AJUSTES,
+        listo = !mostrarLocales && actualizacion.proceso == null,
+    ) {
     AjustesContent(
         onLocales = { mostrarLocales = true },
         accesoClave = accesoClave,
@@ -133,6 +141,21 @@ fun AjustesScreen(
         onAplicarActualizar = actVm::aplicarActualizacion,
         snackbar = snackbar,
     )
+    }
+}
+
+/** Subtítulos de las filas de Ajustes: qué encuentras dentro, en pocas palabras. */
+object TextosAjustes {
+    const val PERFIL = "Tu nombre, apellidos y carné"
+    const val LICENCIA = "Estado, solicitud y activación"
+    const val PAGO = "Teléfonos y cuentas para transferencias"
+    const val LOCAL = "Añade y renombra tus locales"
+    const val PRECIOS = "Descuentos y recargos automáticos"
+    const val AVISOS = "Cuándo avisar de existencias bajas"
+    const val PERMISOS = "Cámara, archivos y avisos del teléfono"
+    const val RESPALDO = "Copia cifrada e importación"
+    const val MANUAL = "Guía de cada pantalla"
+    const val SOPORTE = "Contacto con el desarrollador"
 }
 
 @Composable
@@ -166,45 +189,45 @@ fun AjustesContent(
         snackbarHost = { cu.shalev.designsystem.component.ShalevSnackbarHost(snackbar) },
     ) { padding ->
         val principal = !state.permisos.esSecundaria
-        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            if (principal) item {
+        // 1.1: columna desplazable (no perezosa) para que el recorrido alcance también las últimas filas; son pocas.
+        // Las filas van en grupos, y cada grupo es un paso del recorrido de Ajustes.
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+            if (principal) {
                 val pendientes = state.resumen?.pendientes?.size ?: 0
                 Entry(
                     "Completar configuración", state.resumen.subtitulo(), ShalevIcons.Configurar,
-                    modifier = Modifier.testTag(AjustesTags.CONFIGURACION),
+                    modifier = Modifier.testTag(AjustesTags.CONFIGURACION).coachMark(ObjetivosRecorrido.AJUSTES_CONFIGURACION),
                     badge = pendientes.takeIf { it > 0 },
                 ) { onNavigate(Route.ConfiguracionInicial()) }
             }
-            if (principal) item { Entry("Perfil", "Nombre, apellidos y carné", ShalevIcons.Perfil) { onNavigate(Route.Perfil) } }
-            if (principal) item { Entry("Licencia", "Estado, solicitud y activación", ShalevIcons.Licencia) { onNavigate(Route.Licencia) } }
-            // P37: Sistema, debajo de Licencia.
-            item {
+            Column(Modifier.coachMark(ObjetivosRecorrido.AJUSTES_NEGOCIO)) {
+                if (principal) Entry("Perfil", TextosAjustes.PERFIL, ShalevIcons.Perfil) { onNavigate(Route.Perfil) }
+                if (principal) Entry("Licencia", TextosAjustes.LICENCIA, ShalevIcons.Licencia) { onNavigate(Route.Licencia) }
+                // P37: Sistema, debajo de Licencia.
                 Entry(
                     VinculacionLogic.TITULO, VinculacionLogic.subtituloAjustes(state.permisos.tipo, state.secundarias, state.nombreNegocio),
                     ShalevIcons.Movil, modifier = Modifier.testTag(AjustesTags.VINCULACION),
                 ) { onNavigate(Route.Vinculacion) }
             }
-            if (principal) item {
-                Entry("Pago electrónico", "Teléfonos y cuentas para cobrar por transferencia", ShalevIcons.PagoElectronico, modifier = Modifier.testTag(AjustesTags.PAGO)) {
+            Column(Modifier.coachMark(ObjetivosRecorrido.AJUSTES_VENTAS)) {
+                if (principal) Entry("Pago electrónico", TextosAjustes.PAGO, ShalevIcons.PagoElectronico, modifier = Modifier.testTag(AjustesTags.PAGO)) {
                     onNavigate(Route.PagoElectronico)
                 }
-            }
-            item { Entry("Local", "Añadir y editar locales", ShalevIcons.Local, onClick = onLocales) }
-            if (state.permisos.cambiarPrecios) item { Entry("Precios", "Por pago o por importe", ShalevIcons.Precios) { onNavigate(Route.Precios) } }
-            if (principal) item {
-                Entry("Avisos de inventario", "Cuándo avisar de stock bajo o crítico", ShalevIcons.Alerta) {
+                Entry("Local", TextosAjustes.LOCAL, ShalevIcons.Local, onClick = onLocales)
+                if (state.permisos.cambiarPrecios) Entry("Precios", TextosAjustes.PRECIOS, ShalevIcons.Precios) { onNavigate(Route.Precios) }
+                if (principal) Entry("Avisos de inventario", TextosAjustes.AVISOS, ShalevIcons.Alerta) {
                     onNavigate(Route.ConfiguracionInicial(PasoConfiguracion.ALERTAS.name))
                 }
             }
-            item { Entry("Permisos", "", ShalevIcons.Bloqueo, onClick = onPermisos) }
-            item { cu.shalev.app.acceso.FilaAccesoClave(accesoClave, onAccesoClave) } // 0.27.0 (T11)
-            if (principal) item {
-                Entry("Respaldo", "Copia cifrada de todo e importar", ShalevIcons.Respaldo, modifier = Modifier.testTag(AjustesTags.RESPALDO)) {
+            Column(Modifier.coachMark(ObjetivosRecorrido.AJUSTES_SEGURIDAD)) {
+                Entry("Permisos", TextosAjustes.PERMISOS, ShalevIcons.Bloqueo, onClick = onPermisos)
+                cu.shalev.app.acceso.FilaAccesoClave(accesoClave, onAccesoClave) // 0.27.0 (T11)
+            }
+            Column(Modifier.coachMark(ObjetivosRecorrido.AJUSTES_DATOS)) {
+                if (principal) Entry("Respaldo", TextosAjustes.RESPALDO, ShalevIcons.Respaldo, modifier = Modifier.testTag(AjustesTags.RESPALDO)) {
                     onNavigate(Route.Respaldo)
                 }
-            }
-            // 0.31.0 (P5): se llama «Actualizar» y abre directamente el cuadro con la barra circular.
-            item {
+                // 0.31.0 (P5): se llama «Actualizar» y abre directamente el cuadro con la barra circular.
                 Entry(
                     cu.shalev.app.actualizacion.TextosActualizacion.BUSCAR,
                     when {
@@ -214,9 +237,11 @@ fun AjustesContent(
                     ShalevIcons.Sincronizar, modifier = Modifier.testTag(AjustesTags.ACTUALIZACIONES),
                 ) { onActualizarAhora() }
             }
-            // 1.0.3: la fila «Ayuda» usa el mismo icono de Ayuda que el botón contextual del resto de pestañas.
-            item { Entry("Manual de usuario", "Guía por pantalla", ShalevIcons.Ayuda, modifier = Modifier.testTag(AjustesTags.AYUDA)) { onNavigate(Route.Ayuda) } }
-            item { Entry("Soporte", "Datos de contacto del desarrollador", ShalevIcons.Soporte, modifier = Modifier.testTag(AjustesTags.SOPORTE)) { onNavigate(Route.Soporte) } }
+            Column(Modifier.coachMark(ObjetivosRecorrido.AJUSTES_AYUDA)) {
+                // 1.0.3: la fila «Ayuda» usa el mismo icono de Ayuda que el botón contextual del resto de pestañas.
+                Entry("Manual de usuario", TextosAjustes.MANUAL, ShalevIcons.Ayuda, modifier = Modifier.testTag(AjustesTags.AYUDA)) { onNavigate(Route.Ayuda) }
+                Entry("Soporte", TextosAjustes.SOPORTE, ShalevIcons.Soporte, modifier = Modifier.testTag(AjustesTags.SOPORTE)) { onNavigate(Route.Soporte) }
+            }
         }
     }
     if (dialogoActualizaciones) {

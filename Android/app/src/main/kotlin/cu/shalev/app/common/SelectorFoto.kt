@@ -116,7 +116,7 @@ fun SelectorFoto(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
             ShalevIconAction(
-                ShalevIcons.Camara, TextosFoto.CAMARA, enabled = !importando, style = IconActionStyle.Tonal,
+                ShalevIcons.Camara, TextosFoto.CAMARA, etiqueta = "Cámara", enabled = !importando, style = IconActionStyle.Tonal,
                 onClick = {
                     if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                         sinPermiso = false // se concedió después del aviso: no dejar el mensaje viejo
@@ -128,12 +128,12 @@ fun SelectorFoto(
                 modifier = Modifier.testTag(SelectorFotoTags.CAMARA),
             )
             ShalevIconAction(
-                ShalevIcons.Galeria, TextosFoto.GALERIA, enabled = !importando, style = IconActionStyle.Tonal,
+                ShalevIcons.Galeria, TextosFoto.GALERIA, etiqueta = "Galería", enabled = !importando, style = IconActionStyle.Tonal,
                 onClick = { galeria.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 modifier = Modifier.testTag(SelectorFotoTags.GALERIA),
             )
             if (uri != null) {
-                ShalevIconAction(ShalevIcons.Eliminar, TextosFoto.QUITAR, onClick = onQuitar, enabled = !importando, modifier = Modifier.testTag(SelectorFotoTags.QUITAR))
+                ShalevIconAction(ShalevIcons.Eliminar, TextosFoto.QUITAR, etiqueta = "Quitar", onClick = onQuitar, enabled = !importando, modifier = Modifier.testTag(SelectorFotoTags.QUITAR))
             }
         }
         if (importando) ShalevSecondaryText(TextosFoto.PREPARANDO)

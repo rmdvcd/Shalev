@@ -1,5 +1,6 @@
 package cu.shalev.app.registros
 
+import cu.shalev.app.recorrido.recorridoVentana
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.app.recorrido.Recorrido
 import cu.shalev.app.recorrido.RecorridoModulo
@@ -245,12 +246,12 @@ fun RegistrosContent(
                             ShalevIconAction(
                                 ShalevIcons.Filtrar, descripcionFiltro(textoFiltro, n),
                                 onClick = acciones.onAbrirFiltro, selected = n > 0, modifier = Modifier.testTag(RegistrosTags.FILTRO).coachMark(ObjetivosRecorrido.REGISTROS_FILTRO),
-                                etiqueta = textoFiltro,
+                                mostrarTexto = false, // excepción de la regla de botones: filtro
                             )
                         }
                         val exportar = LocalPermisosApp.current.exportar
                         if (exportar) ShalevIconAction(
-                            ShalevIcons.Compartir, TextosRegistros.EXPORTAR, onClick = acciones.onAbrirExportar,
+                            ShalevIcons.Compartir, TextosRegistros.EXPORTAR, mostrarTexto = false, onClick = acciones.onAbrirExportar,
                             enabled = state.puedeCompartir && !state.exportando, modifier = Modifier.testTag(RegistrosTags.EXPORTAR).coachMark(ObjetivosRecorrido.REGISTROS_EXPORTAR),
                         )
                     }
@@ -288,20 +289,22 @@ fun RegistrosContent(
 /** PDF o Excel de lo que se ve: tocar una fila abre el selector de compartir del sistema. */
 @Composable
 private fun HojaExportar(state: RegistrosUiState, tipo: TipoRegistro, acciones: AccionesRegistros) {
-    ShalevBottomSheet(onDismiss = acciones.onCerrarExportar, title = TextosRegistros.tituloExportar(tipo)) {
+    ShalevBottomSheet(onDismiss = acciones.onCerrarExportar, title = TextosRegistros.tituloExportar(tipo), recorrido = recorridoVentana(Recorrido.VENTANA_EXPORTAR_REGISTROS)) {
         // 0.31.0 (P3): con filas marcadas, el documento sale de la selección, no de todo lo que se ve.
         val n = if (state.seleccion.isNotEmpty()) state.seleccion.size else state.datos?.cantidad ?: 0
         ShalevSecondaryText(
             if (state.seleccion.isNotEmpty()) TextosRegistros.seleccionados(tipo, n)
             else TextosRegistros.alcanceExportar(tipo, n, detalleFiltro(state)),
+            modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_ALCANCE),
         )
         if (tipo == TipoRegistro.TRANSACCIONES) ShalevSecondaryText(TextosRegistros.AVISO_DATOS_CLIENTES)
-        listOf(FormatoExport.PDF, FormatoExport.XLSX).forEach { f ->
+        listOf(FormatoExport.PDF, FormatoExport.XLSX).forEachIndexed { i, f ->
             ShalevListItem(
                 title = if (f == FormatoExport.PDF) "PDF" else "Excel", indicatorColor = null,
                 leading = { Icon(cu.shalev.app.common.iconoFormato(f), contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
                 onClick = { acciones.onEnviar(f) },
-                modifier = Modifier.testTag(RegistrosTags.formato(f)),
+                modifier = Modifier.testTag(RegistrosTags.formato(f))
+                    .then(if (i == 0) Modifier.coachMark(ObjetivosRecorrido.VENTANA_FORMATOS) else Modifier),
             )
         }
     }
@@ -348,7 +351,7 @@ private fun Tabla(state: RegistrosUiState, tipo: TipoRegistro, acciones: Accione
                         ilustracion = ShalevIlustracion.SinResultados,
                     ) {
                         ShalevSecondaryButton(
-                            TextosRegistros.QUITAR_FILTROS, icon = ShalevIcons.QuitarFiltros, onClick = { acciones.onQuitarFiltros(true) },
+                            TextosRegistros.QUITAR_FILTROS, icon = ShalevIcons.QuitarFiltros, etiqueta = "Limpiar", onClick = { acciones.onQuitarFiltros(true) },
                             modifier = Modifier.testTag(RegistrosTags.QUITAR_FILTROS),
                         )
                     }
@@ -378,8 +381,8 @@ private fun Buscador(state: RegistrosUiState, tipo: TipoRegistro, acciones: Acci
                     is VistaRegistro.Movimientos -> null
                 }
                 val texto = TextosRegistros.resumen(it)
-                if (total == null) ShalevSecondaryText(texto, modifier = Modifier.testTag(RegistrosTags.RESUMEN))
-                else ShalevSecondaryText(ShalevTextos.resaltar(texto, total), modifier = Modifier.testTag(RegistrosTags.RESUMEN))
+                if (total == null) ShalevSecondaryText(texto, modifier = Modifier.testTag(RegistrosTags.RESUMEN).coachMark(ObjetivosRecorrido.REGISTROS_RESUMEN))
+                else ShalevSecondaryText(ShalevTextos.resaltar(texto, total), modifier = Modifier.testTag(RegistrosTags.RESUMEN).coachMark(ObjetivosRecorrido.REGISTROS_RESUMEN))
             }
             resumenFiltro(state.filtro, tipo)?.let { r ->
                 ShalevChip(label = r, selected = true, onClick = { acciones.onQuitarFiltros(false) }, icon = ShalevIcons.Limpiar, supportingLabel = "Quitar filtro")
@@ -391,7 +394,7 @@ private fun Buscador(state: RegistrosUiState, tipo: TipoRegistro, acciones: Acci
 @Composable
 private fun Lista(datos: VistaRegistro, state: RegistrosUiState, acciones: AccionesRegistros, zona: ZoneId) {
     LazyColumn(
-        Modifier.fillMaxSize().testTag(RegistrosTags.LISTA),
+        Modifier.fillMaxSize().testTag(RegistrosTags.LISTA).coachMark(ObjetivosRecorrido.REGISTROS_LISTA),
         contentPadding = PaddingValues(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
     ) {
@@ -475,7 +478,7 @@ private fun ListaTurnos(turnos: List<Turno>, onTurno: (Long) -> Unit, zona: Zone
     Column(Modifier.fillMaxSize()) {
         if (marcados.isNotEmpty()) BarraSeleccionSola(marcados.size) { marcados = emptySet() }
         LazyColumn(
-            Modifier.fillMaxSize().testTag(RegistrosTags.LISTA),
+            Modifier.fillMaxSize().testTag(RegistrosTags.LISTA).coachMark(ObjetivosRecorrido.REGISTROS_LISTA),
             contentPadding = PaddingValues(ShalevSpacing.md),
             verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
         ) {
@@ -511,7 +514,7 @@ private fun BarraSeleccionSola(n: Int, onQuitar: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ShalevIconAction(
-            ShalevIcons.Cancelar, "Quitar selección", onClick = onQuitar,
+            ShalevIcons.Cancelar, "Quitar selección", etiqueta = "Quitar", onClick = onQuitar,
             modifier = Modifier.testTag(RegistrosTags.LIMPIAR_SELECCION),
         )
         Text("$n seleccionados", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
@@ -564,10 +567,11 @@ private fun Ficha(f: FichaRegistro, acciones: AccionesRegistros, zona: ZoneId) {
     ShalevBottomSheet(
         onDismiss = acciones.onCerrarFicha,
         title = titulo,
+        recorrido = recorridoVentana(Recorrido.VENTANA_FICHA_REGISTRO),
     ) {
         // P28: el total (o el importe de la transferencia) va UNA vez, centrado arriba; no se repite en la tabla.
         val total = campos.firstOrNull { it.first == "Total" || it.first == "Importe" }
-        Column(Modifier.testTag(RegistrosTags.FICHA), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+        Column(Modifier.testTag(RegistrosTags.FICHA).coachMark(ObjetivosRecorrido.VENTANA_DATOS), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             total?.let { (etiqueta, valor) ->
                 Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally) {
                     ShalevSecondaryText(etiqueta, textAlign = TextAlign.Center)
@@ -588,19 +592,27 @@ private fun Ficha(f: FichaRegistro, acciones: AccionesRegistros, zona: ZoneId) {
             lineas.forEach { (titulo, subtitulo, valor) ->
                 ShalevListItem(title = titulo, subtitle = subtitulo, value = valor, indicatorColor = null, valueMaxLines = 4)
             }
-            if (f is FichaRegistro.DeVenta) acciones.accionesVenta?.invoke(f.venta, null)
+            if (f is FichaRegistro.DeVenta) acciones.accionesVenta?.let { av ->
+                Box(Modifier.fillMaxWidth().coachMark(ObjetivosRecorrido.VENTANA_ACCIONES)) { av(f.venta, null) }
+            }
             if (f is FichaRegistro.DeTransferencia) {
                 // 0.31.0: el importe y el nº de transacción son de la venta que pagó la transferencia: se corrigen aquí mismo.
-                f.venta?.let { v -> acciones.accionesVenta?.invoke(v, acciones.onVerVenta) }
+                f.venta?.let { v ->
+                    acciones.accionesVenta?.let { av ->
+                        Box(Modifier.fillMaxWidth().coachMark(ObjetivosRecorrido.VENTANA_ACCIONES)) { av(v, acciones.onVerVenta) }
+                    }
+                }
                 // Sin la venta cargada (o sin acciones de venta, p. ej. en capturas) el botón va solo, centrado como los demás.
                 if (f.venta == null || acciones.accionesVenta == null) ShalevButtonRow {
                     ShalevSecondaryButton(
-                        TextosRegistros.VER_VENTA, icon = ShalevIcons.Comprobante, onClick = acciones.onVerVenta,
-                        modifier = Modifier.testTag(RegistrosTags.FICHA_VER_VENTA),
+                        TextosRegistros.VER_VENTA, icon = ShalevIcons.Comprobante, etiqueta = "Venta", onClick = acciones.onVerVenta,
+                        modifier = Modifier.testTag(RegistrosTags.FICHA_VER_VENTA).coachMark(ObjetivosRecorrido.VENTANA_ACCIONES),
                     )
                 }
             }
-            if (f is FichaRegistro.DeMovimiento) acciones.accionesMovimiento?.invoke(f.item)
+            if (f is FichaRegistro.DeMovimiento) acciones.accionesMovimiento?.let { am ->
+                Box(Modifier.fillMaxWidth().coachMark(ObjetivosRecorrido.VENTANA_ACCIONES)) { am(f.item) }
+            }
         }
     }
 }
@@ -617,8 +629,12 @@ private fun HojaFiltro(actual: FiltroRegistros, tipo: TipoRegistro, acciones: Ac
     ShalevBottomSheet(
         onDismiss = acciones.onCerrarFiltro,
         title = if (conImporte) TextosRegistros.FILTRAR else TextosRegistros.FILTRAR_FECHA,
+        recorrido = recorridoVentana(Recorrido.VENTANA_FILTRO_REGISTROS),
         footer = {
-            ShalevSecondaryButton(TextosRegistros.QUITAR_FILTROS, icon = ShalevIcons.QuitarFiltros, onClick = { form = FormFiltroRegistros(); errores = emptyMap() })
+            ShalevSecondaryButton(
+                TextosRegistros.QUITAR_FILTROS, icon = ShalevIcons.QuitarFiltros, etiqueta = "Limpiar", onClick = { form = FormFiltroRegistros(); errores = emptyMap() },
+                modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_LIMPIAR),
+            )
             ShalevPrimaryButton(
                 "Aplicar", icon = ShalevIcons.Aplicar,
                 onClick = {
@@ -626,7 +642,7 @@ private fun HojaFiltro(actual: FiltroRegistros, tipo: TipoRegistro, acciones: Ac
                     errores = e
                     if (filtro != null) acciones.onAplicarFiltro(filtro)
                 },
-                modifier = Modifier.testTag(RegistrosTags.FILTRO_APLICAR),
+                modifier = Modifier.testTag(RegistrosTags.FILTRO_APLICAR).coachMark(ObjetivosRecorrido.VENTANA_APLICAR),
             )
         },
     ) {
@@ -639,7 +655,7 @@ private fun HojaFiltro(actual: FiltroRegistros, tipo: TipoRegistro, acciones: Ac
             onSeleccion = { form = form.copy(periodo = it); errores = errores - CamposFiltroRegistros.FECHAS },
             leadingIcon = ShalevIcons.Fecha,
             tagOpcion = RegistrosTags::periodo,
-            modifier = Modifier.fillMaxWidth().testTag(RegistrosTags.FILTRO_PERIODO),
+            modifier = Modifier.fillMaxWidth().testTag(RegistrosTags.FILTRO_PERIODO).coachMark(ObjetivosRecorrido.FILTRO_PERIODO),
         )
         if (form.periodo == PeriodoRegistro.PERSONALIZADO) {
             CampoFecha(form.desde, { form = form.copy(desde = it) }, label = "Desde", tag = RegistrosTags.FILTRO_DESDE, modifier = Modifier.fillMaxWidth())
@@ -656,7 +672,7 @@ private fun HojaFiltro(actual: FiltroRegistros, tipo: TipoRegistro, acciones: Ac
                 label = "Desde (CUP)", placeholder = "Sin mínimo",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 isError = CamposFiltroRegistros.MIN in errores, errorText = errores[CamposFiltroRegistros.MIN],
-                modifier = Modifier.testTag(RegistrosTags.FILTRO_MIN),
+                modifier = Modifier.testTag(RegistrosTags.FILTRO_MIN).coachMark(ObjetivosRecorrido.FILTRO_IMPORTE),
             )
             ShalevTextField(
                 filtro = FiltroEntrada.DINERO,
@@ -677,7 +693,7 @@ private fun HojaFiltro(actual: FiltroRegistros, tipo: TipoRegistro, acciones: Ac
                 onSeleccion = { form = form.copy(vendedor = it) },
                 leadingIcon = ShalevIcons.Perfil,
                 tagOpcion = { it?.let(RegistrosTags::vendedor) ?: RegistrosTags.VENDEDOR_TODOS },
-                modifier = Modifier.fillMaxWidth().testTag(RegistrosTags.FILTRO_VENDEDOR),
+                modifier = Modifier.fillMaxWidth().testTag(RegistrosTags.FILTRO_VENDEDOR).coachMark(ObjetivosRecorrido.FILTRO_VENDEDOR),
             )
         }
     }

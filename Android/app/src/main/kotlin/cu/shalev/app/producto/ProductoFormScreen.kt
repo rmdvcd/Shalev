@@ -1,5 +1,9 @@
 package cu.shalev.app.producto
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -129,20 +133,22 @@ fun ProductoFormScreen(
             }
         }
     }
-    ProductoFormContent(
-        state = state,
-        snackbar = snackbar,
-        acciones = AccionesForm(
-            onCategoria = viewModel::categoria, onNombre = viewModel::nombre, onDescripcion = viewModel::descripcion,
-            onElegirFoto = { elegirFoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-            onQuitarFoto = viewModel::quitarFoto, onFoto = { viewModel.fotoElegida(it) }, onFecha = viewModel::fecha, onCosto = viewModel::precioCosto,
-            onVenta = viewModel::precioVenta, onCantidad = viewModel::cantidad, onBajo = viewModel::nivelBajo,
-            onCritico = viewModel::nivelCritico, onCostoAdicional = viewModel::costoAdicional,
-            onMostrarInsumos = viewModel::mostrarInsumos, onAgregarInsumo = viewModel::agregarInsumo,
-            onCantidadInsumo = viewModel::cantidadInsumo, onQuitarInsumo = viewModel::quitarInsumo,
-            onGuardar = { viewModel.guardar() }, onBack = onBack,
-        ),
-    )
+    RecorridoModulo(Recorrido.PRODUCTO_FORM, listo = !state.hojaInsumos) {
+        ProductoFormContent(
+            state = state,
+            snackbar = snackbar,
+            acciones = AccionesForm(
+                onCategoria = viewModel::categoria, onNombre = viewModel::nombre, onDescripcion = viewModel::descripcion,
+                onElegirFoto = { elegirFoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                onQuitarFoto = viewModel::quitarFoto, onFoto = { viewModel.fotoElegida(it) }, onFecha = viewModel::fecha, onCosto = viewModel::precioCosto,
+                onVenta = viewModel::precioVenta, onCantidad = viewModel::cantidad, onBajo = viewModel::nivelBajo,
+                onCritico = viewModel::nivelCritico, onCostoAdicional = viewModel::costoAdicional,
+                onMostrarInsumos = viewModel::mostrarInsumos, onAgregarInsumo = viewModel::agregarInsumo,
+                onCantidadInsumo = viewModel::cantidadInsumo, onQuitarInsumo = viewModel::quitarInsumo,
+                onGuardar = { viewModel.guardar() }, onBack = onBack,
+            ),
+        )
+    }
 }
 
 @Composable
@@ -162,7 +168,8 @@ fun ProductoFormContent(state: ProductoFormUiState, acciones: AccionesForm, snac
                 ShalevBarraAcciones {
                     ShalevPrimaryButton(
                         if (state.esNuevo) "Guardar producto" else "Guardar cambios", onClick = acciones.onGuardar, loading = state.guardando,
-                        icon = ShalevIcons.Guardar, modifier = Modifier.testTag(ProductoFormTags.GUARDAR),
+                        etiqueta = "Guardar",
+                        icon = ShalevIcons.Guardar, modifier = Modifier.testTag(ProductoFormTags.GUARDAR).coachMark(ObjetivosRecorrido.FORM_GUARDAR),
                     )
                 }
             }
@@ -204,7 +211,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
             filtro = FiltroEntrada.NOMBRE,
             value = f.nombre, onValueChange = a.onNombre, label = "Nombre *", isError = Campos.NOMBRE in err, errorText = err[Campos.NOMBRE], validarAlSalir = true, forzarError = state.intentado,
             imeAction = ImeAction.Next,
-            modifier = Modifier.testTag(ProductoFormTags.NOMBRE),
+            modifier = Modifier.testTag(ProductoFormTags.NOMBRE).coachMark(ObjetivosRecorrido.FORM_NOMBRE),
         )
         ShalevTextField(
             filtro = FiltroEntrada.TEXTO,
@@ -237,7 +244,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
                 value = f.precioCosto, onValueChange = a.onCosto, label = "Precio de costo (CUP) *", placeholder = "0.00", keyboardOptions = numero,
                 isError = Campos.PRECIO_COSTO in err, errorText = err[Campos.PRECIO_COSTO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Por unidad",
                 imeAction = ImeAction.Next,
-            modifier = Modifier.testTag(ProductoFormTags.COSTO),
+            modifier = Modifier.testTag(ProductoFormTags.COSTO).coachMark(ObjetivosRecorrido.FORM_PRECIOS),
             )
         }
         ShalevTextField(
@@ -254,7 +261,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
                 value = f.cantidad, onValueChange = a.onCantidad, label = "Cantidad *", placeholder = "0", keyboardOptions = entero,
                 isError = Campos.CANTIDAD in err, errorText = err[Campos.CANTIDAD], validarAlSalir = true, forzarError = state.intentado, supportingText = "Unidades que tienes",
                 imeAction = ImeAction.Next,
-                modifier = Modifier.testTag(ProductoFormTags.CANTIDAD),
+                modifier = Modifier.testTag(ProductoFormTags.CANTIDAD).coachMark(ObjetivosRecorrido.FORM_EXISTENCIAS),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
                 ShalevTextField(
@@ -262,7 +269,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
                     value = f.nivelBajo, onValueChange = a.onBajo, label = "Nivel bajo", placeholder = "5", keyboardOptions = entero,
                     isError = Campos.NIVEL_BAJO in err, errorText = err[Campos.NIVEL_BAJO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Opcional",
                     imeAction = ImeAction.Next,
-                modifier = Modifier.weight(1f).testTag(ProductoFormTags.BAJO),
+                modifier = Modifier.weight(1f).testTag(ProductoFormTags.BAJO).coachMark(ObjetivosRecorrido.FORM_AVISOS),
                 )
                 ShalevTextField(
                     filtro = FiltroEntrada.ENTERO,
@@ -302,7 +309,7 @@ private fun CampoCategoria(
             filtro = FiltroEntrada.NOMBRE,
             value = valor, onValueChange = { onValor(it); abierto = true }, label = "Categoría *",
             isError = error != null, errorText = error, validarAlSalir = true, forzarError = forzarError, supportingText = "Elige o escribe una nueva",
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).testTag(ProductoFormTags.CATEGORIA),
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).testTag(ProductoFormTags.CATEGORIA).coachMark(ObjetivosRecorrido.FORM_CATEGORIA),
         )
         ExposedDropdownMenu(expanded = abierto && opciones.isNotEmpty(), onDismissRequest = { abierto = false }) {
             opciones.forEach { c ->
@@ -317,14 +324,14 @@ private fun Foto(uri: String?, nombre: String, importando: Boolean, a: AccionesF
     // 0.27.0 (T13): miniatura centrada + Cámara / Galería / Quitar (solo icono).
     cu.shalev.app.common.SelectorFoto(
         uri = uri, descripcion = nombre.ifBlank { "producto" }, importando = importando,
-        onFoto = a.onFoto, onQuitar = a.onQuitarFoto, modifier = Modifier.testTag(ProductoFormTags.FOTO),
+        onFoto = a.onFoto, onQuitar = a.onQuitarFoto, modifier = Modifier.testTag(ProductoFormTags.FOTO).coachMark(ObjetivosRecorrido.FORM_FOTO),
     )
 }
 
 @Composable
 private fun Receta(state: ProductoFormUiState, a: AccionesForm) {
     val err = state.errores[Campos.RECETA]
-    Column(Modifier.testTag(ProductoFormTags.RECETA), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+    Column(Modifier.testTag(ProductoFormTags.RECETA).coachMark(ObjetivosRecorrido.FORM_INSUMOS), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
         Text("Receta *", style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().semantics { heading() })
         ShalevSecondaryText("Insumos de UNA unidad", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         state.form.receta.forEach { l ->
@@ -335,12 +342,12 @@ private fun Receta(state: ProductoFormUiState, a: AccionesForm) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), clearable = false,
                     modifier = Modifier.weight(1f).testTag(ProductoFormTags.cantidadInsumo(l.insumoId)),
                 )
-                ShalevIconAction(ShalevIcons.Quitar, "Quitar ${l.nombre}", onClick = { a.onQuitarInsumo(l.insumoId) })
+                ShalevIconAction(ShalevIcons.Quitar, "Quitar ${l.nombre}", etiqueta = "Quitar", onClick = { a.onQuitarInsumo(l.insumoId) })
             }
         }
         if (err != null) Text(err, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         ShalevButtonRow {
-            ShalevSecondaryButton("Agregar insumo", onClick = { a.onMostrarInsumos(true) }, icon = ShalevIcons.AgregarALista, modifier = Modifier.testTag(ProductoFormTags.AGREGAR_INSUMO))
+            ShalevSecondaryButton("Agregar insumo", onClick = { a.onMostrarInsumos(true) }, icon = ShalevIcons.AgregarALista, etiqueta = "Insumo", modifier = Modifier.testTag(ProductoFormTags.AGREGAR_INSUMO))
         }
     }
 }

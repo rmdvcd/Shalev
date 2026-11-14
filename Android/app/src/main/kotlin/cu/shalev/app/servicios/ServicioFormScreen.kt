@@ -1,5 +1,9 @@
 package cu.shalev.app.servicios
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -108,16 +112,18 @@ fun ServicioFormScreen(onBack: () -> Unit, onGuardado: (String) -> Unit, viewMod
             }
         }
     }
-    ServicioFormContent(
-        state = state,
-        snackbar = snackbar,
-        acciones = AccionesServicioForm(
-            onCostoAdicional = viewModel::costoAdicional, onNombre = viewModel::nombre, onTipo = viewModel::tipo, onImporte = viewModel::importe, onDescripcion = viewModel::descripcion,
-            onElegirFoto = { elegirFoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-            onQuitarFoto = viewModel::quitarFoto, onFoto = { viewModel.fotoElegida(it) }, onMostrarInsumos = viewModel::mostrarInsumos, onAgregarInsumo = viewModel::agregarInsumo,
-            onCantidadInsumo = viewModel::cantidadInsumo, onQuitarInsumo = viewModel::quitarInsumo, onGuardar = viewModel::guardar, onBack = onBack,
-        ),
-    )
+    RecorridoModulo(Recorrido.SERVICIO_FORM, listo = !state.hojaInsumos) {
+        ServicioFormContent(
+            state = state,
+            snackbar = snackbar,
+            acciones = AccionesServicioForm(
+                onCostoAdicional = viewModel::costoAdicional, onNombre = viewModel::nombre, onTipo = viewModel::tipo, onImporte = viewModel::importe, onDescripcion = viewModel::descripcion,
+                onElegirFoto = { elegirFoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                onQuitarFoto = viewModel::quitarFoto, onFoto = { viewModel.fotoElegida(it) }, onMostrarInsumos = viewModel::mostrarInsumos, onAgregarInsumo = viewModel::agregarInsumo,
+                onCantidadInsumo = viewModel::cantidadInsumo, onQuitarInsumo = viewModel::quitarInsumo, onGuardar = viewModel::guardar, onBack = onBack,
+            ),
+        )
+    }
 }
 
 @Composable
@@ -131,7 +137,8 @@ fun ServicioFormContent(state: ServicioFormUiState, acciones: AccionesServicioFo
                 ShalevBarraAcciones {
                     ShalevPrimaryButton(
                         if (state.esNuevo) "Guardar servicio" else "Guardar cambios", onClick = acciones.onGuardar, loading = state.guardando,
-                        icon = ShalevIcons.Guardar, modifier = Modifier.testTag(ServicioFormTags.GUARDAR),
+                        etiqueta = "Guardar",
+                        icon = ShalevIcons.Guardar, modifier = Modifier.testTag(ServicioFormTags.GUARDAR).coachMark(ObjetivosRecorrido.FORM_GUARDAR),
                     )
                 }
             }
@@ -169,7 +176,7 @@ private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, modi
             filtro = FiltroEntrada.NOMBRE,
             value = f.nombre, onValueChange = a.onNombre, label = "Nombre *", placeholder = "Corte de pelo",
             isError = CamposServicio.NOMBRE in err, errorText = err[CamposServicio.NOMBRE], validarAlSalir = true, forzarError = state.intentado,
-            imeAction = ImeAction.Next, modifier = Modifier.testTag(ServicioFormTags.NOMBRE),
+            imeAction = ImeAction.Next, modifier = Modifier.testTag(ServicioFormTags.NOMBRE).coachMark(ObjetivosRecorrido.FORM_NOMBRE),
         )
         CampoTipo(f.tipo, state.tipos, err[CamposServicio.TIPO], state.intentado, a.onTipo)
         ShalevTextField(f.costoAdicional, a.onCostoAdicional, label = "Mano de obra y otros costos (CUP)", filtro = FiltroEntrada.DINERO,
@@ -180,7 +187,7 @@ private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, modi
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             isError = CamposServicio.IMPORTE in err, errorText = err[CamposServicio.IMPORTE], validarAlSalir = true, forzarError = state.intentado,
             supportingText = "Lo que cobras cada vez", imeAction = ImeAction.Next,
-            modifier = Modifier.testTag(ServicioFormTags.IMPORTE),
+            modifier = Modifier.testTag(ServicioFormTags.IMPORTE).coachMark(ObjetivosRecorrido.FORM_PRECIOS),
         )
         ShalevTextField(
             filtro = FiltroEntrada.TEXTO,
@@ -210,7 +217,7 @@ private fun CampoTipo(valor: String, tipos: List<String>, error: String?, forzar
             filtro = FiltroEntrada.NOMBRE,
             value = valor, onValueChange = { onValor(it); abierto = true }, label = "Tipo *", placeholder = "Peluquería",
             isError = error != null, errorText = error, validarAlSalir = true, forzarError = forzarError, supportingText = "Elige o escribe uno nuevo",
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).testTag(ServicioFormTags.TIPO),
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).testTag(ServicioFormTags.TIPO).coachMark(ObjetivosRecorrido.FORM_CATEGORIA),
         )
         ExposedDropdownMenu(expanded = abierto && opciones.isNotEmpty(), onDismissRequest = { abierto = false }) {
             opciones.forEach { t -> DropdownMenuItem(text = { Text(t) }, onClick = { onValor(t); abierto = false }) }
@@ -223,14 +230,14 @@ private fun Foto(uri: String?, nombre: String, importando: Boolean, a: AccionesS
     // 0.27.0 (T13): miniatura centrada + Cámara / Galería / Quitar (solo icono).
     cu.shalev.app.common.SelectorFoto(
         uri = uri, descripcion = nombre.ifBlank { "servicio" }, importando = importando,
-        onFoto = a.onFoto, onQuitar = a.onQuitarFoto, modifier = Modifier.testTag(ServicioFormTags.FOTO),
+        onFoto = a.onFoto, onQuitar = a.onQuitarFoto, modifier = Modifier.testTag(ServicioFormTags.FOTO).coachMark(ObjetivosRecorrido.FORM_FOTO),
     )
 }
 
 @Composable
 private fun Insumos(state: ServicioFormUiState, a: AccionesServicioForm) {
     val err = state.errores[CamposServicio.INSUMOS]
-    Column(Modifier.testTag(ServicioFormTags.INSUMOS), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+    Column(Modifier.testTag(ServicioFormTags.INSUMOS).coachMark(ObjetivosRecorrido.FORM_INSUMOS), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
         Text("Insumos que gasta (opcional)", style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().semantics { heading() })
         ShalevSecondaryText("Por cada vez que lo prestas. Se descuentan al venderlo.", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         state.form.insumos.forEach { l ->
@@ -241,7 +248,7 @@ private fun Insumos(state: ServicioFormUiState, a: AccionesServicioForm) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), clearable = false,
                     modifier = Modifier.weight(1f).testTag(ServicioFormTags.cantidadInsumo(l.insumoId)),
                 )
-                ShalevIconAction(ShalevIcons.Quitar, "Quitar ${l.nombre}", onClick = { a.onQuitarInsumo(l.insumoId) })
+                ShalevIconAction(ShalevIcons.Quitar, "Quitar ${l.nombre}", etiqueta = "Quitar", onClick = { a.onQuitarInsumo(l.insumoId) })
             }
         }
         if (err != null) Text(err, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -254,7 +261,7 @@ private fun Insumos(state: ServicioFormUiState, a: AccionesServicioForm) {
             }
         }
         ShalevButtonRow {
-            ShalevSecondaryButton("Agregar insumo", onClick = { a.onMostrarInsumos(true) }, icon = ShalevIcons.AgregarALista, modifier = Modifier.testTag(ServicioFormTags.AGREGAR_INSUMO))
+            ShalevSecondaryButton("Agregar insumo", onClick = { a.onMostrarInsumos(true) }, icon = ShalevIcons.AgregarALista, etiqueta = "Insumo", modifier = Modifier.testTag(ServicioFormTags.AGREGAR_INSUMO))
         }
     }
 }

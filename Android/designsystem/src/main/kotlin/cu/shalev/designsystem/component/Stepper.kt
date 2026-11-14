@@ -34,7 +34,7 @@ object ShalevStepperTextos {
  *
  * - Muestra «Paso 2 de 3», el título del paso y una barra de progreso.
  * - Al cambiar de paso, TalkBack lo anuncia («Paso 2 de 3: Enviar solicitud») gracias a una región viva.
- * - Atrás y Siguiente son botones de icono de 48dp. Si no se pasan, no se muestran; si falta solo uno, su hueco
+ * - Atrás y Siguiente son botones de icono de 48dp (excepción de la regla de botones: adelante/atrás). Si no se pasan, no se muestran; si falta solo uno, su hueco
  *   se reserva para que el título no salte. Sin ninguno (Onboarding, Importar), el título usa todo el ancho.
  * - [siguienteHabilitado] = false hasta que el paso tenga datos válidos.
  * - Las flechas son «repetibles» (sin la protección anti-doble-toque de [GuardiaDobleToque]): navegar paso a paso
@@ -55,7 +55,7 @@ fun ShalevStepper(
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             if (onAtras != null) {
-                ShalevIconAction(ShalevIcons.Disminuir, ShalevStepperTextos.ATRAS, onClick = onAtras, repetible = true)
+                ShalevIconAction(ShalevIcons.Disminuir, ShalevStepperTextos.ATRAS, onClick = onAtras, repetible = true, mostrarTexto = false)
             } else if (conBotones) {
                 Spacer(Modifier.size(ShalevSize.touchTarget))
             }
@@ -74,6 +74,7 @@ fun ShalevStepper(
                 ShalevIconAction(
                     ShalevIcons.Aumentar, ShalevStepperTextos.SIGUIENTE, onClick = onSiguiente,
                     enabled = siguienteHabilitado, style = IconActionStyle.Filled, repetible = true,
+                    mostrarTexto = false, // excepción de la regla de botones: atrás/adelante
                 )
             } else if (conBotones) {
                 Spacer(Modifier.size(ShalevSize.touchTarget))

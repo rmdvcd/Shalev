@@ -1,5 +1,6 @@
 package cu.shalev.app.inicio
 
+import cu.shalev.app.recorrido.recorridoVentana
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.app.recorrido.Recorrido
 import cu.shalev.app.recorrido.RecorridoModulo
@@ -317,7 +318,7 @@ fun InicioContent(
                 // mientras el resto de Inicio hace scroll.
                 
                 // Selección compartida; los nombres se administran en Ajustes.
-                localViewModel?.let { LocalInicioSelector(it) }
+                localViewModel?.let { LocalInicioSelector(it, Modifier.coachMark(ObjetivosRecorrido.CAJA_LOCAL)) }
                 
                 BloqueFijo(state, acciones, permisos, zona)
                 val estadoLista = remember { LazyListState() }
@@ -361,6 +362,7 @@ fun InicioContent(
                             state.cierrePedido -> null
                             else -> "Cerrar aviso"
                         },
+                        actionEtiqueta = if (state.cierrePedido && state.conteoPospuesto && state.pideConteo) "Contar" else "Cerrar",
                         onAction = when {
                             state.cierrePedido && state.conteoPospuesto && state.pideConteo -> acciones.onContar
                             state.cierrePedido -> null
@@ -379,6 +381,7 @@ fun InicioContent(
                         tone = BannerTone.Aviso,
                         actionIcon = if (state.cierreRechazado) ShalevIcons.Cancelar else null,
                         actionDescription = if (state.cierreRechazado) "Cerrar aviso" else null,
+                        actionEtiqueta = "Cerrar",
                         onAction = if (state.cierreRechazado) acciones.onDescartarAvisoCierre else null,
                         modifier = Modifier.testTag(InicioTags.SOLICITUD).then(shalevAnimateItem()),
                     )
@@ -410,6 +413,7 @@ fun InicioContent(
             if (permisos.verInventario) alertas(state.alertas, acciones, maxAlertas)
             // 0.21.0 (C9): en la secundaria, solo turno, Nueva venta y alertas; los accesos y los gráficos son del dueño.
             if (!permisos.esSecundaria) item(key = "accesos") {
+                Box(Modifier.coachMark(ObjetivosRecorrido.CAJA_ACCESOS)) {
                 val pago: @Composable (Modifier) -> Unit = { m ->
                     // Teléfono y cuenta/tarjeta en seminegrita (solo los números, no «Tel.» ni «Cuenta»).
                     Acceso(
@@ -437,6 +441,7 @@ fun InicioContent(
                         pago(Modifier.weight(1f))
                         precios(Modifier.weight(1f))
                     }
+                }
                 }
             }
             if (!permisos.esSecundaria) {
@@ -524,9 +529,9 @@ private fun TarjetaActualizacion(a: cu.shalev.app.actualizacion.EstadoActualizac
             if (a.progreso == null) {
                 ShalevPrimaryButton(T.ACTUALIZAR, onClick = acciones.onActualizar, icon = ShalevIcons.Importar)
                 // 0.26.0: «Más tarde» oculta el aviso hasta mañana (también en la secundaria); el plazo no cambia.
-                ShalevSecondaryButton(T.DESCARTAR, onClick = acciones.onDescartarActualizacion, icon = ShalevIcons.AhoraNo)
+                ShalevSecondaryButton(T.DESCARTAR, onClick = acciones.onDescartarActualizacion, icon = ShalevIcons.AhoraNo, etiqueta = "Después")
             } else {
-                ShalevSecondaryButton(T.CANCELAR, onClick = acciones.onCancelarDescarga, icon = ShalevIcons.Cancelar)
+                ShalevSecondaryButton(T.CANCELAR, onClick = acciones.onCancelarDescarga, icon = ShalevIcons.Cancelar, etiqueta = "Cancelar")
             }
         }
     }
@@ -563,14 +568,14 @@ private fun BloqueFijo(state: InicioUiState, acciones: AccionesInicio, permisos:
                     ShalevIcons.Venta,
                     "Nueva venta",
                     onClick = acciones.onNuevaVenta,
-                    soloIcono = true,
+                    etiqueta = "Vender",
                     modifier = Modifier.testTag(InicioTags.NUEVA_VENTA).coachMark(ObjetivosRecorrido.CAJA_VENDER),
                 )
                 ShalevFab(
                     ShalevIcons.CajaRegistradora,
                     cu.shalev.app.caja.TextosCaja.MOVIMIENTO_TITULO,
                     onClick = acciones.onMovimientoCaja,
-                    soloIcono = true,
+                    etiqueta = "Caja",
                     modifier = Modifier.testTag(InicioTags.CAJA).coachMark(ObjetivosRecorrido.CAJA_MOVIMIENTO),
                 )
             }
@@ -626,8 +631,9 @@ private fun NuevaVentaDialog(turnoAbierto: Boolean, acciones: AccionesInicio, ti
         onDismiss = acciones.onCerrarDialogo,
         onConfirm = null,
         modifier = Modifier.testTag(InicioTags.DIALOGO_VENTA),
+        recorrido = recorridoVentana(Recorrido.VENTANA_NUEVA_VENTA),
     ) {
-        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+        Column(Modifier.selectableGroup().coachMark(ObjetivosRecorrido.VENTANA_OPCIONES), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             if (!turnoAbierto) ShalevSecondaryText(TextosInicio.AVISO_TURNO_CERRADO)
             tipos.forEach { t ->
                 ShalevListItem(
@@ -649,6 +655,7 @@ private fun LazyListScope.alertas(alertas: List<AlertaUi>, acciones: AccionesIni
     // Se conserva el contenido anterior durante la salida, incluso al quedar sin alertas.
     item(key = "alertas") {
         AnimatedContent(
+            modifier = Modifier.coachMark(ObjetivosRecorrido.CAJA_ALERTAS),
             targetState = alertas,
             contentKey = { lista -> lista.map { it.tipo } },
             transitionSpec = { fadeIn(ShalevMotion.tween(ShalevMotion.SHORT)) togetherWith fadeOut(ShalevMotion.tween(ShalevMotion.SHORT)) },

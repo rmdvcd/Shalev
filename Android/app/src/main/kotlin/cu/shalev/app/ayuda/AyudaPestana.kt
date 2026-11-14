@@ -75,7 +75,7 @@ fun DialogoAyudaPestana(
     val verRecorrido: (@Composable () -> Unit)? = if (recorrido == null) null else {
         {
             ShalevSecondaryButton(
-                VER_RECORRIDO, icon = cu.shalev.designsystem.icon.ShalevIcons.Restablecer,
+                VER_RECORRIDO, icon = cu.shalev.designsystem.icon.ShalevIcons.Restablecer, etiqueta = "Recorrido",
                 onClick = { onDismiss(); recorrido.iniciar() },
                 modifier = Modifier.testTag(AyudaPestanaTags.VER_RECORRIDO),
             )
@@ -86,6 +86,7 @@ fun DialogoAyudaPestana(
         onDismiss = onDismiss,
         onConfirm = onVerManual,
         confirmDescription = "Ver manual completo",
+        confirmEtiqueta = "Manual",
         confirmIcon = cu.shalev.designsystem.icon.ShalevIcons.Ayuda,
         dismissDescription = "Cerrar",
         secundarias = verRecorrido,

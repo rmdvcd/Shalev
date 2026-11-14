@@ -14,14 +14,14 @@ import cu.shalev.designsystem.token.ShalevSpacing
 
 /** La selección es compartida; los nombres se administran en Ajustes. */
 @Composable
-fun LocalInicioSelector(viewModel: LocalViewModel) {
+fun LocalInicioSelector(viewModel: LocalViewModel, modifier: Modifier = Modifier) {
     val locales by viewModel.locales.collectAsStateWithLifecycle(initialValue = emptyList())
     val error by viewModel.error.collectAsStateWithLifecycle()
     ShalevComboBox(
         label = "Local", opciones = locales.map { it.nombre },
         seleccion = locales.firstOrNull { it.seleccionado }?.nombre ?: "Selecciona un local en Ajustes",
         etiqueta = { it }, onSeleccion = viewModel::seleccionar, centrado = true,
-        modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag("local_inicio_selector"),
+        modifier = modifier.padding(horizontal = ShalevSpacing.md).testTag("local_inicio_selector"),
     )
     error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = ShalevSpacing.md)) }
 }

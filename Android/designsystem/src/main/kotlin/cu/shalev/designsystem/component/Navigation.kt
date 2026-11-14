@@ -1,8 +1,13 @@
 package cu.shalev.designsystem.component
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -12,6 +17,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -29,6 +35,7 @@ import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.theme.ShalevMarca
 import cu.shalev.designsystem.token.ShalevElevation
 import cu.shalev.designsystem.token.ShalevSize
+import cu.shalev.designsystem.token.ShalevSpacing
 
 @Immutable
 data class ShalevNavItem(val key: String, val icon: ImageVector, val label: String)
@@ -77,8 +84,8 @@ fun ShalevNavigationBar(
 }
 
 /**
- * Icono compartido de Ayuda en la esquina superior izquierda; abre el contenido de esa pestaña.
- * Va en el hueco de navegación de [ShalevTopBar]. Sin borde ni fondo: un icono limpio que usa el color primario.
+ * Botón compartido de Ayuda en la esquina superior izquierda; abre el contenido de esa pestaña.
+ * Va en el hueco de navegación de [ShalevTopBar]. 1.1 (regla de botones): icono «?» + «Ayuda», en el color primario.
  */
 @Composable
 fun ShalevBotonAyuda(
@@ -87,13 +94,20 @@ fun ShalevBotonAyuda(
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
-    IconButton(
+    TextButton(
         onClick = onClick,
-        modifier = modifier.size(ShalevSize.touchTarget).semantics { contentDescription = descripcion },
+        modifier = modifier.heightIn(min = ShalevSize.touchTarget).semantics { contentDescription = descripcion },
+        contentPadding = PaddingValues(horizontal = ShalevSpacing.xs),
+        colors = ButtonDefaults.textButtonColors(contentColor = cs.primary),
     ) {
-        Icon(ShalevIcons.Ayuda, contentDescription = null, tint = cs.primary, modifier = Modifier.size(ShalevSize.icon))
+        Icon(ShalevIcons.Ayuda, contentDescription = null, modifier = Modifier.size(ShalevSize.iconSmall))
+        Spacer(Modifier.width(ShalevSpacing.xxs))
+        Text(TEXTO_AYUDA, style = MaterialTheme.typography.labelLarge, maxLines = 1)
     }
 }
+
+/** Palabra visible del botón de ayuda. */
+const val TEXTO_AYUDA = "Ayuda"
 
 /**
  * Barra superior estándar, centrada (0.27.0, T1): título en el centro y sin logo; Atrás a la izquierda y las acciones
@@ -129,8 +143,8 @@ fun ShalevTopBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (onAyuda != null) {
                     if (LocalShalevVentana.current) {
-                        ShalevIconAction(ShalevIcons.Ayuda, ayudaDescripcion, onClick = onAyuda, etiqueta = "Ayuda")
-                    } else ShalevBotonAyuda(descripcion = ayudaDescripcion, onClick = onAyuda)
+                        ShalevIconAction(ShalevIcons.Ayuda, ayudaDescripcion, onClick = onAyuda, etiqueta = "Ayuda", modifier = Modifier.coachMark(CoachMarkObjetivos.AYUDA))
+                    } else ShalevBotonAyuda(descripcion = ayudaDescripcion, onClick = onAyuda, modifier = Modifier.coachMark(CoachMarkObjetivos.AYUDA))
                 }
                 if (onBack != null) {
                     if (LocalShalevVentana.current) {

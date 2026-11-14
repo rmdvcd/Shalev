@@ -1,9 +1,15 @@
 package cu.shalev.app.respaldo
 
+import cu.shalev.app.recorrido.recorridoVentana
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import cu.shalev.designsystem.component.ShalevListItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.text.style.TextAlign
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -123,21 +129,23 @@ fun RespaldoScreen(onBack: () -> Unit, viewModel: RespaldoViewModel = hiltViewMo
             }
         }
     }
-    RespaldoContent(
-        state = state,
-        onBack = onBack,
-        acciones = AccionesRespaldo(
-            onEditarExport = viewModel::editarExport,
-            onGuardar = viewModel::guardarEnTelefono,
-            onElegirArchivo = { abrir.launch(abrirDocumento()) },
-            onContrasenaImport = viewModel::editarImport, onConfirmarImport = viewModel::confirmarImport,
-            onCancelarImport = viewModel::cancelarImport,
-            onCerrarResultado = viewModel::cerrarResultado,
-            onNuevoRespaldo = viewModel::nuevoRespaldo,
-            onGuardarCopiaPrevia = viewModel::guardarCopiaPrevia,
-        ),
-        snackbar = snackbar,
-    )
+    RecorridoModulo(Recorrido.RESPALDO, listo = state.importacion == null && state.resultado == null) {
+        RespaldoContent(
+            state = state,
+            onBack = onBack,
+            acciones = AccionesRespaldo(
+                onEditarExport = viewModel::editarExport,
+                onGuardar = viewModel::guardarEnTelefono,
+                onElegirArchivo = { abrir.launch(abrirDocumento()) },
+                onContrasenaImport = viewModel::editarImport, onConfirmarImport = viewModel::confirmarImport,
+                onCancelarImport = viewModel::cancelarImport,
+                onCerrarResultado = viewModel::cerrarResultado,
+                onNuevoRespaldo = viewModel::nuevoRespaldo,
+                onGuardarCopiaPrevia = viewModel::guardarCopiaPrevia,
+            ),
+            snackbar = snackbar,
+        )
+    }
 }
 
 /** "Guardar como" en el almacenamiento interno (Descargas). Solo proveedores locales (sin nubes). */
@@ -196,9 +204,9 @@ fun RespaldoContent(
 
             if (state.hayCopiaPrevia) ShalevCard(title = "Copia previa a la actualización") {
                 ShalevSecondaryText("La app conserva la base migrada; esta copia NO se restaura automáticamente. Puede no contener las últimas operaciones. Guárdala solo para una recuperación y haz antes un respaldo actual.")
-                ShalevSecondaryButton("Guardar copia previa", acciones.onGuardarCopiaPrevia, ShalevIcons.Exportar, enabled = !state.ocupado, mostrarTexto = true)
+                ShalevSecondaryButton("Guardar copia previa", acciones.onGuardarCopiaPrevia, ShalevIcons.Exportar, enabled = !state.ocupado, etiqueta = "Copia")
             }
-            ShalevCard(title = "Exportar") {
+            ShalevCard(title = "Exportar", modifier = Modifier.coachMark(ObjetivosRecorrido.RESPALDO_EXPORTAR)) {
                 Text(TextosRespaldo.CONTENIDO, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 val e = state.export
                 var elegido by rememberSaveable { mutableIntStateOf(1) }
@@ -219,7 +227,7 @@ fun RespaldoContent(
                         leading = { Icon(ShalevIcons.Bloqueo, contentDescription = null) },
                         onClick = { acciones.onEditarExport { it.copy(conContrasena = !it.conContrasena, mostrarErrores = false) } },
                         trailing = { Switch(checked = e.conContrasena, onCheckedChange = null) },
-                        modifier = Modifier.testTag(RespaldoTags.PROTEGER),
+                        modifier = Modifier.testTag(RespaldoTags.PROTEGER).coachMark(ObjetivosRecorrido.RESPALDO_CONTRASENA),
                     )
                     if (!e.conContrasena) {
                         ShalevSecondaryText(TextosRespaldo.SIN_CONTRASENA_AVISO, modifier = Modifier.testTag(RespaldoTags.SIN_CONTRASENA))
@@ -247,7 +255,7 @@ fun RespaldoContent(
                     )
                     ShalevButtonRow {
                         ShalevSecondaryButton(
-                            PasosRespaldo.OTRO_RESPALDO, onClick = { elegido = 1; acciones.onNuevoRespaldo() }, icon = ShalevIcons.Respaldo,
+                            PasosRespaldo.OTRO_RESPALDO, onClick = { elegido = 1; acciones.onNuevoRespaldo() }, icon = ShalevIcons.Respaldo, etiqueta = "Otro",
                             modifier = Modifier.testTag(RespaldoTags.OTRO_RESPALDO),
                         )
                     }
@@ -255,14 +263,14 @@ fun RespaldoContent(
                     ShalevSecondaryText(if (e.conContrasena) TextosRespaldo.CONTRASENA_LISTA else TextosRespaldo.LISTO_SIN_CONTRASENA)
                     ShalevButtonRow {
                         ShalevPrimaryButton(
-                            "Guardar en el teléfono", onClick = acciones.onGuardar, enabled = !state.ocupado, icon = ShalevIcons.Exportar,
+                            "Guardar en el teléfono", onClick = acciones.onGuardar, enabled = !state.ocupado, icon = ShalevIcons.Exportar, etiqueta = "Guardar",
                             modifier = Modifier.testTag(RespaldoTags.GUARDAR),
                         )
                     }
                 }
             }
 
-            ShalevCard(title = "Importar") {
+            ShalevCard(title = "Importar", modifier = Modifier.coachMark(ObjetivosRecorrido.RESPALDO_IMPORTAR)) {
                 val comprobando = state.progreso?.texto == EtapasRespaldo.COMPROBANDO && state.importacion == null
                 val pasoImp = PasosRespaldo.pasoImportarTarjeta(comprobando, state.importacion)
                 ShalevStepper(
@@ -272,7 +280,7 @@ fun RespaldoContent(
                 Text(TextosRespaldo.IMPORTAR_AYUDA, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 ShalevButtonRow {
                     ShalevSecondaryButton(
-                        "Elegir archivo", onClick = acciones.onElegirArchivo, enabled = !state.ocupado, icon = ShalevIcons.ElegirArchivo,
+                        "Elegir archivo", onClick = acciones.onElegirArchivo, enabled = !state.ocupado, icon = ShalevIcons.ElegirArchivo, etiqueta = "Elegir",
                         modifier = Modifier.testTag(RespaldoTags.IMPORTAR),
                     )
                 }
@@ -287,11 +295,12 @@ fun RespaldoContent(
             onConfirm = acciones.onConfirmarImport.takeUnless { state.ocupado },
             confirmDescription = "Importar",
             destructive = true,
+            recorrido = recorridoVentana(Recorrido.VENTANA_IMPORTAR),
             content = {
                 Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
                     Text(
                         listOfNotNull(describirArchivo(imp.info, zona), imp.nombre).joinToString(" · "),
-                        style = MaterialTheme.typography.titleSmall, modifier = Modifier.testTag(RespaldoTags.ARCHIVO),
+                        style = MaterialTheme.typography.titleSmall, modifier = Modifier.testTag(RespaldoTags.ARCHIVO).coachMark(ObjetivosRecorrido.VENTANA_DATOS),
                     )
                     ShalevSecondaryText(PasosRespaldo.COMPROBADO)
                     ShalevSecondaryText(
@@ -300,11 +309,13 @@ fun RespaldoContent(
                     )
                     Text(TextosRespaldo.AVISO_IMPORTAR, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     if (PasosRespaldo.pideContrasena(imp)) {
-                        CampoContrasena(
-                            imp.contrasena, acciones.onContrasenaImport, "Contraseña del respaldo",
-                            error = imp.error, tag = RespaldoTags.CONTRASENA_IMPORTAR, imeAction = ImeAction.Done,
-                            onImeAction = { if (!state.ocupado && imp.contrasena.isNotEmpty()) acciones.onConfirmarImport() },
-                        )
+                        Box(Modifier.fillMaxWidth().coachMark(ObjetivosRecorrido.VENTANA_CONTRASENA)) {
+                            CampoContrasena(
+                                imp.contrasena, acciones.onContrasenaImport, "Contraseña del respaldo",
+                                error = imp.error, tag = RespaldoTags.CONTRASENA_IMPORTAR, imeAction = ImeAction.Done,
+                                onImeAction = { if (!state.ocupado && imp.contrasena.isNotEmpty()) acciones.onConfirmarImport() },
+                            )
+                        }
                     } else {
                         ShalevSecondaryText(TextosRespaldo.SIN_CONTRASENA_AVISO) // 0.27.0 (T10): no se pide contraseña
                     }

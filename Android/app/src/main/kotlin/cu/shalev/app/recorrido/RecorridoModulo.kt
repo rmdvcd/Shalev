@@ -1,18 +1,20 @@
 package cu.shalev.app.recorrido
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cu.shalev.designsystem.component.CoachMarkHost
 import cu.shalev.designsystem.component.CoachMarkPaso
+import cu.shalev.designsystem.component.EnvoltorioRecorrido
 import cu.shalev.designsystem.component.rememberCoachMarkState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -36,17 +38,23 @@ class RecorridosViewModel @Inject constructor(private val vistos: RecorridosVist
  * Envuelve el contenido de un módulo con su recorrido. Se muestra solo la primera vez: observa el indicador de
  * DataStore y, si aún no se vio y la pantalla está [listo] (datos cargados, sin diálogos ni hojas abiertos), lo
  * inicia. Se marca como visto solo con «Finalizar», «Omitir» o Atrás; si se cierra la app a mitad, vuelve a salir.
+ * Usa el ViewModel único de [LocalRecorridos] (lo pone MainScaffold); sin él no hay recorrido.
  */
 @Composable
 fun RecorridoModulo(
     recorrido: Recorrido,
     listo: Boolean,
     modifier: Modifier = Modifier,
-    viewModel: RecorridosViewModel = hiltViewModel(),
+    viewModel: RecorridosViewModel? = LocalRecorridos.current,
     content: @Composable () -> Unit,
 ) {
+    // Sin el ViewModel de recorridos (pruebas de pantalla sueltas, capturas) la pantalla se muestra tal cual.
+    if (viewModel == null) {
+        Box(modifier) { content() }
+        return
+    }
     // Hasta leer DataStore se asume «visto» para que el recorrido nunca parpadee al entrar.
-    val visto by remember(recorrido) { viewModel.visto(recorrido) }.collectAsState(initial = true)
+    val visto by remember(recorrido, viewModel) { viewModel.visto(recorrido) }.collectAsState(initial = true)
     RecorridoModulo(
         pasos = recorrido.pasos,
         visto = visto,
@@ -55,6 +63,25 @@ fun RecorridoModulo(
         modifier = modifier,
         content = content,
     )
+}
+
+/**
+ * Recorridos de toda la app (lo pone [cu.shalev.app.navigation.MainScaffold]). Las ventanas emergentes lo leen con
+ * [recorridoVentana]; sin él (pruebas de los *Content, capturas) las ventanas se abren sin recorrido.
+ */
+val LocalRecorridos = staticCompositionLocalOf<RecorridosViewModel?> { null }
+
+/**
+ * Recorrido de una ventana emergente (formulario, filtro, exportar…) para pasarlo a `ShalevDialog(recorrido = …)` o
+ * `ShalevBottomSheet(recorrido = …)`. Como el de los módulos: sale una vez, empieza al abrirse la ventana y se guarda
+ * solo con «Finalizar», «Omitir» o Atrás. Devuelve null si no hay [LocalRecorridos].
+ */
+@Composable
+fun recorridoVentana(recorrido: Recorrido): EnvoltorioRecorrido? {
+    val vm = LocalRecorridos.current ?: return null
+    return remember<EnvoltorioRecorrido>(recorrido, vm) {
+        { contenido -> RecorridoModulo(recorrido, listo = true, viewModel = vm) { contenido() } }
+    }
 }
 
 /** Espera tras entrar a la pantalla: deja terminar la transición y que los objetivos se coloquen. */

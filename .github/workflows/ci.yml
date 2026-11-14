@@ -53,6 +53,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
       - name: Pruebas de herramientas de verificación
         run: python3 -m unittest discover -s tools/verificacion/tests -p 'test_*.py'
+      - name: Regla de botones (texto de una palabra)
+        run: python3 tools/verificacion/botones.py
       - name: shalevTests + compilar androidTest
         run: |
           set -o pipefail

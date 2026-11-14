@@ -1,5 +1,9 @@
 package cu.shalev.app.registros
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.recorridoVentana
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -213,7 +217,7 @@ fun ClientesFijosTab(state: ClientesUiState, acciones: AccionesClientes, zona: Z
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         ShalevIconAction(
-                            ShalevIcons.Cancelar, "Quitar selección", onClick = { marcados = emptySet() },
+                            ShalevIcons.Cancelar, "Quitar selección", etiqueta = "Quitar", onClick = { marcados = emptySet() },
                             modifier = Modifier.testTag(RegistrosTags.LIMPIAR_SELECCION),
                         )
                         Text(
@@ -251,21 +255,22 @@ fun ClientesFijosTab(state: ClientesUiState, acciones: AccionesClientes, zona: Z
     state.ficha?.let { c ->
         ShalevBottomSheet(
             onDismiss = acciones.onCerrar, title = c.nombreApellidos,
+            recorrido = recorridoVentana(Recorrido.VENTANA_FICHA_CLIENTE),
             // 0.31.0: «Editar» y «Quitar», centrados en el pie y siempre a la vista (la ficha puede ser más larga que la ventana).
             footer = {
                 ShalevSecondaryButton(
                     TextosClientes.EDITAR, icon = ShalevIcons.Editar, onClick = { acciones.onEditar(c) },
-                    modifier = Modifier.testTag(ClientesTags.EDITAR),
+                    modifier = Modifier.testTag(ClientesTags.EDITAR).coachMark(ObjetivosRecorrido.VENTANA_EDITAR),
                 )
                 ShalevSecondaryButton(
-                    TextosClientes.QUITAR, icon = ShalevIcons.Eliminar, onClick = acciones.onPedirQuitar,
-                    modifier = Modifier.testTag(ClientesTags.QUITAR),
+                    TextosClientes.QUITAR, icon = ShalevIcons.Eliminar, etiqueta = "Quitar", onClick = acciones.onPedirQuitar,
+                    modifier = Modifier.testTag(ClientesTags.QUITAR).coachMark(ObjetivosRecorrido.VENTANA_ELIMINAR),
                 )
             },
         ) {
             // Datos del cliente: la ventana de la hoja no hereda FLAG_SECURE de la pantalla.
             SecureDialogWindow()
-            Column(Modifier.fillMaxWidth().testTag(ClientesTags.FICHA), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+            Column(Modifier.fillMaxWidth().testTag(ClientesTags.FICHA).coachMark(ObjetivosRecorrido.VENTANA_DATOS), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
                 TextosClientes.campos(c, zona).forEach { (k, v) -> ShalevListItem(title = k, value = v, indicatorColor = null) }
             }
         }
@@ -273,7 +278,7 @@ fun ClientesFijosTab(state: ClientesUiState, acciones: AccionesClientes, zona: Z
             ShalevDialog(
                 title = TextosClientes.QUITAR_TITULO, text = TextosClientes.QUITAR_TEXTO,
                 onDismiss = acciones.onCancelarQuitar, onConfirm = acciones.onQuitar,
-                confirmDescription = TextosClientes.QUITAR, destructive = true, confirmTag = ClientesTags.CONFIRMAR_QUITAR,
+                confirmDescription = TextosClientes.QUITAR, confirmEtiqueta = "Quitar", destructive = true, confirmTag = ClientesTags.CONFIRMAR_QUITAR,
             )
         }
     }
@@ -281,11 +286,15 @@ fun ClientesFijosTab(state: ClientesUiState, acciones: AccionesClientes, zona: Z
         ShalevDialog(
             title = TextosClientes.EDITAR_TITULO, onDismiss = acciones.onCancelarEdicion, onConfirm = acciones.onGuardarEdicion,
             confirmDescription = TextosClientes.GUARDAR, confirmTag = ClientesTags.CONFIRMAR_EDITAR,
+            recorrido = recorridoVentana(Recorrido.VENTANA_EDITAR_CLIENTE),
         ) {
             SecureDialogWindow()
             // Nombre, carné y teléfono: aquí no hay número de transacción.
-            CampoCliente.entries.filter { it != CampoCliente.NUMERO }.forEach { campo ->
-                CampoClienteField(f, campo, acciones.onCampoEdicion, Modifier.testTag(ClientesTags.campoEditar(campo)))
+            CampoCliente.entries.filter { it != CampoCliente.NUMERO }.forEachIndexed { i, campo ->
+                CampoClienteField(
+                    f, campo, acciones.onCampoEdicion,
+                    Modifier.testTag(ClientesTags.campoEditar(campo)).then(if (i == 0) Modifier.coachMark(ObjetivosRecorrido.VENTANA_DATOS) else Modifier),
+                )
             }
             ShalevSecondaryText(TextosClientes.EDITAR_AYUDA, maxLines = 3)
             state.errorEdicion?.let { e ->

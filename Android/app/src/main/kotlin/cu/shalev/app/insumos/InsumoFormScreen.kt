@@ -1,5 +1,9 @@
 package cu.shalev.app.insumos
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
@@ -85,14 +89,16 @@ fun InsumoFormScreen(onBack: () -> Unit, onGuardado: (String) -> Unit, viewModel
             }
         }
     }
-    InsumoFormContent(
-        state = state,
-        snackbar = snackbar,
-        acciones = AccionesInsumoForm(
-            onNombre = viewModel::nombre, onPrecio = viewModel::precio, onPrecioVenta = viewModel::precioVenta, onCantidad = viewModel::cantidad, onUnidad = viewModel::unidad,
-            onBajo = viewModel::nivelBajo, onCritico = viewModel::nivelCritico, onGuardar = { viewModel.guardar() }, onBack = onBack,
-        ),
-    )
+    RecorridoModulo(Recorrido.INSUMO_FORM, listo = true) {
+        InsumoFormContent(
+            state = state,
+            snackbar = snackbar,
+            acciones = AccionesInsumoForm(
+                onNombre = viewModel::nombre, onPrecio = viewModel::precio, onPrecioVenta = viewModel::precioVenta, onCantidad = viewModel::cantidad, onUnidad = viewModel::unidad,
+                onBajo = viewModel::nivelBajo, onCritico = viewModel::nivelCritico, onGuardar = { viewModel.guardar() }, onBack = onBack,
+            ),
+        )
+    }
 }
 
 @Composable
@@ -111,7 +117,8 @@ fun InsumoFormContent(state: InsumoFormUiState, acciones: AccionesInsumoForm, sn
                 ShalevBarraAcciones {
                     ShalevPrimaryButton(
                         if (state.esNuevo) "Guardar insumo" else "Guardar cambios", onClick = acciones.onGuardar, loading = state.guardando,
-                        icon = ShalevIcons.Guardar, modifier = Modifier.testTag(InsumoFormTags.GUARDAR),
+                        etiqueta = "Guardar",
+                        icon = ShalevIcons.Guardar, modifier = Modifier.testTag(InsumoFormTags.GUARDAR).coachMark(ObjetivosRecorrido.FORM_GUARDAR),
                     )
                 }
             }
@@ -147,7 +154,7 @@ private fun Formulario(state: InsumoFormUiState, a: AccionesInsumoForm, modifier
             value = f.nombre, onValueChange = a.onNombre, label = "Nombre *", placeholder = "Harina de trigo",
             isError = CamposInsumo.NOMBRE in err, errorText = err[CamposInsumo.NOMBRE], validarAlSalir = true, forzarError = state.intentado,
             imeAction = ImeAction.Next,
-            modifier = Modifier.testTag(InsumoFormTags.NOMBRE),
+            modifier = Modifier.testTag(InsumoFormTags.NOMBRE).coachMark(ObjetivosRecorrido.FORM_NOMBRE),
         )
 
         // Cantidad + unidad de medida (la unidad define también cómo se leen el precio y los niveles).
@@ -156,7 +163,7 @@ private fun Formulario(state: InsumoFormUiState, a: AccionesInsumoForm, modifier
             value = f.cantidad, onValueChange = a.onCantidad, label = "Cantidad ($simbolo) *", placeholder = "0", keyboardOptions = decimal,
             isError = CamposInsumo.CANTIDAD in err, errorText = err[CamposInsumo.CANTIDAD], validarAlSalir = true, forzarError = state.intentado, supportingText = "Admite decimales: 2.5",
             imeAction = ImeAction.Next,
-            modifier = Modifier.testTag(InsumoFormTags.CANTIDAD),
+            modifier = Modifier.testTag(InsumoFormTags.CANTIDAD).coachMark(ObjetivosRecorrido.FORM_EXISTENCIAS),
         )
         ShalevComboBox(
             label = "Unidad de medida", opciones = UnidadMedida.entries, seleccion = f.unidad,
@@ -170,7 +177,7 @@ private fun Formulario(state: InsumoFormUiState, a: AccionesInsumoForm, modifier
             value = f.precio, onValueChange = a.onPrecio, label = "Precio de costo (CUP por $simbolo) *", placeholder = "0.00", keyboardOptions = decimal,
             isError = CamposInsumo.PRECIO in err, errorText = err[CamposInsumo.PRECIO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Lo que te cuesta 1 $simbolo",
             imeAction = ImeAction.Next,
-            modifier = Modifier.testTag(InsumoFormTags.PRECIO),
+            modifier = Modifier.testTag(InsumoFormTags.PRECIO).coachMark(ObjetivosRecorrido.FORM_PRECIOS),
         )
         // P29: los insumos también se pueden vender (unidades enteras de su medida) si tienen precio de venta.
         ShalevTextField(
@@ -187,7 +194,7 @@ private fun Formulario(state: InsumoFormUiState, a: AccionesInsumoForm, modifier
                 value = f.nivelBajo, onValueChange = a.onBajo, label = "Nivel bajo ($simbolo)", placeholder = "5", keyboardOptions = decimal,
                 isError = CamposInsumo.NIVEL_BAJO in err, errorText = err[CamposInsumo.NIVEL_BAJO], validarAlSalir = true, forzarError = state.intentado, supportingText = "Opcional",
                 imeAction = ImeAction.Next,
-            modifier = Modifier.weight(1f).testTag(InsumoFormTags.BAJO),
+            modifier = Modifier.weight(1f).testTag(InsumoFormTags.BAJO).coachMark(ObjetivosRecorrido.FORM_AVISOS),
             )
             ShalevTextField(
                 filtro = FiltroEntrada.DECIMAL,

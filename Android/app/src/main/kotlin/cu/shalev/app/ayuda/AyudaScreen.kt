@@ -1,5 +1,9 @@
 package cu.shalev.app.ayuda
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -59,76 +63,80 @@ fun AyudaScreen(onBack: () -> Unit) {
     val modulos = cu.shalev.app.common.LocalPermisosApp.current.modulos
     val secciones = AyudaContenido.seccionesPara(modulos)
 
-    Scaffold(topBar = { ShalevTopBar(title = "Manual de usuario", onBack = onBack) }) { padding ->
-        LazyColumn(
-            Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(ShalevSpacing.md),
-            verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-        ) {
-            item {
-                ShalevCard(tone = CardTone.Tonal) {
-                    Text(
-                        AyudaContenido.INTRO,
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-            // Iterar sobre cada categoría de ayuda
-            secciones.forEachIndexed { indice, (categoria, ayudas) ->
-                val ayuda = ayudas.first()
-                // Mostrar la sección de la categoría
+    RecorridoModulo(Recorrido.MANUAL, listo = true) {
+        Scaffold(topBar = { ShalevTopBar(title = "Manual de usuario", onBack = onBack) }) { padding ->
+            LazyColumn(
+                Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(ShalevSpacing.md),
+                verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+            ) {
                 item {
-                    Row(
-                        Modifier.fillMaxWidth().padding(top = ShalevSpacing.md, bottom = ShalevSpacing.xs)
-                            .testTag(AyudaTags.seccion(categoria.ordinal)),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-                    ) {
-                        Icon(iconoSeccion(categoria), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                categoria.titulo,
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.semantics { heading() },
-                            )
-                            Text(
-                                categoria.detalle,
-                                style = MaterialTheme.typography.bodySmall,
-                                textAlign = TextAlign.Start,
-                                modifier = Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs),
-                            )
-                        }
+                    ShalevCard(tone = CardTone.Tonal) {
+                        Text(
+                            AyudaContenido.INTRO,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
-                // Mostrar los temas/ventanas de ayuda para esta categoría
-                item {
-                    var abiertoCategoria by rememberSaveable { mutableStateOf<String?>(null) }
-                    ShalevCard(
-                        onClick = { abiertoCategoria = if (abiertoCategoria == categoria.titulo) null else categoria.titulo },
-                        modifier = Modifier.testTag(AyudaTags.tema(indice))
-                            .semantics { stateDescription = if (abiertoCategoria == categoria.titulo) "Abierto" else "Cerrado" },
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-                            Icon(iconoSeccion(categoria), contentDescription = null)
-                            Text(
-                                ayuda.titulo,
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.weight(1f).semantics { heading() },
-                            )
-                            Icon(
-                                if (abiertoCategoria == categoria.titulo) ShalevIcons.Quitar else ShalevIcons.Agregar,
-                                contentDescription = null,
-                            )
-                        }
-                        if (abiertoCategoria == categoria.titulo) {
-                            ayuda.pasos.forEachIndexed { n, paso ->
+                // Iterar sobre cada categoría de ayuda
+                secciones.forEachIndexed { indice, (categoria, ayudas) ->
+                    val ayuda = ayudas.first()
+                    // Mostrar la sección de la categoría
+                    item {
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = ShalevSpacing.md, bottom = ShalevSpacing.xs)
+                                .testTag(AyudaTags.seccion(categoria.ordinal))
+                                .then(if (indice == 0) Modifier.coachMark(ObjetivosRecorrido.AYUDA_SECCION) else Modifier),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+                        ) {
+                            Icon(iconoSeccion(categoria), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Column(Modifier.weight(1f)) {
                                 Text(
-                                    "${n + 1}. $paso",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(start = ShalevSpacing.xs, bottom = ShalevSpacing.xs),
+                                    categoria.titulo,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.semantics { heading() },
                                 )
+                                Text(
+                                    categoria.detalle,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Start,
+                                    modifier = Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs),
+                                )
+                            }
+                        }
+                    }
+                    // Mostrar los temas/ventanas de ayuda para esta categoría
+                    item {
+                        var abiertoCategoria by rememberSaveable { mutableStateOf<String?>(null) }
+                        ShalevCard(
+                            onClick = { abiertoCategoria = if (abiertoCategoria == categoria.titulo) null else categoria.titulo },
+                            modifier = Modifier.testTag(AyudaTags.tema(indice))
+                                .then(if (indice == 0) Modifier.coachMark(ObjetivosRecorrido.AYUDA_TEMA) else Modifier)
+                                .semantics { stateDescription = if (abiertoCategoria == categoria.titulo) "Abierto" else "Cerrado" },
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+                                Icon(iconoSeccion(categoria), contentDescription = null)
+                                Text(
+                                    ayuda.titulo,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.weight(1f).semantics { heading() },
+                                )
+                                Icon(
+                                    if (abiertoCategoria == categoria.titulo) ShalevIcons.Quitar else ShalevIcons.Agregar,
+                                    contentDescription = null,
+                                )
+                            }
+                            if (abiertoCategoria == categoria.titulo) {
+                                ayuda.pasos.forEachIndexed { n, paso ->
+                                    Text(
+                                        "${n + 1}. $paso",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(start = ShalevSpacing.xs, bottom = ShalevSpacing.xs),
+                                    )
+                                }
                             }
                         }
                     }

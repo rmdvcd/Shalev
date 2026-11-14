@@ -1,5 +1,9 @@
 package cu.shalev.app.caja
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.recorridoVentana
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cu.shalev.core.money.Cup
 import cu.shalev.designsystem.component.ShalevDialog
+import cu.shalev.designsystem.component.palabraBoton
 import cu.shalev.designsystem.component.ShalevTextButton
 import cu.shalev.designsystem.component.ShalevTextField
 import cu.shalev.designsystem.icon.ShalevIcons
@@ -73,19 +78,21 @@ fun DialogoCierreCompleto(
         onDismiss = { if (!guardando) onDismiss() },
         onConfirm = { if (paso == 1) paso = 2 else viewModel.guardar(conteo) { onConfirmar(conteo.efectivo) } },
         confirmDescription = if (paso == 1) "Revisar diferencias" else confirmar,
+        confirmEtiqueta = if (paso == 1) "Revisar" else palabraBoton(confirmar),
         confirmEnabled = (if (paso == 1) completo else conteo.valido()) && !guardando && !trabajando,
         confirmLoading = guardando || trabajando, dismissDescription = dismissDescription,
+        recorrido = recorridoVentana(Recorrido.VENTANA_CIERRE),
         // 1.0.4: «Atrás» y «Omitir» comparten fila centrada con la confirmación. Antes iban dentro del contenido
         // —que se desplaza— y con el texto largo quedaban flotando en otra fila, lejos del ✓.
         secundarias = {
-            ShalevTextButton("Atrás", onClick = { omitido = false; paso-- }, icon = ShalevIcons.Atras, enabled = !guardando)
+            ShalevTextButton("Atrás", onClick = { omitido = false; paso-- }, icon = ShalevIcons.Atras, enabled = !guardando, modifier = Modifier.coachMark(ObjetivosRecorrido.CIERRE_ATRAS))
             if (paso == 1) ShalevTextButton(
                 "Omitir", onClick = { omitido = true; paso = 2 }, icon = ShalevIcons.AhoraNo, enabled = ls != null && !guardando && !trabajando,
-                modifier = Modifier.testTag(CajaTags.OMITIR_INVENTARIO),
+                modifier = Modifier.testTag(CajaTags.OMITIR_INVENTARIO).coachMark(ObjetivosRecorrido.CIERRE_OMITIR),
             )
             // 1.0.4: la recuperación del inventario también es una acción del pie (antes, un icono suelto en el contenido).
             if (error != null) ShalevTextButton(
-                "Volver a cargar inventario", onClick = { paso = 1; viewModel.cargar() }, icon = ShalevIcons.Listo,
+                "Volver a cargar inventario", onClick = { paso = 1; viewModel.cargar() }, icon = ShalevIcons.Listo, etiqueta = "Recargar",
             )
         },
     ) {
@@ -110,7 +117,7 @@ fun DialogoCierreCompleto(
                             label = "${l.nombre} (${l.unidad})",
                             supportingText = "Esperado: ${ConteoForm.formato(l.esperado, l.entidad)} ${l.unidad}",
                             keyboardOptions = KeyboardOptions(keyboardType = if (l.entidad == TipoEntidad.PRODUCTO) KeyboardType.Number else KeyboardType.Decimal),
-                            modifier = Modifier,
+                            modifier = if (i == 0) Modifier.coachMark(ObjetivosRecorrido.CIERRE_CONTEO) else Modifier,
                         )
                     }
                 }

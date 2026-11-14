@@ -37,7 +37,7 @@ fun LicenciaTransferida() {
             modifier = Modifier.padding(padding).testTag(TextosTransferida.TAG),
             action = {
                 ShalevPrimaryButton(
-                    TextosTransferida.DESINSTALAR, icon = ShalevIcons.Eliminar,
+                    TextosTransferida.DESINSTALAR, icon = ShalevIcons.Eliminar, etiqueta = "Desinstalar",
                     onClick = {
                         runCatching {
                             context.startActivity(

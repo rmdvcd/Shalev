@@ -1,5 +1,9 @@
 package cu.shalev.app.ubicacion
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.recorridoVentana
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,12 +34,12 @@ fun LocalesAjustes(viewModel: LocalViewModel, onCerrar: () -> Unit) {
     var editando by remember { mutableStateOf(false) }
     var anterior by remember { mutableStateOf<String?>(null) }
     var nombre by remember { mutableStateOf("") }
-    ShalevBottomSheet(onDismiss = onCerrar, title = "Locales") {
+    ShalevBottomSheet(onDismiss = onCerrar, title = "Locales", recorrido = recorridoVentana(Recorrido.VENTANA_LOCALES)) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             Text("Añade o edita locales. Cada uno tiene su propio catálogo e inventario.")
             if (!editando) error?.let { Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
             val verde = ShalevTheme.colors.success
-            locales.forEach { local ->
+            locales.forEachIndexed { n, local ->
                 ShalevListItem(
                     title = local.nombre,
                     subtitle = if (local.seleccionado) "Local seleccionado" else "",
@@ -45,17 +49,18 @@ fun LocalesAjustes(viewModel: LocalViewModel, onCerrar: () -> Unit) {
                     trailing = if (local.seleccionado) {
                         { Icon(ShalevIcons.Confirmar, contentDescription = null, tint = verde) }
                     } else null,
-                    modifier = Modifier.testTag(LocalesTags.local(local.nombre)),
+                    modifier = Modifier.testTag(LocalesTags.local(local.nombre))
+                        .then(if (n == 0) Modifier.coachMark(ObjetivosRecorrido.VENTANA_LISTA) else Modifier),
                     onClick = {
                         viewModel.error.value = null
                         anterior = local.nombre; nombre = local.nombre; editando = true
                     },
                 )
             }
-            ShalevTextButton("Añadir local", onClick = {
+            ShalevTextButton("Añadir local", etiqueta = "Añadir", onClick = {
                 viewModel.error.value = null
                 anterior = null; nombre = ""; editando = true
-            }, icon = ShalevIcons.Agregar, modifier = Modifier.fillMaxWidth())
+            }, icon = ShalevIcons.Agregar, modifier = Modifier.fillMaxWidth().coachMark(ObjetivosRecorrido.VENTANA_AGREGAR))
         }
     }
     if (editando) ShalevDialog(
@@ -64,9 +69,13 @@ fun LocalesAjustes(viewModel: LocalViewModel, onCerrar: () -> Unit) {
         onConfirm = { viewModel.guardar(nombre, anterior) { editando = false } },
         confirmDescription = "Guardar", confirmEnabled = nombre.isNotBlank() && !guardando,
         confirmLoading = guardando,
+        recorrido = recorridoVentana(Recorrido.VENTANA_LOCAL),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-            ShalevTextField(value = nombre, onValueChange = { nombre = it.take(80) }, label = "Nombre del local")
+            ShalevTextField(
+                value = nombre, onValueChange = { nombre = it.take(80) }, label = "Nombre del local",
+                modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_NOMBRE),
+            )
             error?.let { Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
         }
     }

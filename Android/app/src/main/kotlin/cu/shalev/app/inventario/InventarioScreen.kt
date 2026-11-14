@@ -1,5 +1,6 @@
 package cu.shalev.app.inventario
 
+import cu.shalev.app.recorrido.recorridoVentana
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.app.recorrido.Recorrido
 import cu.shalev.app.recorrido.RecorridoModulo
@@ -215,7 +216,8 @@ fun InventarioContent(
                     BotonFiltro(state.filtro.activos, TextosInventario.FILTRAR, onClick = { acciones.onHoja(HojaInventario.FILTRO) }, modifier = Modifier.testTag(InventarioTags.FILTRO).coachMark(ObjetivosRecorrido.INVENTARIO_FILTRO))
                     if (LocalPermisosApp.current.exportar) ShalevIconAction(
                         ShalevIcons.Compartir, TextosInventario.EXPORTAR, onClick = { acciones.onHoja(HojaInventario.EXPORTAR) },
-                        enabled = state.items.isNotEmpty() || state.seleccion.isNotEmpty(), modifier = Modifier.testTag(InventarioTags.EXPORTAR),
+                        mostrarTexto = false, // excepción de la regla de botones: exportar/compartir
+                        enabled = state.items.isNotEmpty() || state.seleccion.isNotEmpty(), modifier = Modifier.testTag(InventarioTags.EXPORTAR).coachMark(ObjetivosRecorrido.INVENTARIO_EXPORTAR),
                     )
                 }
             )
@@ -270,7 +272,7 @@ fun InventarioContent(
                             ilustracion = ShalevIlustracion.SinResultados,
                         ) {
                             ShalevSecondaryButton(
-                                TextosInventario.QUITAR_FILTROS, icon = ShalevIcons.QuitarFiltros, onClick = { acciones.onBuscar(""); acciones.onQuitarFiltros() },
+                                TextosInventario.QUITAR_FILTROS, icon = ShalevIcons.QuitarFiltros, etiqueta = "Limpiar", onClick = { acciones.onBuscar(""); acciones.onQuitarFiltros() },
                                 modifier = Modifier.testTag(InventarioTags.QUITAR_FILTROS),
                             )
                         }
@@ -339,7 +341,7 @@ private fun ElementosFijados(state: InventarioUiState, acciones: AccionesInventa
     val fijados = state.elementosFijados
     if (fijados.isEmpty()) return
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md).testTag(InventarioTags.FIJADOS),
+        Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md).testTag(InventarioTags.FIJADOS).coachMark(ObjetivosRecorrido.INVENTARIO_FIJADOS),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
     ) {
         Text(
@@ -464,17 +466,18 @@ private fun Ficha(f: FichaProducto, state: InventarioUiState, acciones: Acciones
     ShalevBottomSheet(
         onDismiss = acciones.onCerrarFicha,
         title = p.nombreCompleto,
+        recorrido = recorridoVentana(Recorrido.VENTANA_FICHA_INVENTARIO),
         footer = {
             val permisos = LocalPermisosApp.current
-            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Editar, "Editar", onClick = { acciones.onEditar(p.id) }, style = IconActionStyle.Tonal, modifier = Modifier.testTag(InventarioTags.FICHA_EDITAR))
+            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Editar, "Editar", onClick = { acciones.onEditar(p.id) }, style = IconActionStyle.Tonal, modifier = Modifier.testTag(InventarioTags.FICHA_EDITAR).coachMark(ObjetivosRecorrido.VENTANA_EDITAR))
             if (permisos.exportar) ShalevIconAction(
                 ShalevIcons.Compartir, "Compartir", onClick = { acciones.onHoja(HojaInventario.COMPARTIR_FICHA) },
-                style = IconActionStyle.Tonal, enabled = !state.trabajando, modifier = Modifier.testTag(InventarioTags.FICHA_COMPARTIR),
+                style = IconActionStyle.Tonal, enabled = !state.trabajando, modifier = Modifier.testTag(InventarioTags.FICHA_COMPARTIR).coachMark(ObjetivosRecorrido.VENTANA_COMPARTIR),
             )
-            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Eliminar, "Eliminar", onClick = acciones.onEliminarFicha, style = IconActionStyle.Tonal, modifier = Modifier.testTag(InventarioTags.FICHA_ELIMINAR))
+            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Eliminar, "Eliminar", onClick = acciones.onEliminarFicha, style = IconActionStyle.Tonal, modifier = Modifier.testTag(InventarioTags.FICHA_ELIMINAR).coachMark(ObjetivosRecorrido.VENTANA_ELIMINAR))
         },
     ) {
-        Column(Modifier.testTag(InventarioTags.FICHA), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+        Column(Modifier.testTag(InventarioTags.FICHA).coachMark(ObjetivosRecorrido.VENTANA_DATOS), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             p.fotoUri?.let { uri ->
                 AsyncImage(
                     model = uri, contentDescription = "Foto de ${p.nombre}", contentScale = ContentScale.Crop,
@@ -503,13 +506,14 @@ private fun FichaDeInsumo(f: FichaInsumo, state: InventarioUiState, acciones: Ac
     ShalevBottomSheet(
         onDismiss = acciones.onCerrarFicha,
         title = i.nombre,
+        recorrido = recorridoVentana(Recorrido.VENTANA_FICHA_INVENTARIO),
         footer = {
             val permisos = LocalPermisosApp.current
-            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Editar, "Editar", onClick = { acciones.onEditar(id) }, style = IconActionStyle.Tonal, modifier = Modifier.testTag(InventarioTags.FICHA_EDITAR))
-            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Eliminar, "Eliminar", onClick = acciones.onEliminarFicha, style = IconActionStyle.Tonal, modifier = Modifier.testTag(InventarioTags.FICHA_ELIMINAR))
+            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Editar, "Editar", onClick = { acciones.onEditar(id) }, style = IconActionStyle.Tonal, modifier = Modifier.testTag(InventarioTags.FICHA_EDITAR).coachMark(ObjetivosRecorrido.VENTANA_EDITAR))
+            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Eliminar, "Eliminar", onClick = acciones.onEliminarFicha, style = IconActionStyle.Tonal, modifier = Modifier.testTag(InventarioTags.FICHA_ELIMINAR).coachMark(ObjetivosRecorrido.VENTANA_ELIMINAR))
         },
     ) {
-        Column(Modifier.testTag(InventarioTags.FICHA), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+        Column(Modifier.testTag(InventarioTags.FICHA).coachMark(ObjetivosRecorrido.VENTANA_DATOS), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             descripcionNivel(f.nivel)?.let {
                 ShalevCard(tone = CardTone.Tonal) { Text("Atención: $it", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
             }
@@ -531,9 +535,13 @@ private fun HojaFiltro(state: InventarioUiState, acciones: AccionesInventario) {
     ShalevBottomSheet(
         onDismiss = acciones.onCerrarHoja,
         title = TextosInventario.FILTRAR,
+        recorrido = recorridoVentana(Recorrido.VENTANA_FILTRO_INVENTARIO),
         footer = {
-            ShalevSecondaryButton("Quitar filtros", icon = ShalevIcons.QuitarFiltros, onClick = { borrador = FiltroInventario(texto = borrador.texto) })
-            ShalevPrimaryButton("Aplicar", icon = ShalevIcons.Aplicar, onClick = { acciones.onFiltro(borrador) }, modifier = Modifier.testTag(InventarioTags.FILTRO_APLICAR))
+            ShalevSecondaryButton(
+                "Quitar filtros", icon = ShalevIcons.QuitarFiltros, etiqueta = "Limpiar", onClick = { borrador = FiltroInventario(texto = borrador.texto) },
+                modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_LIMPIAR),
+            )
+            ShalevPrimaryButton("Aplicar", icon = ShalevIcons.Aplicar, onClick = { acciones.onFiltro(borrador) }, modifier = Modifier.testTag(InventarioTags.FILTRO_APLICAR).coachMark(ObjetivosRecorrido.VENTANA_APLICAR))
         },
     ) {
         ShalevComboBox(
@@ -544,7 +552,7 @@ private fun HojaFiltro(state: InventarioUiState, acciones: AccionesInventario) {
             onSeleccion = { borrador = borrador.copy(alerta = it) },
             leadingIcon = ShalevIcons.Alerta,
             tagOpcion = { a -> a?.let(InventarioTags::alertaOpcion) ?: InventarioTags.ALERTA_TODAS },
-            modifier = Modifier.fillMaxWidth().testTag(InventarioTags.FILTRO_ESTADO),
+            modifier = Modifier.fillMaxWidth().testTag(InventarioTags.FILTRO_ESTADO).coachMark(ObjetivosRecorrido.FILTRO_ESTADO),
         )
         ShalevComboBox(
             label = "Tipo",
@@ -554,7 +562,7 @@ private fun HojaFiltro(state: InventarioUiState, acciones: AccionesInventario) {
             onSeleccion = { borrador = borrador.copy(tipo = it) },
             leadingIcon = ShalevIcons.Inventario,
             tagOpcion = InventarioTags::tipoOpcion,
-            modifier = Modifier.fillMaxWidth().testTag(InventarioTags.FILTRO_TIPO),
+            modifier = Modifier.fillMaxWidth().testTag(InventarioTags.FILTRO_TIPO).coachMark(ObjetivosRecorrido.FILTRO_TIPO),
         )
         if (categorias.isNotEmpty()) {
             val opcionesCategoria: List<String?> = listOf(null) + categorias
@@ -566,7 +574,7 @@ private fun HojaFiltro(state: InventarioUiState, acciones: AccionesInventario) {
                 onSeleccion = { borrador = borrador.copy(categoria = it) },
                 leadingIcon = ShalevIcons.Lista,
                 tagOpcion = { it?.let(InventarioTags::categoriaOpcion) ?: InventarioTags.CATEGORIA_TODAS },
-                modifier = Modifier.fillMaxWidth().testTag(InventarioTags.FILTRO_CATEGORIA),
+                modifier = Modifier.fillMaxWidth().testTag(InventarioTags.FILTRO_CATEGORIA).coachMark(ObjetivosRecorrido.FILTRO_CATEGORIA),
             )
         }
     }
@@ -577,22 +585,25 @@ private fun HojaExportar(state: InventarioUiState, acciones: AccionesInventario)
     val n = if (state.seleccion.isNotEmpty()) state.seleccion.size else state.items.size
     val cantidadPromocion = (if (state.seleccion.isNotEmpty()) state.elementosFijados else state.items).count { !it.producto.esInsumo }
     val promocionable = cantidadPromocion > 0
-    ShalevBottomSheet(onDismiss = acciones.onCerrarHoja, title = TextosInventario.EXPORTAR) {
+    ShalevBottomSheet(onDismiss = acciones.onCerrarHoja, title = TextosInventario.EXPORTAR, recorrido = recorridoVentana(Recorrido.VENTANA_EXPORTAR_INVENTARIO)) {
         ShalevSecondaryText(
             if (state.seleccion.isNotEmpty()) "${TextosInventario.productos(n)} seleccionados" else "Lo que ves: ${TextosInventario.productos(n)}",
+            modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_ALCANCE),
         )
         if (promocionable) ShalevTextField(
             value = state.comentarioPromocion, onValueChange = acciones.onComentarioPromocion,
             label = "Encabezado de promoción (opcional)",
+            modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_ENCABEZADO),
         )
         listOf(FormatoSalida.PDF, FormatoSalida.EXCEL, FormatoSalida.IMAGEN)
-            .filter { it.interno || promocionable }.forEach { f ->
+            .filter { it.interno || promocionable }.forEachIndexed { i, f ->
             ShalevListItem(
                 title = if (f == FormatoSalida.IMAGEN && cantidadPromocion == 1) "Tarjeta promocional" else f.etiqueta,
                 subtitle = f.destinatario, indicatorColor = null,
                 leading = { Icon(cu.shalev.app.common.iconoFormato(f), contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
                 onClick = { acciones.onExportar(f) },
-                modifier = Modifier.testTag(InventarioTags.formato(f)),
+                modifier = Modifier.testTag(InventarioTags.formato(f))
+                    .then(if (i == 0) Modifier.coachMark(ObjetivosRecorrido.VENTANA_FORMATOS) else Modifier),
             )
         }
     }
@@ -600,15 +611,16 @@ private fun HojaExportar(state: InventarioUiState, acciones: AccionesInventario)
 
 @Composable
 private fun HojaCompartirFicha(state: InventarioUiState, acciones: AccionesInventario) {
-    ShalevBottomSheet(onDismiss = acciones.onCerrarHoja, title = "Compartir") {
+    ShalevBottomSheet(onDismiss = acciones.onCerrarHoja, title = "Compartir", recorrido = recorridoVentana(Recorrido.VENTANA_COMPARTIR_FICHA)) {
         ShalevTextField(value = state.comentarioPromocion, onValueChange = acciones.onComentarioPromocion,
-            label = "Encabezado de promoción (opcional)")
-        FormatoSalida.COMPARTIR_FICHA.forEach { f ->
+            label = "Encabezado de promoción (opcional)", modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_ENCABEZADO))
+        FormatoSalida.COMPARTIR_FICHA.forEachIndexed { i, f ->
             ShalevListItem(
                 title = f.etiqueta, subtitle = if (f == FormatoSalida.PDF) FormatoSalida.USO_INTERNO else null,
                 indicatorColor = null, onClick = { acciones.onCompartirFicha(f) },
                 leading = { Icon(cu.shalev.app.common.iconoFormato(f), contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
-                modifier = Modifier.testTag(InventarioTags.formato(f)),
+                modifier = Modifier.testTag(InventarioTags.formato(f))
+                    .then(if (i == 0) Modifier.coachMark(ObjetivosRecorrido.VENTANA_FORMATOS) else Modifier),
             )
         }
     }

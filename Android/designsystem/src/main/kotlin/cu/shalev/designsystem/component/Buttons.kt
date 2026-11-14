@@ -97,8 +97,15 @@ private fun Modifier.formaBoton(mostrarTexto: Boolean): Modifier =
     if (mostrarTexto) alturaBoton(soloIcono = false) else size(ShalevSize.touchTarget)
 
 /**
- * Botón principal compacto con icono y etiqueta accesible. [mostrarTexto] muestra la etiqueta también fuera de
- * ventanas; dentro de diálogos y ventanas emergentes la etiqueta siempre es visible. Protegido contra doble pulsación.
+ * Regla de botones (1.1): todo botón muestra **texto** (en ventanas emergentes) o **icono + texto** (fuera de ellas),
+ * y el texto visible es **una sola palabra** ([etiqueta]; si falta se usa [text], que entonces debe ser de una
+ * palabra). [text] es además la descripción completa para TalkBack, así que puede ser más larga que [etiqueta].
+ * Solo icono ([mostrarTexto] = false, también dentro de ventanas) se reserva a las excepciones: cantidad −/+,
+ * adelante/atrás, filtro y exportar/compartir. `tools/verificacion/botones.py` lo comprueba en cada push.
+ */
+
+/**
+ * Botón principal con icono + palabra (ver la regla de botones de arriba). Protegido contra doble pulsación.
  */
 @Composable
 fun ShalevPrimaryButton(
@@ -108,12 +115,14 @@ fun ShalevPrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     loading: Boolean = false,
-    mostrarTexto: Boolean = false,
+    mostrarTexto: Boolean = true,
+    etiqueta: String? = null,
 ) {
     val accion = rememberAccionUnica(onClick)
     val interactionSource = remember { MutableInteractionSource() }
-    val textoVentana = if (LocalShalevVentana.current) text else null
-    val dibujarTexto = mostrarTexto || textoVentana != null
+    val enVentana = LocalShalevVentana.current
+    val dibujarTexto = mostrarTexto
+    val visible = etiqueta ?: text
     Button(
         onClick = accion,
         modifier = modifier.formaBoton(dibujarTexto).feedbackPulsacion(interactionSource).semantics { contentDescription = text },
@@ -122,11 +131,11 @@ fun ShalevPrimaryButton(
         shape = RoundedCornerShape(ShalevRadius.md),
         contentPadding = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp),
     ) {
-        if (dibujarTexto) EtiquetaBoton(textoVentana ?: text, loading) else ContenidoIcono(icon, loading)
+        if (dibujarTexto) EtiquetaBoton(visible, loading, if (enVentana) null else icon) else ContenidoIcono(icon, loading)
     }
 }
 
-/** Acción secundaria compacta con icono; dentro de diálogos y ventanas emergentes muestra su etiqueta. */
+/** Acción secundaria con icono + palabra (ver la regla de botones de arriba). */
 @Composable
 fun ShalevSecondaryButton(
     text: String,
@@ -135,12 +144,14 @@ fun ShalevSecondaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     loading: Boolean = false,
-    mostrarTexto: Boolean = false,
+    mostrarTexto: Boolean = true,
+    etiqueta: String? = null,
 ) {
     val accion = rememberAccionUnica(onClick)
     val interactionSource = remember { MutableInteractionSource() }
-    val textoVentana = if (LocalShalevVentana.current) text else null
-    val dibujarTexto = mostrarTexto || textoVentana != null
+    val enVentana = LocalShalevVentana.current
+    val dibujarTexto = mostrarTexto
+    val visible = etiqueta ?: text
     OutlinedButton(
         onClick = accion,
         modifier = modifier.formaBoton(dibujarTexto).feedbackPulsacion(interactionSource).semantics { contentDescription = text },
@@ -150,11 +161,11 @@ fun ShalevSecondaryButton(
         contentPadding = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp),
         border = ButtonDefaults.outlinedButtonBorder(enabled),
     ) {
-        if (dibujarTexto) EtiquetaBoton(textoVentana ?: text, loading) else ContenidoIcono(icon, loading)
+        if (dibujarTexto) EtiquetaBoton(visible, loading, if (enVentana) null else icon) else ContenidoIcono(icon, loading)
     }
 }
 
-/** Acción terciaria compacta con icono; dentro de diálogos y ventanas emergentes muestra su etiqueta. */
+/** Acción terciaria con icono + palabra (ver la regla de botones de arriba). */
 @Composable
 fun ShalevTextButton(
     text: String,
@@ -162,12 +173,14 @@ fun ShalevTextButton(
     icon: ImageVector,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    mostrarTexto: Boolean = false,
+    mostrarTexto: Boolean = true,
+    etiqueta: String? = null,
 ) {
     val accion = rememberAccionUnica(onClick)
     val interactionSource = remember { MutableInteractionSource() }
-    val textoVentana = if (LocalShalevVentana.current) text else null
-    val dibujarTexto = mostrarTexto || textoVentana != null
+    val enVentana = LocalShalevVentana.current
+    val dibujarTexto = mostrarTexto
+    val visible = etiqueta ?: text
     TextButton(
         onClick = accion,
         modifier = modifier.formaBoton(dibujarTexto).feedbackPulsacion(interactionSource).semantics { contentDescription = text },
@@ -176,7 +189,7 @@ fun ShalevTextButton(
         shape = RoundedCornerShape(ShalevRadius.md),
         contentPadding = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp),
     ) {
-        if (dibujarTexto) EtiquetaBoton(textoVentana ?: text, loading = false) else Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
+        if (dibujarTexto) EtiquetaBoton(visible, loading = false, if (enVentana) null else icon) else Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
     }
 }
 
@@ -194,15 +207,21 @@ private fun ContenidoIcono(icon: ImageVector, loading: Boolean) {
     }
 }
 
-/** Etiqueta común de los botones de diálogo cuando se conserva texto. */
+/**
+ * Etiqueta de los botones: dentro de ventanas solo la palabra; fuera, [icono] + palabra (con el indicador de carga
+ * en lugar del icono mientras trabaja).
+ */
 @Composable
-private fun EtiquetaBoton(text: String, loading: Boolean) {
+private fun EtiquetaBoton(text: String, loading: Boolean, icono: ImageVector? = null) {
     if (loading) {
         // El botón ya anuncia su etiqueta; el indicador no la repite.
         CircularProgressIndicator(
             Modifier.size(ShalevSize.iconSmall),
             strokeWidth = 2.dp, color = LocalContentColor.current,
         )
+        androidx.compose.foundation.layout.Spacer(Modifier.size(ShalevSpacing.xs))
+    } else if (icono != null) {
+        Icon(icono, contentDescription = null, modifier = Modifier.size(ShalevSize.iconSmall))
         androidx.compose.foundation.layout.Spacer(Modifier.size(ShalevSpacing.xs))
     }
     Text(
@@ -214,11 +233,18 @@ private fun EtiquetaBoton(text: String, loading: Boolean) {
     )
 }
 
+/**
+ * Palabra visible de un botón a partir de su descripción completa, que empieza por el verbo
+ * («Cerrar turno» → «Cerrar»). Para textos que llegan como parámetro; los fijos llevan su `etiqueta` escrita.
+ */
+fun palabraBoton(descripcion: String): String = descripcion.trim().substringBefore(' ')
+
 enum class IconActionStyle { Standard, Tonal, Filled }
 
 /**
- * Acción compacta con icono y descripción accesible. En diálogos y ventanas emergentes muestra su texto visible
- * (`etiqueta` cuando se define, o la descripción completa en su defecto).
+ * Acción con icono + palabra (ver la regla de botones de arriba): [etiqueta] es la palabra visible y [contentDescription] la
+ * descripción completa para TalkBack. En ventanas emergentes solo se ve la palabra. [mostrarTexto] = false deja solo
+ * el icono: reservado a cantidad −/+, adelante/atrás, filtro y exportar/compartir.
  */
 @Composable
 fun ShalevIconAction(
@@ -231,7 +257,7 @@ fun ShalevIconAction(
     style: IconActionStyle = IconActionStyle.Standard,
     containerColor: Color? = null,
     etiqueta: String? = null,
-    mostrarTexto: Boolean = false,
+    mostrarTexto: Boolean = true,
     repetible: Boolean = false,
 ) {
     val accion = rememberAccionUnica(onClick, activa = !repetible)
@@ -245,10 +271,9 @@ fun ShalevIconAction(
         style == IconActionStyle.Tonal -> cs.tertiaryContainer to cs.onTertiaryContainer
         else -> Color.Transparent to cs.onSurfaceVariant
     }
-    val texto = etiqueta ?: contentDescription
-    val textoVentana = if (LocalShalevVentana.current) texto else null
-    val textoVisible = textoVentana ?: texto
-    val dibujarTexto = mostrarTexto || textoVentana != null
+    val textoVisible = etiqueta ?: contentDescription
+    val enVentana = LocalShalevVentana.current
+    val dibujarTexto = mostrarTexto
     val base = modifier
         .formaBoton(dibujarTexto)
         .feedbackPulsacion(interactionSource)
@@ -258,8 +283,13 @@ fun ShalevIconAction(
         }
     val relleno = if (dibujarTexto) PaddingTexto else PaddingValues(0.dp)
     val contenido: @Composable RowScope.() -> Unit = {
-        if (dibujarTexto) EtiquetaAccion(textoVisible)
-        else Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
+        if (dibujarTexto) {
+            if (!enVentana) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.iconSmall))
+                androidx.compose.foundation.layout.Spacer(Modifier.size(ShalevSpacing.xxs))
+            }
+            EtiquetaAccion(textoVisible)
+        } else Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
     }
 
     if (style == IconActionStyle.Standard && !selected && containerColor == null) {
@@ -290,10 +320,11 @@ fun ShalevIconAction(
 
 @Composable
 private fun EtiquetaAccion(texto: String) {
+    // Una sola palabra: una sola línea (regla de botones).
     Text(
         texto,
         style = MaterialTheme.typography.labelLarge,
-        maxLines = 2,
+        maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
     )

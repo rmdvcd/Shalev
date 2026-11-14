@@ -1,6 +1,11 @@
 package cu.shalev.app.registros
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.recorridoVentana
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -164,17 +169,17 @@ fun AccionesFichaVenta(
     if (s.puede || verVenta != null) ShalevButtonRow {
         if (s.puede) {
             ShalevIconAction(
-                ShalevIcons.Editar, TextosAnulacion.MODIFICAR, onClick = { vm.abrir(DialogoVenta.MODIFICAR) },
+                ShalevIcons.Editar, TextosAnulacion.MODIFICAR, etiqueta = "Modificar", onClick = { vm.abrir(DialogoVenta.MODIFICAR) },
                 style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaAccionesTags.MODIFICAR),
             )
             ShalevIconAction(
-                ShalevIcons.Eliminar, TextosAnulacion.ANULAR, onClick = { vm.abrir(DialogoVenta.ANULAR) },
+                ShalevIcons.Eliminar, TextosAnulacion.ANULAR, etiqueta = "Anular", onClick = { vm.abrir(DialogoVenta.ANULAR) },
                 style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaAccionesTags.ANULAR),
             )
         }
         verVenta?.let {
             ShalevSecondaryButton(
-                TextosRegistros.VER_VENTA, onClick = it, icon = ShalevIcons.Comprobante,
+                TextosRegistros.VER_VENTA, onClick = it, icon = ShalevIcons.Comprobante, etiqueta = "Venta",
                 modifier = Modifier.testTag(RegistrosTags.FICHA_VER_VENTA),
             )
         }
@@ -200,12 +205,13 @@ private fun DialogoAnular(v: Venta, trabajando: Boolean, onConfirmar: (String) -
     var motivo by rememberSaveable { mutableStateOf("") }
     ShalevDialog(
         title = TextosAnulacion.ANULAR, text = TextosAnulacion.ANULAR_TEXTO,
-        onDismiss = onDismiss, onConfirm = { onConfirmar(motivo) }, confirmDescription = TextosAnulacion.ANULAR,
+        onDismiss = onDismiss, onConfirm = { onConfirmar(motivo) }, confirmDescription = TextosAnulacion.ANULAR, confirmEtiqueta = "Anular",
         destructive = true, confirmEnabled = ModificacionLogic.motivoValido(motivo) && !trabajando, confirmLoading = trabajando,
+        recorrido = recorridoVentana(Recorrido.VENTANA_ANULAR),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             if (v.metodoPago == MetodoPago.TRANSFERENCIA) Text(TextosAnulacion.AVISO_TRANSFERENCIA, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-            CampoMotivo(motivo) { motivo = it }
+            Box(Modifier.fillMaxWidth().coachMark(ObjetivosRecorrido.VENTANA_MOTIVO)) { CampoMotivo(motivo) { motivo = it } }
         }
     }
 }

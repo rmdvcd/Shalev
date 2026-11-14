@@ -77,20 +77,21 @@ fun BloqueoActualizacion(
             if (estado.progreso != null) {
                 ShalevSecondaryText(T.DESCARGANDO + " ${(estado.progreso * 100).toInt()} %", maxLines = 1)
                 ShalevLinearProgress(modifier = Modifier.fillMaxWidth(), progress = estado.progreso)
-                ShalevButtonRow { ShalevSecondaryButton(T.CANCELAR, onClick = onCancelar, icon = ShalevIcons.Cancelar) }
+                ShalevButtonRow { ShalevSecondaryButton(T.CANCELAR, onClick = onCancelar, icon = ShalevIcons.Cancelar, etiqueta = "Cancelar") }
             } else {
                 ShalevButtonRow {
                     ShalevPrimaryButton(
                         if (estado.esSecundaria) T.ACTUALIZAR_DESDE_PRINCIPAL else T.ACTUALIZAR, onClick = onActualizar, icon = ShalevIcons.Importar,
+                        etiqueta = "Actualizar",
                         modifier = Modifier.testTag(BloqueoActualizacionTags.ACTUALIZAR),
                     )
                 }
             }
             if (!estado.esSecundaria) ShalevButtonRow {
-                ShalevSecondaryButton(T.EXPORTAR_RESPALDO, onClick = onExportarRespaldo, icon = ShalevIcons.Respaldo, modifier = Modifier.testTag(BloqueoActualizacionTags.RESPALDO))
+                ShalevSecondaryButton(T.EXPORTAR_RESPALDO, onClick = onExportarRespaldo, icon = ShalevIcons.Respaldo, etiqueta = "Respaldo", modifier = Modifier.testTag(BloqueoActualizacionTags.RESPALDO))
             }
             if (turnoAbierto) ShalevButtonRow {
-                ShalevSecondaryButton(T.CERRAR_TURNO, onClick = onCerrarTurno, icon = ShalevIcons.Turno, modifier = Modifier.testTag(BloqueoActualizacionTags.CERRAR_TURNO))
+                ShalevSecondaryButton(T.CERRAR_TURNO, onClick = onCerrarTurno, icon = ShalevIcons.Turno, etiqueta = "Cerrar", modifier = Modifier.testTag(BloqueoActualizacionTags.CERRAR_TURNO))
             }
         }
     }

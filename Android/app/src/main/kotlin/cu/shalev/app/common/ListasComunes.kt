@@ -1,5 +1,9 @@
 package cu.shalev.app.common
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.recorridoVentana
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -54,7 +58,7 @@ fun BotonFiltro(
         if (activos > 0) ShalevBadge(activos, Modifier.clearAndSetSemantics { })
     }) {
         ShalevIconAction(
-            ShalevIcons.Filtrar, descripcionFiltro(texto, activos),
+            ShalevIcons.Filtrar, descripcionFiltro(texto, activos), mostrarTexto = false, // excepción: filtro
             onClick = onClick, selected = activos > 0, enabled = enabled, modifier = modifier,
         )
     }
@@ -83,17 +87,18 @@ fun BarraSeleccion(
         Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.xs).tag(tag),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ShalevIconAction(ShalevIcons.Cancelar, "Quitar selección", onClick = onLimpiar)
+        ShalevIconAction(ShalevIcons.Cancelar, "Quitar selección", etiqueta = "Quitar", onClick = onLimpiar)
         Text(texto, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
         ShalevIconAction(
             ShalevIcons.Confirmar, if (todosMarcados) "Desmarcar todo" else "Marcar todo",
+            etiqueta = if (todosMarcados) "Desmarcar" else "Todos",
             onClick = onMarcarTodo, selected = todosMarcados, modifier = Modifier.tag(tagMarcarTodo),
         )
         if (onExportar != null && permisos.exportar) {
-            ShalevIconAction(ShalevIcons.Exportar, "Exportar selección", onClick = onExportar, modifier = Modifier.tag(tagExportar))
+            ShalevIconAction(ShalevIcons.Exportar, "Exportar selección", mostrarTexto = false, onClick = onExportar, modifier = Modifier.tag(tagExportar))
         }
         if (onEliminar != null && permisos.editarInventario) {
-            ShalevIconAction(ShalevIcons.Eliminar, "Eliminar selección", onClick = onEliminar, modifier = Modifier.tag(tagEliminar))
+            ShalevIconAction(ShalevIcons.Eliminar, "Eliminar selección", etiqueta = "Eliminar", onClick = onEliminar, modifier = Modifier.tag(tagEliminar))
         }
     }
 }
@@ -115,7 +120,7 @@ fun BarraContinuarVenta(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md, Alignment.CenterHorizontally), // P28: grupo centrado
         ) {
-            if (haySeleccion) ShalevIconAction(ShalevIcons.Cancelar, "Quitar selección", onClick = onLimpiar)
+            if (haySeleccion) ShalevIconAction(ShalevIcons.Cancelar, "Quitar selección", etiqueta = "Quitar", onClick = onLimpiar)
             Text(texto, style = MaterialTheme.typography.titleSmall)
             ShalevPrimaryButton(
                 text = "Continuar", icon = ShalevIcons.Siguiente, onClick = onContinuar,
@@ -134,7 +139,7 @@ fun HojaAgregarInsumo(
     onAgregar: (Insumo) -> Unit,
 ) {
     var buscar by rememberSaveable { mutableStateOf("") }
-    ShalevBottomSheet(onDismiss = onCerrar, title = "Agregar insumo") {
+    ShalevBottomSheet(onDismiss = onCerrar, title = "Agregar insumo", recorrido = recorridoVentana(Recorrido.VENTANA_AGREGAR_INSUMO)) {
         val lista = disponibles.filter { buscar.isBlank() || it.nombre.contains(buscar.trim(), ignoreCase = true) }
         if (insumos.isEmpty()) {
             ShalevEmptyState(
@@ -146,11 +151,14 @@ fun HojaAgregarInsumo(
             ShalevTextField(
                 filtro = FiltroEntrada.BUSQUEDA, value = buscar, onValueChange = { buscar = it },
                 label = "Buscar insumo", leadingIcon = ShalevIcons.Buscar, anchoCompleto = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().coachMark(ObjetivosRecorrido.VENTANA_BUSCAR),
             )
             if (lista.isEmpty()) ShalevSecondaryText("Ningún insumo coincide.", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            lista.forEach { i ->
-                ShalevListItem(title = i.nombre, indicatorColor = null, onClick = { onAgregar(i) })
+            lista.forEachIndexed { n, i ->
+                ShalevListItem(
+                    title = i.nombre, indicatorColor = null, onClick = { onAgregar(i) },
+                    modifier = if (n == 0) Modifier.coachMark(ObjetivosRecorrido.VENTANA_LISTA) else Modifier,
+                )
             }
         }
     }

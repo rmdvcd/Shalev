@@ -67,9 +67,9 @@ fun CampoFecha(
             leadingIcon = ShalevIcons.Reloj,
             modifier = Modifier.weight(1f).testTag(tag),
         )
-        ShalevIconAction(ShalevIcons.Editar, "Elegir $label", onClick = { abierto = true }, enabled = enabled, modifier = Modifier.testTag("${tag}_elegir"))
+        ShalevIconAction(ShalevIcons.Editar, "Elegir $label", etiqueta = "Elegir", onClick = { abierto = true }, enabled = enabled, modifier = Modifier.testTag("${tag}_elegir"))
         if (fecha != null) {
-            ShalevIconAction(ShalevIcons.Limpiar, "Borrar $label", onClick = { onFecha(null) }, enabled = enabled, modifier = Modifier.testTag("${tag}_borrar"))
+            ShalevIconAction(ShalevIcons.Limpiar, "Borrar $label", etiqueta = "Borrar", onClick = { onFecha(null) }, enabled = enabled, modifier = Modifier.testTag("${tag}_borrar"))
         }
     }
     if (abierto) {

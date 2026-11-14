@@ -219,4 +219,13 @@ data class OnboardingUiState(
         esUltimo -> "Terminar"
         else -> "Siguiente"
     }
+
+    /** Palabra visible del botón principal (regla de botones); [textoBotonPrincipal] queda para TalkBack. */
+    val etiquetaBotonPrincipal: String get() = when {
+        paso == PasoWizard.BIENVENIDA -> "Comenzar"
+        paso == PasoWizard.TIPO_APP && esSecundaria -> "Vincular"
+        esUltimo && modo == ModoWizard.PRIMERA_VEZ -> "Empezar"
+        esUltimo -> "Terminar"
+        else -> "Siguiente"
+    }
 }

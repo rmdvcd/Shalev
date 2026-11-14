@@ -1,5 +1,9 @@
 package cu.shalev.app.caja
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.recorridoVentana
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -42,6 +46,7 @@ import cu.shalev.core.money.Cup
 import cu.shalev.core.money.Money
 import cu.shalev.designsystem.component.FiltroEntrada
 import cu.shalev.designsystem.component.ShalevDialog
+import cu.shalev.designsystem.component.palabraBoton
 import cu.shalev.designsystem.component.ShalevSecondaryText
 import cu.shalev.designsystem.component.ShalevTab
 import cu.shalev.designsystem.component.ShalevTabs
@@ -192,16 +197,18 @@ fun DialogoFondo(
         onDismiss = onDismiss,
         onConfirm = { valor?.let(onConfirmar) },
         confirmDescription = "Abrir turno",
+        confirmEtiqueta = "Abrir",
         confirmEnabled = valor != null && !trabajando,
         confirmLoading = trabajando,
         confirmTag = CajaTags.CONFIRMAR,
+        recorrido = recorridoVentana(Recorrido.VENTANA_FONDO),
     ) {
         ShalevTextField(
             value = texto, onValueChange = { texto = it.take(16) }, label = "${TextosCaja.FONDO} *",
             supportingText = if (sugerido != null) TextosCaja.FONDO_SUGERIDO else null,
             isError = texto.isNotBlank() && valor == null, errorText = TextosCaja.IMPORTE_INVALIDO,
             filtro = FiltroEntrada.DINERO, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.testTag(CajaTags.FONDO),
+            modifier = Modifier.testTag(CajaTags.FONDO).coachMark(ObjetivosRecorrido.VENTANA_IMPORTE),
         )
     }
 }
@@ -242,8 +249,8 @@ fun DialogoContado(
     val omitir: (@Composable () -> Unit)? = if (!porBilletes) null else {
         {
             ShalevTextButton(
-                "Omitir el conteo de billetes", onClick = { porBilletes = false }, icon = ShalevIcons.AhoraNo,
-                modifier = Modifier.testTag(CajaTags.OMITIR),
+                "Omitir el conteo de billetes", onClick = { porBilletes = false }, icon = ShalevIcons.AhoraNo, etiqueta = "Omitir",
+                modifier = Modifier.testTag(CajaTags.OMITIR).coachMark(ObjetivosRecorrido.CONTEO_MODO),
             )
         }
     }
@@ -256,19 +263,21 @@ fun DialogoContado(
             else onConfirmar(c)
         } },
         confirmDescription = confirmar,
+        confirmEtiqueta = palabraBoton(confirmar),
         // Con los billetes a la vista hace falta algo contado; con el total suelto, el 0 es una decisión explícita.
         confirmEnabled = contado != null && (!porBilletes || CajaForm.algoContado(desglose, otro)) && !trabajando,
         confirmLoading = trabajando,
         confirmTag = CajaTags.CONFIRMAR,
         dismissDescription = dismissDescription,
+        recorrido = recorridoVentana(Recorrido.VENTANA_CONTEO),
         // 1.0.4: «Omitir» y «Contar billetes» van en el pie, en la misma fila centrada que el ✓. Antes quedaban
         // sueltos dentro del contenido (un icono solo, pegado al borde izquierdo y lejos del resto).
         secundarias = {
             omitir?.invoke()
             // 0.31.0: desde el total suelto se puede volver a contar billete a billete.
             if (!porBilletes) ShalevTextButton(
-                "Contar billetes por denominación", onClick = { porBilletes = true }, icon = ShalevIcons.Efectivo,
-                modifier = Modifier.testTag(CajaTags.POR_BILLETES),
+                "Contar billetes por denominación", onClick = { porBilletes = true }, icon = ShalevIcons.Efectivo, etiqueta = "Billetes",
+                modifier = Modifier.testTag(CajaTags.POR_BILLETES).coachMark(ObjetivosRecorrido.CONTEO_MODO),
             )
         },
     ) {
@@ -279,6 +288,7 @@ fun DialogoContado(
                 Text(
                     ShalevTextos.resaltar(TextosCaja.esperado(a.esperado), Money.format(a.esperado)),
                     style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.coachMark(ObjetivosRecorrido.CONTEO_ESPERADO),
                 )
                 ShalevSecondaryText(
                     ShalevTextos.resaltar(
@@ -295,7 +305,8 @@ fun DialogoContado(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
+                            .then(if (i == BilletesCUP.denominaciones.lastIndex) Modifier.coachMark(ObjetivosRecorrido.CONTEO_CONTADO) else Modifier),
                     ) {
                         MiniaturaBilleteCup(denominacion)
                         ShalevIconAction(
@@ -352,15 +363,15 @@ fun DialogoContado(
                     value = valorTexto, onValueChange = { valorTexto = it.take(16) }, label = "${TextosCaja.CONTADO} *",
                     isError = valorTexto.isNotBlank() && contado == null, errorText = TextosCaja.IMPORTE_INVALIDO,
                     filtro = FiltroEntrada.DINERO, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f).testTag(CajaTags.CONTADO),
+                    modifier = Modifier.weight(1f).testTag(CajaTags.CONTADO).coachMark(ObjetivosRecorrido.CONTEO_CONTADO),
                 )
                 // 1.0.4: «Cuadra» era un ✓ suelto fuera del campo que se confundía con un testigo de «válido» y con
                 // el ✓ de confirmar. Ahora es un botón tonal, del mismo alto y alineado con el campo.
                 if (arqueo != null) ShalevIconAction(
-                    ShalevIcons.Listo, TextosCaja.CUADRA_BOTON,
+                    ShalevIcons.Listo, TextosCaja.CUADRA_BOTON, etiqueta = "Cuadra",
                     onClick = { valorTexto = CajaForm.textoInicial(arqueo.esperado) },
                     style = IconActionStyle.Tonal,
-                    modifier = Modifier.testTag(CajaTags.CUADRA),
+                    modifier = Modifier.testTag(CajaTags.CUADRA).coachMark(ObjetivosRecorrido.CONTEO_CUADRA),
                 )
             }
             if (arqueo != null && contado != null) {
@@ -398,12 +409,14 @@ fun DialogoMovimientoCaja(
         onDismiss = onDismiss,
         onConfirm = { if (valor != null && !superaCaja) onConfirmar(t, valor, motivo) },
         confirmDescription = "Registrar ${TextosCaja.tipo(t).lowercase()}",
+        confirmEtiqueta = "Registrar",
         confirmEnabled = ok,
         confirmLoading = trabajando,
         confirmTag = CajaTags.CONFIRMAR,
+        recorrido = recorridoVentana(Recorrido.VENTANA_MOVIMIENTO),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-            ShalevTabs(listOf(ShalevTab(TextosCaja.ENTRADA), ShalevTab(TextosCaja.SALIDA)), tipo, { tipo = it })
+            ShalevTabs(listOf(ShalevTab(TextosCaja.ENTRADA), ShalevTab(TextosCaja.SALIDA)), tipo, { tipo = it }, modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_TIPO))
             ShalevTextField(
                 value = importe, onValueChange = { importe = it.take(16) }, label = "${TextosCaja.IMPORTE} *",
                 isError = (importe.isNotBlank() && valor == null) || superaCaja,
@@ -414,12 +427,12 @@ fun DialogoMovimientoCaja(
                     "Disponible en caja: ${Money.format(efectivoDisponible)}"
                 } else null,
                 filtro = FiltroEntrada.DINERO, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.testTag(CajaTags.IMPORTE),
+                modifier = Modifier.testTag(CajaTags.IMPORTE).coachMark(ObjetivosRecorrido.VENTANA_IMPORTE),
             )
             ShalevTextField(
                 value = motivo, onValueChange = { motivo = it.take(MovimientoCaja.MOTIVO_MAX) }, label = "${TextosCaja.MOTIVO} *",
                 supportingText = TextosCaja.MOTIVO_AYUDA,
-                modifier = Modifier.testTag(CajaTags.MOTIVO),
+                modifier = Modifier.testTag(CajaTags.MOTIVO).coachMark(ObjetivosRecorrido.VENTANA_MOTIVO),
             )
         }
     }

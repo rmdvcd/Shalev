@@ -111,20 +111,31 @@ class AuditoriaUiTest {
         assertTrue(config[SemanticsProperties.Selected])
     }
 
+    // 1.1 (regla de botones): fuera de ventanas, icono + una palabra; la descripción completa queda para TalkBack.
     @Test
-    fun fueraDeVentanasLasAccionesSiguenCompactasYAccesibles() {
-        rule.setContent { ShalevTheme { ShalevIconAction(ShalevIcons.Agregar, "Agregar producto", onClick = {}) } }
+    fun fueraDeVentanasLasAccionesMuestranIconoYUnaPalabra() {
+        rule.setContent { ShalevTheme { ShalevIconAction(ShalevIcons.Agregar, "Agregar producto", onClick = {}, etiqueta = "Agregar") } }
 
         rule.onNodeWithContentDescription("Agregar producto").assertExists()
-        rule.onAllNodesWithText("Agregar producto").assertCountEquals(0)
+        rule.onNodeWithText("Agregar", useUnmergedTree = true).assertIsDisplayed()
+        rule.onAllNodesWithText("Agregar producto", useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    // Excepciones de la regla (cantidad −/+, adelante/atrás, filtro, exportar/compartir): solo icono.
+    @Test
+    fun lasExcepcionesQuedanSoloConIcono() {
+        rule.setContent { ShalevTheme { ShalevIconAction(ShalevIcons.Filtrar, "Filtrar productos", onClick = {}, mostrarTexto = false) } }
+
+        rule.onNodeWithContentDescription("Filtrar productos").assertExists()
+        rule.onAllNodesWithText("Filtrar productos", useUnmergedTree = true).assertCountEquals(0)
     }
 
     @Test
-    fun elFabEsSoloIconoPorDefectoYSigueTeniendoDescripcion() {
-        rule.setContent { ShalevTheme { ShalevFab(ShalevIcons.Agregar, "Agregar producto", onClick = {}) } }
+    fun elFabMuestraIconoYPalabraPorDefecto() {
+        rule.setContent { ShalevTheme { ShalevFab(ShalevIcons.Agregar, "Agregar producto", onClick = {}, etiqueta = "Agregar") } }
 
         rule.onNodeWithContentDescription("Agregar producto").assertExists()
-        rule.onAllNodesWithText("Agregar producto").assertCountEquals(0)
+        rule.onNodeWithText("Agregar", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test

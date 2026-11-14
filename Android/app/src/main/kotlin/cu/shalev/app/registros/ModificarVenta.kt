@@ -1,5 +1,9 @@
 package cu.shalev.app.registros
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.recorridoVentana
 import cu.shalev.app.common.SecureDialogWindow
 import cu.shalev.designsystem.theme.ShalevTextos
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +21,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import cu.shalev.designsystem.component.LocalCoachMarkState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -332,16 +337,19 @@ fun ModificarVentaPantalla(v: Venta, onCerrar: () -> Unit, onHecho: (String) -> 
     val s by vm.state.collectAsStateWithLifecycle()
     Dialog(onDismissRequest = onCerrar, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         SecureDialogWindow()
+        val recorrido = recorridoVentana(Recorrido.VENTANA_MODIFICAR)
         Surface(Modifier.fillMaxSize()) {
-            CompositionLocalProvider(LocalShalevVentana provides true) {
-                ModificarVentaContent(
+            // 1.1: el recorrido de la pantalla no sigue dentro de esta ventana; tiene el suyo propio.
+            CompositionLocalProvider(LocalShalevVentana provides true, LocalCoachMarkState provides null) {
+                val contenido: @Composable () -> Unit = { ModificarVentaContent(
                     s,
                     AccionesModificar(
                         onCerrar = onCerrar, onGuardar = vm::guardar, onCantidad = vm::cambiarCantidad, onQuitar = vm::quitar,
                         onAbrirBusqueda = vm::abrirBusqueda, onCerrarBusqueda = vm::cerrarBusqueda, onBuscar = vm::buscar, onAnadir = vm::anadir,
                         onMetodo = vm::elegirMetodo, onCampo = vm::editarCliente, onMotivo = vm::editarMotivo,
                     ),
-                )
+                ) }
+                if (recorrido != null) recorrido(contenido) else contenido()
             }
         }
     }
@@ -371,7 +379,7 @@ fun ModificarVentaContent(s: ModificarVentaUiState, a: AccionesModificar) {
             ShalevTopBar(title = TextosAnulacion.MODIFICAR, onBack = a.onCerrar, actions = {
                 ShalevIconAction(
                     ShalevIcons.Confirmar, "Guardar", onClick = a.onGuardar, enabled = s.puedeGuardar,
-                    style = IconActionStyle.Filled, modifier = Modifier.testTag(ModificarTags.GUARDAR),
+                    style = IconActionStyle.Filled, modifier = Modifier.testTag(ModificarTags.GUARDAR).coachMark(ObjetivosRecorrido.VENTANA_GUARDAR),
                 )
             })
         },
@@ -382,7 +390,9 @@ fun ModificarVentaContent(s: ModificarVentaUiState, a: AccionesModificar) {
             verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
         ) {
             item { ShalevSecondaryText(TextosModificar.TEXTO, maxLines = 4) }
-            items(s.lineas, key = { "l${it.producto.id}" }) { l -> LineaEditable(l, a.onCantidad, a.onQuitar) }
+            items(s.lineas, key = { "l${it.producto.id}" }) { l ->
+                Box(if (l == s.lineas.first()) Modifier.coachMark(ObjetivosRecorrido.VENTANA_LISTA) else Modifier) { LineaEditable(l, a.onCantidad, a.onQuitar) }
+            }
             if (s.lineas.isEmpty()) item { ShalevSecondaryText(TextosAnulacion.SIN_LINEAS, maxLines = 2) }
             if (s.buscando) {
                 item {
@@ -405,14 +415,14 @@ fun ModificarVentaContent(s: ModificarVentaUiState, a: AccionesModificar) {
                 }
                 if (s.resultados.isEmpty()) item { ShalevSecondaryText(TextosModificar.SIN_RESULTADOS) }
                 item {
-                    ShalevButtonRow { ShalevSecondaryButton(TextosModificar.CERRAR_BUSQUEDA, onClick = a.onCerrarBusqueda, icon = ShalevIcons.Listo) }
+                    ShalevButtonRow { ShalevSecondaryButton(TextosModificar.CERRAR_BUSQUEDA, onClick = a.onCerrarBusqueda, icon = ShalevIcons.Listo, etiqueta = "Terminar") }
                 }
             } else {
                 item {
                     ShalevButtonRow {
                         ShalevSecondaryButton(
-                            TextosModificar.ANADIR, onClick = a.onAbrirBusqueda, icon = ShalevIcons.AgregarCarrito,
-                            modifier = Modifier.testTag(ModificarTags.ANADIR),
+                            TextosModificar.ANADIR, onClick = a.onAbrirBusqueda, icon = ShalevIcons.AgregarCarrito, etiqueta = "Añadir",
+                            modifier = Modifier.testTag(ModificarTags.ANADIR).coachMark(ObjetivosRecorrido.VENTANA_AGREGAR),
                         )
                     }
                 }
@@ -422,10 +432,10 @@ fun ModificarVentaContent(s: ModificarVentaUiState, a: AccionesModificar) {
                     // 0.28.0: solo el importe («Total estimado: 1 250.00 CUP») va en seminegrita.
                     ShalevTextos.resaltar(TextosModificar.total(s.total), Money.format(s.total)),
                     style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = ShalevSpacing.xs).testTag(ModificarTags.TOTAL),
+                    modifier = Modifier.padding(top = ShalevSpacing.xs).testTag(ModificarTags.TOTAL).coachMark(ObjetivosRecorrido.VENTANA_TOTAL),
                 )
             }
-            item { SelectorMetodo(s.metodo, a.onMetodo) }
+            item { Box(Modifier.coachMark(ObjetivosRecorrido.VENTANA_METODO)) { SelectorMetodo(s.metodo, a.onMetodo) } }
             if (s.metodo == MetodoPago.TRANSFERENCIA) {
                 item { Text(TextosModificar.CLIENTE, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = ShalevSpacing.md).semantics { heading() }) }
                 camposCliente(s.cliente, a.onCampo)
@@ -433,7 +443,7 @@ fun ModificarVentaContent(s: ModificarVentaUiState, a: AccionesModificar) {
             item {
                 ShalevTextField(
                     value = s.motivo, onValueChange = a.onMotivo, label = "${TextosAnulacion.MOTIVO} *",
-                    supportingText = TextosAnulacion.MOTIVO_AYUDA, modifier = Modifier.padding(top = ShalevSpacing.md).testTag(VentaAccionesTags.MOTIVO),
+                    supportingText = TextosAnulacion.MOTIVO_AYUDA, modifier = Modifier.padding(top = ShalevSpacing.md).testTag(VentaAccionesTags.MOTIVO).coachMark(ObjetivosRecorrido.VENTANA_MOTIVO),
                 )
             }
             s.error?.let { e ->

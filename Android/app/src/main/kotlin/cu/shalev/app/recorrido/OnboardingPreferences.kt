@@ -35,8 +35,8 @@ interface RecorridosVistos {
 
 /**
  * Preferences DataStore propio (`shalev_recorridos`), sin cifrar: solo guarda booleanos de interfaz, nada del negocio.
- * Una clave por módulo: `caja_tour_shown`, `ventas_tour_shown`, `inventario_tour_shown`, `servicios_tour_shown` y
- * `registros_tour_shown`. Ausente = no visto.
+ * Una clave por pantalla o ventana: `caja_tour_shown`, `ventas_tour_shown`, `ajustes_tour_shown`,
+ * `ventana_fondo_tour_shown`… (ver [Recorrido]). Ausente = no visto.
  *
  * La copia en la nube y la transferencia entre teléfonos ya están desactivadas para toda la app
  * (`data_extraction_rules.xml`); al reinstalar, los recorridos vuelven a mostrarse una vez.

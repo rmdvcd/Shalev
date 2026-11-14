@@ -1,5 +1,10 @@
 package cu.shalev.app.precios
 
+import cu.shalev.app.recorrido.recorridoVentana
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import cu.shalev.designsystem.component.ShalevCheckbox
 import cu.shalev.designsystem.component.ShalevComboBox
 import cu.shalev.designsystem.theme.ShalevTextos
@@ -88,17 +93,19 @@ fun PreciosScreen(onBack: () -> Unit, viewModel: PreciosViewModel = hiltViewMode
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(viewModel) { viewModel.mensajes.collect { snackbar.showSnackbar(it) } }
-    PreciosContent(
-        state = state,
-        onBack = onBack,
-        acciones = AccionesPrecios(
-            onNuevo = viewModel::nuevo, onEditar = viewModel::editar, onActivar = viewModel::activar,
-            onCambiar = viewModel::cambiar, onProducto = viewModel::alternarProducto, onServicio = viewModel::alternarServicio, onElegirTodos = viewModel::elegirTodos,
-            onGuardar = viewModel::guardar, onCerrar = viewModel::cerrar, onBorrar = viewModel::pedirBorrado,
-            onConfirmarBorrado = viewModel::confirmarBorrado, onCancelarBorrado = viewModel::cancelarBorrado,
-        ),
-        snackbar = snackbar,
-    )
+    RecorridoModulo(Recorrido.PRECIOS, listo = state.form == null && state.borrar == null) {
+        PreciosContent(
+            state = state,
+            onBack = onBack,
+            acciones = AccionesPrecios(
+                onNuevo = viewModel::nuevo, onEditar = viewModel::editar, onActivar = viewModel::activar,
+                onCambiar = viewModel::cambiar, onProducto = viewModel::alternarProducto, onServicio = viewModel::alternarServicio, onElegirTodos = viewModel::elegirTodos,
+                onGuardar = viewModel::guardar, onCerrar = viewModel::cerrar, onBorrar = viewModel::pedirBorrado,
+                onConfirmarBorrado = viewModel::confirmarBorrado, onCancelarBorrado = viewModel::cancelarBorrado,
+            ),
+            snackbar = snackbar,
+        )
+    }
 }
 
 class AccionesPrecios(
@@ -136,7 +143,7 @@ fun PreciosContent(
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             if (state.cargado && (state.productos.isNotEmpty() || state.servicios.isNotEmpty())) {
-                ShalevFab(ShalevIcons.Agregar, "Nuevo ajuste de precios", onClick = acciones.onNuevo, etiqueta = "Nuevo", modifier = Modifier.testTag(PreciosTags.NUEVO))
+                ShalevFab(ShalevIcons.Agregar, "Nuevo ajuste de precios", onClick = acciones.onNuevo, etiqueta = "Nuevo", modifier = Modifier.testTag(PreciosTags.NUEVO).coachMark(ObjetivosRecorrido.PRECIOS_NUEVO))
             }
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
@@ -149,7 +156,7 @@ fun PreciosContent(
                 verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
             ) {
                 item {
-                    ShalevCard(tone = CardTone.Tonal, modifier = Modifier.padding(horizontal = ShalevSpacing.md)) {
+                    ShalevCard(tone = CardTone.Tonal, modifier = Modifier.padding(horizontal = ShalevSpacing.md).coachMark(ObjetivosRecorrido.PRECIOS_EXPLICACION)) {
                         Text(TextosPrecios.EXPLICACION, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     }
                 }
@@ -171,6 +178,7 @@ fun PreciosContent(
                         onClick = { acciones.onEditar(p) },
                         // P24: el resumen (método, importe, nº productos) ya no se ve en la fila; TalkBack lo sigue leyendo.
                         modifier = Modifier.testTag(PreciosTags.item(p.id)).then(shalevAnimateItem())
+                            .then(if (p == state.preajustes.first()) Modifier.coachMark(ObjetivosRecorrido.PRECIOS_LISTA) else Modifier)
                             .semantics { stateDescription = resumenPreajuste(p, state.existentes(p)) },
                         trailing = {
                             Switch(
@@ -209,9 +217,13 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
         sinGuardar = f.copy(busqueda = inicial.busqueda, mostrarErrores = inicial.mostrarErrores) != inicial,
         title = if (f.nuevo) "Nuevo ajuste de precios" else "Editar ajuste",
         // 1.0.3: sin botón Cancelar en el pie (se cierra tocando fuera o con Atrás).
+        recorrido = recorridoVentana(Recorrido.VENTANA_PRECIO),
         footer = {
-            if (!f.nuevo) ShalevIconAction(ShalevIcons.Eliminar, "Eliminar ajuste", onClick = acciones.onBorrar)
-            ShalevPrimaryButton("Guardar", icon = ShalevIcons.Guardar, onClick = acciones.onGuardar, loading = state.guardando, modifier = Modifier.testTag(PreciosTags.GUARDAR))
+            if (!f.nuevo) ShalevIconAction(
+                ShalevIcons.Eliminar, "Eliminar ajuste", etiqueta = "Eliminar", onClick = acciones.onBorrar,
+                modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_ELIMINAR),
+            )
+            ShalevPrimaryButton("Guardar", icon = ShalevIcons.Guardar, onClick = acciones.onGuardar, loading = state.guardando, modifier = Modifier.testTag(PreciosTags.GUARDAR).coachMark(ObjetivosRecorrido.VENTANA_GUARDAR))
         },
     ) {
         Titulo("1. ¿Subir o bajar el precio?")
@@ -232,7 +244,7 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
             errorText = errCampos[CampoPrecio.PORCENTAJE], validarAlSalir = true, forzarError = f.mostrarErrores,
             supportingText = if (f.sube) "Hasta 100 %" else "Hasta 90 %",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.testTag(PreciosTags.PORCENTAJE),
+            modifier = Modifier.testTag(PreciosTags.PORCENTAJE).coachMark(ObjetivosRecorrido.PRECIO_CAMBIO),
         )
 
         Titulo("2. ¿Cuándo se aplica?")
@@ -242,6 +254,7 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
             seleccion = f.metodo,
             etiqueta = { it?.let(::etiqueta) ?: "Cualquier pago" },
             onSeleccion = { metodo -> acciones.onCambiar { it.copy(metodo = metodo) } },
+            modifier = Modifier.coachMark(ObjetivosRecorrido.PRECIO_CUANDO),
         )
         Titulo("3. ¿A qué artículos?")
         val permisos = cu.shalev.app.common.LocalPermisosApp.current
@@ -258,9 +271,10 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
         ShalevSecondaryText(if (totalElegidos == 1) "1 artículo elegido" else "$totalElegidos artículos elegidos", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         ShalevSecondaryButton(
             text = "Añadir todos los ${f.tipoSeleccion.titulo.lowercase()}",
+            etiqueta = "Todos",
             icon = ShalevIcons.AgregarALista,
             onClick = acciones.onElegirTodos,
-            modifier = Modifier.fillMaxWidth().testTag(PreciosTags.ELEGIR_MOSTRADOS),
+            modifier = Modifier.fillMaxWidth().testTag(PreciosTags.ELEGIR_MOSTRADOS).coachMark(ObjetivosRecorrido.PRECIO_ARTICULOS),
             mostrarTexto = true,
             enabled = if (f.tipoSeleccion == TipoSeleccionPrecio.PRODUCTOS) state.productos.isNotEmpty() else state.servicios.isNotEmpty(),
         )
@@ -290,11 +304,12 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
             onValueChange = { v -> acciones.onCambiar { it.copy(nombre = v) } },
             label = "Nombre del ajuste",
             placeholder = nombreSugerido(f),
+            modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_NOMBRE),
             isError = CampoPrecio.NOMBRE in errCampos,
             errorText = errCampos[CampoPrecio.NOMBRE], validarAlSalir = true, forzarError = f.mostrarErrores,
         )
         state.vistaPrevia?.let {
-            ShalevCard(tone = CardTone.Highlight, modifier = Modifier.testTag(PreciosTags.VISTA_PREVIA)) {
+            ShalevCard(tone = CardTone.Highlight, modifier = Modifier.testTag(PreciosTags.VISTA_PREVIA).coachMark(ObjetivosRecorrido.PRECIO_VISTA)) {
                 ShalevSecondaryText("Así quedaría al cobrar")
                 Text(it, style = ShalevTextos.dato)
             }

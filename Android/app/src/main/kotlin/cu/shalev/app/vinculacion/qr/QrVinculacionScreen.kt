@@ -1,5 +1,9 @@
 package cu.shalev.app.vinculacion.qr
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -65,45 +69,48 @@ fun QrVinculacionScreen(
             }
         }
     }
-    Scaffold(
-        topBar = { ShalevTopBar(title = "Escanear QR", onBack = onBack) },
-        snackbarHost = { ShalevSnackbarHost(snackbar) },
-    ) { padding ->
-        Column(
-            Modifier.fillMaxSize().padding(padding).padding(ShalevSpacing.md),
-            verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
-        ) {
-            if (!camaraOk) {
-                val exp = explicacionCamara(permiso.estado)
-                ShalevCard(tone = CardTone.Tonal, modifier = Modifier.testTag(QrTags.EXPLICACION)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
-                        Icon(ShalevIcons.Camara, contentDescription = null)
-                        Text(exp.titulo, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-                    }
-                    Text(exp.detalle, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                    exp.boton?.let {
-                        ShalevButtonRow {
-                            ShalevPrimaryButton(
-                                text = it,
-                                icon = if (exp.accion == AccionPermiso.ABRIR_AJUSTES) ShalevIcons.Ajustes else ShalevIcons.Camara,
-                                onClick = {
-                                    when (exp.accion) {
-                                        AccionPermiso.SOLICITAR -> permiso.solicitar()
-                                        AccionPermiso.ABRIR_AJUSTES -> abrirAjustesDeLaApp(context)
-                                        AccionPermiso.NINGUNA -> Unit
-                                    }
-                                },
-                                modifier = Modifier.testTag(QrTags.ACCION_PERMISO),
-                            )
+    RecorridoModulo(Recorrido.QR, listo = true) {
+        Scaffold(
+            topBar = { ShalevTopBar(title = "Escanear QR", onBack = onBack) },
+            snackbarHost = { ShalevSnackbarHost(snackbar) },
+        ) { padding ->
+            Column(
+                Modifier.fillMaxSize().padding(padding).padding(ShalevSpacing.md),
+                verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md),
+            ) {
+                if (!camaraOk) {
+                    val exp = explicacionCamara(permiso.estado)
+                    ShalevCard(tone = CardTone.Tonal, modifier = Modifier.testTag(QrTags.EXPLICACION).coachMark(ObjetivosRecorrido.QR_CAMARA)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
+                            Icon(ShalevIcons.Camara, contentDescription = null)
+                            Text(exp.titulo, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                        }
+                        Text(exp.detalle, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                        exp.boton?.let {
+                            ShalevButtonRow {
+                                ShalevPrimaryButton(
+                                    text = it,
+                                    etiqueta = if (exp.accion == AccionPermiso.ABRIR_AJUSTES) "Ajustes" else "Permitir",
+                                    icon = if (exp.accion == AccionPermiso.ABRIR_AJUSTES) ShalevIcons.Ajustes else ShalevIcons.Camara,
+                                    onClick = {
+                                        when (exp.accion) {
+                                            AccionPermiso.SOLICITAR -> permiso.solicitar()
+                                            AccionPermiso.ABRIR_AJUSTES -> abrirAjustesDeLaApp(context)
+                                            AccionPermiso.NINGUNA -> Unit
+                                        }
+                                    },
+                                    modifier = Modifier.testTag(QrTags.ACCION_PERMISO),
+                                )
+                            }
                         }
                     }
+                } else {
+                    CamaraEscaner(
+                        onQr = viewModel::qrDetectado, onError = onBack,
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(ShalevRadius.lg)).testTag(QrTags.CAMARA).coachMark(ObjetivosRecorrido.QR_CAMARA),
+                    )
+                    ShalevSecondaryText("Apunta al código QR de vinculación.", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 }
-            } else {
-                CamaraEscaner(
-                    onQr = viewModel::qrDetectado, onError = onBack,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(ShalevRadius.lg)).testTag(QrTags.CAMARA),
-                )
-                ShalevSecondaryText("Apunta al código QR de vinculación.", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
         }
     }
