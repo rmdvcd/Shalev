@@ -1,5 +1,9 @@
 package cu.shalev.app.onboarding
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import cu.shalev.designsystem.component.ShalevCheckbox
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -110,27 +114,29 @@ fun OnboardingScreen(
     BackHandler(enabled = state.puedeVolver) { viewModel.atras() }
     if (state.paso == PasoWizard.DATOS) SecureWindow() // CI y teléfono
 
-    OnboardingContent(
-        state = state,
-        acciones = OnboardingAcciones(
-            onSiguiente = viewModel::siguiente,
-            onAtras = viewModel::atras,
-            onOmitirPaso = viewModel::omitirPaso,
-            onOmitirTodo = viewModel::omitirTodo,
-            onDatos = viewModel::editarDatos,
-            onNivel = viewModel::editarNivel,
-            onSumarNivel = viewModel::sumarNivel,
-            onRestablecerNiveles = viewModel::restablecerNiveles,
-            onTipo = viewModel::elegirTipo,
-            onModulo = viewModel::alternarModulo,
-            onEmpleados = viewModel::cambiarEmpleados,
-            onAccesoClave = cu.shalev.app.acceso.rememberCambiarAccesoClave(
-                guardar = viewModel::guardarAccesoClave,
-                mensaje = { m -> scope.launch { snackbar.showSnackbar(m) } },
+    RecorridoModulo(Recorrido.CONFIGURACION, listo = state.paso != null && state.paso != PasoWizard.BIENVENIDA) {
+        OnboardingContent(
+            state = state,
+            acciones = OnboardingAcciones(
+                onSiguiente = viewModel::siguiente,
+                onAtras = viewModel::atras,
+                onOmitirPaso = viewModel::omitirPaso,
+                onOmitirTodo = viewModel::omitirTodo,
+                onDatos = viewModel::editarDatos,
+                onNivel = viewModel::editarNivel,
+                onSumarNivel = viewModel::sumarNivel,
+                onRestablecerNiveles = viewModel::restablecerNiveles,
+                onTipo = viewModel::elegirTipo,
+                onModulo = viewModel::alternarModulo,
+                onEmpleados = viewModel::cambiarEmpleados,
+                onAccesoClave = cu.shalev.app.acceso.rememberCambiarAccesoClave(
+                    guardar = viewModel::guardarAccesoClave,
+                    mensaje = { m -> scope.launch { snackbar.showSnackbar(m) } },
+                ),
             ),
-        ),
-        snackbar = snackbar,
-    )
+            snackbar = snackbar,
+        )
+    }
 }
 
 class OnboardingAcciones(
@@ -238,17 +244,18 @@ private fun BarraSuperior(state: OnboardingUiState, acciones: OnboardingAcciones
             if (state.totalPasos <= 1) {
                 Text(
                     state.paso!!.titulo, style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f).testTag(OnboardingTags.PROGRESO).semantics { liveRegion = LiveRegionMode.Polite },
+                    modifier = Modifier.weight(1f).testTag(OnboardingTags.PROGRESO).coachMark(ObjetivosRecorrido.ONBOARDING_PROGRESO).semantics { liveRegion = LiveRegionMode.Polite },
                 )
             } else {
                 // P18 (L9): misma cabecera que Licencia y Respaldo. Atrás/Siguiente siguen abajo, con texto.
                 ShalevStepper(
                     actual = state.numeroPaso, total = state.totalPasos, titulo = state.paso!!.titulo,
-                    modifier = Modifier.weight(1f).testTag(OnboardingTags.PROGRESO),
+                    modifier = Modifier.weight(1f).testTag(OnboardingTags.PROGRESO).coachMark(ObjetivosRecorrido.ONBOARDING_PROGRESO),
                 )
             }
             ShalevTextButton(
                 text = if (state.modo == ModoWizard.PRIMERA_VEZ) "Saltar todo" else "Cerrar",
+                etiqueta = if (state.modo == ModoWizard.PRIMERA_VEZ) "Saltar" else "Cerrar",
                 icon = ShalevIcons.Cancelar,
                 onClick = acciones.onOmitirTodo,
                 modifier = Modifier.testTag(OnboardingTags.OMITIR_TODO),
@@ -264,20 +271,21 @@ private fun BarraInferior(state: OnboardingUiState, acciones: OnboardingAcciones
         if (state.paso == PasoWizard.BIENVENIDA) {
             ShalevTextButton(
                 text = if (state.modo == ModoWizard.PRIMERA_VEZ) "Saltar todo" else "Cerrar", icon = ShalevIcons.Cancelar,
+                etiqueta = if (state.modo == ModoWizard.PRIMERA_VEZ) "Saltar" else "Cerrar",
                 onClick = acciones.onOmitirTodo, modifier = Modifier.testTag(OnboardingTags.OMITIR_TODO),
             )
         }
         if (state.puedeVolver) ShalevTextButton(text = "Atrás", icon = ShalevIcons.Atras, onClick = acciones.onAtras, enabled = !state.ocupado)
         if (state.pasoOmitible) {
             ShalevTextButton(
-                text = "Ahora no", icon = ShalevIcons.Saltar, onClick = acciones.onOmitirPaso, enabled = !state.ocupado,
-                modifier = Modifier.testTag(OnboardingTags.OMITIR_PASO),
+                text = "Ahora no", etiqueta = "Omitir", icon = ShalevIcons.Saltar, onClick = acciones.onOmitirPaso, enabled = !state.ocupado,
+                modifier = Modifier.testTag(OnboardingTags.OMITIR_PASO).coachMark(ObjetivosRecorrido.ONBOARDING_OMITIR),
             )
         }
         ShalevPrimaryButton(
-            text = state.textoBotonPrincipal, onClick = acciones.onSiguiente, loading = state.ocupado, enabled = state.puedeSeguir,
+            text = state.textoBotonPrincipal, etiqueta = state.etiquetaBotonPrincipal, onClick = acciones.onSiguiente, loading = state.ocupado, enabled = state.puedeSeguir,
             icon = if (state.esUltimo) ShalevIcons.Listo else ShalevIcons.Siguiente,
-            modifier = Modifier.testTag(OnboardingTags.SIGUIENTE),
+            modifier = Modifier.testTag(OnboardingTags.SIGUIENTE).coachMark(ObjetivosRecorrido.ONBOARDING_SIGUIENTE),
         )
     }
 }
@@ -374,7 +382,7 @@ private fun PasoAlertas(state: OnboardingUiState, acciones: OnboardingAcciones) 
         CampoNivelUi("Bajo", CampoNivel.INSUMO_BAJO, state.niveles, err, forzar, sumar, acciones, decimal = true)
         CampoNivelUi("Crítico", CampoNivel.INSUMO_CRITICO, state.niveles, err, forzar, sumar, acciones, decimal = true)
     }
-    ShalevTextButton(text = "Usar valores recomendados (5 y 1)", icon = ShalevIcons.Restablecer, onClick = { conBotones = false; acciones.onRestablecerNiveles() })
+    ShalevTextButton(text = "Usar valores recomendados (5 y 1)", etiqueta = "Recomendados", icon = ShalevIcons.Restablecer, onClick = { conBotones = false; acciones.onRestablecerNiveles() })
 }
 
 @Composable
@@ -383,7 +391,7 @@ private fun CampoNivelUi(
     forzar: Boolean, sumar: (CampoNivel, Int) -> Unit, acciones: OnboardingAcciones, decimal: Boolean,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-        ShalevIconAction(ShalevIcons.Disminuir, "Restar 1 a $etiqueta", onClick = { sumar(campo, -1) }, style = IconActionStyle.Tonal, repetible = true)
+        ShalevIconAction(ShalevIcons.Disminuir, "Restar 1 a $etiqueta", mostrarTexto = false, onClick = { sumar(campo, -1) }, style = IconActionStyle.Tonal, repetible = true)
         ShalevTextField(
             filtro = if (decimal) FiltroEntrada.DECIMAL else FiltroEntrada.ENTERO,
             value = form.valor(campo), onValueChange = { acciones.onNivel(campo, it) }, label = etiqueta,
@@ -391,7 +399,7 @@ private fun CampoNivelUi(
             keyboardOptions = KeyboardOptions(keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number),
             modifier = Modifier.weight(1f),
         )
-        ShalevIconAction(ShalevIcons.Aumentar, "Sumar 1 a $etiqueta", onClick = { sumar(campo, 1) }, style = IconActionStyle.Tonal, repetible = true)
+        ShalevIconAction(ShalevIcons.Aumentar, "Sumar 1 a $etiqueta", mostrarTexto = false, onClick = { sumar(campo, 1) }, style = IconActionStyle.Tonal, repetible = true)
     }
 }
 
@@ -471,7 +479,7 @@ private fun PasoEmpleados(state: OnboardingUiState, acciones: OnboardingAcciones
         modifier = Modifier.fillMaxWidth(),
     ) {
         ShalevIconAction(
-            ShalevIcons.Disminuir, "Un empleado menos", onClick = { acciones.onEmpleados(state.empleados - 1) },
+            ShalevIcons.Disminuir, "Un empleado menos", mostrarTexto = false, onClick = { acciones.onEmpleados(state.empleados - 1) },
             enabled = state.empleados > 0, style = IconActionStyle.Tonal, repetible = true,
         )
         Text(
@@ -479,7 +487,7 @@ private fun PasoEmpleados(state: OnboardingUiState, acciones: OnboardingAcciones
             modifier = Modifier.testTag(OnboardingTags.EMPLEADOS).semantics { contentDescription = TextosTour.empleados(state.empleados) },
         )
         ShalevIconAction(
-            ShalevIcons.Aumentar, "Un empleado más", onClick = { acciones.onEmpleados(state.empleados + 1) },
+            ShalevIcons.Aumentar, "Un empleado más", mostrarTexto = false, onClick = { acciones.onEmpleados(state.empleados + 1) },
             enabled = state.empleados < (state.licencia?.secundariasPermitidas ?: 0), style = IconActionStyle.Tonal, repetible = true,
         )
     }

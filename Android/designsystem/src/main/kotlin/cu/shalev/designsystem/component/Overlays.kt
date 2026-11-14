@@ -148,6 +148,8 @@ fun ShalevDialog(
     modifier: Modifier = Modifier,
     text: String? = null,
     confirmDescription: String = "Confirmar",
+    /** Palabra visible del botón de confirmar (regla de botones); si falta se usa [confirmDescription]. */
+    confirmEtiqueta: String? = null,
     dismissDescription: String = "Cerrar",
     destructive: Boolean = false,
     confirmEnabled: Boolean = true,
@@ -161,6 +163,8 @@ fun ShalevDialog(
      * Va antes de [content] para no romper la lambda final de las llamadas.
      */
     secundarias: (@Composable () -> Unit)? = null,
+    /** Recorrido guiado propio de esta ventana (ver [EnvoltorioRecorrido]). */
+    recorrido: EnvoltorioRecorrido? = null,
     content: (@Composable () -> Unit)? = null,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -168,6 +172,7 @@ fun ShalevDialog(
         onDismiss = onDismiss,
         title = title,
         modifier = modifier,
+        recorrido = recorrido,
         footer = { _ ->
             // 1.0.4/1.0.5: secundarias (Atrás, Omitir…) antes de la confirmación, en un pie centrado que se envuelve.
             secundarias?.invoke()
@@ -180,17 +185,19 @@ fun ShalevDialog(
                         horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
                     ) {
                         CircularProgressIndicator(Modifier.size(ShalevSize.icon).semantics { contentDescription = confirmDescription })
-                        Text(confirmDescription, style = MaterialTheme.typography.labelLarge)
+                        Text(confirmEtiqueta ?: confirmDescription, style = MaterialTheme.typography.labelLarge)
                     }
                 } else {
                     ShalevIconAction(
                         icon = confirmIcon ?: if (destructive) ShalevIcons.Eliminar else ShalevIcons.Confirmar,
                         contentDescription = confirmDescription,
+                        etiqueta = confirmEtiqueta,
                         onClick = onConfirm,
                         enabled = confirmEnabled,
                         style = IconActionStyle.Filled,
                         containerColor = if (destructive) cs.error else null,
-                        modifier = if (confirmTag != null) Modifier.testTag(confirmTag) else Modifier,
+                        modifier = (if (confirmTag != null) Modifier.testTag(confirmTag) else Modifier)
+                            .coachMark(CoachMarkObjetivos.CONFIRMAR),
                     )
                 }
             }
@@ -221,6 +228,8 @@ fun ShalevBottomSheet(
     title: String? = null,
     footer: (@Composable () -> Unit)? = null,
     sinGuardar: Boolean = false,
+    /** Recorrido guiado propio de esta ventana (ver [EnvoltorioRecorrido]). */
+    recorrido: EnvoltorioRecorrido? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var preguntar by rememberSaveable { mutableStateOf(false) }
@@ -231,6 +240,7 @@ fun ShalevBottomSheet(
             onDismiss = { preguntar = false },
             onConfirm = { preguntar = false; onDismiss() },
             confirmDescription = ShalevSheetTextos.SALIR,
+            confirmEtiqueta = ShalevSheetTextos.SALIR_CORTO,
             dismissDescription = ShalevSheetTextos.SEGUIR,
             destructive = true,
             confirmIcon = ShalevIcons.Salir,
@@ -241,6 +251,7 @@ fun ShalevBottomSheet(
         title = title,
         footer = if (footer == null) null else { _ -> footer() },
         animarCierre = !sinGuardar,
+        recorrido = recorrido,
         content = content,
     )
 }
@@ -263,6 +274,7 @@ private fun ShalevVentana(
     footer: (@Composable (cerrar: () -> Unit) -> Unit)?,
     divisor: Boolean = true,
     animarCierre: Boolean = true,
+    recorrido: EnvoltorioRecorrido? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val visible = remember { MutableTransitionState(false) }
@@ -292,6 +304,9 @@ private fun ShalevVentana(
             enter = fadeIn(ShalevMotion.tween(ShalevMotion.VELO)),
             exit = fadeOut(ShalevMotion.tween(ShalevMotion.VELO)),
         ) {
+            // 1.1: el recorrido de la ventana envuelve toda la ventana (velo a pantalla completa, como en las pantallas).
+            val envolver: EnvoltorioRecorrido = recorrido ?: SinRecorrido
+            envolver {
             // La ventana del diálogo ocupa toda la pantalla: tocar fuera de la tarjeta cierra (la tarjeta consume sus toques).
             Box(
                 Modifier.fillMaxSize().background(cs.scrim.copy(alpha = ALFA_VELO))
@@ -346,8 +361,17 @@ private fun ShalevVentana(
                 // Durante la salida no se aceptan nuevos toques ni acciones accesibles sobre la ventana.
                 if (pendiente) Box(Modifier.matchParentSize().pointerInput(Unit) { detectTapGestures { } }.clearAndSetSemantics { })
             }
+            }
         }
     }
+}
+
+/**
+ * Ventana sin recorrido propio: el contenido tal cual. Un Dialog hereda los CompositionLocal de la pantalla, así que
+ * se corta el recorrido de la pantalla para que sus marcas no apunten a controles de la ventana (ni al revés).
+ */
+private val SinRecorrido: EnvoltorioRecorrido = { contenido ->
+    CompositionLocalProvider(LocalCoachMarkState provides null) { contenido() }
 }
 
 /** Opacidad del velo que oscurece la pantalla detrás de una ventana emergente (la del oscurecido de Material). */
@@ -362,6 +386,7 @@ object ShalevSheetTextos {
     const val SALIR_TITULO = "¿Salir sin guardar?"
     const val SALIR_TEXTO = "Se perderán los cambios que escribiste."
     const val SALIR = "Salir sin guardar"
+    const val SALIR_CORTO = "Salir"
     const val SEGUIR = "Seguir editando"
 }
 
@@ -374,8 +399,8 @@ fun ShalevFab(
     modifier: Modifier = Modifier,
     /** Etiqueta visible corta cuando [soloIcono] es false; si es null se usa [contentDescription]. */
     etiqueta: String? = null,
-    /** Presenta un FAB compacto de 48dp con el icono fuera de ventanas; dentro de una ventana se muestra texto. */
-    soloIcono: Boolean = true,
+    /** Regla de botones: icono + palabra por defecto; true deja el FAB compacto de 48dp solo con icono. */
+    soloIcono: Boolean = false,
 ) {
     val accion = rememberAccionUnica(onClick)
     val cs = MaterialTheme.colorScheme
@@ -399,7 +424,7 @@ fun ShalevFab(
                 Modifier.heightIn(min = ShalevSize.touchTarget).padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(etiqueta ?: contentDescription, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2)
+                Text(etiqueta ?: contentDescription, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 1)
             }
         } else {
             Row(

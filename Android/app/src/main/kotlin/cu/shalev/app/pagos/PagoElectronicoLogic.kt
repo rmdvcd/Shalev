@@ -36,9 +36,8 @@ fun bancoPorTarjeta(numero: String): BancoCubano? {
 
 object TextosPago {
     const val TITULO = "Pago electrónico"
-    const val EXPLICACION = "Cuando un cliente paga por transferencia, el código QR lleva la tarjeta o cuenta que recibe " +
-        "el dinero y el teléfono que recibe el mensaje de confirmación. Elige cuáles usar."
-    const val AVISO_BANCOS = "El logo se estima por el código de banco (dígitos 5 a 8); no verifica la titularidad."
+    const val EXPLICACION = "Elige la cuenta que recibe las transferencias y el teléfono que recibe el aviso. Van en el QR."
+    const val AVISO_BANCOS = "El banco se deduce del número (dígitos 5 a 8). No comprueba el titular."
     const val BANCO_ESTIMADO = "Identificación orientativa por el código de banco"
 
     /** Vista previa de la hoja: deja a la vista el código (dígitos 5–8) que eligió la miniatura. */

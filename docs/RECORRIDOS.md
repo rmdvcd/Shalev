@@ -1,6 +1,7 @@
 # Recorridos guiados (coach marks con spotlight)
 
-La primera vez que el usuario abre un módulo, un recorrido corto resalta sus elementos clave. La pantalla se
+La primera vez que el usuario abre una pantalla o una ventana emergente con varios controles, un recorrido resalta
+todos sus componentes, agrupados (los controles relacionados comparten paso; como máximo 8 pasos). La pantalla se
 oscurece con un velo negro al 50 % que deja un hueco de luz sobre el objetivo, y un globo muestra título, una frase
 de acción y los botones **Omitir**, **Anterior** y **Siguiente** (en el último paso, **Finalizar**). El recorrido se
 guarda como visto en Preferences DataStore solo al pulsar *Finalizar*, *Omitir* o Atrás.
@@ -20,7 +21,8 @@ guarda como visto en Preferences DataStore solo al pulsar *Finalizar*, *Omitir* 
 | `Android/designsystem/.../component/CoachMarks.kt` | Componente genérico: `CoachMarkPaso`, `CoachMarkState`, `rememberCoachMarkState`, `Modifier.coachMark(id)`, `CoachMarkHost` y la geometría del globo (`CoachMarkGeometria`). No sabe nada de DataStore. |
 | `Android/app/.../recorrido/OnboardingPreferences.kt` | `RecorridosVistos` (interfaz) y `OnboardingPreferences`, su implementación con Preferences DataStore (`shalev_recorridos`), más el módulo Hilt. |
 | `Android/app/.../recorrido/Recorridos.kt` | `ObjetivosRecorrido` (claves de los objetivos) y `enum class Recorrido` con los pasos de cada módulo. |
-| `Android/app/.../recorrido/RecorridoModulo.kt` | `RecorridosViewModel` y `RecorridoModulo(...)`: observa el indicador con `collectAsState()`, inicia el recorrido en un `LaunchedEffect` y guarda al terminar. |
+| `Android/app/.../recorrido/RecorridoModulo.kt` | `RecorridosViewModel` y `RecorridoModulo(...)`: observa el indicador con `collectAsState()`, inicia el recorrido en un `LaunchedEffect` y guarda al terminar. `LocalRecorridos` (lo provee `MainScaffold`) y `recorridoVentana(Recorrido.X)` para las ventanas emergentes. |
+| `Android/designsystem/.../component/Overlays.kt` | `ShalevDialog` y `ShalevBottomSheet` aceptan `recorrido`: un `EnvoltorioRecorrido` que pone un `CoachMarkHost` **dentro** de la ventana (el velo de la pantalla no puede cubrir otra ventana). `ShalevDialog` marca su botón de confirmar con `CoachMarkObjetivos.CONFIRMAR`; la barra superior marca **Ayuda** con `CoachMarkObjetivos.AYUDA`. |
 
 ### Cómo funciona
 
@@ -43,13 +45,9 @@ guarda como visto en Preferences DataStore solo al pulsar *Finalizar*, *Omitir* 
 
 ### Indicadores en DataStore
 
-| Módulo | Clave |
-|---|---|
-| Inicio (turno y caja) | `caja_tour_shown` |
-| Venta | `ventas_tour_shown` |
-| Inventario | `inventario_tour_shown` |
-| Servicios | `servicios_tour_shown` |
-| Registros | `registros_tour_shown` |
+Una clave por recorrido: `<clave>_tour_shown` (`caja_tour_shown`, `ventas_tour_shown`, `ajustes_tour_shown`,
+`ventana_fondo_tour_shown`…). La lista completa son las entradas de `enum class Recorrido`; «Ayuda → Ver recorrido»
+y `reiniciar()` las recorren todas.
 
 El archivo es `files/datastore/shalev_recorridos.preferences_pb`. Va sin cifrar porque solo contiene booleanos de
 interfaz. La copia en la nube y la transferencia entre teléfonos ya están desactivadas para toda la app
@@ -66,13 +64,22 @@ Los pasos se ajustan a la app tal como es hoy. Lo que la petición nombraba y la
   stock»: las existencias se cambian desde la ficha, con **Editar**. El paso de la lista lo explica.
 - **Caja.** Abrir turno y cerrar la caja son el mismo interruptor de la tarjeta del turno, en Inicio.
 
-| Recorrido | Pasos (en orden) | Se inicia cuando… |
-|---|---|---|
-| `CAJA` (Inicio) | Tarjeta del turno (abrir y cerrar) · Nueva venta · Entrada/salida de efectivo · Selector de período (resumen) | No hay diálogos de turno, conteo ni movimiento abiertos |
-| `VENTAS` | Carrito · Forma de pago · Agregar artículos · Continuar (cobrar) | El carrito tiene artículos y no hay diálogos |
-| `INVENTARIO` | Lista · Buscar · Filtrar · Agregar (+) | Pestaña normal (no al elegir qué vender), lista cargada y sin ficha, hoja, diálogo ni selección |
-| `SERVICIOS` | Lista · Buscar · Filtrar · Agregar (+) | Igual que Inventario |
-| `REGISTROS` | Pestañas · Buscar · Filtrar · Compartir | Sin ficha ni hojas, fuera de la pestaña Clientes |
+Los pasos y textos están en `Recorridos.kt`. Resumen de la cobertura:
+
+| Grupo | Recorridos |
+|---|---|
+| Pestañas | `CAJA` (Inicio: local, turno, vender, caja, alertas, pagos y precios, resumen, Ayuda) · `VENTAS` · `INVENTARIO` · `SERVICIOS` · `REGISTROS` (cada una con buscar, seleccionados, filtrar, exportar, agregar y Ayuda) |
+| Ajustes y sus módulos | `AJUSTES` (un paso por grupo de filas) · `PERFIL` · `LICENCIA` · `VINCULACION` · `QR` · `PAGO` · `PRECIOS` · `RESPALDO` · `MANUAL` · `SOPORTE` · `CONFIGURACION` (asistente) |
+| Pantallas secundarias | `TURNO_DETALLE` · `PRODUCTO_FORM` · `SERVICIO_FORM` · `INSUMO_FORM` |
+| Caja | `VENTANA_NUEVA_VENTA` · `VENTANA_FONDO` · `VENTANA_MOVIMIENTO` · `VENTANA_CONTEO` · `VENTANA_CIERRE` |
+| Fichas, filtros y exportar | `VENTANA_FICHA_*` (inventario, servicio, registro, cliente) · `VENTANA_FILTRO_*` · `VENTANA_EXPORTAR_*` (inventario, servicios, registros, turno) · `VENTANA_COMPARTIR_FICHA` |
+| Formularios en ventana | `VENTANA_AGREGAR_INSUMO` · `VENTANA_MODIFICAR` · `VENTANA_ANULAR` · `VENTANA_CORREGIR` · `VENTANA_EDITAR_CLIENTE` · `VENTANA_CUENTA` · `VENTANA_PRECIO` · `VENTANA_IMPORTAR` · `VENTANA_LOCALES` · `VENTANA_LOCAL` · `VENTANA_EMPLEADO` · `VENTANA_QR` · `VENTANA_SECUNDARIA` |
+
+**Sin recorrido** (confirmaciones simples de Sí/No): eliminar, quitar, desvincular, cerrar el turno de un empleado,
+descartar cambios, resultado de un respaldo, buscar actualización y permisos iniciales.
+
+Cada pantalla pasa `listo = false` mientras tiene una ventana propia abierta, para que su recorrido no se mezcle con
+el de la ventana.
 
 ## 4. Dependencia en `Android/app/build.gradle.kts`
 
@@ -100,7 +107,7 @@ implementation("com.svenjacobs.reveal:reveal-core:<versión>")
 
 ## 5. Añadir un recorrido a otro módulo
 
-1. Añade las claves en `ObjetivosRecorrido` y una entrada en `Recorrido` con 3–5 `CoachMarkPaso`.
+1. Añade las claves en `ObjetivosRecorrido` y una entrada en `Recorrido` con hasta 8 `CoachMarkPaso` agrupados.
 2. Pon `.coachMark(ObjetivosRecorrido.…)` en el `Modifier` de cada objetivo dentro del `*Content`.
 3. En el `*Screen`, envuelve el `*Content`:
 
@@ -110,13 +117,15 @@ implementation("com.svenjacobs.reveal:reveal-core:<versión>")
    }
    ```
 
-4. La prueba `OnboardingPreferencesTest.cadaRecorridoTieneEntreTresYCincoPasosConObjetivosUnicos` comprueba el
+4. En una ventana emergente, pasa `recorrido = recorridoVentana(Recorrido.VENTANA_NUEVA)` a `ShalevDialog` o
+   `ShalevBottomSheet`. Las claves `VENTANA_*` se pueden repetir entre ventanas: cada una tiene su recorrido.
+5. La prueba `OnboardingPreferencesTest.cadaRecorridoTieneHastaOchoPasosAgrupadosConObjetivosUnicos` comprueba el
    límite de pasos y la longitud de los textos.
 
 ## 6. Recomendaciones de UX
 
-- **De 3 a 5 pasos, como máximo.** Cada paso es un elemento y una acción. Si hace falta más, es material para el
-  manual (el botón **Ayuda** ya enlaza a él).
+- **Hasta 8 pasos, agrupados.** Los controles relacionados (los campos de un formulario, los botones de una fila)
+  comparten paso. Si hace falta más, es material para el manual (el botón **Ayuda** ya enlaza a él).
 - **Título de 2 a 4 palabras y una sola frase que empiece por el verbo**: «Toca aquí para…», «Escribe…». Las pruebas
   limitan el título a 28 caracteres y la descripción a 120.
 - **En el momento justo, no al instalar.** Cada módulo enseña lo suyo la primera vez que se abre, y la venta espera a

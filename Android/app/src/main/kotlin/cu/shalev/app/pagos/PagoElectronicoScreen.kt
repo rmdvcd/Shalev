@@ -1,5 +1,10 @@
 package cu.shalev.app.pagos
 
+import cu.shalev.app.recorrido.recorridoVentana
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -81,17 +86,19 @@ fun PagoElectronicoScreen(onBack: () -> Unit, viewModel: PagoElectronicoViewMode
         viewModel.eventos.collect { e -> if (e is EventoPago.Mensaje) snackbar.showSnackbar(e.texto) }
     }
     SecureWindow() // números de tarjeta y teléfonos
-    PagoElectronicoContent(
-        state = state,
-        onBack = onBack,
-        acciones = AccionesListaPago(
-            onElegir = viewModel::elegir, onNuevo = viewModel::nuevo, onEditar = viewModel::editar,
-            onBorrar = viewModel::pedirBorrado, onCambiarEdicion = viewModel::editarEdicion,
-            onGuardarEdicion = viewModel::guardarEdicion, onCerrarEdicion = viewModel::cerrarEdicion,
-            onConfirmarBorrado = viewModel::confirmarBorrado, onCancelarBorrado = viewModel::cancelarBorrado,
-        ),
-        snackbar = snackbar,
-    )
+    RecorridoModulo(Recorrido.PAGO, listo = state.edicion == null && state.borrar == null) {
+        PagoElectronicoContent(
+            state = state,
+            onBack = onBack,
+            acciones = AccionesListaPago(
+                onElegir = viewModel::elegir, onNuevo = viewModel::nuevo, onEditar = viewModel::editar,
+                onBorrar = viewModel::pedirBorrado, onCambiarEdicion = viewModel::editarEdicion,
+                onGuardarEdicion = viewModel::guardarEdicion, onCerrarEdicion = viewModel::cerrarEdicion,
+                onConfirmarBorrado = viewModel::confirmarBorrado, onCancelarBorrado = viewModel::cancelarBorrado,
+            ),
+            snackbar = snackbar,
+        )
+    }
 }
 
 class AccionesListaPago(
@@ -121,21 +128,23 @@ fun PagoElectronicoContent(
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
                 AnimatedVisibility(visible = expandido, enter = ShalevMotion.enterVertical, exit = ShalevMotion.exitVertical) {
                     Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
-                        FilaPago("Teléfono", ShalevIcons.Telefono) { expandido = false; acciones.onNuevo(TipoCuentaPago.TELEFONO) }
-                        FilaPago("Tarjeta o cuenta", ShalevIcons.PagoElectronico) { expandido = false; acciones.onNuevo(TipoCuentaPago.TARJETA) }
+                        FilaPago("Teléfono", "Teléfono", ShalevIcons.Telefono) { expandido = false; acciones.onNuevo(TipoCuentaPago.TELEFONO) }
+                        FilaPago("Tarjeta o cuenta", "Tarjeta", ShalevIcons.PagoElectronico) { expandido = false; acciones.onNuevo(TipoCuentaPago.TARJETA) }
                     }
                 }
                 ShalevFab(
                     if (expandido) ShalevIcons.Cancelar else ShalevIcons.Agregar,
                     if (expandido) "Cerrar" else "Agregar",
                     onClick = { expandido = !expandido },
+                    modifier = Modifier.coachMark(ObjetivosRecorrido.PAGO_AGREGAR),
                 )
             }
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
     ) { padding ->
         LazyColumn(
-            Modifier.fillMaxSize().shalevContentWidth().padding(padding).imePadding(), // el teclado no tapa los campos ni Guardar
+            Modifier.fillMaxSize().shalevContentWidth().padding(padding).imePadding() // el teclado no tapa los campos ni Guardar
+                .coachMark(ObjetivosRecorrido.PAGO_LISTA),
             contentPadding = PaddingValues(
                 top = ShalevSpacing.md,
                 // Hueco para que el flotante no tape la última fila.
@@ -264,8 +273,12 @@ private fun EdicionSheet(e: EdicionPago, guardando: Boolean, acciones: AccionesL
             else -> "Editar tarjeta o cuenta"
         },
         // 1.0.3: sin botón Cancelar en el pie (se cierra tocando fuera o con Atrás).
+        recorrido = recorridoVentana(Recorrido.VENTANA_CUENTA),
         footer = {
-            ShalevPrimaryButton("Guardar", icon = ShalevIcons.Guardar, onClick = acciones.onGuardarEdicion, loading = guardando, enabled = e.error == null)
+            ShalevPrimaryButton(
+                "Guardar", icon = ShalevIcons.Guardar, onClick = acciones.onGuardarEdicion, loading = guardando, enabled = e.error == null,
+                modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_GUARDAR),
+            )
         },
     ) {
         ShalevTextField(
@@ -278,6 +291,7 @@ private fun EdicionSheet(e: EdicionPago, guardando: Boolean, acciones: AccionesL
             isError = e.error != null, validarAlSalir = true, forzarError = e.mostrarErrores,
             errorText = e.error,
             keyboardOptions = KeyboardOptions(keyboardType = if (telefono) KeyboardType.Phone else KeyboardType.Number),
+            modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_NUMERO),
         )
         if (!telefono) {
             // Vista previa: el código (dígitos 5–8) deja claro por qué se eligió esa miniatura.
@@ -301,12 +315,13 @@ private fun EdicionSheet(e: EdicionPago, guardando: Boolean, acciones: AccionesL
             onValueChange = { v -> acciones.onCambiarEdicion { it.copy(alias = v) } },
             label = "Nombre para reconocerlo (opcional)",
             placeholder = if (telefono) "Mi móvil" else "Tarjeta del banco",
+            modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_NOMBRE),
         )
     }
 }
 
 /** Acción iconográfica del «+»; la descripción completa queda disponible para TalkBack. */
 @Composable
-private fun FilaPago(label: String, icon: ImageVector, onClick: () -> Unit) {
-    ShalevIconAction(icon, label, onClick, style = IconActionStyle.Tonal)
+private fun FilaPago(label: String, etiqueta: String, icon: ImageVector, onClick: () -> Unit) {
+    ShalevIconAction(icon, label, onClick, style = IconActionStyle.Tonal, etiqueta = etiqueta)
 }

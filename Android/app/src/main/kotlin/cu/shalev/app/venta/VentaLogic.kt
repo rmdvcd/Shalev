@@ -344,7 +344,7 @@ enum class CampoCliente(val campo: String, val etiqueta: String, val max: Int) {
 
 object TextosVenta {
     /** 0.20.0 (H5): el encargado pidió cerrar el turno desde la app principal. */
-    const val CIERRE_PEDIDO = "El encargado pidió cerrar tu turno: se cerrará al terminar esta venta."
+    const val CIERRE_PEDIDO = "El encargado cerrará tu turno al terminar esta venta."
     const val TITULO_VENTA = "Nueva venta"
     const val TITULO_SERVICIOS = "Venta de servicios"
     const val CARRITO_VACIO_TITULO = "Aún no has elegido productos"
@@ -361,21 +361,19 @@ object TextosVenta {
     const val CLIENTE_FIJO = "Cliente fijo"
     const val CLIENTE_FIJO_AYUDA = "Guarda sus datos para rellenarlos solos la próxima vez."
     fun sugerencia(c: cu.shalev.domain.model.ClienteFijo): String = "Carné ${c.ci}\nTel. ${NumberPresentation.phone(c.telefono)}"
-    const val QR_AYUDA = "El QR oficial no incluye el importe. El cliente debe escribir el que aparece debajo."
+    const val QR_AYUDA = "El QR no lleva el importe: el cliente debe escribir el de abajo."
     const val PAGO_RECIBIDO = "Ya pagó: pedir datos"
     const val PEGAR_SMS = "Pegar SMS"
-    const val PEGAR_AYUDA = "Si no se detectó automáticamente, comparte el SMS de PAGOxMOVIL con Shalev o pégalo."
+    const val PEGAR_AYUDA = "¿No se detectó? Comparte o pega el SMS de PAGOxMOVIL."
     const val CAPTURA_SMS_TITULO = "Captura automática opcional"
     const val CAPTURA_SMS_ACTIVA_TITULO = "Captura automática activa"
-    const val CAPTURA_SMS_AYUDA = "Al autorizar Acceso a notificaciones en Ajustes, Shalev puede completar el número desde el SMS " +
-        "mientras esta transferencia está activa. Android da acceso a todas las notificaciones, pero Shalev solo procesa " +
-        "mensajes con una transacción reconocible; no lee el buzón ni guarda el SMS."
-    const val CAPTURA_SMS_ACTIVA = "Si el texto del SMS no aparece en la notificación, comparte el mensaje o usa «Pegar SMS»."
+    const val CAPTURA_SMS_AYUDA = "Activa Acceso a notificaciones para leer el nº de transacción del SMS. Shalev solo procesa avisos de pago; no lee el buzón ni guarda SMS."
+    const val CAPTURA_SMS_ACTIVA = "¿El SMS no sale en la notificación? Compártelo o usa «Pegar SMS»."
     const val CAPTURA_SMS_ACTIVAR = "Activar en Ajustes"
     const val CAPTURA_SMS_ADMINISTRAR = "Administrar en Ajustes"
     /** 0.20.0 (H3): el SMS del banco le llega al dueño; el empleado copia el nº del SMS del cliente. */
-    const val SMS_SIN_NUMERO = "No se encontró un nº de transacción en el texto. Escríbelo a mano."
-    const val PORTAPAPELES_VACIO = "No hay texto copiado. Copia el SMS de PAGOxMOVIL y vuelve a tocar el botón de pegar."
+    const val SMS_SIN_NUMERO = "No hay nº de transacción en el texto. Escríbelo a mano."
+    const val PORTAPAPELES_VACIO = "No hay texto copiado. Copia el SMS de PAGOxMOVIL y pega otra vez."
     const val DESCARTAR_TITULO = "¿Descartar la venta?"
     const val DESCARTAR_TEXTO = "Se perderán los productos elegidos."
     const val ERROR = "No se pudo completar la venta. Inténtalo de nuevo."

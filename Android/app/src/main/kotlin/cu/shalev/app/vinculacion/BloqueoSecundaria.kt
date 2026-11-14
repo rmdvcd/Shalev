@@ -48,7 +48,7 @@ fun BloqueoSecundaria(viewModel: VinculacionViewModel = hiltViewModel()) {
             )
             ShalevButtonRow {
                 ShalevPrimaryButton(
-                    text = VinculacionLogic.SINCRONIZAR, icon = ShalevIcons.Sincronizar, onClick = viewModel::sincronizar,
+                    text = VinculacionLogic.SINCRONIZAR, icon = ShalevIcons.Sincronizar, etiqueta = "Sincronizar", onClick = viewModel::sincronizar,
                     loading = state.trabajando, enabled = !state.trabajando,
                 )
             }

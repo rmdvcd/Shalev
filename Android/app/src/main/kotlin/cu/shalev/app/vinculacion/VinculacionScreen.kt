@@ -1,5 +1,10 @@
 package cu.shalev.app.vinculacion
 
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
+import cu.shalev.app.recorrido.recorridoVentana
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -119,21 +124,23 @@ fun VinculacionScreen(
     LaunchedEffect(qrLeido) {
         if (qrLeido != null) { onQrConsumido(); viewModel.qrLeido(qrLeido) }
     }
-    VinculacionContent(
-        s = state, onBack = onBack, snackbar = snackbar,
-        onAgregar = viewModel::agregar, onEditar = viewModel::editar, onCerrarForm = viewModel::cerrarForm,
-        onNombre = viewModel::nombre, onPermiso = viewModel::permiso, onTarjeta = viewModel::tarjeta,
-        onGuardarForm = viewModel::guardarForm, onNuevoCodigo = viewModel::nuevoCodigo,
-        onCerrarQr = viewModel::cerrarQr, onPedirQuitar = viewModel::pedirQuitar,
-        onCancelarQuitar = viewModel::cancelarQuitar, onConfirmarQuitar = viewModel::confirmarQuitar,
-        onPedirCierre = viewModel::pedirCierre, onCancelarCierre = viewModel::cancelarCierre,
-        onConfirmarCierre = viewModel::confirmarCierre, onAprobarCierre = viewModel::aprobarCierre,
-        onRechazarCierre = viewModel::rechazarCierre, onTelefonoSecundaria = viewModel::telefonoSecundaria,
-        onPedirSecundaria = viewModel::pedirSecundaria, onCancelarSecundaria = viewModel::cancelarSecundaria,
-        onConfirmarSecundaria = viewModel::confirmarSecundaria, onSincronizar = viewModel::sincronizar,
-        onPedirDesvincular = viewModel::pedirDesvincular,
-        onCancelarDesvincular = viewModel::cancelarDesvincular, onConfirmarDesvincular = viewModel::confirmarDesvincular,
-    )
+    RecorridoModulo(Recorrido.VINCULACION, listo = state.form == null && state.qr == null && state.quitar == null && state.cerrarTurno == null && !state.confirmarSecundaria && !state.confirmarDesvincular) {
+        VinculacionContent(
+            s = state, onBack = onBack, snackbar = snackbar,
+            onAgregar = viewModel::agregar, onEditar = viewModel::editar, onCerrarForm = viewModel::cerrarForm,
+            onNombre = viewModel::nombre, onPermiso = viewModel::permiso, onTarjeta = viewModel::tarjeta,
+            onGuardarForm = viewModel::guardarForm, onNuevoCodigo = viewModel::nuevoCodigo,
+            onCerrarQr = viewModel::cerrarQr, onPedirQuitar = viewModel::pedirQuitar,
+            onCancelarQuitar = viewModel::cancelarQuitar, onConfirmarQuitar = viewModel::confirmarQuitar,
+            onPedirCierre = viewModel::pedirCierre, onCancelarCierre = viewModel::cancelarCierre,
+            onConfirmarCierre = viewModel::confirmarCierre, onAprobarCierre = viewModel::aprobarCierre,
+            onRechazarCierre = viewModel::rechazarCierre, onTelefonoSecundaria = viewModel::telefonoSecundaria,
+            onPedirSecundaria = viewModel::pedirSecundaria, onCancelarSecundaria = viewModel::cancelarSecundaria,
+            onConfirmarSecundaria = viewModel::confirmarSecundaria, onSincronizar = viewModel::sincronizar,
+            onPedirDesvincular = viewModel::pedirDesvincular,
+            onCancelarDesvincular = viewModel::cancelarDesvincular, onConfirmarDesvincular = viewModel::confirmarDesvincular,
+        )
+    }
 }
 
 /** Sin estado propio: lo usan la pantalla real y las capturas Roborazzi (las acciones por defecto no hacen nada). */
@@ -174,7 +181,7 @@ fun VinculacionContent(
         snackbarHost = { ShalevSnackbarHost(snackbar) },
         floatingActionButton = {
             if (s.puedeAgregar) { // 0.21.0 (C4/C5): solo la principal y hasta el límite de la licencia
-                ShalevFab(ShalevIcons.AgregarEmpleado, "Agregar app de un empleado", onAgregar, Modifier.testTag(VinculacionTags.AGREGAR), etiqueta = "Agregar")
+                ShalevFab(ShalevIcons.AgregarEmpleado, "Agregar app de un empleado", onAgregar, Modifier.testTag(VinculacionTags.AGREGAR).coachMark(ObjetivosRecorrido.VINCULACION_AGREGAR), etiqueta = "Agregar")
             }
         },
     ) { padding ->
@@ -198,9 +205,10 @@ fun VinculacionContent(
             onDismiss = onCerrarQr,
             onConfirm = null,
             dismissDescription = "Cerrar",
+            recorrido = recorridoVentana(Recorrido.VENTANA_QR),
             content = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
-                    QrCodigo(q.contenido, "Código QR de vinculación para ${q.nombreEmpleado}", Modifier.testTag(VinculacionTags.QR))
+                    QrCodigo(q.contenido, "Código QR de vinculación para ${q.nombreEmpleado}", Modifier.testTag(VinculacionTags.QR).coachMark(ObjetivosRecorrido.VENTANA_QR))
                     // 0.28.0: la hora («Vence a las 09:30 · un solo uso») va en seminegrita.
                     Text(
                         ShalevTextos.resaltar(
@@ -220,6 +228,7 @@ fun VinculacionContent(
             onDismiss = onCancelarQuitar,
             onConfirm = onConfirmarQuitar,
             confirmDescription = VinculacionLogic.QUITAR,
+            confirmEtiqueta = "Quitar",
             confirmIcon = ShalevIcons.Desvincular,
             destructive = true,
         )
@@ -231,6 +240,7 @@ fun VinculacionContent(
             onDismiss = onCancelarCierre,
             onConfirm = onConfirmarCierre,
             confirmDescription = VinculacionLogic.PEDIR_CIERRE,
+            confirmEtiqueta = "Pedir",
             confirmIcon = ShalevIcons.Salir,
         )
     }
@@ -240,7 +250,9 @@ fun VinculacionContent(
             onDismiss = onCancelarSecundaria,
             onConfirm = onConfirmarSecundaria,
             confirmDescription = "Escanear código",
+            confirmEtiqueta = "Escanear",
             confirmIcon = ShalevIcons.Escanear,
+            recorrido = recorridoVentana(Recorrido.VENTANA_SECUNDARIA),
             content = {
                 Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
                     Text(VinculacionLogic.CONFIRMAR_SECUNDARIA, style = MaterialTheme.typography.bodyMedium)
@@ -252,7 +264,7 @@ fun VinculacionContent(
                         supportingText = VinculacionLogic.TELEFONO_SECUNDARIA_AYUDA,
                         isError = s.errorTelefono != null, errorText = s.errorTelefono,
                         
-                        modifier = Modifier.testTag(VinculacionTags.TELEFONO),
+                        modifier = Modifier.testTag(VinculacionTags.TELEFONO).coachMark(ObjetivosRecorrido.VENTANA_NUMERO),
                     )
                 }
             },
@@ -293,9 +305,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.principal(
                 text = if (d.isEmpty()) "Sin red" else "Red disponible",
                 detail = if (d.isEmpty()) "Conéctate a una wifi, activa la zona wifi o usa datos móviles." else "Este teléfono: ${d.joinToString(", ")}",
                 tone = if (d.isEmpty()) BannerTone.Aviso else BannerTone.Info,
-                modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag(VinculacionTags.RED),
+                modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag(VinculacionTags.RED).coachMark(ObjetivosRecorrido.VINCULACION_RED),
                 // La app no puede encender la zona wifi: abre la pantalla del sistema (sin permisos).
-                actionIcon = ShalevIcons.RedLocal, actionDescription = VinculacionLogic.ABRIR_ZONA_WIFI,
+                actionIcon = ShalevIcons.RedLocal, actionDescription = VinculacionLogic.ABRIR_ZONA_WIFI, actionEtiqueta = "Zona",
                 onAction = { AjustesRed.abrirZonaWifi(context) },
             )
         }
@@ -329,7 +341,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.principal(
                     leading = { Icon(ShalevIcons.Movil, contentDescription = null) },
                     trailing = { Icon(ShalevIcons.Abrir, contentDescription = null) },
                     onClick = { onEditar(e) },
-                    modifier = Modifier.testTag(VinculacionTags.empleado(e.id)),
+                    modifier = Modifier.testTag(VinculacionTags.empleado(e.id))
+                        .then(if (e == s.empleados.first()) Modifier.coachMark(ObjetivosRecorrido.VINCULACION_EMPLEADOS) else Modifier),
                 )
                 progreso?.let { p ->
                     Column(
@@ -352,8 +365,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.principal(
     if (s.puedeSerSecundaria) item {
         ShalevButtonRow(Modifier.padding(vertical = ShalevSpacing.md)) {
             ShalevTextButton(
-                text = VinculacionLogic.USAR_COMO_SECUNDARIA, icon = ShalevIcons.Escanear, onClick = onPedirSecundaria,
-                enabled = !s.trabajando, modifier = Modifier.testTag(VinculacionTags.SECUNDARIA),
+                text = VinculacionLogic.USAR_COMO_SECUNDARIA, icon = ShalevIcons.Escanear, etiqueta = "Secundaria", onClick = onPedirSecundaria,
+                enabled = !s.trabajando, modifier = Modifier.testTag(VinculacionTags.SECUNDARIA).coachMark(ObjetivosRecorrido.VINCULACION_SECUNDARIA),
             )
         }
     }
@@ -385,17 +398,18 @@ private fun androidx.compose.foundation.lazy.LazyListScope.secundaria(
         ShalevStatusBanner(
             text = VinculacionLogic.conexion(c),
             tone = if (sinConexion) BannerTone.Aviso else BannerTone.Info,
-            modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag(VinculacionTags.RED),
+            modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag(VinculacionTags.RED).coachMark(ObjetivosRecorrido.VINCULACION_RED),
             actionIcon = if (sinConexion) ShalevIcons.RedLocal else null,
             actionDescription = if (sinConexion) VinculacionLogic.ABRIR_WIFI else null,
+            actionEtiqueta = "Wifi",
             onAction = if (sinConexion) ({ AjustesRed.abrirWifi(context) }) else null,
         )
     }
     item {
         ShalevButtonRow(Modifier.padding(vertical = ShalevSpacing.xs)) {
             ShalevPrimaryButton(
-                text = VinculacionLogic.SINCRONIZAR, icon = ShalevIcons.Sincronizar, onClick = onSincronizar,
-                loading = s.trabajando, enabled = !s.trabajando, modifier = Modifier.testTag(VinculacionTags.SINCRONIZAR),
+                text = VinculacionLogic.SINCRONIZAR, icon = ShalevIcons.Sincronizar, etiqueta = "Sincronizar", onClick = onSincronizar,
+                loading = s.trabajando, enabled = !s.trabajando, modifier = Modifier.testTag(VinculacionTags.SINCRONIZAR).coachMark(ObjetivosRecorrido.VINCULACION_SINCRONIZAR),
             )
         }
     }
@@ -405,7 +419,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.secundaria(
             ShalevStatusBanner(
                 text = VinculacionLogic.CAMBIOS_PENDIENTES,
                 tone = BannerTone.Aviso,
-                modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag(VinculacionTags.CAMBIOS),
+                modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag(VinculacionTags.CAMBIOS).coachMark(ObjetivosRecorrido.VINCULACION_CAMBIOS),
             )
         }
     }
@@ -442,7 +456,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.secundaria(
         ShalevButtonRow(Modifier.padding(vertical = ShalevSpacing.md)) {
             ShalevTextButton(
                 text = VinculacionLogic.DESVINCULAR, icon = ShalevIcons.Desvincular, onClick = onPedirDesvincular,
-                enabled = !s.trabajando, modifier = Modifier.testTag(VinculacionTags.DESVINCULAR),
+                enabled = !s.trabajando, modifier = Modifier.testTag(VinculacionTags.DESVINCULAR).coachMark(ObjetivosRecorrido.VINCULACION_DESVINCULAR),
             )
         }
     }
@@ -471,15 +485,17 @@ private fun FormDialog(
         onDismiss = onCerrarForm,
         onConfirm = onGuardarForm,
         confirmDescription = if (nueva) "Crear código" else "Guardar",
+        confirmEtiqueta = if (nueva) "Crear" else "Guardar",
         confirmEnabled = !trabajando && (!nueva || f.nombre.isNotBlank()),
         confirmLoading = trabajando,
+        recorrido = recorridoVentana(Recorrido.VENTANA_EMPLEADO),
         content = {
             Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
                 if (nueva) {
                     ShalevTextField(
                         filtro = FiltroEntrada.NOMBRE,
                         value = f.nombre, onValueChange = onNombre, label = "Nombre del empleado",
-                        isError = f.errorNombre != null, errorText = f.errorNombre, modifier = Modifier,
+                        isError = f.errorNombre != null, errorText = f.errorNombre, modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_NOMBRE),
                     )
                 }
                 // 0.20.0 (H5): turno abierto de esta app y «Pedir cierre» (arriba: es lo urgente, Von Restorff).
@@ -509,32 +525,33 @@ private fun FormDialog(
                             (e.solicitaCierre || (e.cierrePedido && e.conteoCierre != null && e.conteoCierre?.aprobadoEn == null)) -> ({
                                 Row(horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
                                     ShalevIconAction(
-                                        ShalevIcons.Cancelar, VinculacionLogic.RECHAZAR_CIERRE, onClick = onRechazarCierre, enabled = !trabajando,
+                                        ShalevIcons.Cancelar, VinculacionLogic.RECHAZAR_CIERRE, etiqueta = "Rechazar", onClick = onRechazarCierre, enabled = !trabajando,
                                         modifier = Modifier.testTag(VinculacionTags.RECHAZAR_CIERRE),
                                     )
                                     ShalevIconAction(
-                                        ShalevIcons.Guardar, VinculacionLogic.APROBAR_CIERRE, onClick = onAprobarCierre, enabled = !trabajando,
+                                        ShalevIcons.Guardar, VinculacionLogic.APROBAR_CIERRE, etiqueta = "Aprobar", onClick = onAprobarCierre, enabled = !trabajando,
                                         style = IconActionStyle.Filled, modifier = Modifier.testTag(VinculacionTags.APROBAR_CIERRE),
                                     )
                                 }
                             })
                             else -> ({
                                 ShalevIconAction(
-                                    ShalevIcons.Salir, VinculacionLogic.PEDIR_CIERRE, onClick = onPedirCierre, enabled = !trabajando,
+                                    ShalevIcons.Salir, VinculacionLogic.PEDIR_CIERRE, etiqueta = "Cierre", onClick = onPedirCierre, enabled = !trabajando,
                                     style = IconActionStyle.Tonal, modifier = Modifier.testTag(VinculacionTags.PEDIR_CIERRE),
                                 )
                             })
                         }
                     accionesCierre?.let { accion ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { accion() }
+                        Row(Modifier.fillMaxWidth().coachMark(ObjetivosRecorrido.EMPLEADO_CIERRE), horizontalArrangement = Arrangement.Center) { accion() }
                     }
                 } }
                 empleado?.conteoCierre?.let { cu.shalev.app.caja.ResumenConteo(it) }
                 Text("Permisos", style = MaterialTheme.typography.titleSmall)
-                PermisoEmpleado.entries.forEach { p ->
+                PermisoEmpleado.entries.forEachIndexed { n, p ->
                     val activo = p in f.permisos
                     Row(
-                        Modifier.fillMaxWidth().toggleable(value = activo, role = Role.Checkbox, onValueChange = { onPermiso(p, it) }),
+                        Modifier.fillMaxWidth().toggleable(value = activo, role = Role.Checkbox, onValueChange = { onPermiso(p, it) })
+                            .then(if (n == 0) Modifier.coachMark(ObjetivosRecorrido.EMPLEADO_PERMISOS) else Modifier),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
                     ) {
@@ -560,7 +577,7 @@ private fun FormDialog(
                             },
                             onSeleccion = onTarjeta,
                             leadingIcon = ShalevIcons.PagoElectronico,
-                            modifier = Modifier.fillMaxWidth().testTag(VinculacionTags.COBRO_TARJETA),
+                            modifier = Modifier.fillMaxWidth().testTag(VinculacionTags.COBRO_TARJETA).coachMark(ObjetivosRecorrido.EMPLEADO_COBRO),
                         )
                     }
                     if (!nueva) {
@@ -569,15 +586,15 @@ private fun FormDialog(
                             subtitle = empleado?.telefono?.let { NumberPresentation.phone(it) } ?: VinculacionLogic.SIN_TELEFONO,
                             indicatorColor = null,
                             leading = { Icon(ShalevIcons.Telefono, contentDescription = null) },
-                            modifier = Modifier.testTag(VinculacionTags.COBRO_TELEFONO),
+                            modifier = Modifier.testTag(VinculacionTags.COBRO_TELEFONO).coachMark(ObjetivosRecorrido.EMPLEADO_COBRO),
                         )
                     }
                     Text(VinculacionLogic.COBRO_DETALLE, style = MaterialTheme.typography.bodySmall)
                 }
                 if (!nueva) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.lg, Alignment.CenterHorizontally)) {
-                        ShalevTextButton(text = VinculacionLogic.NUEVO_CODIGO, icon = ShalevIcons.Vinculacion, onClick = onNuevoCodigo, enabled = !trabajando)
-                        ShalevTextButton(text = VinculacionLogic.QUITAR, icon = ShalevIcons.Desvincular, onClick = onPedirQuitar, enabled = !trabajando)
+                    Row(Modifier.fillMaxWidth().coachMark(ObjetivosRecorrido.EMPLEADO_CODIGO), horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.lg, Alignment.CenterHorizontally)) {
+                        ShalevTextButton(text = VinculacionLogic.NUEVO_CODIGO, etiqueta = "Código", icon = ShalevIcons.Vinculacion, onClick = onNuevoCodigo, enabled = !trabajando)
+                        ShalevTextButton(text = VinculacionLogic.QUITAR, etiqueta = "Quitar", icon = ShalevIcons.Desvincular, onClick = onPedirQuitar, enabled = !trabajando)
                     }
                 }
             }

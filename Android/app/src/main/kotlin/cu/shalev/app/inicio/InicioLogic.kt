@@ -57,11 +57,11 @@ object TextosInicio {
     /** 0.27.0 (N1): subtítulo de la dona Inventario (productos e insumos, cada uno en su medida). */
     const val EXISTENCIAS_POR_CATEGORIA = "Valor al costo por categoría (CUP)"
     /** 0.20.0 (H5): cierre de turno pedido desde la app principal. */
-    const val CIERRE_PEDIDO = "El encargado pidió cerrar tu turno. Se cierra en cuanto no haya una venta en curso."
+    const val CIERRE_PEDIDO = "El encargado pidió cerrar tu turno. Se cierra al terminar la venta."
     /** 0.25.1 (D). */
     const val AHORA_NO = "Ahora no"
     const val CONTAR = "Contar"
-    const val CONTAR_PENDIENTE = "Falta contar el efectivo. Toca para contarlo; sin conteo no se cierra."
+    const val CONTAR_PENDIENTE = "Toca para contar el efectivo. Sin conteo no se cierra."
     const val CIERRE_HECHO = "El encargado cerró tu turno desde la app principal."
 
     const val ERROR_CARGA = "No se pudieron cargar los datos."
@@ -72,18 +72,18 @@ object TextosInicio {
     const val TURNO_CERRADO = "Turno cerrado"
     const val AVISO_TURNO_CERRADO = "Turno cerrado: ábrelo para vender."
     const val CERRAR_TURNO_TITULO = "¿Cerrar el turno?"
-    const val CERRAR_TURNO_TEXTO = "Cuenta el efectivo de la caja. Se guarda un resumen del turno con el arqueo; no podrás vender hasta abrir otro."
+    const val CERRAR_TURNO_TEXTO = "Cuenta el efectivo. Se guarda el arqueo; para vender, abre otro turno."
     /** 0.25.0 (§5.3): conteo del cierre pedido por el encargado (secundaria). */
     const val CONTAR_TITULO = "Cuenta la caja para cerrar"
-    const val CONTAR_TEXTO = "El encargado pidió cerrar tu turno. Escribe el efectivo que hay; el turno se cierra al enviarlo."
+    const val CONTAR_TEXTO = "El encargado pidió cerrar tu turno. Escribe el efectivo y envíalo."
     /** 0.25.0 (§4): recordatorio mensual de respaldo. */
     fun avisoRespaldo(dias: Long?) = if (dias == null) "Aún no has hecho ningún respaldo. Toca para hacerlo." else "Último respaldo hace $dias días. Toca para hacer otro."
     /** 0.21.0 (C6): en la secundaria el empleado no cierra su turno: lo solicita al encargado. */
     const val SOLICITAR_CIERRE_TITULO = "¿Solicitar el cierre del turno?"
-    const val SOLICITAR_CIERRE_TEXTO = "Cuenta el efectivo de la caja. Mientras tanto puedes seguir vendiendo."
-    const val CIERRE_SOLICITADO = "Pediste cerrar el turno. Se cerrará cuando el encargado lo apruebe; mientras, puedes seguir vendiendo."
+    const val SOLICITAR_CIERRE_TEXTO = "Cuenta el efectivo. Mientras, puedes seguir vendiendo."
+    const val CIERRE_SOLICITADO = "Pediste cerrar el turno. Puedes vender hasta que el encargado lo apruebe."
     const val CIERRE_RECHAZADO = "El encargado no aprobó cerrar el turno. Sigue abierto."
-    const val SOLICITUD_ENVIADA = "Solicitud de cierre guardada. Se envía al encargado al sincronizar."
+    const val SOLICITUD_ENVIADA = "Solicitud guardada. Se envía al encargado al sincronizar."
     /** 0.21.0 (C6): en la principal, empleados que piden cerrar su turno. */
     fun solicitudesCierre(n: Int) = if (n == 1) "Un empleado pide cerrar su turno" else "$n empleados piden cerrar su turno"
     const val PAGO_SIN_CONFIGURAR = "Sin configurar"

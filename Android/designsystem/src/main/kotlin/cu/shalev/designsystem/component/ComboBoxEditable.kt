@@ -40,11 +40,11 @@ fun ShalevComboBoxEditable(
                 imeAction = ImeAction.Done, onImeAction = { if (valor.isNotBlank()) onGuardar(valor) },
             )
             ShalevIconAction(
-                ShalevIcons.Desplegar, "Seleccionar almacén/local", onClick = { abierto = !abierto },
+                ShalevIcons.Desplegar, "Seleccionar almacén/local", etiqueta = "Elegir", onClick = { abierto = !abierto },
                 enabled = enabled && opciones.isNotEmpty(),
                 modifier = Modifier.menuAnchor(MenuAnchorType.SecondaryEditable),
             )
-            ShalevIconAction(ShalevIcons.Confirmar, "Guardar almacén/local", onClick = { onGuardar(valor) }, enabled = enabled && valor.isNotBlank())
+            ShalevIconAction(ShalevIcons.Confirmar, "Guardar almacén/local", etiqueta = "Guardar", onClick = { onGuardar(valor) }, enabled = enabled && valor.isNotBlank())
         }
         ExposedDropdownMenu(expanded = abierto && enabled && opciones.isNotEmpty(), onDismissRequest = { abierto = false }) {
             opciones.forEach { nombre ->

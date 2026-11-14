@@ -1,5 +1,6 @@
 package cu.shalev.app.servicios
 
+import cu.shalev.app.recorrido.recorridoVentana
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.app.recorrido.Recorrido
 import cu.shalev.app.recorrido.RecorridoModulo
@@ -190,7 +191,8 @@ fun ServiciosContent(
                     BotonFiltro(state.filtro.activos, TextosServicios.FILTRAR, onClick = { acciones.onHoja(HojaServicios.FILTRO) }, modifier = Modifier.testTag(ServiciosTags.FILTRO).coachMark(ObjetivosRecorrido.SERVICIOS_FILTRO), enabled = state.tipos.isNotEmpty() || state.filtro.activos > 0)
                     if (LocalPermisosApp.current.exportar) ShalevIconAction(
                         ShalevIcons.Compartir, TextosServicios.EXPORTAR, onClick = { acciones.onHoja(HojaServicios.EXPORTAR) },
-                        enabled = state.items.isNotEmpty() || state.seleccion.isNotEmpty(), modifier = Modifier.testTag(ServiciosTags.EXPORTAR),
+                        mostrarTexto = false, // excepción de la regla de botones: exportar/compartir
+                        enabled = state.items.isNotEmpty() || state.seleccion.isNotEmpty(), modifier = Modifier.testTag(ServiciosTags.EXPORTAR).coachMark(ObjetivosRecorrido.SERVICIOS_EXPORTAR),
                     )
                 }
             )
@@ -239,7 +241,7 @@ fun ServiciosContent(
                     is EstadoCarga.Exito -> when {
                         v.datos.items.isEmpty() -> ShalevEmptyState(title = TextosServicios.SIN_RESULTADOS_TITULO, detail = TextosServicios.SIN_RESULTADOS_DETALLE, ilustracion = ShalevIlustracion.SinResultados) {
                             ShalevSecondaryButton(
-                                TextosServicios.QUITAR_FILTROS, icon = ShalevIcons.QuitarFiltros, onClick = { acciones.onBuscar(""); acciones.onQuitarFiltros() },
+                                TextosServicios.QUITAR_FILTROS, icon = ShalevIcons.QuitarFiltros, etiqueta = "Limpiar", onClick = { acciones.onBuscar(""); acciones.onQuitarFiltros() },
                                 modifier = Modifier.testTag(ServiciosTags.QUITAR_FILTROS),
                             )
                         }
@@ -306,7 +308,7 @@ private fun ElementosFijados(state: ServiciosUiState, acciones: AccionesServicio
     val fijados = state.elementosFijados.ifEmpty { state.items.filter { it.servicio.id in state.seleccion } }
     if (fijados.isEmpty()) return
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md).testTag(ServiciosTags.FIJADOS),
+        Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md).testTag(ServiciosTags.FIJADOS).coachMark(ObjetivosRecorrido.SERVICIOS_FIJADOS),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
     ) {
         Text(
@@ -379,13 +381,14 @@ private fun Ficha(f: ServicioDisponible, state: ServiciosUiState, acciones: Acci
     ShalevBottomSheet(
         onDismiss = acciones.onCerrarFicha,
         title = s.nombreCompleto,
+        recorrido = recorridoVentana(Recorrido.VENTANA_FICHA_SERVICIO),
         footer = {
             val permisos = LocalPermisosApp.current
-            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Editar, "Editar", onClick = { acciones.onEditar(s.id) }, style = IconActionStyle.Tonal, modifier = Modifier.testTag(ServiciosTags.FICHA_EDITAR))
-            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Eliminar, "Eliminar", onClick = acciones.onEliminarFicha, style = IconActionStyle.Tonal, modifier = Modifier.testTag(ServiciosTags.FICHA_ELIMINAR))
+            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Editar, "Editar", onClick = { acciones.onEditar(s.id) }, style = IconActionStyle.Tonal, modifier = Modifier.testTag(ServiciosTags.FICHA_EDITAR).coachMark(ObjetivosRecorrido.VENTANA_EDITAR))
+            if (permisos.editarInventario) ShalevIconAction(ShalevIcons.Eliminar, "Eliminar", onClick = acciones.onEliminarFicha, style = IconActionStyle.Tonal, modifier = Modifier.testTag(ServiciosTags.FICHA_ELIMINAR).coachMark(ObjetivosRecorrido.VENTANA_ELIMINAR))
         },
     ) {
-        Column(Modifier.testTag(ServiciosTags.FICHA), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+        Column(Modifier.testTag(ServiciosTags.FICHA).coachMark(ObjetivosRecorrido.VENTANA_DATOS), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             s.fotoUri?.let { uri ->
                 AsyncImage(
                     model = uri, contentDescription = "Foto de ${s.nombre}", contentScale = ContentScale.Crop,
@@ -415,9 +418,13 @@ private fun HojaFiltro(state: ServiciosUiState, acciones: AccionesServicios) {
     ShalevBottomSheet(
         onDismiss = acciones.onCerrarHoja,
         title = TextosServicios.FILTRAR,
+        recorrido = recorridoVentana(Recorrido.VENTANA_FILTRO_SERVICIOS),
         footer = {
-            ShalevSecondaryButton("Quitar filtros", icon = ShalevIcons.QuitarFiltros, onClick = { borrador = FiltroServicios(texto = borrador.texto) })
-            ShalevPrimaryButton("Aplicar", icon = ShalevIcons.Aplicar, onClick = { acciones.onFiltro(borrador) }, modifier = Modifier.testTag(ServiciosTags.FILTRO_APLICAR))
+            ShalevSecondaryButton(
+                "Quitar filtros", icon = ShalevIcons.QuitarFiltros, etiqueta = "Limpiar", onClick = { borrador = FiltroServicios(texto = borrador.texto) },
+                modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_LIMPIAR),
+            )
+            ShalevPrimaryButton("Aplicar", icon = ShalevIcons.Aplicar, onClick = { acciones.onFiltro(borrador) }, modifier = Modifier.testTag(ServiciosTags.FILTRO_APLICAR).coachMark(ObjetivosRecorrido.VENTANA_APLICAR))
         },
     ) {
         ShalevComboBox(
@@ -428,7 +435,7 @@ private fun HojaFiltro(state: ServiciosUiState, acciones: AccionesServicios) {
             onSeleccion = { borrador = borrador.copy(tipo = it) },
             leadingIcon = ShalevIcons.Lista,
             tagOpcion = { it?.let(ServiciosTags::tipoOpcion) ?: ServiciosTags.TIPO_TODOS },
-            modifier = Modifier.fillMaxWidth().testTag(ServiciosTags.FILTRO_TIPO),
+            modifier = Modifier.fillMaxWidth().testTag(ServiciosTags.FILTRO_TIPO).coachMark(ObjetivosRecorrido.FILTRO_TIPO),
         )
     }
 }
@@ -436,23 +443,25 @@ private fun HojaFiltro(state: ServiciosUiState, acciones: AccionesServicios) {
 @Composable
 private fun HojaExportar(state: ServiciosUiState, acciones: AccionesServicios) {
     val n = if (state.seleccion.isNotEmpty()) state.seleccion.size else state.items.size
-    ShalevBottomSheet(onDismiss = acciones.onCerrarHoja, title = TextosServicios.EXPORTAR) {
+    ShalevBottomSheet(onDismiss = acciones.onCerrarHoja, title = TextosServicios.EXPORTAR, recorrido = recorridoVentana(Recorrido.VENTANA_EXPORTAR_SERVICIOS)) {
         ShalevSecondaryText(
             if (state.seleccion.isNotEmpty()) "${TextosServicios.servicios(n).replaceFirstChar { it.uppercase() }} seleccionados"
             else "Lo que ves: ${TextosServicios.servicios(n)}",
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().coachMark(ObjetivosRecorrido.VENTANA_ALCANCE),
         )
         ShalevTextField(
             value = state.comentarioPromocion, onValueChange = acciones.onComentarioPromocion,
             label = "Encabezado de promoción (opcional)",
+            modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_ENCABEZADO),
         )
-        listOf(FormatoSalida.PDF, FormatoSalida.EXCEL, FormatoSalida.IMAGEN).forEach { f ->
+        listOf(FormatoSalida.PDF, FormatoSalida.EXCEL, FormatoSalida.IMAGEN).forEachIndexed { i, f ->
             ShalevListItem(
                 title = if (f == FormatoSalida.IMAGEN && n == 1) "Tarjeta promocional" else f.etiqueta,
                 indicatorColor = null,
                 leading = { Icon(cu.shalev.app.common.iconoFormato(f), contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
                 onClick = { acciones.onExportar(f) },
-                modifier = Modifier.testTag(ServiciosTags.formato(f)),
+                modifier = Modifier.testTag(ServiciosTags.formato(f))
+                    .then(if (i == 0) Modifier.coachMark(ObjetivosRecorrido.VENTANA_FORMATOS) else Modifier),
             )
         }
     }

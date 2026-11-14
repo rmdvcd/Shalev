@@ -121,7 +121,14 @@ fun MainScaffold(snapshot: Licencia) {
     val anchoClase = (LocalContext.current as? Activity)
         ?.let { calculateWindowSizeClass(it).widthSizeClass } ?: WindowWidthSizeClass.Compact
 
-    CompositionLocalProvider(cu.shalev.app.common.LocalPermisosApp provides permisos, cu.shalev.designsystem.component.LocalBloqueoGestos provides bloqueoGestos) {
+    // 1.1: recorridos de las ventanas emergentes (un solo ViewModel para toda la app).
+    val recorridosVm: cu.shalev.app.recorrido.RecorridosViewModel = hiltViewModel()
+
+    CompositionLocalProvider(
+        cu.shalev.app.common.LocalPermisosApp provides permisos,
+        cu.shalev.designsystem.component.LocalBloqueoGestos provides bloqueoGestos,
+        cu.shalev.app.recorrido.LocalRecorridos provides recorridosVm,
+    ) {
     Box(Modifier.fillMaxSize()) {
     Box(Modifier.fillMaxSize().then(if (bloquear) Modifier.clearAndSetSemantics { } else Modifier)) {
     Scaffold(

@@ -1,5 +1,10 @@
 package cu.shalev.app.registros
 
+import cu.shalev.app.recorrido.recorridoVentana
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import androidx.compose.foundation.layout.size
 import cu.shalev.designsystem.token.ShalevSize
 import androidx.compose.material3.Icon
@@ -117,10 +122,12 @@ fun TurnoDetalleScreen(onBack: () -> Unit, viewModel: TurnoDetalleViewModel = hi
             }
         }
     }
-    TurnoDetalleContent(
-        state, onBack = onBack, onReintentar = viewModel::reintentar, exportacion = exportacion, snackbar = snackbar,
-        exportar = AccionesExportarTurno(viewModel::abrirExportar, viewModel::cerrarExportar, viewModel::enviar, viewModel::pedirGuardar),
-    )
+    RecorridoModulo(Recorrido.TURNO_DETALLE, listo = !exportacion.hoja) {
+        TurnoDetalleContent(
+            state, onBack = onBack, onReintentar = viewModel::reintentar, exportacion = exportacion, snackbar = snackbar,
+            exportar = AccionesExportarTurno(viewModel::abrirExportar, viewModel::cerrarExportar, viewModel::enviar, viewModel::pedirGuardar),
+        )
+    }
 }
 
 @Composable
@@ -142,8 +149,8 @@ fun TurnoDetalleContent(
         topBar = {
             ShalevTopBar(title = titulo, onBack = onBack, actions = {
                 if (puedeExportar) ShalevIconAction(
-                    ShalevIcons.Compartir, TextosTurno.COMPARTIR, onClick = exportar!!.onAbrir, enabled = !exportacion.exportando,
-                    modifier = Modifier.testTag(TurnoDetalleTags.COMPARTIR),
+                    ShalevIcons.Compartir, TextosTurno.COMPARTIR, mostrarTexto = false, onClick = exportar!!.onAbrir, enabled = !exportacion.exportando,
+                    modifier = Modifier.testTag(TurnoDetalleTags.COMPARTIR).coachMark(ObjetivosRecorrido.TURNO_COMPARTIR),
                 )
             })
         },
@@ -176,14 +183,15 @@ fun TurnoDetalleContent(
 /** 0.25.1: PDF o Excel del turno completo; cada formato se envía a otra app o se guarda en el teléfono. */
 @Composable
 private fun HojaExportarTurno(d: DetalleTurno, a: AccionesExportarTurno) {
-    ShalevBottomSheet(onDismiss = a.onCerrar, title = TextosTurno.COMPARTIR) {
-        ShalevSecondaryText(TextosTurno.alcanceExportar(d))
-        listOf(FormatoExport.PDF, FormatoExport.XLSX).forEach { f ->
+    ShalevBottomSheet(onDismiss = a.onCerrar, title = TextosTurno.COMPARTIR, recorrido = recorridoVentana(Recorrido.VENTANA_EXPORTAR_TURNO)) {
+        ShalevSecondaryText(TextosTurno.alcanceExportar(d), modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_ALCANCE))
+        listOf(FormatoExport.PDF, FormatoExport.XLSX).forEachIndexed { i, f ->
             ShalevListItem(
                 title = if (f == FormatoExport.PDF) "PDF" else "Excel", indicatorColor = null,
                 leading = { Icon(cu.shalev.app.common.iconoFormato(f), contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
                 onClick = { a.onEnviar(f) },
-                modifier = Modifier.testTag(TurnoDetalleTags.formato(f)),
+                modifier = Modifier.testTag(TurnoDetalleTags.formato(f))
+                    .then(if (i == 0) Modifier.coachMark(ObjetivosRecorrido.VENTANA_FORMATOS) else Modifier),
             )
         }
     }
@@ -210,7 +218,7 @@ private fun Detalle(d: DetalleTurno, zona: ZoneId, ahora: Instant, pestanaInicia
             ),
             selectedIndex = orden.indexOf(pestana),
             onSelect = { pestana = orden[it] },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.xs),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.xs).coachMark(ObjetivosRecorrido.TURNO_PESTANAS),
         )
         LazyColumn(
             Modifier.fillMaxSize().testTag(TurnoDetalleTags.LISTA),
@@ -232,7 +240,7 @@ private fun LazyListScope.resumen(d: DetalleTurno, zona: ZoneId, ahora: Instant)
     val t = d.turno
     // P28: el total, una sola vez, centrado y arriba (como en Venta).
     item(key = "total") {
-        Column(Modifier.fillMaxWidth().testTag(TurnoDetalleTags.TOTAL).semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.fillMaxWidth().testTag(TurnoDetalleTags.TOTAL).coachMark(ObjetivosRecorrido.TURNO_TOTAL).semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally) {
             ShalevSecondaryText("Total vendido", textAlign = TextAlign.Center)
             ShalevTextoAjustable(Money.format(r.total), style = ShalevTextos.datoEn(MaterialTheme.typography.headlineSmall), textAlign = TextAlign.Center)
         }
@@ -254,7 +262,7 @@ private fun LazyListScope.resumen(d: DetalleTurno, zona: ZoneId, ahora: Instant)
         }
     }
     item(key = "totales") {
-        ShalevCard(title = "Totales", titleCentered = true, modifier = Modifier.testTag(TurnoDetalleTags.TOTALES)) {
+        ShalevCard(title = "Totales", titleCentered = true, modifier = Modifier.testTag(TurnoDetalleTags.TOTALES).coachMark(ObjetivosRecorrido.TURNO_DETALLE)) {
             // P28: sin «Ventas» ni «Movimientos de inventario»: los números ya están en las pestañas de arriba,
             // y el total vendido va arriba, centrado.
             ShalevListItem(title = "Unidades vendidas", value = r.unidades.toString(), indicatorColor = null)

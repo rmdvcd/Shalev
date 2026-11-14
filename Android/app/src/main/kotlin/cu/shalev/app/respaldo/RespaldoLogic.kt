@@ -14,9 +14,9 @@ object TextosRespaldo {
     const val EXPLICACION = "Guarda una copia protegida de todo el negocio."
     /** 0.27.0 (T10): contraseña opcional. Auditoría 2026-10-14 (S-01): ENCENDIDA por defecto. */
     const val PROTEGER = "Proteger con contraseña"
-    const val SIN_CONTRASENA_AVISO = "Sin contraseña, quien consiga este archivo podrá leer tus ventas y los datos de tus clientes sin ninguna clave."
+    const val SIN_CONTRASENA_AVISO = "Sin contraseña, cualquiera con el archivo podrá leer tus ventas y clientes."
     const val LISTO_SIN_CONTRASENA = "Ahora elige dónde guardar el respaldo."
-    const val SIN_LICENCIA = "La licencia no viaja en el respaldo: en otro teléfono hace falta una licencia nueva."
+    const val SIN_LICENCIA = "La licencia no va en el respaldo. Otro teléfono necesita una nueva."
     const val ERROR_CONTRASENA = "Mínimo ${Validadores.MIN_CONTRASENA} caracteres"
     const val ERROR_REPETIR = "Las contraseñas no coinciden"
     const val CONTRASENA_INCORRECTA = "Contraseña incorrecta"
@@ -25,7 +25,7 @@ object TextosRespaldo {
     const val NO_SE_PUDO_GUARDAR = "No se pudo guardar el respaldo"
     const val ERROR_GENERICO = "No se pudo completar. Inténtalo de nuevo."
     const val CONTENIDO = "Se guarda todo lo del negocio."
-    const val AVISO_IMPORTAR = "Se reemplazarán TODOS los datos de este teléfono: productos, insumos, inventario, turnos, ventas y configuración. No se puede deshacer."
+    const val AVISO_IMPORTAR = "Se reemplazarán TODOS los datos de este teléfono. No se puede deshacer."
     const val CONTRASENA_LISTA = "Contraseña lista."
     const val IMPORTAR_AYUDA = "Elige un archivo .shalev."
 

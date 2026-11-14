@@ -1,5 +1,9 @@
 package cu.shalev.app.soporte
 
+import cu.shalev.app.recorrido.ObjetivosRecorrido
+import cu.shalev.designsystem.component.coachMark
+import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.recorrido.Recorrido
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -78,13 +82,15 @@ fun SoporteScreen(onBack: (() -> Unit)?) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val sinApp = { scope.launch { snackbar.showSnackbar("No hay una app disponible para enviar el mensaje") } }
-    SoporteContent(
-        onBack = onBack,
-        version = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-        onWhatsapp = { if (!Contacto.whatsapp(context)) sinApp() },
-        onSms = { if (!Contacto.sms(context)) sinApp() },
-        snackbar = snackbar,
-    )
+    RecorridoModulo(Recorrido.SOPORTE, listo = true) {
+        SoporteContent(
+            onBack = onBack,
+            version = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+            onWhatsapp = { if (!Contacto.whatsapp(context)) sinApp() },
+            onSms = { if (!Contacto.sms(context)) sinApp() },
+            snackbar = snackbar,
+        )
+    }
 }
 
 @Composable
@@ -109,7 +115,7 @@ fun SoporteContent(
                 "¿Tienes dudas o problemas? Escribe al desarrollador.", style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() },
             )
-            ShalevCard(modifier = Modifier.fillMaxWidth().testTag(SoporteTags.FICHA)) {
+            ShalevCard(modifier = Modifier.fillMaxWidth().testTag(SoporteTags.FICHA).coachMark(ObjetivosRecorrido.SOPORTE_FICHA)) {
                 SelectionContainer {
                     // 2026-10-31: cada fila alinea el icono y el texto seleccionable a la izquierda.
                     Column {
@@ -117,9 +123,9 @@ fun SoporteContent(
                     }
                 }
             }
-            ShalevButtonRow {
-                ShalevSecondaryButton("Enviar SMS", onClick = onSms, icon = ShalevIcons.Sms)
-                ShalevPrimaryButton("Escribir por WhatsApp", onClick = onWhatsapp, icon = ShalevIcons.WhatsApp)
+            ShalevButtonRow(Modifier.coachMark(ObjetivosRecorrido.SOPORTE_CONTACTO)) {
+                ShalevSecondaryButton("Enviar SMS", onClick = onSms, icon = ShalevIcons.Sms, etiqueta = "SMS")
+                ShalevPrimaryButton("Escribir por WhatsApp", onClick = onWhatsapp, icon = ShalevIcons.WhatsApp, etiqueta = "WhatsApp")
             }
             ShalevSecondaryText(
                 "${SoporteInfo.PIE}\nShalev $version",

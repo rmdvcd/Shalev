@@ -293,6 +293,7 @@ private fun Bloqueo(state: VentaUiState, acciones: AccionesVenta) {
     ) {
         ShalevPrimaryButton(
             text = if (state.abriendo) TextosTurno.ABRIENDO else TextosTurno.ABRIR,
+            etiqueta = if (state.abriendo) "Abriendo…" else "Abrir",
             onClick = acciones.onAbrirTurno, icon = ShalevIcons.Turno, loading = state.abriendo, enabled = !state.abriendo,
             modifier = Modifier.testTag(VentaTags.ABRIR_TURNO),
         )
@@ -305,7 +306,7 @@ private fun Bloqueo(state: VentaUiState, acciones: AccionesVenta) {
 private fun PasoCarrito(state: VentaUiState, acciones: AccionesVenta) {
     if (state.lineas.isEmpty()) {
         ShalevEmptyState(title = TextosVenta.CARRITO_VACIO_TITULO, detail = TextosVenta.CARRITO_VACIO_DETALLE, ilustracion = ShalevIlustracion.Carrito) {
-            ShalevPrimaryButton(TextosVenta.ELEGIR, onClick = acciones.onElegir, icon = ShalevIcons.Inventario)
+            ShalevPrimaryButton(TextosVenta.ELEGIR, onClick = acciones.onElegir, icon = ShalevIcons.Inventario, etiqueta = "Elegir")
         }
         return
     }
@@ -410,7 +411,7 @@ private fun PasoComprobante(state: VentaUiState) {
 @Composable
 private fun TotalVenta(state: VentaUiState) {
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs).testTag(VentaTags.TOTAL)
+        Modifier.fillMaxWidth().padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs).testTag(VentaTags.TOTAL).coachMark(ObjetivosRecorrido.VENTA_TOTAL)
             .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -442,7 +443,7 @@ private fun PasoQr(state: VentaUiState, acciones: AccionesVenta, capturaSmsAutom
                 null -> ShalevLoading()
                 PagoQr.Resultado.SinTarjeta -> ShalevCard(tone = CardTone.Tonal) {
                     ShalevSecondaryText(TextosVenta.SIN_TARJETA)
-                    ShalevButtonRow { ShalevSecondaryButton(TextosVenta.CONFIGURAR_PAGO, onClick = acciones.onConfigurarPago, icon = ShalevIcons.PagoElectronico) }
+                    ShalevButtonRow { ShalevSecondaryButton(TextosVenta.CONFIGURAR_PAGO, onClick = acciones.onConfigurarPago, icon = ShalevIcons.PagoElectronico, etiqueta = "Configurar") }
                 }
             }
         }
@@ -546,7 +547,7 @@ private fun PasoCliente(state: VentaUiState, acciones: AccionesVenta, capturaSms
         item {
             // P24 (proximidad): el botón de pegar va centrado junto a su explicación.
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                ShalevSecondaryButton(TextosVenta.PEGAR_SMS, onClick = acciones.onPegarSms, icon = ShalevIcons.Pegar, modifier = Modifier.testTag(VentaTags.PEGAR_SMS))
+                ShalevSecondaryButton(TextosVenta.PEGAR_SMS, onClick = acciones.onPegarSms, icon = ShalevIcons.Pegar, etiqueta = "Pegar", modifier = Modifier.testTag(VentaTags.PEGAR_SMS))
                 // 0.20.0 (H3): en una app secundaria el SMS llega al teléfono del dueño, no al del empleado.
                 ShalevSecondaryText(TextosVenta.PEGAR_AYUDA, textAlign = TextAlign.Center, modifier = Modifier.padding(top = ShalevSpacing.xs))
             }
@@ -573,6 +574,7 @@ private fun CapturaSmsUi(activa: Boolean, onConfigurar: () -> Unit) {
         ShalevSecondaryText(if (activa) TextosVenta.CAPTURA_SMS_ACTIVA else TextosVenta.CAPTURA_SMS_AYUDA)
         ShalevSecondaryButton(
             text = if (activa) TextosVenta.CAPTURA_SMS_ADMINISTRAR else TextosVenta.CAPTURA_SMS_ACTIVAR,
+            etiqueta = if (activa) "Administrar" else "Activar",
             onClick = onConfigurar,
             icon = if (activa) ShalevIcons.Configurar else ShalevIcons.Sms,
             modifier = Modifier.testTag(VentaTags.CAPTURA_SMS_ACTIVAR),
@@ -613,7 +615,7 @@ private fun BarraAcciones(state: VentaUiState, acciones: AccionesVenta) {
     ShalevBarraAcciones {
         when (state.paso) {
             PasoVenta.CARRITO -> {
-                ShalevIconAction(ShalevIcons.AgregarCarrito, TextosVenta.AGREGAR, onClick = acciones.onElegir,
+                ShalevIconAction(ShalevIcons.AgregarCarrito, TextosVenta.AGREGAR, etiqueta = "Agregar", onClick = acciones.onElegir,
                     enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.coachMark(ObjetivosRecorrido.VENTA_AGREGAR))
                 ShalevPrimaryButton(
                     // El icono representa continuar; el método elegido se ve en los chips.
@@ -623,16 +625,16 @@ private fun BarraAcciones(state: VentaUiState, acciones: AccionesVenta) {
                 )
             }
             PasoVenta.COMPROBANTE -> {
-                ShalevIconAction(ShalevIcons.Cancelar, "Cancelar la venta", onClick = acciones.onSolicitarDescartar, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
-                ShalevIconAction(ShalevIcons.Confirmar, "Confirmar la venta", onClick = acciones.onConfirmarEfectivo, enabled = habilitado, style = IconActionStyle.Filled, modifier = Modifier.testTag(VentaTags.CONFIRMAR))
+                ShalevIconAction(ShalevIcons.Cancelar, "Cancelar la venta", etiqueta = "Cancelar", onClick = acciones.onSolicitarDescartar, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
+                ShalevIconAction(ShalevIcons.Confirmar, "Confirmar la venta", etiqueta = "Confirmar", onClick = acciones.onConfirmarEfectivo, enabled = habilitado, style = IconActionStyle.Filled, modifier = Modifier.testTag(VentaTags.CONFIRMAR))
             }
             PasoVenta.QR -> {
-                ShalevIconAction(ShalevIcons.Cancelar, "Cancelar la venta", onClick = acciones.onSolicitarDescartar, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
-                ShalevIconAction(ShalevIcons.Confirmar, TextosVenta.PAGO_RECIBIDO, onClick = acciones.onPagoRecibido, enabled = habilitado, style = IconActionStyle.Filled, modifier = Modifier.testTag(VentaTags.PAGO_RECIBIDO))
+                ShalevIconAction(ShalevIcons.Cancelar, "Cancelar la venta", etiqueta = "Cancelar", onClick = acciones.onSolicitarDescartar, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
+                ShalevIconAction(ShalevIcons.Confirmar, TextosVenta.PAGO_RECIBIDO, etiqueta = "Pagado", onClick = acciones.onPagoRecibido, enabled = habilitado, style = IconActionStyle.Filled, modifier = Modifier.testTag(VentaTags.PAGO_RECIBIDO))
             }
             PasoVenta.CLIENTE -> {
-                ShalevIconAction(ShalevIcons.Cancelar, "Volver al código QR", onClick = acciones.onAtras, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
-                ShalevIconAction(ShalevIcons.Confirmar, "Registrar la venta", onClick = acciones.onConfirmarTransferencia, enabled = habilitado, style = IconActionStyle.Filled, modifier = Modifier.testTag(VentaTags.CONFIRMAR))
+                ShalevIconAction(ShalevIcons.Cancelar, "Volver al código QR", etiqueta = "Volver", onClick = acciones.onAtras, enabled = habilitado, style = IconActionStyle.Tonal, modifier = Modifier.testTag(VentaTags.CANCELAR))
+                ShalevIconAction(ShalevIcons.Confirmar, "Registrar la venta", etiqueta = "Registrar", onClick = acciones.onConfirmarTransferencia, enabled = habilitado, style = IconActionStyle.Filled, modifier = Modifier.testTag(VentaTags.CONFIRMAR))
             }
         }
     }

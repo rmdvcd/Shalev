@@ -71,8 +71,8 @@ object ReglaAcceso {
 /** Textos del acceso con clave (puros, en lenguaje llano). */
 object TextosAcceso {
     const val TITULO = "Acceso con clave"
-    const val DETALLE = "Pide tu huella, tu cara o el PIN del teléfono al abrir Shalev y al volver tras 10 minutos."
-    const val SIN_BLOQUEO = "Configura un bloqueo de pantalla en Ajustes del teléfono para usar esta opción."
+    const val DETALLE = "Pide huella, cara o PIN al abrir Shalev y tras 10 minutos fuera."
+    const val SIN_BLOQUEO = "Activa antes un bloqueo de pantalla en el teléfono."
     const val BLOQUEADA = "Shalev está bloqueada"
     const val BLOQUEADA_DETALLE = "Desbloquéala con tu huella, tu cara o el PIN del teléfono."
     const val DESBLOQUEAR = "Desbloquear"
