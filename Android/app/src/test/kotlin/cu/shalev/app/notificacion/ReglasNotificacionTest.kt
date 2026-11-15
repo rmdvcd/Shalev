@@ -1,6 +1,7 @@
 package cu.shalev.app.notificacion
 
 import cu.shalev.designsystem.component.TipoAviso
+import cu.shalev.designsystem.token.ColorTokens
 import cu.shalev.domain.model.FaseSync
 import cu.shalev.domain.model.ProgresoSync
 import org.junit.Assert.assertEquals
@@ -112,6 +113,15 @@ class ReglasNotificacionTest {
         assertEquals(ReglasNotificacion.COLOR_MARCA, ReglasNotificacion.color(TipoAviso.CARGA))
     }
 
+    @Test fun elAcentoDeLaNotificacionSigueElTemaActivo() {
+        assertEquals(ColorTokens.L_SUCCESS.toInt(), ReglasNotificacion.colorParaTema(TipoAviso.EXITO, oscuro = false))
+        assertEquals(ColorTokens.D_SUCCESS.toInt(), ReglasNotificacion.colorParaTema(TipoAviso.EXITO, oscuro = true))
+        assertEquals(ColorTokens.L_ALERT_STOCK_BAJO.toInt(), ReglasNotificacion.colorParaTema(TipoAviso.ADVERTENCIA, oscuro = false))
+        assertEquals(ColorTokens.D_ALERT_STOCK_BAJO.toInt(), ReglasNotificacion.colorParaTema(TipoAviso.ADVERTENCIA, oscuro = true))
+        assertEquals(ColorTokens.L_PRIMARY.toInt(), ReglasNotificacion.colorParaTema(TipoAviso.INFO, oscuro = false))
+        assertEquals(ColorTokens.D_PRIMARY.toInt(), ReglasNotificacion.colorParaTema(TipoAviso.INFO, oscuro = true))
+    }
+
     // ---------------------------------------------------------------- ráfagas y textos de la sincronización
 
     @Test fun lasRafagasCuentanDentroDeLaVentana() {
@@ -129,8 +139,8 @@ class ReglasNotificacionTest {
         assertEquals("La app de Luis se conectó", NotificacionesSync.textoConexion("Luis", conectado = true, repeticiones = 1))
         assertEquals("La app de Luis se desconectó (×3)", NotificacionesSync.textoConexion("Luis", conectado = false, repeticiones = 3))
         assertEquals("La app de un empleado se conectó", NotificacionesSync.textoConexion(null, true, 1))
-        assertEquals("Sincronización con Ana terminada", NotificacionesSync.textoSincronizada("Ana", 1))
-        assertEquals("Sincronización terminada (×2)", NotificacionesSync.textoSincronizada(null, 2))
+        assertEquals("Con Ana", NotificacionesSync.textoSincronizada("Ana", 1))
+        assertEquals("Datos actualizados (×2)", NotificacionesSync.textoSincronizada(null, 2))
         assertEquals("Recibiendo el catálogo…", NotificacionesSync.textoFase(ProgresoSync(0, 0, FaseSync.RECIBIENDO)))
         assertEquals("Enviando tus datos…", NotificacionesSync.textoFase(ProgresoSync(0, 0, FaseSync.ENVIANDO)))
         assertEquals("50 %", NotificacionesSync.textoFase(ProgresoSync(5, 10)))

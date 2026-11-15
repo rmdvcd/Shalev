@@ -76,11 +76,11 @@ class NotificadorOperaciones @Inject constructor(
         /** La notificación de [plan]. Separada para poder comprobarla en Robolectric. */
         internal fun construir(context: Context, plan: PlanNotificacion, op: Operacion): Notification {
             val b = NotificationCompat.Builder(context, plan.canal)
-                .setSmallIcon(R.drawable.ic_stat_shalev)
-                .setColor(plan.color)
+                .setSmallIcon(iconoOperacion(op))
+                .setColor(ReglasNotificacion.color(context, plan.tipo))
                 .setContentTitle(plan.titulo)
                 .setContentText(plan.texto)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(plan.texto))
+                // El texto breve ya contiene toda la información útil; una BigTextStyle idéntica solo lo duplicaba.
                 .setContentIntent(abrirApp(context))
                 .setOngoing(plan.fija)
                 .setAutoCancel(!plan.fija)
@@ -95,8 +95,13 @@ class NotificadorOperaciones @Inject constructor(
             }
             if (plan.fija) b.setSilent(true)
             plan.expiraMs?.let { b.setTimeoutAfter(it) }
-            plan.accion?.let { a -> b.addAction(R.drawable.ic_stat_shalev, a.texto, intentAccion(context, op, a)) }
+            plan.accion?.let { a -> b.addAction(iconoOperacion(op), a.texto, intentAccion(context, op, a)) }
             return b.build()
+        }
+
+        private fun iconoOperacion(op: Operacion): Int = when (op) {
+            Operacion.ACTUALIZACION -> R.drawable.ic_stat_actualizacion
+            Operacion.RESPALDO -> R.drawable.ic_stat_respaldo
         }
 
         private fun intentAccion(context: Context, op: Operacion, a: AccionOperacion): PendingIntent = when (a) {

@@ -206,6 +206,10 @@ data class PreajusteDto(
     val id: Long, val nombre: String, val puntosBasicos: Int, val productoIds: List<Long>,
     val servicioIds: List<Long> = emptyList(),
     val metodoPago: String? = null, val importeMinimoCent: Long? = null, val activo: Boolean = true,
+    /** v5: condición exclusiva del ajuste; los respaldos anteriores aplican por método. */
+    val condicion: String = "METODO_PAGO",
+    val volumenMinimo: Long? = null,
+    val tipoCliente: String? = null,
 )
 
 /** También es el formato persistido en DataStore (clave pref.v1). */

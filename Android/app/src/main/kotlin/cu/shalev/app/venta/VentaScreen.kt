@@ -88,6 +88,7 @@ import cu.shalev.designsystem.ilustracion.ShalevIlustracion
 import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.domain.model.MetodoPago
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.service.PagoQr
 import cu.shalev.domain.usecase.ObservarPermisoVenta.Permiso
 import java.time.ZoneId
@@ -110,6 +111,7 @@ object VentaTags {
     const val TOTAL = "venta_total"
     const val TURNO = "venta_turno"
     fun metodo(m: MetodoPago) = "venta_metodo_${m.name}"
+    fun tipoCliente(tipo: TipoClientePreajuste) = "venta_cliente_${tipo.name}"
     fun mas(id: Long) = "venta_mas_$id"
     fun menos(id: Long) = "venta_menos_$id"
     fun cantidad(id: Long) = "venta_cantidad_$id"
@@ -126,6 +128,7 @@ class AccionesVenta(
     val onCantidad: (Long, Long) -> Unit = { _, _ -> },
     val onQuitar: (Long) -> Unit = {},
     val onMetodo: (MetodoPago) -> Unit = {},
+    val onTipoCliente: (TipoClientePreajuste) -> Unit = {},
     val onContinuar: () -> Unit = {},
     val onConfirmarEfectivo: () -> Unit = {},
     val onDescartar: () -> Unit = {},
@@ -201,6 +204,7 @@ fun VentaScreen(
             acciones = AccionesVenta(
                 onAtras = viewModel::atras, onAbrirTurno = { cajaVm.cargarSugerido(); pedirFondo = true }, onElegir = viewModel::elegirProductos,
                 onCantidad = viewModel::cambiarCantidad, onQuitar = viewModel::quitar, onMetodo = viewModel::elegirMetodo,
+                onTipoCliente = viewModel::elegirTipoCliente,
                 onContinuar = viewModel::continuar, onConfirmarEfectivo = viewModel::confirmarEfectivo,
                 onDescartar = viewModel::descartar, onSolicitarDescartar = viewModel::solicitarDescartar,
                 onCancelarSalir = viewModel::cancelarSalir,
@@ -319,6 +323,9 @@ private fun PasoCarrito(state: VentaUiState, acciones: AccionesVenta) {
         items(state.lineas, key = { it.producto.id }) { l -> Box(shalevAnimateItem()) { LineaEditable(l, acciones.onCantidad, acciones.onQuitar) } } // P18 (A18)
         item {
             SelectorMetodo(state.metodo, acciones.onMetodo)
+        }
+        item {
+            SelectorTipoCliente(state.tipoCliente, acciones.onTipoCliente)
         }
         item { ErrorPaso(state.error) }
     }
@@ -466,6 +473,26 @@ internal fun SelectorMetodo(metodo: MetodoPago, onMetodo: (MetodoPago) -> Unit) 
                     label = TextosVenta.metodo(m), selected = metodo == m, onClick = { onMetodo(m) },
                     icon = if (m == MetodoPago.EFECTIVO) ShalevIcons.Efectivo else ShalevIcons.Transferencia,
                     modifier = Modifier.testTag(VentaTags.metodo(m)),
+                )
+            }
+        }
+    }
+}
+
+/** Tipo de cliente usado por las reglas de Precios; se elige antes de calcular el comprobante o QR. */
+@Composable
+private fun SelectorTipoCliente(tipo: TipoClientePreajuste, onTipo: (TipoClientePreajuste) -> Unit) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Cliente", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = ShalevSpacing.md).semantics { heading() })
+        Row(horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs), modifier = Modifier.padding(top = ShalevSpacing.xs)) {
+            TipoClientePreajuste.entries.forEach { opcion ->
+                val empresa = opcion == TipoClientePreajuste.EMPRESA
+                ShalevChip(
+                    label = if (empresa) "Empresa" else "Particular",
+                    selected = tipo == opcion,
+                    onClick = { onTipo(opcion) },
+                    icon = if (empresa) ShalevIcons.Local else ShalevIcons.Perfil,
+                    modifier = Modifier.testTag(VentaTags.tipoCliente(opcion)),
                 )
             }
         }

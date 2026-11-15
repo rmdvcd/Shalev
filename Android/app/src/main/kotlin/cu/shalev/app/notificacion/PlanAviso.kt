@@ -75,14 +75,10 @@ data class PlanAviso(
             return plan.ventasTurno?.let { "Ventas del turno: ${Money.format(it)} · $estado" } ?: estado
         }
 
-        fun detalle(plan: PlanAviso, hora: String?): String = buildList {
-            add(texto(plan, hora))
-            if (hora == null) add("Turno de esta app cerrado")
-            if (plan.servicio) {
-                add("Sincronización local activa")
-                add(if (plan.turnosAbiertos == 1) "1 turno abierto en el negocio" else "${plan.turnosAbiertos} turnos abiertos en el negocio")
-            }
-            add("Toca para volver a Shalev")
+        /** Detalle expandido solo cuando aporta datos nuevos; no repite el resumen ni explica que se puede tocar. */
+        fun detalle(plan: PlanAviso): String? = if (!plan.servicio) null else buildList {
+            add("Sincronización local activa")
+            add(if (plan.turnosAbiertos == 1) "1 turno abierto en el negocio" else "${plan.turnosAbiertos} turnos abiertos en el negocio")
         }.joinToString("\n")
 
         const val ESPERANDO = "Esperando a tus apps vinculadas"

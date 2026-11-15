@@ -280,6 +280,10 @@ data class PreajusteEntity(
     val metodoPago: String?,
     val importeMinimoCent: Long?,
     val activo: Boolean,
+    /** v19: una condición exclusiva para aplicar el ajuste. */
+    @ColumnInfo(defaultValue = "'METODO_PAGO'") val condicion: String = "METODO_PAGO",
+    val volumenMinimo: Long? = null,
+    val tipoCliente: String? = null,
 )
 
 @Entity(

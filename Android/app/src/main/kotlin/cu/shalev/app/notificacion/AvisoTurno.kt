@@ -184,14 +184,13 @@ class AvisoTurno @Inject constructor(
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         val pi = PendingIntent.getActivity(context, 0, abrir, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val hora = p.turnoDesde?.let { DateFormat.getTimeFormat(context).format(Date.from(it)) }
+        val detalle = PlanAviso.detalle(p)
         return NotificationCompat.Builder(context, CANAL)
-            // P31: un solo icono, la silueta del lanzador (la barra de estado solo usa el alfa). Sin icono grande:
-            // Android ya muestra el pequeño, teñido con COLOR_MARCA, en la cabecera; con los dos se veía repetido.
-            .setSmallIcon(R.drawable.ic_stat_shalev)
-            .setColor(COLOR_MARCA)
-            .setContentTitle(TITULO)
+            .setSmallIcon(R.drawable.ic_stat_turno)
+            .setColor(ReglasNotificacion.color(context, cu.shalev.designsystem.component.TipoAviso.INFO))
+            .setContentTitle(if (p.turnoDesde != null) "Turno abierto" else "Apps vinculadas")
             .setContentText(PlanAviso.texto(p, hora))
-            .setStyle(NotificationCompat.BigTextStyle().bigText(PlanAviso.detalle(p, hora)))
+            .apply { if (detalle != null) setStyle(NotificationCompat.BigTextStyle().bigText(detalle)) }
             .setContentIntent(pi)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -213,9 +212,6 @@ class AvisoTurno @Inject constructor(
         const val CANAL = "turno"
         const val NOMBRE_CANAL = "Turno"
         const val DESCRIPCION_CANAL = "Aviso mientras hay un turno abierto y Shalev está en segundo plano, o atiende a tus apps vinculadas."
-        const val TITULO = "Shalev"
-        /** Primario de marca (tema claro): tiñe el icono pequeño en la cabecera de la notificación. */
-        private const val COLOR_MARCA = 0xFF2B4FA3.toInt()
         internal const val ID = 29
 
         fun texto(hora: String) = "Turno abierto desde las $hora"

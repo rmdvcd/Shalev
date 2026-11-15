@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Application
 import android.app.Notification
 import android.app.NotificationManager
+import cu.shalev.app.R
 import cu.shalev.designsystem.component.TipoAviso
 import cu.shalev.domain.model.FaseSync
 import cu.shalev.domain.model.ProgresoSync
@@ -50,6 +51,7 @@ class NotificacionesSistemaTest {
         val notif = publicada(40)!!
         assertEquals("Actualización de Shalev", notif.titulo())
         assertEquals("Descargando la actualización… · 42 %", notif.texto())
+        assertEquals(R.drawable.ic_stat_actualizacion, notif.smallIcon.resId)
         assertEquals(100, notif.maximo())
         assertEquals(42, notif.progreso())
         assertFalse(notif.indeterminada())
@@ -67,6 +69,7 @@ class NotificacionesSistemaTest {
         val n = NotificadorOperaciones(app, OperacionesEnCurso(), VisibilidadApp())
         n.aplicar(Operacion.RESPALDO, EstadoOperacion(TipoAviso.CARGA, "Comprobando el respaldo", "Etapa 1 de 1 · Comprobando el archivo…"), visible = true)
         val notif = publicada(41)!!
+        assertEquals(R.drawable.ic_stat_respaldo, notif.smallIcon.resId)
         assertTrue(notif.indeterminada())
         assertTrue(notif.fija())
         assertTrue(notif.actions.isNullOrEmpty())
@@ -120,6 +123,7 @@ class NotificacionesSistemaTest {
     @Test fun barraDeSincronizacionYResultado() {
         val barra = NotificacionesSync.progreso(app, ProgresoSync(30, 120, FaseSync.RECIBIENDO), apps = 2)
         assertEquals("Sincronizando 2 apps", barra.titulo())
+        assertEquals(R.drawable.ic_stat_sync, barra.smallIcon.resId)
         assertEquals(120, barra.maximo())
         assertEquals(30, barra.progreso())
         assertEquals("25 %", barra.texto())
@@ -129,7 +133,8 @@ class NotificacionesSistemaTest {
         assertEquals("Enviando tus datos…", sinTotal.texto())
 
         val fin = NotificacionesSync.sincronizada(app, "Ana", repeticiones = 1)
-        assertEquals("Sincronización con Ana terminada", fin.texto())
+        assertEquals("Sincronización terminada", fin.titulo())
+        assertEquals("Con Ana", fin.texto())
         assertEquals(AvisoSync.CANAL_SINCRONIZADA, fin.channelId)
         assertEquals(ReglasNotificacion.EXPIRA_MS, fin.timeoutAfter)
         assertFalse(fin.fija())
@@ -156,7 +161,8 @@ class NotificacionesSistemaTest {
 
     @Test fun sincronizacionCortadaConReintentar() {
         val n = NotificacionesSync.cortada(app)
-        assertEquals(NotificacionesSync.CORTADA, n.texto())
+        assertEquals(NotificacionesSync.CORTADA, n.titulo())
+        assertEquals(NotificacionesSync.CORTADA_DETALLE, n.texto())
         assertEquals(PlanOperacion.CANAL_PROBLEMAS, n.channelId)
         assertEquals(0L, n.timeoutAfter)
         assertEquals("Reintentar", n.actions.single().title.toString())

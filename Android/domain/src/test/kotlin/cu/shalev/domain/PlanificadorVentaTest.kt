@@ -3,8 +3,10 @@ package cu.shalev.domain
 import cu.shalev.core.money.Cup
 import cu.shalev.core.result.AppError
 import cu.shalev.core.result.AppResult
+import cu.shalev.domain.model.CondicionPreajuste
 import cu.shalev.domain.model.MetodoPago
 import cu.shalev.domain.model.PreajustePrecios
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.service.Cotizacion
 import cu.shalev.domain.service.LineaSolicitada
 import cu.shalev.domain.service.PlanificadorVenta
@@ -51,6 +53,25 @@ class PlanificadorVentaTest {
 
         val ef = ok(PlanificadorVenta.cotizar(listOf(LineaSolicitada(1, 1)), ps, MetodoPago.EFECTIVO, pre)) // base 100 < 300
         assertEquals(mapOf(1L to -500), ef.ajustes)
+    }
+
+    @Test fun `volumen suma las unidades de todas las lineas y cliente distingue particular de empresa`() {
+        val pre = listOf(
+            PreajustePrecios(1, "Volumen -10", -1000, setOf(1), condicion = CondicionPreajuste.VOLUMEN_VENTA, volumenMinimo = 4),
+            PreajustePrecios(2, "Empresa +5", 500, setOf(1), condicion = CondicionPreajuste.CLIENTE, tipoCliente = TipoClientePreajuste.EMPRESA),
+            PreajustePrecios(3, "Transferencia +7", 700, setOf(1), condicion = CondicionPreajuste.METODO_PAGO, metodoPago = MetodoPago.TRANSFERENCIA),
+        )
+        // Producto 1 lleva solo 3 unidades, pero las 4 de toda la venta activan el descuento mayorista.
+        val lineas = listOf(LineaSolicitada(1, 3), LineaSolicitada(2, 1))
+        val empresa = ok(PlanificadorVenta.cotizar(lineas, ps, MetodoPago.EFECTIVO, pre, tipoCliente = TipoClientePreajuste.EMPRESA))
+        assertEquals(-500, empresa.ajustes.getValue(1)) // volumen -10 % + empresa +5 %; no aplica transferencia.
+        assertEquals(Cup.ofPesos(95), empresa.detalles.first { it.productoId == 1L }.precioUnitario)
+
+        val particular = ok(PlanificadorVenta.cotizar(lineas, ps, MetodoPago.EFECTIVO, pre, tipoCliente = TipoClientePreajuste.PARTICULAR))
+        assertEquals(-1000, particular.ajustes.getValue(1))
+
+        val bajoVolumen = ok(PlanificadorVenta.cotizar(listOf(LineaSolicitada(1, 3)), ps, MetodoPago.EFECTIVO, pre, tipoCliente = TipoClientePreajuste.EMPRESA))
+        assertEquals(500, bajoVolumen.ajustes.getValue(1))
     }
 
     @Test fun `descuentos al costo o por debajo cotizan con advertencia`() {

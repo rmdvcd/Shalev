@@ -4,6 +4,8 @@ import cu.shalev.data.dto.aJson
 import cu.shalev.data.dto.conteoDeJson
 
 import cu.shalev.domain.model.ClaseArticulo
+import cu.shalev.domain.model.CondicionPreajuste
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.model.Servicio
 import cu.shalev.data.db.entity.ServicioInsumoEntity
 import cu.shalev.data.db.entity.ServicioEntity
@@ -227,9 +229,15 @@ fun PreajusteCompleto.toDomain() = PreajustePrecios(
     productoIds = productos.map { it.productoId }.toSet(), servicioIds = servicios.map { it.servicioId }.toSet(),
     metodoPago = preajuste.metodoPago?.let { enumOr<MetodoPago>(it, MetodoPago.EFECTIVO) },
     importeMinimo = preajuste.importeMinimoCent?.let(::Cup), activo = preajuste.activo,
+    condicion = enumOr(preajuste.condicion, CondicionPreajuste.METODO_PAGO),
+    volumenMinimo = preajuste.volumenMinimo,
+    tipoCliente = preajuste.tipoCliente?.let { enumOr<TipoClientePreajuste>(it, TipoClientePreajuste.PARTICULAR) },
 )
 
-fun PreajustePrecios.toEntity() = PreajusteEntity(id, nombre, puntosBasicos, metodoPago?.name, null, activo)
+fun PreajustePrecios.toEntity() = PreajusteEntity(
+    id, nombre, puntosBasicos, metodoPago?.name, null, activo,
+    condicion = condicion.name, volumenMinimo = volumenMinimo, tipoCliente = tipoCliente?.name,
+)
 fun PreajustePrecios.productosEntities(id: Long = this.id) = productoIds.map { PreajusteProductoEntity(id, it) }
 fun PreajustePrecios.serviciosEntities(id: Long = this.id) = servicioIds.map { PreajusteServicioEntity(id, it) }
 

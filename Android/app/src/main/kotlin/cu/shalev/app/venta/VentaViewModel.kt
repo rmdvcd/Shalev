@@ -21,6 +21,7 @@ import cu.shalev.core.money.Cup
 import cu.shalev.core.result.AppError
 import cu.shalev.core.result.AppResult
 import cu.shalev.domain.model.MetodoPago
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.model.Perfil
 import cu.shalev.domain.model.Producto
 import cu.shalev.domain.service.Cotizacion
@@ -58,6 +59,8 @@ data class VentaUiState(
     val tipo: TipoVenta = TipoVenta.VENTA,
     val lineas: List<LineaCarrito> = emptyList(),
     val metodo: MetodoPago = MetodoPago.EFECTIVO,
+    /** Particular es el valor inicial; se elige antes de cotizar si hay una regla para empresas. */
+    val tipoCliente: TipoClientePreajuste = TipoClientePreajuste.PARTICULAR,
     val paso: PasoVenta = PasoVenta.CARRITO,
     /** Precios definitivos (con preajustes) del comprobante/QR; null en el carrito. */
     val cotizacion: Cotizacion? = null,
@@ -97,7 +100,7 @@ sealed interface EventoVenta {
  * Venta completa (Prompt 13). Reglas:
  * - **Sin turno abierto no se vende:** con el turno cerrado la pantalla se bloquea en CUALQUIER paso (el carrito se
  *   conserva) y los botones de confirmar se desactivan; [RegistrarVenta] y la transacción de :data lo verifican otra vez.
- * - Precios definitivos al pasar al comprobante/QR ([CotizarVenta], preajustes por método); el registro vuelve a cotizar.
+ * - Precios definitivos al pasar al comprobante/QR ([CotizarVenta], preajustes por pago, volumen o cliente); el registro vuelve a cotizar.
  * - SMS: pega/compartir siempre disponibles; captura de notificación opcional con acceso explícito, sin READ_SMS.
  */
 @HiltViewModel
@@ -268,7 +271,14 @@ class VentaViewModel @Inject constructor(
         local.update { it.copy(error = null) }
     }
 
-    fun elegirMetodo(m: MetodoPago) = local.update { it.copy(metodo = m, error = null) }
+    fun elegirMetodo(m: MetodoPago) = local.update { s ->
+        if (s.trabajando || s.paso != PasoVenta.CARRITO) s else s.copy(metodo = m, error = null)
+    }
+
+    fun elegirTipoCliente(tipo: TipoClientePreajuste) = local.update { s ->
+        // No se cambia mientras cotiza: el tipo debe coincidir con el que congela el comprobante o QR.
+        if (s.trabajando || s.paso != PasoVenta.CARRITO) s else s.copy(tipoCliente = tipo, error = null)
+    }
 
     /** CARRITO → COMPROBANTE (efectivo) o QR (transferencia), con los precios definitivos. */
     fun continuar() {
@@ -277,7 +287,7 @@ class VentaViewModel @Inject constructor(
         // Bloquear antes de lanzar la corrutina para impedir dos pulsaciones en el mismo frame.
         local.update { it.copy(trabajando = true, error = null) }
         viewModelScope.launch {
-            val r = seguro { cotizar(Carrito.solicitud(s.lineas), s.metodo) }
+            val r = seguro { cotizar(Carrito.solicitud(s.lineas), s.metodo, s.tipoCliente) }
             when (r) {
                 is AppResult.Ok -> local.update {
                     it.copy(
@@ -370,7 +380,7 @@ class VentaViewModel @Inject constructor(
         if (s.bloqueada) { emitir(EventoVenta.Mensaje(TextosVenta.mensaje(AppError.TurnoCerrado))); return }
         local.update { it.copy(trabajando = true, error = null) }
         viewModelScope.launch {
-            val r = seguro { registrar(Carrito.solicitud(s.lineas), s.metodo, t, aceptada = s.cotizacion) }
+            val r = seguro { registrar(Carrito.solicitud(s.lineas), s.metodo, t, aceptada = s.cotizacion, tipoCliente = s.tipoCliente) }
             when (r) {
                 is AppResult.Ok -> {
                     val total = s.total

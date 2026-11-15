@@ -67,8 +67,8 @@ data class PreciosUiState(
 }
 
 /**
- * "Precios" de Inicio: preajustes que suben/bajan el precio de los productos elegidos según el método de
- * pago. Se aplican a productos o servicios al cotizar y no cambian el precio guardado.
+ * "Precios" de Inicio: preajustes que suben/bajan el precio de los artículos elegidos según una condición de
+ * pago, volumen o cliente. Se aplican a productos o servicios al cotizar y no cambian el precio guardado.
  */
 @HiltViewModel
 class PreciosViewModel @Inject constructor(

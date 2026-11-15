@@ -26,6 +26,7 @@ import cu.shalev.designsystem.theme.ShalevTheme
 import cu.shalev.domain.model.DetalleVenta
 import cu.shalev.domain.model.MetodoPago
 import cu.shalev.domain.model.Producto
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.model.Turno
 import cu.shalev.domain.service.Cotizacion
 import cu.shalev.domain.service.PagoQr
@@ -62,12 +63,16 @@ class VentaUiTest {
         assertEquals(1, elegir)
     }
 
-    @Test fun carritoAjustaCantidadesYMetodo() {
-        val cambios = mutableListOf<Pair<Long, Long>>(); var metodo: MetodoPago? = null
+    @Test fun carritoAjustaCantidadesMetodoYTipoDeCliente() {
+        val cambios = mutableListOf<Pair<Long, Long>>(); var metodo: MetodoPago? = null; var cliente: TipoClientePreajuste? = null
         val s = VentaUiState(abierto, lineas = listOf(LineaCarrito(refresco, 5)))
         rule.setContent {
             ShalevTheme {
-                VentaContent(TipoVenta.VENTA, s, AccionesVenta(onCantidad = { id, n -> cambios += id to n }, onMetodo = { metodo = it }), zona = zona)
+                VentaContent(
+                    TipoVenta.VENTA, s,
+                    AccionesVenta(onCantidad = { id, n -> cambios += id to n }, onMetodo = { metodo = it }, onTipoCliente = { cliente = it }),
+                    zona = zona,
+                )
             }
         }
         rule.onNodeWithTag(VentaTags.mas(1)).assertIsNotEnabled()          // 5 de 5: no se puede más
@@ -75,6 +80,8 @@ class VentaUiTest {
         assertEquals(listOf(1L to 4L), cambios)
         rule.onNodeWithTag(VentaTags.metodo(MetodoPago.TRANSFERENCIA)).performClick()
         assertEquals(MetodoPago.TRANSFERENCIA, metodo)
+        rule.onNodeWithTag(VentaTags.tipoCliente(TipoClientePreajuste.EMPRESA)).performClick()
+        assertEquals(TipoClientePreajuste.EMPRESA, cliente)
         rule.onNodeWithTag(VentaTags.TOTAL).assertTextContains("500 CUP", substring = true)
     }
 

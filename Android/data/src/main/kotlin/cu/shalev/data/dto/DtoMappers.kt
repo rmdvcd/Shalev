@@ -4,6 +4,8 @@ import cu.shalev.domain.model.Anulacion
 import cu.shalev.domain.model.MovimientoCaja
 import cu.shalev.domain.model.TipoMovimientoCaja
 import cu.shalev.domain.model.ClaseArticulo
+import cu.shalev.domain.model.CondicionPreajuste
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.model.Servicio
 import cu.shalev.core.money.Cup
 import cu.shalev.core.quantity.Cantidad
@@ -155,10 +157,14 @@ fun PerfilDto.toDomain() = Perfil(
 fun PreajustePrecios.toDto() = PreajusteDto(
     id = id, nombre = nombre, puntosBasicos = puntosBasicos, productoIds = productoIds.sorted(), servicioIds = servicioIds.sorted(),
     metodoPago = metodoPago?.name, importeMinimoCent = null, activo = activo,
+    condicion = condicion.name, volumenMinimo = volumenMinimo, tipoCliente = tipoCliente?.name,
 )
 fun PreajusteDto.toDomain() = PreajustePrecios(
     id = id, nombre = nombre, puntosBasicos = puntosBasicos, productoIds = productoIds.toSet(), servicioIds = servicioIds.toSet(),
     metodoPago = metodoPago?.let { enumStrict<MetodoPago>(it) }, importeMinimo = null, activo = activo,
+    condicion = runCatching { enumStrict<CondicionPreajuste>(condicion) }.getOrDefault(CondicionPreajuste.METODO_PAGO),
+    volumenMinimo = volumenMinimo,
+    tipoCliente = tipoCliente?.let { runCatching { enumStrict<TipoClientePreajuste>(it) }.getOrDefault(TipoClientePreajuste.PARTICULAR) },
 )
 
 fun Preferencias.toDto() = PreferenciasDto(
