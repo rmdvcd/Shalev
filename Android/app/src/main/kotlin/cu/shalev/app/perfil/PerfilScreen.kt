@@ -68,6 +68,8 @@ object PerfilTags {
     const val NOMBRE = "perfil.nombre"
     const val APELLIDOS = "perfil.apellidos"
     const val CI = "perfil.ci"
+    const val NOMBRE_NEGOCIO = "perfil.nombre_negocio"
+    const val LOGO = "perfil.logo"
     const val GUARDAR = "perfil.guardar"
     const val ID_MOSTRAR = "perfil.id_licencia.mostrar"
     const val ID_DIALOGO = "perfil.id_licencia.dialogo"
@@ -79,12 +81,15 @@ class AccionesPerfil(
     val onEditar: ((DatosPerfilForm) -> DatosPerfilForm) -> Unit,
     val onGuardar: () -> Unit,
     val onDescartar: () -> Unit,
+    /** Logo o foto del negocio, ya elegida en Cámara/Galería. */
+    val onLogo: (String) -> Unit = {},
+    val onQuitarLogo: () -> Unit = {},
     /** 0.21.0 (C12). */
     val onModulo: (cu.shalev.domain.model.Modulo) -> Unit = {},
 )
 
 /**
- * Ajustes → Perfil: Nombre, Apellidos y CI. FLAG_SECURE: ni capturas ni miniatura en Recientes.
+ * Ajustes → Perfil: datos personales, nombre comercial y logo/foto del negocio. FLAG_SECURE: ni capturas ni miniatura en Recientes.
  * P28: los teléfonos y tarjetas ya no se repiten aquí; viven solo en Pago electrónico (decisión del usuario,
  * se aparta a propósito de Shalev.txt 119–123).
  */
@@ -101,7 +106,10 @@ fun PerfilScreen(
         PerfilContent(
             state = state,
             onBack = onBack,
-            acciones = AccionesPerfil(viewModel::editar, viewModel::guardar, viewModel::descartar, viewModel::alternarModulo),
+            acciones = AccionesPerfil(
+                viewModel::editar, viewModel::guardar, viewModel::descartar,
+                viewModel::logoElegido, viewModel::quitarLogo, viewModel::alternarModulo,
+            ),
             snackbar = snackbar,
         )
     }
@@ -241,12 +249,27 @@ private fun DatosPersonales(state: PerfilUiState, acciones: AccionesPerfil) {
             isError = f.errorCi != null, errorText = f.errorCi, validarAlSalir = true, forzarError = f.mostrarErrores,
             supportingText = "Solo se envía al pedir la licencia",
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
-            imeAction = ImeAction.Done, onImeAction = { if (state.sinGuardar) acciones.onGuardar() },
+            imeAction = ImeAction.Next,
             modifier = Modifier.testTag(PerfilTags.CI),
+        )
+        ShalevTextField(
+            filtro = FiltroEntrada.NOMBRE,
+            value = f.nombreNegocio, onValueChange = { v -> acciones.onEditar { it.copy(nombreNegocio = v) } },
+            label = "Nombre del negocio", leadingIcon = ShalevIcons.Local,
+            isError = f.errorNombreNegocio != null, errorText = f.errorNombreNegocio,
+            validarAlSalir = true, forzarError = f.mostrarErrores,
+            imeAction = ImeAction.Done, onImeAction = { if (state.sinGuardar && !state.importandoLogo) acciones.onGuardar() },
+            modifier = Modifier.testTag(PerfilTags.NOMBRE_NEGOCIO),
+        )
+        Text("Logo o foto del negocio", style = MaterialTheme.typography.titleSmall, modifier = Modifier.fillMaxWidth())
+        cu.shalev.app.common.SelectorFoto(
+            uri = f.logoUri, descripcion = f.nombreNegocio.ifBlank { "negocio" }, importando = state.importandoLogo,
+            onFoto = acciones.onLogo, onQuitar = acciones.onQuitarLogo,
+            modifier = Modifier.testTag(PerfilTags.LOGO),
         )
         ShalevButtonRow {
             ShalevPrimaryButton(
-                "Guardar", onClick = acciones.onGuardar, enabled = state.sinGuardar, loading = state.guardando,
+                "Guardar", onClick = acciones.onGuardar, enabled = state.sinGuardar && !state.importandoLogo, loading = state.guardando,
                 icon = ShalevIcons.Guardar, modifier = Modifier.testTag(PerfilTags.GUARDAR).coachMark(ObjetivosRecorrido.PERFIL_GUARDAR),
             )
         }

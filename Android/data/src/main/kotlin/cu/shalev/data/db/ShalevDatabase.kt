@@ -80,7 +80,15 @@ abstract class ShalevDatabase : RoomDatabase() {
          * v3 (P17): esquema consolidado, sin `tasa_cambio` ni `caducidad_codigo`. Es la base de las migraciones
          * futuras: cada versión nueva añade una `Migration(3, 4)`… explícita (regla: nunca borrar datos de usuarios).
          */
-        const val VERSION = 19
+        const val VERSION = 20
+        /** v20: nombre comercial y logo/foto opcionales del negocio en el Perfil. */
+        val MIGRACION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) { SQL_19_20.forEach(db::execSQL) }
+        }
+        internal val SQL_19_20 = listOf(
+            "ALTER TABLE `perfil` ADD COLUMN `nombreNegocio` TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE `perfil` ADD COLUMN `logoUri` TEXT",
+        )
         /** v19: condiciones exclusivas de Precios (pago, volumen o cliente). Las reglas existentes siguen por pago. */
         val MIGRACION_18_19 = object : Migration(18, 19) {
             override fun migrate(db: SupportSQLiteDatabase) { SQL_18_19.forEach(db::execSQL) }
@@ -377,7 +385,7 @@ abstract class ShalevDatabase : RoomDatabase() {
             System.loadLibrary("sqlcipher")
             return Room.databaseBuilder(context, ShalevDatabase::class.java, NOMBRE)
                 .openHelperFactory(SupportOpenHelperFactory(passphrase))
-                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14, MIGRACION_14_15, MIGRACION_15_16, MIGRACION_16_17, MIGRACION_17_18, MIGRACION_18_19)
+                .addMigrations(MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14, MIGRACION_14_15, MIGRACION_15_16, MIGRACION_16_17, MIGRACION_17_18, MIGRACION_18_19, MIGRACION_19_20)
                 .fallbackToDestructiveMigrationFrom(*DESARROLLO)
                 .build()
         }

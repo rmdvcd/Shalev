@@ -54,6 +54,7 @@ class AuditoriaDatosRoomTest {
     private val productos = ProductoRepositoryImpl(db, clock)
     private val insumos = InsumoRepositoryImpl(db, clock)
     private val servicios = ServicioRepositoryImpl(db, clock)
+    private val perfil = PerfilRepositoryImpl(db)
     private val turnos = TurnoRepositoryImpl(db)
     private val ventas = VentaRepositoryImpl(db)
     private val fichas = FichaCostoRepositoryImpl(db, context, clock, config, insumos, productos, servicios)
@@ -212,6 +213,21 @@ class AuditoriaDatosRoomTest {
         assertFalse(prefsLegacy.contains("lista"))
     }
 
+    @Test fun respaldoConservaNombreYLogoDelNegocio() = runBlocking {
+        val logo = foto()
+        perfil.guardar(Perfil(nombre = "Ana", nombreNegocio = "Café Ana", logoUri = logo))
+
+        val copia = dto(exportar())
+        assertEquals("Café Ana", copia.perfil!!.nombreNegocio)
+        assertEquals(logo.substringAfterLast('/'), copia.perfil!!.logoUri!!.substringAfterLast('/'))
+        assertTrue(copia.fotos.any { it.nombre == logo.substringAfterLast('/') })
+
+        ok(respaldo.importar(archivo(copia).inputStream(), CharArray(0)) {})
+        val recuperado = perfil.perfil.first()
+        assertEquals("Café Ana", recuperado.nombreNegocio)
+        assertTrue(File(URI(recuperado.logoUri!!)).isFile)
+    }
+
     @Test fun fotosConHashIncorrectoSeRechazanAntesDeCambiarElNegocio() = runBlocking {
         val p = producto(foto = foto(), cantidad = 7)
         val anterior = dto(exportar())
@@ -224,11 +240,13 @@ class AuditoriaDatosRoomTest {
         val locales = LocalRepositoryImpl(db)
         locales.guardar("A"); val a = foto(); producto(foto = a)
         locales.guardar("B"); locales.seleccionar("B"); val b = foto(); producto(foto = b)
+        val logo = foto(); perfil.guardar(Perfil(logoUri = logo))
         val huerfana = foto()
-        listOf(a, b, huerfana).forEach { File(URI(it)).setLastModified(0) }
-        LimpiarFotos(productos, FotoRepositoryImpl(context, Dispatchers.IO, clock), servicios)()
+        listOf(a, b, logo, huerfana).forEach { File(URI(it)).setLastModified(0) }
+        LimpiarFotos(productos, FotoRepositoryImpl(context, Dispatchers.IO, clock), servicios, perfil)()
         assertTrue(File(URI(a)).isFile)
         assertTrue(File(URI(b)).isFile)
+        assertTrue(File(URI(logo)).isFile)
         assertFalse(File(URI(huerfana)).exists())
     }
 

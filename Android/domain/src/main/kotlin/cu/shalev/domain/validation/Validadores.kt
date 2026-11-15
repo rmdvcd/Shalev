@@ -105,6 +105,7 @@ object Validadores {
         // El formulario exige el carné cubano (Validators.carneCubano); aquí basta el formato del contrato para que un carné
         // guardado con una versión anterior no impida guardar tarjetas o teléfonos.
         if (p.ci.isNotBlank() && !Validators.ci(p.ci)) add(Validacion("ci", Regla.FORMATO))
+        if (p.nombreNegocio.trim().length > MAX_NOMBRE) add(Validacion("nombreNegocio", Regla.RANGO))
         if (p.tarjetas.any { normalizarCuenta(it.numero) != it.numero }) add(Validacion("tarjetas", Regla.FORMATO))
         if (p.telefonos.any { Phone.normalize(it.numero) != it.numero }) add(Validacion("telefonos", Regla.FORMATO))
         if (p.tarjetas.map { it.numero }.toSet().size != p.tarjetas.size) add(Validacion("tarjetas", Regla.NO_PERMITIDO))

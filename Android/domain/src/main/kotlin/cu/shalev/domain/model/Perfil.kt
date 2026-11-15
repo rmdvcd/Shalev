@@ -12,6 +12,10 @@ data class Perfil(
     val telefonos: List<Telefono> = emptyList(),
     val pagoTarjetaId: Long? = null,
     val pagoTelefonoId: Long? = null,
+    /** Nombre comercial opcional que identifica al negocio. */
+    val nombreNegocio: String = "",
+    /** Logo o foto del negocio, copiado al almacenamiento privado de la app. */
+    val logoUri: String? = null,
 ) {
     val vacio: Boolean get() = nombre.isBlank() && apellidos.isBlank() && ci.isBlank()
     val tarjetaPago: TarjetaBancaria? get() = tarjetas.firstOrNull { it.id == pagoTarjetaId }

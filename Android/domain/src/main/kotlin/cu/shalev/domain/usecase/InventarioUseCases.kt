@@ -16,6 +16,7 @@ import cu.shalev.domain.repository.ExportadorDocumentos
 import cu.shalev.domain.repository.FotoRepository
 import cu.shalev.domain.repository.InsumoRepository
 import cu.shalev.domain.repository.PreferenciasRepository
+import cu.shalev.domain.repository.PerfilRepository
 import cu.shalev.domain.repository.ProductoRepository
 import cu.shalev.domain.service.FormatoExport
 import cu.shalev.domain.service.InventarioFiltro
@@ -104,10 +105,11 @@ class LimpiarFotos @Inject constructor(
     private val productos: ProductoRepository,
     private val fotos: FotoRepository,
     private val servicios: ServicioRepository,
+    private val perfiles: PerfilRepository,
 ) {
     suspend operator fun invoke() {
-        // P29: también las fotos de los servicios están en uso.
-        val enUso = productos.fotosEnUso() + servicios.fotosEnUso()
+        // El logo de Perfil usa el mismo álbum privado que productos y servicios.
+        val enUso = productos.fotosEnUso() + servicios.fotosEnUso() + listOfNotNull(perfiles.perfil.first().logoUri)
         fotos.limpiarHuerfanas(enUso)
     }
 }

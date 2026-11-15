@@ -130,10 +130,11 @@ class UseCasesTest {
     }
 
     @Test fun `perfil se normaliza y valida`() = runBlocking {
-        val r = GuardarPerfil(perfil)(Perfil(nombre = " Ana ", ci = "85010112345", tarjetas = listOf(TarjetaBancaria(numero = "9200 1299 1234 5678")), telefonos = listOf(Telefono(numero = "5123 4567")), pagoTarjetaId = 99))
+        val r = GuardarPerfil(perfil)(Perfil(nombre = " Ana ", ci = "85010112345", nombreNegocio = " Café Ana ", tarjetas = listOf(TarjetaBancaria(numero = "9200 1299 1234 5678")), telefonos = listOf(Telefono(numero = "5123 4567")), pagoTarjetaId = 99))
         ok(r)
         val p = perfil.state.value
         assertEquals("Ana", p.nombre)
+        assertEquals("Café Ana", p.nombreNegocio)
         assertEquals("9200129912345678", p.tarjetas.single().numero)
         assertEquals("+5351234567", p.telefonos.single().numero)
         assertNull(p.pagoTarjetaId)

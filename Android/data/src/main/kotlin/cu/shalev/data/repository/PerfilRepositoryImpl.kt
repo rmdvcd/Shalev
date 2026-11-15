@@ -42,6 +42,8 @@ class PerfilRepositoryImpl @Inject constructor(
                     nombre = perfil.nombre, apellidos = perfil.apellidos, ci = perfil.ci,
                     pagoTarjetaId = perfil.pagoTarjetaId?.takeIf { it in tarjetas },
                     pagoTelefonoId = perfil.pagoTelefonoId?.takeIf { it in telefonos },
+                    nombreNegocio = perfil.nombreNegocio,
+                    logoUri = perfil.logoUri,
                 ),
             )
         }

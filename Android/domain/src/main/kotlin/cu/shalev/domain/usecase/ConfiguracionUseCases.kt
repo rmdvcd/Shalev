@@ -35,6 +35,7 @@ class GuardarPerfil @Inject constructor(private val repo: PerfilRepository) {
             nombre = perfil.nombre.trim(),
             apellidos = perfil.apellidos.trim(),
             ci = perfil.ci.trim().uppercase(),
+            nombreNegocio = perfil.nombreNegocio.trim(),
             tarjetas = tarjetas,
             telefonos = telefonos,
             pagoTarjetaId = perfil.pagoTarjetaId?.takeIf { id -> id != 0L && tarjetas.any { it.id == id } },

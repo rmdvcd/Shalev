@@ -160,9 +160,10 @@ class PrincipalRepositoryImpl @Inject constructor(
         // Un QR nuevo anula la clave anterior: el teléfono viejo deja de poder sincronizar.
         servidor.expulsar(e.id)
         sync.actualizarEmpleado(e.copy(clave = null, vinculadoEn = null, codigoToken = CriptoSync.enc(token), codigoVence = vence.toEpochMilli()))
+        val datosPerfil = perfil.perfil.first()
         return AppResult.Ok(
             CodigoVinculacion(
-                negocioId = config.negocioId(), nombreNegocio = UsuarioActual.nombreDe(perfil.perfil.first()),
+                negocioId = config.negocioId(), nombreNegocio = datosPerfil.nombreNegocio.ifBlank { UsuarioActual.nombreDe(datosPerfil) },
                 direcciones = direcciones, puerto = est.puerto, empleadoId = e.id, nombreEmpleado = e.nombre,
                 token = token, venceEn = vence,
             ),

@@ -634,6 +634,8 @@ Dentro de la propia aplicación cuentas siempre con **Ajustes → Manual de usua
 
 En **Ajustes → Perfil**, Nombre y Apellidos aceptan entre 2 y 80 letras Unicode, espacios y guiones o apóstrofos internos. Los números y otros símbolos se marcan con un mensaje mientras escribes; los campos pueden dejarse vacíos si todavía no quieres completar tus datos.
 
+En esa misma pantalla puedes guardar el **nombre del negocio** (hasta 80 caracteres) y su **logo o foto**. Toca Cámara o Galería para elegir la imagen: Shalev la copia a su almacenamiento privado y elimina sus metadatos antes de guardarla. La miniatura permite comprobarla y **Quitar** la deja vacía; ambos datos se incluyen en el respaldo cifrado cuando la imagen está disponible en el álbum privado.
+
 En el carrito, si escribes una cantidad superior a la existencia disponible, Shalev la reduce automáticamente al stock y muestra un aviso. El total se recalcula con la cantidad ajustada; no se pueden vender unidades por encima de lo disponible.
 
 ## Local (Android)

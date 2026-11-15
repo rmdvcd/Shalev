@@ -58,6 +58,13 @@
 - El subtítulo «Últimos 30 días» pasa a ser el período (`textoPeriodoResumen`), p. ej. «7 días» o «Turno actual, desde las 08:30». También se corrigió el texto de Ayuda de Inicio.
 - Pruebas: `InicioUseCasesTest` (Hoy frente a 7 días, solo el turno, ventas futuras fuera), `InicioViewModelTest` (cambiar de Turno a Hoy recarga Métodos de pago y Top 3; el inventario no cambia) e `InicioLogicTest` (subtítulo). `RendimientoInicioTest` mide el resumen con el período Año (365 días), su caso más pesado.
 
+## Nombre y logo del negocio en Ajustes → Perfil (2026-11-15)
+
+- Perfil incorpora **Nombre del negocio** (opcional, hasta 80 caracteres) y **Logo o foto del negocio**, con Cámara, Galería, previsualización y Quitar del selector común. La imagen se re-codifica sin EXIF y se copia al álbum privado antes de asociarla al Perfil; Guardar permanece deshabilitado mientras termina esa copia.
+- Los dos datos viajan por Room v20 (`perfil.nombreNegocio`, `perfil.logoUri`), DTO de respaldo y copia cifrada; el respaldo incorpora el archivo del logo cuando está disponible. La limpieza de huérfanas reconoce el logo para no borrarlo.
+- Las vinculaciones y las instantáneas de las apps secundarias muestran el nombre comercial cuando existe; si está vacío conservan el nombre del propietario. No se comparte la ruta/archivo del logo con una secundaria.
+- Pruebas: `PerfilTest`, mapeo/DTO de Perfil, respaldo de foto de negocio y migración Room 19→20.
+
 ## ID de la licencia en Ajustes → Perfil (2026-11-15)
 
 - Nueva tarjeta **ID de la licencia** en Perfil con el botón **Mostrar**: abre una ventana (`DialogoIdLicencia`) con el `licenseId` (UUID) de la licencia instalada, en letra monoespaciada y seleccionable, y el botón **Copiar**.

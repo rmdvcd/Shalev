@@ -36,7 +36,7 @@ class PreciosLogicTest {
         assertEquals("+10 % con Transferencia", nombreSugerido(f))
         assertEquals("+10 % con Transferencia", aPreajuste(f).nombre)
         assertEquals("Mayoreo", aPreajuste(f.copy(nombre = "  Mayoreo ")).nombre)
-        assertEquals("-5 %", nombreSugerido(PreajusteForm(porcentaje = "5", sube = false)))
+        assertEquals("-5 % para todos los pagos", nombreSugerido(PreajusteForm(porcentaje = "5", sube = false)))
     }
 
     @Test fun idaYVueltaFormularioPreajuste() {

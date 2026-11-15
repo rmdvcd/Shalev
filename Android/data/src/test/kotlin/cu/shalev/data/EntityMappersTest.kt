@@ -45,4 +45,13 @@ class EntityMappersTest {
         val q = perfilDe(PerfilEntity(1, "Ana", "Pérez", "85010112345", 9, null), listOf(TarjetaEntity(9, "9227069995328054", null)), emptyList())
         assertEquals("•••• 8054", q.tarjetaPago!!.enmascarado)
     }
+
+    @Test fun `perfil conserva el nombre y logo del negocio`() {
+        val p = perfilDe(
+            PerfilEntity(1, "Ana", "Pérez", "85010112345", 9, null, "Café Ana", "file:///fotos/logo.jpg"),
+            emptyList(), emptyList(),
+        )
+        assertEquals("Café Ana", p.nombreNegocio)
+        assertEquals("file:///fotos/logo.jpg", p.logoUri)
+    }
 }

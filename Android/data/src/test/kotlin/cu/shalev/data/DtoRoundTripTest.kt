@@ -58,7 +58,7 @@ class DtoRoundTripTest {
 
     @Test fun `respaldo completo ida y vuelta por JSON conserva todo`() {
         val perfil = Perfil("Ana", "Pérez", "85010112345", listOf(TarjetaBancaria(1, "9227069995328054", "BPA")),
-            listOf(Telefono(2, "+5351234567")), 1, 2)
+            listOf(Telefono(2, "+5351234567")), 1, 2, "Café Ana", "file:///fotos/logo.jpg")
         val pre = PreajustePrecios(
             id = 4, nombre = "Empresa +10 %", puntosBasicos = 1000, productoIds = setOf(7L), activo = true,
             servicioIds = setOf(9L), condicion = CondicionPreajuste.CLIENTE, tipoCliente = TipoClientePreajuste.EMPRESA,
@@ -85,6 +85,15 @@ class DtoRoundTripTest {
         assertEquals(perfil, back.perfil!!.toDomain())
         assertEquals(pre.copy(importeMinimo = null), back.preajustes.single().toDomain())
         assertEquals(prefs, back.preferencias!!.toDomain())
+    }
+
+    @Test fun `perfil antiguo sin datos del negocio conserva valores vacios`() {
+        val perfil = ShalevJson.decodeFromString(
+            cu.shalev.data.dto.PerfilDto.serializer(),
+            """{"nombre":"Ana","apellidos":"Pérez","ci":"85010112345"}""",
+        ).toDomain()
+        assertEquals("", perfil.nombreNegocio)
+        assertEquals(null, perfil.logoUri)
     }
 
     @Test fun `preajuste antiguo sin condicion conserva el comportamiento por metodo`() {

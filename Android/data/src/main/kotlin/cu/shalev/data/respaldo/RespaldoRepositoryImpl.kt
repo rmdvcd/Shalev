@@ -287,6 +287,9 @@ class RespaldoRepositoryImpl @Inject constructor(
                 val listo = c.copy(
                     productos = c.productos.map { it.copy(fotoUri = it.fotoUri?.let { uri -> fotos.nombreDe(uri)?.let(uris::get) }) },
                     servicios = c.servicios.map { (s, l) -> s.copy(fotoUri = s.fotoUri?.let { uri -> fotos.nombreDe(uri)?.let(uris::get) }) to l },
+                    perfil = c.perfil?.let { perfil ->
+                        perfil.copy(logoUri = perfil.logoUri?.let { uri -> fotos.nombreDe(uri)?.let(uris::get) })
+                    },
                 )
                 when (val resultado = db.tx {
                     escribir(listo)
@@ -413,8 +416,11 @@ class RespaldoRepositoryImpl @Inject constructor(
             val dao = db.perfilDao()
             p.tarjetas.forEach { dao.insertarTarjeta(it.toEntity()) }
             p.telefonos.forEach { dao.insertarTelefono(it.toEntity()) }
-            dao.guardar(PerfilEntity(nombre = p.nombre, apellidos = p.apellidos, ci = p.ci,
-                pagoTarjetaId = p.pagoTarjetaId, pagoTelefonoId = p.pagoTelefonoId))
+            dao.guardar(PerfilEntity(
+                nombre = p.nombre, apellidos = p.apellidos, ci = p.ci,
+                pagoTarjetaId = p.pagoTarjetaId, pagoTelefonoId = p.pagoTelefonoId,
+                nombreNegocio = p.nombreNegocio, logoUri = p.logoUri,
+            ))
         }
         db.clienteFijoDao().insertarTodos(c.clientesFijos.map { d ->
             cu.shalev.data.db.entity.ClienteFijoEntity(
@@ -537,7 +543,8 @@ class RespaldoRepositoryImpl @Inject constructor(
     }
 
     private fun exportarFotos(c: Contenido): List<FotoRespaldoDto> {
-        val nombres = (c.productos.mapNotNull { it.fotoUri } + c.servicios.mapNotNull { it.first.fotoUri }).mapNotNull(fotos::nombreDe).distinct()
+        val nombres = (c.productos.mapNotNull { it.fotoUri } + c.servicios.mapNotNull { it.first.fotoUri } + listOfNotNull(c.perfil?.logoUri))
+            .mapNotNull(fotos::nombreDe).distinct()
         var total = 0L
         return nombres.mapNotNull { nombre ->
             val tamano = fotos.tamano(nombre) ?: return@mapNotNull null
