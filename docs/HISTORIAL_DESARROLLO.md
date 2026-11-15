@@ -1,3 +1,12 @@
+## ID de la licencia en Ajustes → Perfil (2026-11-15)
+
+- Nueva tarjeta **ID de la licencia** en Perfil con el botón **Mostrar**: abre una ventana (`DialogoIdLicencia`) con el `licenseId` (UUID) de la licencia instalada, en letra monoespaciada y seleccionable, y el botón **Copiar**.
+- **Copiar** guarda el ID en el portapapeles marcado como sensible (`android.content.extra.IS_SENSITIVE`, sin vista previa en Android 13+), cierra la ventana y avisa «ID copiado al portapapeles». La pantalla ya tenía FLAG_SECURE.
+- `idRecuperacion(Licencia?)`: solo un UUID de GL; null en la prueba (sin licencia instalada) y con la licencia local de desarrollo. Una licencia vencida o revocada sigue mostrando su ID (la recuperación lo admite). Sin ID, la ventana explica que aparece al activar la licencia y no hay Copiar.
+- La app secundaria no muestra la tarjeta (usa la licencia de la principal). `PerfilViewModel` recibe `LicenciaRepository`.
+- Recorrido de Perfil: nuevo paso «ID». Icono nuevo `ShalevIcons.Copiar` (Material ContentCopy).
+- Pruebas: `PerfilTest` (origen del ID, principal/secundaria) y `PerfilIdLicenciaUiTest` (Robolectric: Mostrar, Copiar al portapapeles con la marca de sensible, sin licencia, secundaria).
+
 ## Filtros de entrada según el formato real de cada dato cubano (2026-11-13)
 
 - **Carné de identidad:** 11 dígitos; los 6 primeros son la fecha de nacimiento AAMMDD y el 7.º el siglo (9 → 1800, 0–5 → 1900, 6–8 → 2000). No hay dígito de control publicado (python-stdnum `cu.ni` también comprueba solo la fecha). `Validators.carneCubano` rechaza fechas imposibles (31 de abril, 29 de febrero no bisiesto) o futuras. El filtro `CARNE` impide teclear un mes 00/13+ o un día 00/32+. Se aplica en Perfil, Licencia, asistente inicial y cliente de la venta. `Validators.ci` (contrato con GL) no cambia, y el dominio del Perfil lo sigue usando para que un carné antiguo no impida guardar tarjetas.

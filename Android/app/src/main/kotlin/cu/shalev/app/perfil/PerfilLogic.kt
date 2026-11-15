@@ -50,3 +50,27 @@ fun mensajePerfil(e: AppError): String = when {
     e is AppError.Validacion && e.campo == "ci" -> TextosPerfil.ERROR_CI
     else -> TextosPerfil.ERROR_GENERICO
 }
+
+/** Textos del ID de la licencia (Perfil → «ID de la licencia»). */
+object TextosIdLicencia {
+    const val TITULO = "ID de la licencia"
+    const val EXPLICACION = "Si pierdes o se rompe este teléfono, con este ID pasas gratis tu licencia pagada al nuevo."
+    const val BOTON = "Mostrar"
+    const val DIALOGO = "ID de tu licencia"
+    const val DETALLE = "Guárdalo fuera de este teléfono. En el nuevo, pégalo en Licencia → «ID de la licencia anterior»."
+    const val AVISO = "No lo compartas: al usarlo, este teléfono se bloquea y borra sus datos."
+    const val SIN_LICENCIA = "Este teléfono aún no tiene una licencia activada. El ID aparece al activarla."
+    const val COPIAR = "Copiar"
+    const val COPIAR_DESCRIPCION = "Copiar el ID al portapapeles"
+    const val COPIADO = "ID copiado al portapapeles"
+}
+
+/**
+ * ID con el que se recupera la licencia pagada en otro teléfono: el `licenseId` (UUID) de la licencia instalada,
+ * aunque esté vencida. null si no hay licencia (prueba) o si es la licencia local de desarrollo (no viene de GL).
+ */
+fun idRecuperacion(lic: cu.shalev.domain.model.Licencia?): String? =
+    lic?.instalada?.id?.let { id -> cu.shalev.licencia.contract.IdLicencia.extraer(id)?.takeIf { it == id.trim().lowercase() } }
+
+/** Lo que muestra la tarjeta del ID; null en la app secundaria (usa la licencia de la principal, no tiene ID propio). */
+data class IdLicenciaUi(val id: String?)

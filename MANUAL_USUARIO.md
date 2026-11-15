@@ -554,6 +554,8 @@ Entra en **Ajustes → Licencia**:
    - Cuando el desarrollador te responda con tu mensaje de activación (`SPVI2:`), cópialo completo (si te llegó por SMS dividido en varias partes, copia todas) o compártelo directamente hacia Shalev.
    - En el Paso 3 toca el botón de **Pegar** y luego **Confirmar**. ¡Listo!
 
+> **Guarda el ID de tu licencia:** en **Ajustes → Perfil**, tarjeta **ID de la licencia**, toca **Mostrar**. Se abre una ventana con el ID (un código como `3f2b8c1e-5a7d-4e9f-b0c2-9d8e7f6a5b4c`) y el botón **Copiar**, que lo deja en el portapapeles para guardarlo fuera del teléfono (una nota, un correo a ti mismo o papel). Si pierdes o se rompe el teléfono, instala Shalev en el nuevo y pega ese ID en **Licencia → ID de la licencia anterior** para pasar gratis la licencia ya pagada. No lo compartas: al usarlo, el teléfono anterior se bloquea y borra sus datos. Si aún no has activado una licencia, la ventana te lo indica. En las apps secundarias no aparece, porque usan la licencia de la principal.
+
 > **Renovar sin perder ni un día:** cuando tengas una licencia activa y se acerque su fecha, puedes usar **Renovar igual** para pedir otra idéntica en dos toques. Si la activas antes de que venza la actual, **los días nuevos se suman a los que te quedaban**.
 
 > **Cuidado con la fecha y hora del teléfono:** para evitar manipulaciones del calendario, si el reloj de tu teléfono se atrasa más de **2 horas**, Shalev bloqueará temporalmente el acceso avisándote **«Fecha u hora incorrecta»**. Basta con volver a poner en hora automática el reloj de Android para seguir trabajando enseguida con todos tus datos intactos.
