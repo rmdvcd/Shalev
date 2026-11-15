@@ -106,12 +106,11 @@ class InicioUseCasesTest {
         }
     }
 
-    @Test fun `resumen general ultimos 30 dias e inventario actual`() = runBlocking<Unit> {
+    @Test fun `resumen general del periodo elegido e inventario actual`() = runBlocking<Unit> {
         productos.put(producto(1, cantidad = 30, categoria = "A", creado = T0.minusSeconds(100)), producto(2, cantidad = 10, categoria = "B", creado = T0))
-        venta(1, T0.minusSeconds(86_400L * 40), 2, 50, 100, 10) // fuera de los 30 días
+        venta(1, T0.minusSeconds(86_400L * 40), 2, 50, 100, 10) // fuera de los 7 días
         venta(1, T0.minusSeconds(3600), 1, 3, 100, 60, MetodoPago.TRANSFERENCIA)
-        val r = resumen(zone)
-        assertEquals(30, r.dias)
+        val r = resumen(resolver(OpcionPeriodo.SEMANA, zone), zone)
         assertEquals(listOf("A", "B"), r.categorias.map { it.etiqueta })
         assertEquals(listOf("Transferencia"), r.metodosPago.map { it.etiqueta })
         assertEquals(listOf(1L), r.top3.masVendidos.map { it.productoId })
@@ -119,9 +118,32 @@ class InicioUseCasesTest {
         assertFalse(r.vacio)
     }
 
+    /** Decisión del usuario (2026-11-15): Métodos de pago y los Top 3 siguen al selector de período. */
+    @Test fun `metodos de pago y Top 3 cambian con el periodo`() = runBlocking<Unit> {
+        productos.put(producto(1, categoria = "A"), producto(2, categoria = "A"))
+        venta(1, T0.minusSeconds(86_400L * 3), 2, 5, 100, 10) // hace 3 días: entra en 7 días, no en Hoy
+        venta(1, T0.minusSeconds(3600), 1, 1, 100, 60, MetodoPago.TRANSFERENCIA)
+        venta(1, T0.plusSeconds(3600), 2, 9, 100, 10) // futura: nunca cuenta
+        val hoy = resumen(resolver(OpcionPeriodo.HOY, zone), zone)
+        assertEquals(listOf("Transferencia"), hoy.metodosPago.map { it.etiqueta })
+        assertEquals(listOf(1L), hoy.top3.masVendidos.map { it.productoId })
+        val semana = resumen(resolver(OpcionPeriodo.SEMANA, zone), zone)
+        assertEquals(setOf("Efectivo", "Transferencia"), semana.metodosPago.map { it.etiqueta }.toSet())
+        assertEquals(listOf(2L, 1L), semana.top3.masVendidos.map { it.productoId })
+    }
+
+    @Test fun `con Turno el resumen es solo de las ventas del turno`() = runBlocking<Unit> {
+        productos.put(producto(1), producto(2))
+        turnos.abrir(T0.minusSeconds(7200), "Ana"); venta(1, T0.minusSeconds(5000), 2, 4, 100, 10); turnos.cerrar(T0.minusSeconds(4000), "Ana")
+        turnos.abrir(T0.minusSeconds(3000), "Ana"); venta(2, T0.minusSeconds(60), 1, 1, 100, 60, MetodoPago.TRANSFERENCIA)
+        val r = resumen(resolver(OpcionPeriodo.TURNO, zone), zone)
+        assertEquals(listOf("Transferencia"), r.metodosPago.map { it.etiqueta })
+        assertEquals(listOf(1L), r.top3.masVendidos.map { it.productoId })
+    }
+
     @Test fun `resumen sin ventas oculta el Top 3`() = runBlocking<Unit> {
         productos.put(producto(1))
-        val r = resumen(zone)
+        val r = resumen(resolver(OpcionPeriodo.HOY, zone), zone)
         assertTrue(r.top3.vacio)
         assertTrue(r.metodosPago.isEmpty())
         assertEquals(1, r.categorias.size)

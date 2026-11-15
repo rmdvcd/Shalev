@@ -93,14 +93,14 @@ data class GraficosPeriodo(
 }
 
 /**
- * Parte de Inicio que NO depende del selector de período (Shalev.txt: el selector afecta solo a Ventas y
- * Ganancia bruta): Inventario (existencias actuales), Métodos de pago y Top 3 de los últimos [dias] días.
+ * Parte de Inicio bajo los gráficos: Inventario (existencias actuales, no depende del período) y, del período elegido
+ * en el selector, Métodos de pago y todos los Top 3. Decisión del usuario (2026-11-15): antes eran los últimos 30 días
+ * y el selector afectaba solo a Ventas y Ganancia bruta (Shalev.txt).
  */
 data class ResumenGeneral(
     val categorias: List<Porcion>,
     val metodosPago: List<Porcion>,
     val top3: Top3,
-    val dias: Int,
     /** P29: indicadores propios de los servicios. */
     val servicios: TopServicios = TopServicios.VACIO,
     /** Empleados con mayor importe vendido y clientes por transferencia con mayor importe comprado. */

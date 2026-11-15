@@ -153,7 +153,6 @@ class InicioLogicTest {
             categorias = listOf(Porcion("Abarrotes", 1000, 0.6), Porcion("Otros", 500, 0.4)),
             metodosPago = listOf(Porcion("Efectivo", 300, 0.75), Porcion("Transferencia", 100, 0.25)),
             top3 = Top3(listOf(TopItem(1, "Pan", 12, Cup.ofPesos(50), Cup.ofPesos(20))), emptyList(), emptyList()),
-            dias = 7,
         )
         assertEquals("2 categorías", resumenInventario(r))
         assertEquals("Efectivo", resumenMetodos(r))
@@ -162,6 +161,16 @@ class InicioLogicTest {
         val p = listOf(TopPersona("Ana", Cup.ofPesos(500), 3))
         assertEquals("Ana · 500 CUP", resumenTopPersonas(p))
         assertNull(resumenTopPersonas(emptyList()))
+    }
+
+    /** Subtítulo de Métodos de pago y Top 3: el período elegido (antes «Últimos 30 días»). */
+    @Test fun periodoDelResumen() {
+        val zona = java.time.ZoneId.of("America/Havana")
+        val g = GraficosPeriodo(Periodo.Rango(ahora, ahora.plusSeconds(3600)), Serie(Granularidad.HORA, emptyList()), sinTurnos = true)
+        assertEquals("7 días", textoPeriodoResumen(EstadoCarga.Exito(g), OpcionPeriodo.SEMANA, zona))
+        assertEquals("Este mes", textoPeriodoResumen(EstadoCarga.Cargando, OpcionPeriodo.MES, zona))
+        assertEquals("Turno", textoPeriodoResumen(EstadoCarga.Cargando, OpcionPeriodo.TURNO, zona))
+        assertEquals("Aún no hay turnos: se muestran las ventas de hoy", textoPeriodoResumen(EstadoCarga.Vacio(g), OpcionPeriodo.TURNO, zona))
     }
 
     /** 0.27.0 (T14): reparto equitativo de las alertas por filas. */

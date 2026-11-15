@@ -1,3 +1,12 @@
+## Métodos de pago y Top 3 de Inicio según el período elegido (2026-11-15)
+
+- **Antes:** Métodos de pago y todos los Top 3 de Inicio usaban siempre los últimos 30 días, aunque se eligiera otro período en **Período** (Shalev.txt: el selector solo afectaba a Ventas y Ganancia bruta).
+- **Ahora (decisión del usuario):** Métodos de pago, más vendidos, lento movimiento, rentabilidad, servicios más y menos vendidos, empleados y clientes usan las mismas ventas que los gráficos. Con Turno, las del turno abierto o el último cerrado (hoy si no hay turnos); con los rangos, desde su inicio hasta ahora, sin ventas futuras. El gráfico **Inventario** no cambia: muestra las existencias actuales.
+- `ObtenerResumenGeneral(periodo, zona)` sustituye a la consulta fija de 30 días; `ResumenGeneral.dias` desaparece.
+- `InicioViewModel` recarga el resumen al cambiar el período, igual que los gráficos. Al cambiar, muestra «Cargando» en vez de dejar a la vista los datos del período anterior.
+- El subtítulo «Últimos 30 días» pasa a ser el período (`textoPeriodoResumen`), p. ej. «7 días» o «Turno actual, desde las 08:30». También se corrigió el texto de Ayuda de Inicio.
+- Pruebas: `InicioUseCasesTest` (Hoy frente a 7 días, solo el turno, ventas futuras fuera), `InicioViewModelTest` (cambiar de Turno a Hoy recarga Métodos de pago y Top 3; el inventario no cambia) e `InicioLogicTest` (subtítulo). `RendimientoInicioTest` mide el resumen con el período Año (365 días), su caso más pesado.
+
 ## ID de la licencia en Ajustes → Perfil (2026-11-15)
 
 - Nueva tarjeta **ID de la licencia** en Perfil con el botón **Mostrar**: abre una ventana (`DialogoIdLicencia`) con el `licenseId` (UUID) de la licencia instalada, en letra monoespaciada y seleccionable, y el botón **Copiar**.

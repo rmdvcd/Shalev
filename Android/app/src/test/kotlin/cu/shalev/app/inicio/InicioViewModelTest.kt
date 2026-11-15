@@ -253,4 +253,26 @@ class InicioViewModelTest {
         assertEquals(setOf("Efectivo", "Transferencia"), r.metodosPago.map { it.etiqueta }.toSet())
         assertEquals(setOf("Bebidas", "Panadería"), r.categorias.map { it.etiqueta }.toSet())
     }
+
+    /** Decisión del usuario (2026-11-15): Métodos de pago y los Top 3 siguen al selector de período. */
+    @Test fun metodosDePagoYTop3SiguenAlPeriodo() = runTest {
+        productos.items.value = listOf(prod(1, "Refresco", cantidad = 20), prod(2, "Pan", cantidad = 20, categoria = "Panadería"))
+        turnos.abrir(T0.minusSeconds(7200), "Ana")
+        ventas.registrar(venta(1, 100, 60, productoId = 2, unidades = 5)) // turno anterior
+        turnos.cerrar(T0.minusSeconds(3600), "Ana")
+        turnos.abrir(T0.minusSeconds(1800), "Ana")
+        ventas.registrar(venta(2, 50, 20, MetodoPago.TRANSFERENCIA, productoId = 1, unidades = 1)) // turno actual
+        val vm = vm(); conUi(vm)
+        fun resumen() = (vm.state.value.resumen as EstadoCarga.Exito<ResumenGeneral>).datos
+
+        assertEquals(OpcionPeriodo.TURNO, vm.state.value.opcion)
+        assertEquals(listOf("Transferencia"), resumen().metodosPago.map { it.etiqueta })
+        assertEquals(listOf("Refresco"), resumen().top3.masVendidos.map { it.nombre })
+
+        vm.elegirPeriodo(OpcionPeriodo.HOY)
+        assertEquals(setOf("Efectivo", "Transferencia"), resumen().metodosPago.map { it.etiqueta }.toSet())
+        assertEquals(listOf("Pan", "Refresco"), resumen().top3.masVendidos.map { it.nombre })
+        // El inventario no depende del período.
+        assertEquals(setOf("Bebidas", "Panadería"), resumen().categorias.map { it.etiqueta }.toSet())
+    }
 }

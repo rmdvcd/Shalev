@@ -120,7 +120,7 @@ class InicioPeriodoTest {
     private fun resumenDePrueba(): ResumenGeneral {
         val item = TopItem(1, "Refresco", 5, Cup.ofPesos(500), Cup.ofPesos(200))
         return ResumenGeneral(
-            listOf(Porcion("Bebidas", 10, 1.0)), emptyList(), Top3(listOf(item), emptyList(), listOf(item)), 30,
+            listOf(Porcion("Bebidas", 10, 1.0)), emptyList(), Top3(listOf(item), emptyList(), listOf(item)),
         )
     }
 

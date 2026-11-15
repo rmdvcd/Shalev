@@ -61,7 +61,6 @@ class InicioCapturas {
             listOf(top("Aceite 1 L", 1, 900, 120)),
             listOf(top("Pizza napolitana", 22, 8800, 3400), top("Refresco de lata", 48, 7200, 2400)),
         ),
-        dias = 30,
         empleados = listOf(
             TopPersona("Ana Pérez", Cup.ofPesos(15200), 9),
             TopPersona("Jorge Ruiz", Cup.ofPesos(9800), 6),

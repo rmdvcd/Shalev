@@ -74,14 +74,14 @@ class InicioUiTest {
     }
 
     @Test fun top3OcultoSinDatosYVisibleConDatos() {
-        val sinTop = ResumenGeneral(listOf(Porcion("Bebidas", 10, 1.0)), emptyList(), Top3.VACIO, 30)
+        val sinTop = ResumenGeneral(listOf(Porcion("Bebidas", 10, 1.0)), emptyList(), Top3.VACIO)
         mostrar(InicioUiState(resumen = EstadoCarga.Exito(sinTop)))
         TipoTop.entries.forEach { rule.onNodeWithTag(InicioTags.top(it)).assertDoesNotExist() }
     }
 
     @Test fun top3ConDatos() {
         val item = TopItem(1, "Refresco", 5, Cup.ofPesos(500), Cup.ofPesos(200))
-        val r = ResumenGeneral(listOf(Porcion("Bebidas", 10, 1.0)), emptyList(), Top3(listOf(item), emptyList(), listOf(item)), 30)
+        val r = ResumenGeneral(listOf(Porcion("Bebidas", 10, 1.0)), emptyList(), Top3(listOf(item), emptyList(), listOf(item)))
         mostrar(InicioUiState(resumen = EstadoCarga.Exito(r)))
         rule.onNode(hasTestTag(InicioTags.LISTA)).performScrollToNode(hasTestTag(InicioTags.top(TipoTop.MAS_VENDIDO)))
         rule.onNodeWithTag(InicioTags.top(TipoTop.MAS_VENDIDO)).assertIsDisplayed()
@@ -90,7 +90,7 @@ class InicioUiTest {
 
     @Test fun losAcordeonesEmpiezanCerradosYSeAbrenAlTocar() {
         val item = TopItem(1, "Refresco", 5, Cup.ofPesos(500), Cup.ofPesos(200))
-        val r = ResumenGeneral(listOf(Porcion("Bebidas", 10, 1.0)), emptyList(), Top3(listOf(item), emptyList(), emptyList()), 30)
+        val r = ResumenGeneral(listOf(Porcion("Bebidas", 10, 1.0)), emptyList(), Top3(listOf(item), emptyList(), emptyList()))
         mostrar(InicioUiState(resumen = EstadoCarga.Exito(r)))
         rule.onNode(hasTestTag(InicioTags.LISTA)).performScrollToNode(hasTestTag(InicioTags.top(TipoTop.MAS_VENDIDO)))
         rule.onNodeWithTag(InicioTags.top(TipoTop.MAS_VENDIDO)).assertIsDisplayed()

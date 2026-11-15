@@ -446,7 +446,7 @@ fun InicioContent(
             }
             if (!permisos.esSecundaria) {
                 graficosPeriodo(state.graficos, state.opcion, zona, acciones.onReintentar, acordeones)
-                resumenGeneral(state.resumen, acciones.onReintentar, acordeones)
+                resumenGeneral(state.resumen, textoPeriodoResumen(state.graficos, state.opcion, zona), acciones.onReintentar, acordeones)
             }
             }
             }
@@ -862,23 +862,23 @@ private fun GananciaCard(g: GraficosPeriodo, zona: ZoneId, ac: AcordeonesInicio)
     }
 }
 
-// ---------------- Resumen general (sin selector) ----------------
+// ---------------- Resumen general (Inventario actual; Métodos de pago y Top 3 del período) ----------------
 
-private fun LazyListScope.resumenGeneral(estado: EstadoCarga<ResumenGeneral>, onReintentar: () -> Unit, ac: AcordeonesInicio) {
+private fun LazyListScope.resumenGeneral(estado: EstadoCarga<ResumenGeneral>, periodo: String, onReintentar: () -> Unit, ac: AcordeonesInicio) {
     when (estado) {
         EstadoCarga.Idle, EstadoCarga.Cargando -> {
             item(key = "inventario") { CardGrafico("Inventario", InicioTags.INVENTARIO, ac) { Cargando() } }
             item(key = "metodos") { CardGrafico("Métodos de pago", InicioTags.METODOS, ac) { Cargando() } }
         }
         is EstadoCarga.Error -> item(key = "resumen_error") { CardError(estado.mensaje, onReintentar) }
-        is EstadoCarga.Vacio -> estado.datos?.let { resumenCon(it, ac) } ?: item(key = "inventario") {
+        is EstadoCarga.Vacio -> estado.datos?.let { resumenCon(it, periodo, ac) } ?: item(key = "inventario") {
             CardGrafico("Inventario", InicioTags.INVENTARIO, ac) { Vacio(TextosInicio.SIN_INVENTARIO) }
         }
-        is EstadoCarga.Exito -> resumenCon(estado.datos, ac)
+        is EstadoCarga.Exito -> resumenCon(estado.datos, periodo, ac)
     }
 }
 
-private fun LazyListScope.resumenCon(r: ResumenGeneral, ac: AcordeonesInicio) {
+private fun LazyListScope.resumenCon(r: ResumenGeneral, periodo: String, ac: AcordeonesInicio) {
     item(key = "inventario") {
         CardGrafico("Inventario", InicioTags.INVENTARIO, ac, subtitle = resumenInventario(r)) {
             if (r.categorias.isEmpty()) Vacio(TextosInicio.SIN_INVENTARIO) else {
@@ -891,25 +891,25 @@ private fun LazyListScope.resumenCon(r: ResumenGeneral, ac: AcordeonesInicio) {
     }
     item(key = "metodos") {
         CardGrafico("Métodos de pago", InicioTags.METODOS, ac, subtitle = resumenMetodos(r)) {
-            Subtitulo("Últimos ${r.dias} días")
+            Subtitulo(periodo)
             if (r.metodosPago.isEmpty()) Vacio(TextosInicio.SIN_PAGOS) else {
                 val slices = porcionesUi(r.metodosPago) { Money.format(Cup(it)) }
                 ShalevDonutChart(slices, descripcionDona("métodos de pago", slices))
             }
         }
     }
-    top(TipoTop.MAS_VENDIDO, r.top3.masVendidos, r.dias, ac)
-    top(TipoTop.LENTO, r.top3.lentoMovimiento, r.dias, ac)
-    top(TipoTop.RENTABILIDAD, r.top3.rentabilidad, r.dias, ac)
+    top(TipoTop.MAS_VENDIDO, r.top3.masVendidos, periodo, ac)
+    top(TipoTop.LENTO, r.top3.lentoMovimiento, periodo, ac)
+    top(TipoTop.RENTABILIDAD, r.top3.rentabilidad, periodo, ac)
     // P29: indicadores propios de los servicios (ocultos si no se vendió ninguno en el período).
-    top(TipoTop.SERVICIO_TOP, r.servicios.masVendidos, r.dias, ac)
-    top(TipoTop.SERVICIO_MENOS, r.servicios.menosVendidos, r.dias, ac)
-    topPersonas(TipoTop.EMPLEADO, r.empleados, r.dias, "venta", "ventas", ac)
-    topPersonas(TipoTop.CLIENTE, r.clientes, r.dias, "compra", "compras", ac)
+    top(TipoTop.SERVICIO_TOP, r.servicios.masVendidos, periodo, ac)
+    top(TipoTop.SERVICIO_MENOS, r.servicios.menosVendidos, periodo, ac)
+    topPersonas(TipoTop.EMPLEADO, r.empleados, periodo, "venta", "ventas", ac)
+    topPersonas(TipoTop.CLIENTE, r.clientes, periodo, "compra", "compras", ac)
 }
 
 /** Top 3: oculto si no hay datos (Shalev.txt). */
-private fun LazyListScope.top(tipo: TipoTop, items: List<TopItem>, dias: Int, ac: AcordeonesInicio) {
+private fun LazyListScope.top(tipo: TipoTop, items: List<TopItem>, periodo: String, ac: AcordeonesInicio) {
     if (items.isEmpty()) return
     item(key = "top_${tipo.name}") {
         ShalevAccordionCard(
@@ -917,7 +917,7 @@ private fun LazyListScope.top(tipo: TipoTop, items: List<TopItem>, dias: Int, ac
             expanded = ac.abierto(InicioTags.top(tipo)), onToggle = { ac.alternar(InicioTags.top(tipo)) },
             modifier = Modifier.testTag(InicioTags.top(tipo)).then(shalevAnimateItem()),
         ) {
-            Subtitulo("Últimos $dias días")
+            Subtitulo(periodo)
             items.forEachIndexed { i, it ->
                 ShalevListItem(
                     title = it.nombre,
@@ -933,7 +933,7 @@ private fun LazyListScope.top(tipo: TipoTop, items: List<TopItem>, dias: Int, ac
 }
 
 /** Top 3 de personas (empleados y clientes): oculto si no hay datos. */
-private fun LazyListScope.topPersonas(tipo: TipoTop, items: List<TopPersona>, dias: Int, singular: String, plural: String, ac: AcordeonesInicio) {
+private fun LazyListScope.topPersonas(tipo: TipoTop, items: List<TopPersona>, periodo: String, singular: String, plural: String, ac: AcordeonesInicio) {
     if (items.isEmpty()) return
     item(key = "top_${tipo.name}") {
         ShalevAccordionCard(
@@ -941,7 +941,7 @@ private fun LazyListScope.topPersonas(tipo: TipoTop, items: List<TopPersona>, di
             expanded = ac.abierto(InicioTags.top(tipo)), onToggle = { ac.alternar(InicioTags.top(tipo)) },
             modifier = Modifier.testTag(InicioTags.top(tipo)).then(shalevAnimateItem()),
         ) {
-            Subtitulo("Últimos $dias días")
+            Subtitulo(periodo)
             items.forEachIndexed { i, it ->
                 ShalevListItem(
                     title = it.nombre,

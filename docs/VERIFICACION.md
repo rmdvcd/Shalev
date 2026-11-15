@@ -1,5 +1,13 @@
 # Shalev — Verificación real
 
+## Métodos de pago y Top 3 según el período — 2026-11-15
+
+**Rama:** `arena/7c1fbc9c-shalev`, basada en `9609ed90715e84b87e135fb03f805ebff0263382`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| CI `43664761070` | **Verde**: tests JVM 1037 ejecutados (4 nuevos), 0 fallidos, 0 omitidos; los instrumentados compilan; lint, permisos, API mínima 26 y R8/APK debug aprobados. Instrumentados del emulador (incl. `RendimientoInicioTest` con 365 días) no ejecutados. |
+
 ## ID de la licencia en Perfil — 2026-11-15
 
 **Rama:** `arena/0bf6cb71-shalev`, basada en `dc23f12869580afa1679345c7145af960556591a`.
