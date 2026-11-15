@@ -168,8 +168,8 @@ Debajo del banner fijo de licencia, con el turno abierto, aparecen los iconos de
   - **Ganancia bruta:** comparativa de **Venta** y **Costo**.
   - Ambos gráficos muestran las fechas u horas en el eje X, sin eje Y, para aprovechar todo el ancho. En **Ventas**, toca una barra para ver su fecha u hora y su importe en CUP; vuelve a tocarla para ocultarlo. En Hoy, 7 días, Este mes y Este año se llega hasta el período actual; no se añade a la derecha el tramo futuro todavía sin datos.
   - **Inventario:** gráfico circular de distribución de tus existencias por categoría.
-  - **Métodos de pago:** proporción cobrada en efectivo frente a transferencia.
-  - **Rankings Top 3 con medallas de oro, plata y bronce:** productos más vendidos, artículos de lento movimiento, mayor rentabilidad y —en los últimos 30 días— los **3 mejores vendedores (empleados)** y los **3 mejores clientes por transferencia**. Los **insumos con precio de venta** cuentan como productos en estos rankings (los de solo receta no).
+  - **Métodos de pago:** proporción cobrada en efectivo frente a transferencia en el **período elegido**.
+  - **Rankings Top 3 con medallas de oro, plata y bronce:** productos más vendidos, artículos de lento movimiento, mayor rentabilidad, servicios más y menos vendidos, los **3 mejores vendedores (empleados)** y los **3 mejores clientes por transferencia**. Todos se calculan con las ventas del **período elegido** en **Período** (Turno, Hoy, 7 días, Este mes o Este año), igual que Métodos de pago; el período aparece debajo del título de cada uno. El gráfico **Inventario** muestra siempre las existencias actuales. Los **insumos con precio de venta** cuentan como productos en estos rankings (los de solo receta no).
 
 | <img src="promocion/capturas/shot_inicio_claro.png" alt="Pantalla de Inicio con barra inferior" width="240"/> | <img src="Android/app/capturas/claro/01j_inicio_acordeones_cerrados.png" alt="Inicio con turno abierto y alertas" width="240"/> |
 |:---:|:---:|

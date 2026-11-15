@@ -119,8 +119,8 @@ class ObtenerGraficosPeriodo @Inject constructor(
 }
 
 /**
- * Inventario por categorías (existencias actuales), Métodos de pago y Top 3 de los últimos
- * [ResumenGeneral.dias] días (incluido hoy). No depende del selector de período.
+ * Inventario por categorías (existencias actuales, no depende del período) y, del [Periodo] elegido en Inicio, Métodos
+ * de pago y todos los Top 3. Mismas ventas que los gráficos: las del turno, o las del rango hasta «ahora».
  */
 class ObtenerResumenGeneral @Inject constructor(
     private val ventas: VentaRepository,
@@ -135,10 +135,16 @@ class ObtenerResumenGeneral @Inject constructor(
         productos.observarTodos(), insumos.observarTodos(), servicios.observarTodos(), ventas.observarCambios(),
     ) { _, _, _, _ -> Unit }.flowOn(io)
 
-    /** 0.30.0 (F1): consulta de 30 días y cinco agregaciones: fuera del hilo de UI, igual que [ObtenerGraficosPeriodo]. */
-    suspend operator fun invoke(zone: ZoneId = ZoneId.systemDefault()): ResumenGeneral = withContext(io) {
-        val manana = clock.now().atZone(zone).toLocalDate().plusDays(1) // 0.21.6: por fecha (cambio de hora a las 00:00)
-        val lista = ventas.entre(manana.minusDays(DIAS.toLong()).atStartOfDay(zone).toInstant(), manana.atStartOfDay(zone).toInstant()).validas()
+    /**
+     * 0.30.0 (F1): consulta y cinco agregaciones fuera del hilo de UI, igual que [ObtenerGraficosPeriodo].
+     * Antes eran siempre los últimos 30 días; ahora siguen al selector de período ([periodo]).
+     */
+    suspend operator fun invoke(periodo: Periodo, zone: ZoneId = ZoneId.systemDefault()): ResumenGeneral = withContext(io) {
+        val lista = when (periodo) {
+            is Periodo.DeTurno -> ventas.deTurno(periodo.turnoId)
+            // El nanosegundo incluye una venta registrada en el instante del reloj; lo futuro queda fuera (como en los gráficos).
+            is Periodo.Rango -> ventas.entre(periodo.desde, minOf(periodo.hasta, clock.now().plusNanos(1)))
+        }.validas()
         val inventario = productos.observarTodos().first()
         // 1.0.1: los insumos con precio de venta cuentan como productos en el Top 3.
         val ins = insumos.observarTodos().first()
@@ -146,14 +152,9 @@ class ObtenerResumenGeneral @Inject constructor(
             categorias = Estadisticas.distribucionCategorias(inventario, ins),
             metodosPago = Estadisticas.distribucionMetodos(lista),
             top3 = Estadisticas.top3(lista, inventario, ins),
-            dias = DIAS,
             servicios = Estadisticas.topServicios(lista, servicios.observarTodos().first()),
             empleados = Estadisticas.topEmpleados(lista),
             clientes = Estadisticas.topClientes(lista),
         )
-    }
-
-    companion object {
-        const val DIAS = 30
     }
 }

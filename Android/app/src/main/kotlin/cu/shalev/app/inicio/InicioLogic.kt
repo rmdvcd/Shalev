@@ -223,6 +223,20 @@ fun descripcionPeriodo(g: GraficosPeriodo, opcion: OpcionPeriodo, zone: ZoneId):
     }
 }
 
+/**
+ * Subtítulo de Métodos de pago y de los Top 3: el período elegido. Con «Turno» se describe el turno que muestran los
+ * gráficos («Turno actual, desde las 08:30»); con otra opción, su nombre (los gráficos pueden ser aún los del anterior).
+ */
+fun textoPeriodoResumen(g: EstadoCarga<GraficosPeriodo>, opcion: OpcionPeriodo, zone: ZoneId): String {
+    if (opcion != OpcionPeriodo.TURNO) return opcion.etiqueta()
+    val datos = when (g) {
+        is EstadoCarga.Exito -> g.datos
+        is EstadoCarga.Vacio -> g.datos
+        else -> null
+    }
+    return datos?.let { descripcionPeriodo(it, opcion, zone) } ?: opcion.etiqueta()
+}
+
 /** Etiqueta del eje X según la agrupación, usando los formatos de fecha, hora y mes del dispositivo. */
 fun etiquetaPunto(inicio: Instant, g: Granularidad, zone: ZoneId): String = when (g) {
     Granularidad.HORA -> Dates.time(inicio, zone)

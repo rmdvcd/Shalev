@@ -191,8 +191,9 @@ class InicioViewModel @Inject constructor(
         viewModelScope.launch {
             combine(opcion, turnoId, inventario, refresco) { o, _, _, _ -> o }.collectLatest { cargarGraficos(it) }
         }
+        // Métodos de pago y Top 3 siguen al selector de período, igual que los gráficos.
         viewModelScope.launch {
-            combine(inventario, turnoId, refresco) { _, _, _ -> Unit }.collectLatest { cargarResumen() }
+            combine(opcion, turnoId, inventario, refresco) { o, _, _, _ -> o }.collectLatest { cargarResumen(it) }
         }
     }
 
@@ -332,10 +333,14 @@ class InicioViewModel @Inject constructor(
         }
     }
 
-    private suspend fun cargarResumen() {
-        if (!resumen.value.tieneDatos) resumen.value = EstadoCarga.Cargando
+    /** Período del último resumen cargado: al cambiar de período no se dejan a la vista los datos del anterior. */
+    private var opcionResumen: OpcionPeriodo? = null
+
+    private suspend fun cargarResumen(o: OpcionPeriodo) {
+        if (!resumen.value.tieneDatos || opcionResumen != o) resumen.value = EstadoCarga.Cargando
+        opcionResumen = o
         resumen.value = cargar {
-            val r = obtenerResumen(zona)
+            val r = obtenerResumen(resolverPeriodo(o, zona), zona)
             if (r.vacio) EstadoCarga.Vacio(r) else EstadoCarga.Exito(r)
         }
     }

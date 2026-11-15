@@ -40,7 +40,7 @@ import org.junit.runner.RunWith
  * 1. **Agregación (lo que se congelaba):** `Estadisticas.serie` sobre un año de ventas, ejecutada a propósito en el
  *    hilo del test. Es el trabajo que antes ocurría en el hilo de UI porque los casos de uso no cambiaban de
  *    contexto. Umbral 250 ms: si esto se pasa, la pantalla se nota; si el teléfono lo hace en 30 ms, hay margen.
- * 2. **Carga completa con el arreglo:** `ObtenerResumenGeneral` (30 días) y `ObtenerGraficosPeriodo` (365 días)
+ * 2. **Carga completa con el arreglo:** `ObtenerResumenGeneral` y `ObtenerGraficosPeriodo` con el período «Año» (365 días; el resumen sigue al período desde 2026-11-15)
  *    tal como los llama Inicio, ahora en `withContext(io)`. Umbral 3000 ms (generoso a propósito: esto incluye
  *    disco cifrado con SQLCipher y en un teléfono de gama baja puede tardar; el objetivo del test es que no se
  *    degrade a segundos, no ganar una carrera).
@@ -82,13 +82,13 @@ class RendimientoInicioTest {
             // 2) Camino real: los dos casos de uso de Inicio, ya con withContext(io).
             val obtenerResumen = ObtenerResumenGeneral(entorno.ventas, entorno.productos, entorno.insumos, entorno.servicios, reloj, Dispatchers.IO)
             val obtenerGraficos = ObtenerGraficosPeriodo(entorno.ventas, entorno.turnos, reloj, Dispatchers.IO)
-            val tResumen = medir { obtenerResumen(zona) }
+            val tResumen = medir { obtenerResumen(rango, zona) }
             val tGraficos = medir { obtenerGraficos(rango, zone = zona) }
 
             val informe = """
                 |RendimientoInicioTest — 18 meses (${ventasDelAnio.size} ventas en el año, ${validas.size} válidas)
                 |  agregación de un año (antes en el hilo de UI): ${tAgregacion} ms  (umbral 250)
-                |  ObtenerResumenGeneral (30 días):               ${tResumen} ms  (umbral 3000)
+                |  ObtenerResumenGeneral (365 días):              ${tResumen} ms  (umbral 3000)
                 |  ObtenerGraficosPeriodo (365 días):            ${tGraficos} ms  (umbral 3000)
             """.trimMargin()
             println(informe)
