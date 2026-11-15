@@ -148,10 +148,12 @@ fun MovimientoDto.toDomain() = MovimientoInventario(
 fun Perfil.toDto() = PerfilDto(
     nombre, apellidos, ci, tarjetas.map { TarjetaDto(it.id, it.numero, it.alias) },
     telefonos.map { TelefonoDto(it.id, it.numero, it.alias) }, pagoTarjetaId, pagoTelefonoId,
+    nombreNegocio, logoUri,
 )
 fun PerfilDto.toDomain() = Perfil(
     nombre, apellidos, ci, tarjetas.map { TarjetaBancaria(it.id, it.numero, it.alias) },
     telefonos.map { Telefono(it.id, it.numero, it.alias) }, pagoTarjetaId, pagoTelefonoId,
+    nombreNegocio, logoUri,
 )
 
 fun PreajustePrecios.toDto() = PreajusteDto(

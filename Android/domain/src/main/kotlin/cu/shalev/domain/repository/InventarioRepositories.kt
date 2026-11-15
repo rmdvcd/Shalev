@@ -79,13 +79,13 @@ interface ServicioRepository {
 }
 
 /**
- * Fotos de productos, guardadas en el almacenamiento privado de la app y re-codificadas (JPEG, lado máximo
+ * Fotos y logos, guardados en el almacenamiento privado de la app y re-codificados (JPEG, lado máximo
  * acotado, sin metadatos EXIF). Devuelven una URI local `file://`.
  */
 interface FotoRepository {
     /** Copia una imagen elegida por el usuario con el selector de fotos del sistema (content://). */
     suspend fun importar(origen: String): AppResult<String>
     suspend fun eliminar(uri: String)
-    /** Borra fotos que ningún producto usa y tienen más de un día (borradores abandonados). */
+    /** Borra imágenes que ninguna entidad usa y tienen más de un día (borradores abandonados). */
     suspend fun limpiarHuerfanas(enUso: Set<String>)
 }

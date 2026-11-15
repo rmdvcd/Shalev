@@ -27,7 +27,8 @@ class PerfilTest {
     private val repo = PerfilRepo(Perfil(nombre = "Ana", apellidos = "Díaz", ci = "85010112345", telefonos = listOf(tel), pagoTelefonoId = 7))
     private val lic = cu.shalev.app.LicRepo()
     private val tipo = cu.shalev.app.TipoRepo()
-    private fun vm() = PerfilViewModel(repo, GuardarPerfil(repo), cu.shalev.app.PrefRepo(), tipo, lic)
+    private val fotos = cu.shalev.app.FakeFotos()
+    private fun vm() = PerfilViewModel(repo, GuardarPerfil(repo), cu.shalev.app.PrefRepo(), tipo, lic, fotos)
 
     private val uuid = "3f2b8c1e-5a7d-4e9f-b0c2-9d8e7f6a5b4c"
     private fun instalada(id: String) = cu.shalev.domain.model.LicenciaInstalada(
@@ -65,6 +66,9 @@ class PerfilTest {
         assertEquals(TextosPerfil.ERROR_NOMBRE, malo.errorApellidos)
         assertEquals(TextosPerfil.ERROR_CI, malo.errorCi)
         assertFalse(malo.valido)
+        val negocioLargo = DatosPerfilForm(nombreNegocio = "x".repeat(81))
+        assertEquals(TextosPerfil.ERROR_NOMBRE_NEGOCIO, negocioLargo.errorNombreNegocio)
+        assertFalse(negocioLargo.valido)
     }
 
     @Test fun nombreConDigitosYSimbolosSeMarcaComoInvalidoMientrasSeEdita() {
@@ -77,6 +81,15 @@ class PerfilTest {
         val p = DatosPerfilForm("  Luis ", "Pérez Gómez ", "ab12345").aplicarA(repo.state.value)
         assertEquals("Luis", p.nombre); assertEquals("Pérez Gómez", p.apellidos); assertEquals("AB12345", p.ci)
         assertEquals(listOf(tel), p.telefonos); assertEquals(7L, p.pagoTelefonoId)
+    }
+
+    @Test fun negocioYLogoSeAplicanYParticipanEnLosCambios() {
+        val inicial = repo.state.value.copy(nombreNegocio = "Café Ana", logoUri = "file:///fotos/logo.jpg")
+        val form = DatosPerfilForm.desde(inicial).copy(nombreNegocio = "  Café Nuevo  ", logoUri = null)
+        val actualizado = form.aplicarA(inicial)
+        assertEquals("Café Nuevo", actualizado.nombreNegocio)
+        assertEquals(null, actualizado.logoUri)
+        assertTrue(form.cambiado(inicial))
     }
 
     @Test fun cambiadoIgnoraEspaciosYMayusculasDelCi() {
@@ -119,6 +132,20 @@ class PerfilTest {
         vm.guardar()
         assertTrue(vm.state.value.form.mostrarErrores)
         assertEquals("85010112345", repo.state.value.ci)
+    }
+
+    @Test fun logoSeImportaAntesDeGuardarloYPuedeQuitarse() = runTest {
+        val vm = vm()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        vm.logoElegido("content://foto/logo")
+        assertEquals("file:///fotos/importada.jpg", vm.state.value.form.logoUri)
+        assertTrue(vm.state.value.sinGuardar)
+        vm.guardar()
+        assertEquals("file:///fotos/importada.jpg", repo.state.value.logoUri)
+        vm.quitarLogo()
+        assertTrue(vm.state.value.sinGuardar)
+        vm.guardar()
+        assertEquals(null, repo.state.value.logoUri)
     }
 
     @Test fun descartarVuelveAlGuardado() = runTest {

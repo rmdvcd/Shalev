@@ -218,6 +218,7 @@ fun perfilDe(p: PerfilEntity?, tarjetas: List<TarjetaEntity>, telefonos: List<Te
     tarjetas = tarjetas.map { TarjetaBancaria(it.id, it.numero, it.alias) },
     telefonos = telefonos.map { Telefono(it.id, it.numero, it.alias) },
     pagoTarjetaId = p?.pagoTarjetaId, pagoTelefonoId = p?.pagoTelefonoId,
+    nombreNegocio = p?.nombreNegocio.orEmpty(), logoUri = p?.logoUri,
 )
 
 fun TarjetaBancaria.toEntity() = TarjetaEntity(id, numero, alias)

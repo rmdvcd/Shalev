@@ -199,6 +199,8 @@ data class PerfilDto(
     val nombre: String, val apellidos: String, val ci: String,
     val tarjetas: List<TarjetaDto> = emptyList(), val telefonos: List<TelefonoDto> = emptyList(),
     val pagoTarjetaId: Long? = null, val pagoTelefonoId: Long? = null,
+    /** Datos opcionales del negocio; ausentes en respaldos anteriores. */
+    val nombreNegocio: String = "", val logoUri: String? = null,
 )
 
 @Serializable

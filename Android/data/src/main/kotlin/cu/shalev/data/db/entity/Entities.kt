@@ -256,6 +256,8 @@ data class PerfilEntity(
     val ci: String,
     val pagoTarjetaId: Long?,
     val pagoTelefonoId: Long?,
+    @ColumnInfo(defaultValue = "''") val nombreNegocio: String = "",
+    val logoUri: String? = null,
 )
 
 @Entity(tableName = "tarjeta", indices = [Index("numero", unique = true)])

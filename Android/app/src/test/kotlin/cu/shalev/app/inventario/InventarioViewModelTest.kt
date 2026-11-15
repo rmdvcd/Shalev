@@ -81,7 +81,7 @@ class InventarioViewModelTest {
             imagenTabla = tablaPng,
             archivos = archivos,
             clock = reloj,
-            limpiarFotos = LimpiarFotos(productos, FakeFotos(), cu.shalev.app.ServRepo()),
+            limpiarFotos = LimpiarFotos(productos, FakeFotos(), cu.shalev.app.ServRepo(), cu.shalev.app.PerfilRepo()),
             estadoPantallas = cu.shalev.app.FakeEstadoPantallas(),
         )
         // 0.30.0 (F1): en la app el buscador espera 250 ms; los tests no quieren depender del reloj virtual.

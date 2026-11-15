@@ -78,7 +78,7 @@ Desde la 0.27.0 se escribe la **v4**, que añade un byte indicador (con o sin co
 | `version` | `5`. Un respaldo `3`/`4` omite los bloques nuevos: no se inventan recepciones, lotes, fichas ni fotos |
 | `creadoEn` | epoch ms |
 | `appVersion` | texto o `null` |
-| `perfil` | nombre, apellidos, CI, `tarjetas[]`, `telefonos[]`, tarjeta y teléfono elegidos para cobrar |
+| `perfil` | nombre, apellidos, CI, nombre comercial opcional (`nombreNegocio`), logo/foto opcional (`logoUri`), `tarjetas[]`, `telefonos[]`, tarjeta y teléfono elegidos para cobrar |
 | `preajustes[]` | nombre, `puntosBasicos`, `productoIds[]`, método de pago, importe mínimo, activo |
 | `preferencias` | niveles bajo y crítico de productos e insumos. Desde 0.21.0 (opcionales): `modulos[]` (`VENTAS`, `INVENTARIO`, `SERVICIOS`; ausente = todos) y `empleadosPrevistos` |
 | `productos[]` | todos los campos de `producto`, incluidos `fotoUri` y `eliminado` |
@@ -102,7 +102,7 @@ Desde la 0.27.0 se escribe la **v4**, que añade un byte indicador (con o sin co
 - `revisionesMovimiento[]`: bitácora append-only con movimiento, fecha, delta/existencia antes y después, autor, motivo y local. El movimiento conserva además `motivo` estructurado (Compra, Merma, Consumo interno, Corrección, Devolución).
 - `costoAdicionalCent` en productos elaborados y servicios: trabajo y costos no materiales por unidad/prestación. Se suma a la receta al cotizar, sin modificar los costos congelados de ventas anteriores.
 - `preferencias`: se toma del mismo snapshot Room que el negocio y se restaura en su mismo commit. Onboarding y claves siguen siendo del teléfono. Si falta en un respaldo antiguo, conserva la configuración actual.
-- `fotos[]`: nombre seguro, contenido Base64 y SHA-256 del archivo. Máximo **4 MiB por imagen, 48 MiB sumados**; límite de plano/archivo **128 MiB**. Solo fotos privadas con nombre válido. Se validan antes de tocar los datos; al importar se crean nombres UUID nuevos y se remapean las rutas. Si el commit falla se eliminan solo las fotos preparadas; si se confirma, no se borran por una cancelación posterior. Las fotos viejas no referenciadas se limpian por el mantenimiento normal.
+- `fotos[]`: nombre seguro, contenido Base64 y SHA-256 del archivo; incluye las fotos del catálogo y el logo/foto del negocio cuando están en el álbum privado. Máximo **4 MiB por imagen, 48 MiB sumados**; límite de plano/archivo **128 MiB**. Solo fotos privadas con nombre válido. Se validan antes de tocar los datos; al importar se crean nombres UUID nuevos y se remapean las rutas. Si el commit falla se eliminan solo las fotos preparadas; si se confirma, no se borran por una cancelación posterior. Las fotos viejas no referenciadas se limpian por el mantenimiento normal.
 
 La importación sustituye el negocio, pero **no borra los recibos idempotentes de comandos ya ejecutados** ni las claves activas de empleados que siguen en este dispositivo. Borrar todo sí elimina esos recibos. Archivos, DataStore y Room no constituyen una sola transacción de sistema de archivos: Room+preferencias son atómicos y la fase final termina sin interrumpirse por cancelación; un fallo de E/S externo se informa sin prometer rollback del borrado total.
 
@@ -119,7 +119,7 @@ La copia previa a actualizar sigue usando `.shalev` v4/DTO v5 sin contraseña, e
 - `inventario[]`: `entidad` (PRODUCTO/INSUMO), `id`, `nombre`, `unidad`, `esperado`, `contado`, `actualizadoEn`. Cantidades nativas: unidades para productos, milésimas para insumos. El nombre, la unidad y las cantidades son la instantánea del conteo, no se recalculan al exportar.
 - `motivo`: obligatorio con diferencias; `aprobadoPor` y `aprobadoEn` son nulos hasta que la principal aplica la conciliación. El efectivo calculado debe coincidir con `contadoCent`.
 
-Room v13 añadió `turno.conteoCierreJson TEXT NULL` (migración 12→13). La versión de trabajo actual es **v18** y los JSON históricos se conservan para probar sus migraciones.
+Room v13 añadió `turno.conteoCierreJson TEXT NULL` (migración 12→13). La versión de trabajo actual es **v20**: la migración 19→20 añade al Perfil `nombreNegocio` y `logoUri`; los JSON históricos se conservan para probar sus migraciones.
 
 En el protocolo LAN v1, el conteo viaja con el DTO del turno. La respuesta añade los campos opcionales `conteoAprobado` y `conteoTurnoUuid`: la secundaria solo acepta la aprobación si coincide el turno y la declaración completa. La principal ignora cualquier autorización que declare la propia secundaria y conserva la que ya otorgó ante reenvíos. Las dos apps deben estar actualizadas para el nuevo flujo.
 

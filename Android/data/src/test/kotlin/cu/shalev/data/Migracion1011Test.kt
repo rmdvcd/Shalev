@@ -13,8 +13,8 @@ import org.junit.Test
 class Migracion1011Test {
 
     @Test fun migracion10_11RecreaProductoSinCodigoConservandoDatos() {
-        // Versión actual del esquema (v17: recibos de comandos; v16: `local` en catálogo e historial).
-        assertEquals(18, ShalevDatabase.VERSION)
+        // Versión actual del esquema (v20: datos del negocio; v17: recibos; v16: locales).
+        assertEquals(20, ShalevDatabase.VERSION)
         assertEquals(10, ShalevDatabase.MIGRACION_10_11.startVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_10_11.endVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_11_12.startVersion)
@@ -23,6 +23,10 @@ class Migracion1011Test {
         assertEquals(16, ShalevDatabase.MIGRACION_15_16.endVersion)
         assertEquals(16, ShalevDatabase.MIGRACION_16_17.startVersion)
         assertEquals(17, ShalevDatabase.MIGRACION_16_17.endVersion)
+        assertEquals(19, ShalevDatabase.MIGRACION_19_20.startVersion)
+        assertEquals(20, ShalevDatabase.MIGRACION_19_20.endVersion)
+        assertEquals(2, ShalevDatabase.SQL_19_20.size)
+        assertTrue(ShalevDatabase.SQL_19_20.all { it.startsWith("ALTER TABLE `perfil` ADD COLUMN") })
         assertEquals(1, ShalevDatabase.SQL_16_17.size)
         assertTrue(ShalevDatabase.SQL_16_17.single().startsWith("CREATE TABLE IF NOT EXISTS `comando_recibo`"))
         val sql = ShalevDatabase.SQL_10_11

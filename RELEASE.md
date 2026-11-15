@@ -92,7 +92,7 @@ buildTypes {
    - **Actualizaciones automáticas:** por defecto `Android/gradle.properties` apunta `shalevGithubRepo` a `rmdvcd/Shalev`; no hace falta configurarlo para este repositorio. La app consulta la última Release pública en [github.com/rmdvcd/Shalev/releases](https://github.com/rmdvcd/Shalev/releases), tanto para encontrar el APK como para descargar la lista de revocaciones. Para probar un fork/repo distinto, sobrescribe con `-PshalevGithubRepo=usuario/repositorio`; un valor vacío desactiva las consultas.
 2. Ejecuta `./gradlew shalevCheck shalevInstrumentedTests` con un emulador o teléfono conectado.
    Después, `python3 tools/verificacion/api_minima.py` (con el JDK 17 en el PATH). Comprueba que ninguna clase compilada llama a una API de Android o de Java posterior a la 26 sin comprobar la versión, también en core/domain/licencia, que lint no analiza. Debe terminar con «0 llamadas no permitidas».
-3. No regenerar el baseline de lint para ocultar errores. Verificar que el esquema actual **v18** está
+3. No regenerar el baseline de lint para ocultar errores. Verificar que el esquema actual **v20** está
    generado por Room/KSP y versionado, y que las migraciones pasan en el emulador. Un cambio de entidades
    posterior exige su propia migración y el nuevo JSON; nunca sustituir el esquema a mano.
 

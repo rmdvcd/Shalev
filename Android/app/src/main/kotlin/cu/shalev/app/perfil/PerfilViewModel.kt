@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cu.shalev.core.result.AppResult
 import cu.shalev.domain.model.Perfil
+import cu.shalev.domain.repository.FotoRepository
 import cu.shalev.domain.usecase.GuardarPerfil
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -29,6 +30,8 @@ data class PerfilUiState(
     val perfil: Perfil = Perfil(),
     val form: DatosPerfilForm = DatosPerfilForm(),
     val guardando: Boolean = false,
+    /** La selección se copia al almacenamiento privado antes de asociarla al Perfil. */
+    val importandoLogo: Boolean = false,
     /** 0.21.0 (C12): módulos activos del negocio; null = no se muestra (app secundaria o aún cargando). */
     val modulos: Set<cu.shalev.domain.model.Modulo>? = null,
     /** ID para recuperar la licencia en otro teléfono; null = no se muestra la tarjeta (app secundaria o cargando). */
@@ -38,8 +41,8 @@ data class PerfilUiState(
 }
 
 /**
- * Datos personales del Perfil. Las listas de teléfonos y tarjetas las gestiona PagoElectronicoViewModel
- * (mismas reglas y la misma hoja de edición). Lo guardado aquí se ve al momento en Licencia (desdePerfil).
+ * Datos personales y comerciales del Perfil. Las listas de teléfonos y tarjetas las gestiona PagoElectronicoViewModel
+ * (mismas reglas y la misma hoja de edición). Los datos personales se ven al momento en Licencia (desdePerfil).
  */
 @HiltViewModel
 class PerfilViewModel @Inject constructor(
@@ -48,11 +51,13 @@ class PerfilViewModel @Inject constructor(
     private val preferenciasRepo: cu.shalev.domain.repository.PreferenciasRepository,
     private val tipoAppRepo: cu.shalev.domain.repository.TipoAppRepository,
     private val licenciaRepo: cu.shalev.domain.repository.LicenciaRepository,
+    private val fotos: FotoRepository,
 ) : ViewModel() {
 
     /** null = sin borrador: el formulario refleja el Perfil guardado. */
     private val borrador = MutableStateFlow<DatosPerfilForm?>(null)
     private val guardando = MutableStateFlow(false)
+    private val importandoLogo = MutableStateFlow(false)
     private val _mensajes = Channel<String>(Channel.BUFFERED)
     val mensajes: Flow<String> = _mensajes.receiveAsFlow()
 
@@ -64,13 +69,38 @@ class PerfilViewModel @Inject constructor(
         if (t == cu.shalev.domain.model.TipoApp.SECUNDARIA || l == null) null else IdLicenciaUi(idRecuperacion(l))
     }
 
-    val state: StateFlow<PerfilUiState> = combine(perfilRepo.perfil, borrador, guardando, modulos, idLicencia) { p, b, g, m, id ->
-        PerfilUiState(cargado = true, perfil = p, form = b ?: DatosPerfilForm.desde(p), guardando = g, modulos = m, idLicencia = id)
+    private val perfilEditando = combine(perfilRepo.perfil, borrador, guardando, importandoLogo) { p, b, g, importando ->
+        PerfilUiState(
+            cargado = true, perfil = p, form = b ?: DatosPerfilForm.desde(p), guardando = g,
+            importandoLogo = importando,
+        )
+    }
+
+    val state: StateFlow<PerfilUiState> = combine(perfilEditando, modulos, idLicencia) { base, m, id ->
+        base.copy(modulos = m, idLicencia = id)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PerfilUiState())
 
     fun editar(f: (DatosPerfilForm) -> DatosPerfilForm) = borrador.update { f(it ?: state.value.form) }
 
     fun descartar() { borrador.value = null }
+
+    /** Importa el logo a una ruta privada y estable antes de guardarlo en el Perfil. */
+    fun logoElegido(uri: String) {
+        if (importandoLogo.value) return
+        importandoLogo.value = true
+        viewModelScope.launch {
+            try {
+                when (val r = fotos.importar(uri)) {
+                    is AppResult.Ok -> editar { it.copy(logoUri = r.value) }
+                    is AppResult.Err -> _mensajes.send(TextosPerfil.ERROR_LOGO)
+                }
+            } finally {
+                importandoLogo.value = false
+            }
+        }
+    }
+
+    fun quitarLogo() = editar { it.copy(logoUri = null) }
 
     /** 0.21.0 (C12): se guarda al momento (no depende del botón Guardar de los datos). Nunca deja 0 módulos. */
     fun alternarModulo(m: cu.shalev.domain.model.Modulo) {
@@ -83,7 +113,7 @@ class PerfilViewModel @Inject constructor(
     fun guardar() {
         val form = state.value.form
         if (!form.valido) { borrador.value = form.copy(mostrarErrores = true); return }
-        if (guardando.value) return
+        if (guardando.value || importandoLogo.value) return
         guardando.value = true
         viewModelScope.launch {
             // Se relee el Perfil: las listas pueden haber cambiado mientras se editaban los datos.

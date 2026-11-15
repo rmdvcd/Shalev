@@ -420,7 +420,9 @@ class ServidorSync @Inject constructor(
         return false
     }
 
-    private suspend fun nombreNegocio(): String = UsuarioActual.nombreDe(perfil.perfil.first())
+    private suspend fun nombreNegocio(): String = perfil.perfil.first().let { p ->
+        p.nombreNegocio.ifBlank { UsuarioActual.nombreDe(p) }
+    }
 
     companion object {
         const val PUERTO = 47_811

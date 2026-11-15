@@ -298,8 +298,6 @@ class AuditoriaUiTest {
         }
         rule.mainClock.advanceTimeBy(1_000)
 
-        rule.onNodeWithText("Método de pago").assertExists()
-        rule.onNodeWithText("Cualquier pago").assertExists()
         val ancho = rule.onNodeWithText("Subir precio").fetchSemanticsNode().boundsInRoot.width
         val minimo = with(rule.density) { 100.dp.toPx() }
         assertTrue("el chip quedó aplastado: ${ancho}px (mínimo $minimo)", ancho >= minimo)

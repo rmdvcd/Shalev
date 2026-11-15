@@ -104,7 +104,7 @@ object Imagenes {
 }
 
 /**
- * Fotos de productos en `filesDir/fotos` (privado, dentro del sandbox de la app). Toda imagen se decodifica
+ * Fotos de catálogo y logos de negocio en `filesDir/fotos` (privado, dentro del sandbox de la app). Toda imagen se decodifica
  * y se RE-CODIFICA a JPEG ≤ 1024 px: se descartan metadatos (EXIF con GPS, etc.) y cualquier contenido que no
  * sea imagen. Solo fotos propias (cámara/galería): nunca se descarga nada de internet.
  */

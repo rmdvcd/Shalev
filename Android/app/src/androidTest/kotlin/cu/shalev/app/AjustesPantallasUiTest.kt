@@ -91,8 +91,8 @@ class AjustesPantallasUiTest {
         assertEquals(listOf(TipoCuentaPago.TARJETA to 3L), elegidas)
     }
 
-    /** P28: Perfil solo tiene nombre, apellidos y carné; las tarjetas viven en Pago electrónico. */
-    @Test fun perfilMuestraSoloDatosPersonales() {
+    /** Perfil reúne los datos personales y comerciales; las tarjetas siguen solo en Pago electrónico. */
+    @Test fun perfilMuestraDatosPersonalesYDelNegocioSinCobros() {
         var guardar = 0
         rule.setContent {
             ShalevTheme(darkTheme = false) {
@@ -100,6 +100,8 @@ class AjustesPantallasUiTest {
             }
         }
         rule.onNodeWithTag(PerfilTags.GUARDAR).assertIsNotEnabled() // sin cambios
+        rule.onNodeWithTag(PerfilTags.NOMBRE_NEGOCIO).assertExists()
+        rule.onNodeWithTag(PerfilTags.LOGO).assertExists()
         rule.onAllNodesWithText("•••• 1234").assertCountEquals(0)
         assertEquals(0, guardar)
     }

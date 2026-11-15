@@ -101,9 +101,10 @@ class AlmacenSync @Inject constructor(
             insumos = insumos.map { it.toDomain().toDto() },
             servicios = servicios,
             preajustes = preajustesLocales,
-            // Solo lo necesario para cobrar por transferencia: ni nombre ni carné del dueño, y (0.20.0, H4) solo la
-            // tarjeta y el teléfono con los que cobra ESTE empleado.
-            perfil = perfil.paraEmpleado(empleado.tarjetaId, empleado.telefonoId, empleado.telefono).toDto().copy(nombre = "", apellidos = "", ci = ""),
+            // Solo lo necesario para cobrar y reconocer el negocio: nombre comercial y, ni nombre/carné/logo del dueño,
+            // ni más cuentas que la tarjeta y teléfono con los que cobra ESTE empleado (0.20.0, H4).
+            perfil = perfil.paraEmpleado(empleado.tarjetaId, empleado.telefonoId, empleado.telefono).toDto()
+                .copy(nombre = "", apellidos = "", ci = "", logoUri = null),
             preferencias = db.gestionDao().configuracion()?.preferenciasJson?.let {
                 cu.shalev.data.local.ShalevJson.decodeFromString(cu.shalev.data.dto.PreferenciasDto.serializer(), it)
             } ?: pref,
@@ -422,8 +423,11 @@ class AlmacenSync @Inject constructor(
         perfil.tarjetas.forEach { perfilDao.insertarTarjeta(it.toEntity()) }
         perfil.telefonos.forEach { perfilDao.insertarTelefono(it.toEntity()) }
         // El «usuario» de esta app es el empleado: su nombre queda en los turnos que abre y cierra.
-        perfilDao.guardar(PerfilEntity(nombre = inst.empleado.nombre, apellidos = "", ci = "",
-            pagoTarjetaId = perfil.pagoTarjetaId, pagoTelefonoId = perfil.pagoTelefonoId))
+        perfilDao.guardar(PerfilEntity(
+            nombre = inst.empleado.nombre, apellidos = "", ci = "",
+            pagoTarjetaId = perfil.pagoTarjetaId, pagoTelefonoId = perfil.pagoTelefonoId,
+            nombreNegocio = perfil.nombreNegocio, logoUri = null,
+        ))
 
         val existentes = inst.productos.filterNot { it.eliminado }.map { it.id }.toSet()
         val serviciosExistentes = inst.servicios.filterNot { it.eliminado }.map { it.id }.toSet()
