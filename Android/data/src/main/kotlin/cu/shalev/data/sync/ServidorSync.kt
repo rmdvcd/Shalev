@@ -317,6 +317,8 @@ class ServidorSync @Inject constructor(
                         val ok = responder(actual, m) ?: break
                         s.enviar(ok) { hecho, total -> progreso(e.id, FaseSync.ENVIANDO, hecho, total) }
                         _sincronizadas.tryEmit(e.id)
+                        // La ronda terminó: su barra ya no tiene nada que contar (antes se quedaba hasta desconectar).
+                        _progresos.update { it - e.id }
                     }
                     is Comando -> s.enviar(ejecutor.resultado(m, actual))
                     is Ping -> s.enviar(Pong(m.id))

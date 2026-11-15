@@ -14,6 +14,10 @@ import cu.shalev.domain.repository.SecundariaRepository
 import cu.shalev.domain.usecase.ComprobarActualizaciones
 import cu.shalev.domain.usecase.EstadoActualizacionObligatoria
 import cu.shalev.domain.model.ActualizacionObligatoria
+import cu.shalev.app.notificacion.AccionOperacion
+import cu.shalev.app.notificacion.Operacion
+import cu.shalev.app.notificacion.OperacionesEnCurso
+import cu.shalev.designsystem.component.TipoAviso
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flow
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -154,6 +158,12 @@ object TextosActualizacion {
     fun notasVisibles(notas: String): String =
         notas.lines().filterNot { LINEA_TECNICA.containsMatchIn(it) }.joinToString("\n").trim()
     const val BUSCAR_AHORA = "Buscar ahora"
+
+    /** Notificación del sistema (Notificacion.md aplicado a la barra de notificaciones). */
+    const val NOTIF_TITULO = "Actualización de Shalev"
+    const val NOTIF_ERROR = "No se pudo actualizar"
+    const val NOTIF_DESCARGADA = "Abre Shalev y toca Confirmar para instalarla."
+    const val NOTIF_NO_INSTALADA = "No se instaló"
 }
 
 /**
@@ -172,6 +182,8 @@ class GestorActualizacion @Inject constructor(
     private val info: InfoApp,
     private val obligatoria: EstadoActualizacionObligatoria,
     private val respaldoPrevio: RespaldoPrevio,
+    /** Barra de progreso y resultado en la barra de notificaciones (NotificadorOperaciones). */
+    private val operaciones: OperacionesEnCurso = OperacionesEnCurso(),
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val local = MutableStateFlow(EstadoActualizacion(repoConfigurado = github.repoConfigurado))
@@ -247,7 +259,10 @@ class GestorActualizacion @Inject constructor(
     fun cancelar() {
         descarga?.cancel()
         descarga = null
+        // «Cancelar» de la notificación también detiene la descarga que lanzó el cuadro de «Actualizar».
+        if (local.value.proceso?.enCurso == true) cerrarProceso()
         local.update { it.copy(progreso = null) }
+        operaciones.quitar(Operacion.ACTUALIZACION)
     }
 
     /**
@@ -340,11 +355,28 @@ class GestorActualizacion @Inject constructor(
         esperarConfirmacion: Boolean = false,
     ): Boolean {
         if (descarga?.isActive == true) return false
+        return try {
+            descargarEInstalarSinCancelar(e, conMensajes, conProceso, esperarConfirmacion)
+        } catch (c: CancellationException) {
+            // Cancelada (botón «Cancelar», cerrar el cuadro): la notificación no se queda con la barra a medias.
+            operaciones.quitar(Operacion.ACTUALIZACION)
+            throw c
+        }
+    }
+
+    private suspend fun descargarEInstalarSinCancelar(
+        e: EstadoActualizacion,
+        conMensajes: Boolean,
+        conProceso: Boolean,
+        esperarConfirmacion: Boolean,
+    ): Boolean {
         local.update { it.copy(progreso = 0f, proceso = if (conProceso) ProcesoActualizar.EnCurso(0f) else null) }
+        avanceNotificacion(0f)
         val progreso: (Long, Long) -> Unit = { hecho, total ->
             if (total > 0) {
                 val p = (hecho.toFloat() / total).coerceIn(0f, 1f)
                 local.update { it.copy(progreso = p, proceso = if (conProceso) ProcesoActualizar.EnCurso(p) else null) }
+                avanceNotificacion(p)
             }
         }
         // El resultado solo se refleja en el cuadro circular si este proceso lo abrió y sigue abierto.
@@ -364,6 +396,7 @@ class GestorActualizacion @Inject constructor(
                 val rechazo = instalador.comprobar(r.value)
                 if (rechazo != null) {
                     r.value.delete()
+                    errorNotificacion(rechazo.texto)
                     if (conMensajes) mensajes.trySend(rechazo.texto)
                     resultado(ProcesoActualizar.SinConexion)
                     false
@@ -372,6 +405,10 @@ class GestorActualizacion @Inject constructor(
                     local.update { it.copy(listo = true) }
                     if (esperarConfirmacion) {
                         resultado(ProcesoActualizar.Descargada)
+                        operaciones.terminar(
+                            Operacion.ACTUALIZACION, TipoAviso.EXITO, TextosActualizacion.DESCARGADA_TITULO,
+                            TextosActualizacion.NOTIF_DESCARGADA, AccionOperacion.ABRIR,
+                        )
                     } else {
                         resultado(ProcesoActualizar.Actualizado)
                         instalar(r.value)
@@ -380,16 +417,27 @@ class GestorActualizacion @Inject constructor(
                 }
             }
             is AppResult.Err -> {
-                if (conMensajes) mensajes.trySend(if (r.error is AppError.Red) TextosActualizacion.ERROR_RED else TextosActualizacion.ERROR_DESCARGA)
+                val texto = if (r.error is AppError.Red) TextosActualizacion.ERROR_RED else TextosActualizacion.ERROR_DESCARGA
+                errorNotificacion(texto)
+                if (conMensajes) mensajes.trySend(texto)
                 resultado(ProcesoActualizar.SinConexion)
                 false
             }
             null -> {
+                operaciones.quitar(Operacion.ACTUALIZACION)
                 resultado(if (e.esSecundaria) ProcesoActualizar.SinConexion else ProcesoActualizar.AlDia)
                 false
             }
         }
     }
+
+    /** Barra horizontal de la descarga en la notificación, con «Cancelar». */
+    private fun avanceNotificacion(fraccion: Float) = operaciones.avanzar(
+        Operacion.ACTUALIZACION, TextosActualizacion.NOTIF_TITULO, TextosActualizacion.DESCARGANDO, fraccion, AccionOperacion.CANCELAR,
+    )
+
+    private fun errorNotificacion(texto: String) =
+        operaciones.terminar(Operacion.ACTUALIZACION, TipoAviso.ERROR, TextosActualizacion.NOTIF_ERROR, texto, AccionOperacion.ABRIR)
 
     /**
      * Antes de abrir el instalador se guarda un respaldo completo de los datos (se restaura al abrir la versión nueva).
@@ -397,11 +445,27 @@ class GestorActualizacion @Inject constructor(
      */
     private suspend fun instalar(apk: File, alFallar: () -> Unit = {}) {
         mensajes.trySend(TextosActualizacion.GUARDANDO_RESPALDO)
-        val listo = seguro { respaldoPrevio.crear(RespaldoPrevio.clave(info)) } == true
-        if (!listo) { mensajes.trySend(TextosActualizacion.ERROR_RESPALDO_PREVIO); alFallar(); return }
+        // Barra indeterminada: el respaldo previo no informa de su avance.
+        operaciones.avanzar(Operacion.ACTUALIZACION, TextosActualizacion.NOTIF_TITULO, TextosActualizacion.GUARDANDO_RESPALDO)
+        val listo = try {
+            seguro { respaldoPrevio.crear(RespaldoPrevio.clave(info)) } == true
+        } catch (c: CancellationException) {
+            operaciones.quitar(Operacion.ACTUALIZACION)
+            throw c
+        }
+        if (!listo) {
+            errorNotificacion(TextosActualizacion.ERROR_RESPALDO_PREVIO)
+            mensajes.trySend(TextosActualizacion.ERROR_RESPALDO_PREVIO); alFallar(); return
+        }
+        // El instalador del sistema toma el relevo: la barra ya no tiene nada que contar.
+        operaciones.quitar(Operacion.ACTUALIZACION)
         instalador.instalar(apk) { ok ->
             if (!ok) {
                 respaldoPrevio.descartar() // no se instaló: el respaldo sobra
+                operaciones.terminar(
+                    Operacion.ACTUALIZACION, TipoAviso.ADVERTENCIA, TextosActualizacion.NOTIF_NO_INSTALADA,
+                    TextosActualizacion.INSTALACION_CANCELADA, AccionOperacion.ABRIR,
+                )
                 mensajes.trySend(TextosActualizacion.INSTALACION_CANCELADA)
                 alFallar()
             }

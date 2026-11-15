@@ -1,3 +1,23 @@
+## Notificaciones del sistema con las reglas de la isla y barra de progreso (Notificacion.md, 2026-11-15)
+
+- **Petición:** aplicar Notificacion.md también a las notificaciones de Android, e incluir la barra de progreso horizontal de la actualización y de la exportación/importación de respaldos.
+- **Android dibuja la notificación** (no hay píldora ni tarjeta propias): se trasladan las reglas, no la forma (`ReglasNotificacion`):
+  - **Urgencia = permanencia:** éxito e información, prioridad baja y `setTimeoutAfter` de 15 min (`EXPIRA_MS`); advertencia y error se quedan; la carga es fija (`ongoing`), silenciosa y con barra.
+  - **Promesas:** una operación es una sola notificación (mismo ID) que pasa de la barra al resultado.
+  - **Ráfagas:** `ContadorRafagas` (ventana de 2 min) añade «(×N)» y `setOnlyAlertOnce`.
+  - **Pila con contador:** los avisos de conexión van en el grupo `GRUPO_SYNC`; con 2 o más, resumen InboxStyle «N avisos de las apps vinculadas» con `GROUP_ALERT_CHILDREN` (no vuelve a sonar).
+  - **Una acción con verbo** como mucho; el color de estado (tokens L_SUCCESS, L_ERROR, L_ALERT_STOCK_BAJO o el primario) tiñe solo el icono.
+  - **Sin duplicar:** con la app a la vista (`VisibilidadApp`, que ahora alimenta AvisoTurno), el resultado de una operación se retira de la barra y se consume, porque ya lo enseña la pantalla.
+- **Operaciones largas** (`OperacionesEnCurso`, pintadas por `NotificadorOperaciones` según `PlanOperacion`):
+  - **Actualización (ID 40):** barra determinada con el porcentaje y **Cancelar** (`AccionNotificacionReceiver`, no exportado); barra indeterminada mientras guarda el respaldo previo. Termina en «Actualización descargada · Abre Shalev y toca Confirmar para instalarla.», en error «No se pudo actualizar» o en advertencia «No se instaló». Cancelar la retira; también cierra el cuadro de «Actualizar» si la descarga era suya.
+  - **Respaldo (ID 41):** barra por etapas («Etapa 2 de 4 · Cifrando… · 66 %»), indeterminada en la comprobación de una sola etapa. Termina con el resultado del diálogo (éxito o error) o con el último mensaje; la contraseña mal escrita y la cancelación la retiran.
+- **Sincronización (AvisoSync reescrito):**
+  - La barra (ID 30) pasa en su sitio a «Sincronización terminada». Si la de la secundaria se corta con Shalev en segundo plano, pasa a la advertencia «La sincronización se cortó» con **Reintentar** (llama a `sincronizarAhora`). Margen de 1,5 s para que el resultado ocupe el sitio de la barra.
+  - Conexiones: una notificación por app vinculada (`3100 + empleadoId mod 1000`) que cambia de «se conectó» (información) a «se desconectó» (advertencia). Los ID fijos 31–33 ya no se usan; resumen en el 34.
+  - `ServidorSync` quita la barra de un empleado en cuanto termina su ronda (antes seguía hasta que se desconectaba).
+- **Canales nuevos:** `operaciones` («Actualización y respaldos», importancia baja, sin sonido) y `problemas` («Problemas», importancia por defecto). Se conservan los cuatro de la sincronización con sus sonidos (decisión E/F de 0.32.0) y el del turno.
+- Pruebas: `ReglasNotificacionTest` (JVM: deduplicado por porcentaje, mutación, canal y permanencia por urgencia, no duplicar con la app delante, ráfagas, textos, ID sin choques), `NotificacionesSistemaTest` (Robolectric: barra determinada e indeterminada, error en su sitio, caducidad, cancelar, sin permiso, sincronización, grupo y resumen, Reintentar) y dos casos nuevos de `RespaldoTest` (barra por etapas y resultado).
+
 ## Avisos de la app como «isla» (Notificacion.md, 2026-11-15)
 
 - **Guía aplicada:** Notificacion.md (toasts estilo Dynamic Island) en su versión para Android (§5): sin copiar el toast web; el componente propio sustituye al Snackbar de Material, que solo muestra uno a la vez y no admite pila, contador ni paginador.

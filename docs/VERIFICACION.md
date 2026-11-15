@@ -1,5 +1,17 @@
 # Shalev — Verificación real
 
+## Notificaciones del sistema con las reglas de Notificacion.md y barra de progreso — 2026-11-15
+
+**Rama:** `arena/14d7bb12-shalev`, basada en `dd097033e9d0a91acc758e6cb767cb1930a81d27`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| CI `43716967388` (primer envío) | Compilación, lint, permisos, API mínima 26 y R8/APK aprobados. Falló 1 prueba nueva, `RespaldoTest.exportarPublicaLaBarraPorEtapasYTerminaEnExito`: esperaba ver el 100 % de la barra, pero el exportador de prueba avanza desde el hilo de E/S y StateFlow combina los avances seguidos (se vio 33 % y después el resultado). Se corrigió la prueba, no el código: comprueba la primera etapa, que el avance no retroceda y el resultado final. |
+| CI `43718021771` | **Verde**: tests JVM 1083 ejecutados (nuevos: `ReglasNotificacionTest`, `NotificacionesSistemaTest` en Robolectric y 2 casos de `RespaldoTest`), 0 fallidos, 0 omitidos; los instrumentados compilan; lint, permisos, API mínima 26 y R8/APK debug aprobados. |
+| CI `43718806998` (`[instrumentados]`) | Tests JVM 1083/1083; lint, API mínima 26 (4011 clases, 0 llamadas no permitidas) y R8 aprobados. Emulador: **app 110/110 y data 101/101 sin fallos** («BUILD SUCCESSFUL»). El trabajo quedó en rojo porque la comprobación final encontró además un intento sin casos («no se ejecutó ningún caso»), el mismo fallo del contenedor visto en #131, no de las pruebas. |
+| `tools/verificacion/botones.py` | 0 infracciones (las acciones de las notificaciones son de una palabra: Cancelar, Abrir, Reintentar). |
+| No comprobado en un teléfono real | El aspecto de la barra y de los canales en cada fabricante (lo dibuja Android) y el botón Reintentar con una red real. |
+
 ## Avisos de la app como «isla» (Notificacion.md) — 2026-11-15
 
 **Rama:** `arena/8d68e22d-shalev`, basada en `3f9e532d270d5c4c83c888aed070f7365246795c`.

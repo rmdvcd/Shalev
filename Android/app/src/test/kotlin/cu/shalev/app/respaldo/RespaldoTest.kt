@@ -36,6 +36,11 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import cu.shalev.app.notificacion.AccionOperacion
+import cu.shalev.app.notificacion.EstadoOperacion
+import cu.shalev.app.notificacion.Operacion
+import cu.shalev.app.notificacion.OperacionesEnCurso
+import cu.shalev.designsystem.component.TipoAviso
 
 /**
  * Archivo "CIFRADO" = respaldo v3 intacto; "CORTADO" = incompleto; "DANADO" = bytes cambiados;
@@ -86,11 +91,12 @@ class RespaldoTest {
     private val exportador = FakeExportador()
     private val zona = ZoneId.of("America/Havana")
 
-    private fun vm() = RespaldoViewModel(
+    private fun vm(operaciones: OperacionesEnCurso = OperacionesEnCurso()) = RespaldoViewModel(
         ExportarRespaldo(repo), ImportarRespaldo(repo), repo,
         archivos, RelojFijo(), cu.shalev.app.actualizacion.RespaldoPrevio(
             java.io.File(System.getProperty("java.io.tmpdir"), "copia_previa_test_inexistente"), ExportarRespaldo(repo), ImportarRespaldo(repo), cu.shalev.app.EstadoAppRepo(),
         ),
+        operaciones,
     )
 
     // ---------- lógica
@@ -261,5 +267,49 @@ class RespaldoTest {
         assertEquals("", repo.importadoSinContrasena)
         assertNull(vm.state.value.importacion)
         assertTrue(vm.state.value.resultado!!.exito)
+    }
+
+    // ---------- notificación del sistema (barra de progreso horizontal y resultado en el mismo sitio)
+
+    @Test fun exportarPublicaLaBarraPorEtapasYTerminaEnExito() = runTest {
+        val ops = OperacionesEnCurso()
+        val vistos = mutableListOf<EstadoOperacion?>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { ops.estados.collect { vistos += it[Operacion.RESPALDO] } }
+        val vm = vm(ops)
+        vm.editarExport { it.copy(conContrasena = true, contrasena = "secreta12", repetir = "secreta12") }
+        vm.destinoElegido("content://doc/9")
+        val barras = vistos.filterNotNull().filter { it.enCurso }
+        assertEquals(TextosRespaldo.NOTIF_EXPORTANDO, barras.first().titulo)
+        // Etapa 1 de 3, 2 de 3, 3 de 3: la barra avanza por etapas.
+        val porcentajes = barras.map { it.porcentaje }
+        // StateFlow combina los avances que llegan seguidos desde el hilo de E/S: se ven la primera etapa y un avance
+        // que nunca retrocede; el final ocupa el mismo sitio.
+        assertEquals(33, porcentajes.first())
+        assertTrue(porcentajes.zipWithNext().all { (a, b) -> a!! <= b!! })
+        assertTrue(barras.first().texto.startsWith("Etapa 1 de 3"))
+        val fin = ops.estado(Operacion.RESPALDO)!!
+        assertEquals(TipoAviso.EXITO, fin.tipo)
+        assertEquals("Respaldo guardado", fin.titulo)
+    }
+
+    @Test fun archivoDanadoTerminaEnErrorYContrasenaMalEscritaRetiraLaBarra() = runTest {
+        val ops = OperacionesEnCurso()
+        val vm = vm(ops)
+        archivos.origenes["content://DANADO"] = "DANADO".toByteArray()
+        vm.archivoElegido("content://DANADO")
+        assertEquals(TipoAviso.ERROR, ops.estado(Operacion.RESPALDO)!!.tipo)
+        assertEquals("El archivo está dañado", ops.estado(Operacion.RESPALDO)!!.titulo)
+        vm.cerrarResultado()
+
+        archivos.origenes["content://r"] = "CIFRADO".toByteArray()
+        vm.archivoElegido("content://r")
+        // Comprobado y esperando la contraseña: no hay nada que contar en la barra.
+        assertNull(ops.estado(Operacion.RESPALDO))
+        vm.editarImport("mala")
+        vm.confirmarImport()
+        assertNull("la contraseña mal escrita se corrige en el diálogo, no en la barra", ops.estado(Operacion.RESPALDO))
+        vm.editarImport("correcta1")
+        vm.confirmarImport()
+        assertEquals(EstadoOperacion(TipoAviso.EXITO, "Respaldo importado", "Respaldo importado: 1 producto, 0 insumos, 2 ventas.", accion = AccionOperacion.ABRIR), ops.estado(Operacion.RESPALDO))
     }
 }

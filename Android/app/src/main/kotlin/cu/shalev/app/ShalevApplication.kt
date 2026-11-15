@@ -3,6 +3,7 @@ package cu.shalev.app
 import android.app.Application
 import cu.shalev.app.notificacion.AvisoSync
 import cu.shalev.app.notificacion.AvisoTurno
+import cu.shalev.app.notificacion.NotificadorOperaciones
 import cu.shalev.data.sync.ArranqueSync
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -19,6 +20,9 @@ class ShalevApplication : Application() {
     /** 0.32.0: barra de avance y sonidos de la sincronización. */
     @Inject lateinit var avisoSync: AvisoSync
 
+    /** Barra de progreso de la actualización y de los respaldos en la barra de notificaciones. */
+    @Inject lateinit var notificadorOperaciones: NotificadorOperaciones
+
     override fun onCreate() {
         super.onCreate()
         // 0.31.0 (mitigación 1, Opción A): la clave maestra de desarrollo `GLMK-PERM-MAXS-9999` solo vale en builds de
@@ -27,6 +31,7 @@ class ShalevApplication : Application() {
         cu.shalev.licencia.ModoDesarrollo.esDebug = BuildConfig.DEBUG
         avisoTurno.iniciar(this)
         avisoSync.iniciar()
+        notificadorOperaciones.iniciar()
         arranqueSync.iniciar()
     }
 }
