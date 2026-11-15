@@ -3,7 +3,7 @@ package cu.shalev.designsystem.component
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -44,9 +44,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -81,7 +82,6 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sign
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /** Etiquetas de prueba de la isla de avisos. */
 object AvisosTags {
@@ -233,25 +233,31 @@ private fun Isla(
 ) {
     val cs = MaterialTheme.colorScheme
     val oscuro = LocalShalevColors.current.isDark
-    val desplazamiento = remember(aviso.id) { Animatable(0f) }
-    val scope = rememberCoroutineScope()
+    // El desplazamiento sigue al dedo de forma síncrona (sin lanzar corrutinas por cada delta, que podrían cancelar la
+    // animación de salida); al soltar, se decide y el aviso se cierra aunque la animación se interrumpa.
+    var desplazamiento by remember(aviso.id) { mutableFloatStateOf(0f) }
     val umbral = with(LocalDensity.current) { 96.dp.toPx() }
     Surface(
         modifier = Modifier
             .padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs)
-            .offset { IntOffset(desplazamiento.value.roundToInt(), 0) }
-            .graphicsLayer { alpha = 1f - (abs(desplazamiento.value) / (umbral * 2)).coerceIn(0f, 0.6f) }
+            .offset { IntOffset(desplazamiento.roundToInt(), 0) }
+            .graphicsLayer { alpha = 1f - (abs(desplazamiento) / (umbral * 2)).coerceIn(0f, 0.6f) }
             .draggable(
-                state = rememberDraggableState { d -> scope.launch { desplazamiento.snapTo(desplazamiento.value + d) } },
+                state = rememberDraggableState { d -> desplazamiento += d },
                 orientation = Orientation.Horizontal,
                 interactionSource = arrastre,
                 onDragStopped = { velocidad ->
-                    if (abs(desplazamiento.value) > umbral || abs(velocidad) > umbral * 8) {
-                        val lado = if (desplazamiento.value != 0f) sign(desplazamiento.value) else sign(velocidad)
-                        desplazamiento.animateTo(lado * umbral * 4, ShalevMotion.muelle())
-                        state.cerrar(aviso)
+                    if (abs(desplazamiento) > umbral || abs(velocidad) > umbral * 8) {
+                        val lado = if (desplazamiento != 0f) sign(desplazamiento) else sign(velocidad)
+                        try {
+                            animate(desplazamiento, lado * umbral * 4, animationSpec = ShalevMotion.muelle()) { v, _ ->
+                                desplazamiento = v
+                            }
+                        } finally {
+                            state.cerrar(aviso)
+                        }
                     } else {
-                        desplazamiento.animateTo(0f, ShalevMotion.muelle())
+                        animate(desplazamiento, 0f, animationSpec = ShalevMotion.muelle()) { v, _ -> desplazamiento = v }
                     }
                 },
             )

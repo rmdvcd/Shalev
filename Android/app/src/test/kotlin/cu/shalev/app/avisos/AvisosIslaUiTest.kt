@@ -49,7 +49,8 @@ class AvisosIslaUiTest {
         pintar(s)
         rule.onNodeWithTag(AvisosTags.PILDORA).assertIsDisplayed()
         rule.onNodeWithText("No se pudo guardar. Inténtalo de nuevo.").assertIsDisplayed()
-        rule.onNodeWithTag(AvisosTags.INSIGNIA).assertContentDescriptionEquals(TextosAvisos.insigniaDescripcion(2))
+        // La insignia se fusiona con la píldora (TalkBack la lee de corrido); se comprueba en el árbol sin fusionar.
+        rule.onNodeWithTag(AvisosTags.INSIGNIA, useUnmergedTree = true).assertContentDescriptionEquals(TextosAvisos.insigniaDescripcion(2))
         rule.onAllNodesWithTag(AvisosTags.TARJETA).assertCountEquals(0)
     }
 
@@ -114,10 +115,13 @@ class AvisosIslaUiTest {
         rule.mainClock.advanceTimeBy(1_000)
         assertEquals(1, s.total)
         rule.mainClock.advanceTimeBy(ShalevAvisosState.TIEMPO_CON_ACCION_MS)
-        assertEquals("el éxito se va solo", 0, s.total)
+        rule.mainClock.autoAdvance = true
+        rule.waitUntil(timeoutMillis = 15_000) { s.total == 0 }
+        rule.mainClock.autoAdvance = false
 
         rule.runOnIdle { s.mostrar("No se pudo guardar. Inténtalo de nuevo.") }
         rule.mainClock.advanceTimeBy(ShalevAvisosState.TIEMPO_CON_ACCION_MS * 3)
+        rule.waitForIdle()
         assertEquals("el error se queda hasta que se cierra", 1, s.total)
     }
 
