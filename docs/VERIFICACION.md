@@ -1,5 +1,17 @@
 # Shalev — Verificación real
 
+## Avisos de la app como «isla» (Notificacion.md) — 2026-11-15
+
+**Rama:** `arena/8d68e22d-shalev`, basada en `3f9e532d270d5c4c83c888aed070f7365246795c`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| CI `43666771070` (primer envío) | Compilación, lint, permisos, API mínima 26 y R8/APK debug aprobados; 3 pruebas nuevas de `AvisosIslaUiTest` fallaron: la etiqueta de la insignia iba después de `clearAndSetSemantics` (que la borraba), el deslizamiento lanzaba una corrutina por cada delta que cancelaba la animación de salida antes de cerrar, y la prueba de tiempo no enviaba los cambios del snapshot con `autoAdvance = false`. |
+| CI `43667592556`, `43668275801`, `43668854805` | Corregidos la insignia (etiqueta antes de la semántica) y el deslizamiento (cierra al soltar; la salida la anima `AnimatedVisibility`); la prueba de tiempo siguió fallando hasta enviar los cambios del snapshot y simular «Tiempo para actuar». |
+| CI `43669544312` | **Verde**: tests JVM 1060 ejecutados (23 nuevos: 13 de `AvisosEstadoTest`, 9 de `AvisosIslaUiTest` en Robolectric y `ContrastTest.islaDeAvisos`), 0 fallidos, 0 omitidos; los instrumentados compilan; lint, permisos, API mínima 26 y R8/APK debug aprobados. |
+| `tools/verificacion/botones.py` | 0 infracciones de la regla de botones (la acción de la isla usa la primera palabra del verbo). |
+| Búsqueda de `ShalevAvisoExito` / `AVISO_EXITO_MS` | Sin referencias: todos los avisos pasan por la isla. |
+
 ## Métodos de pago y Top 3 según el período — 2026-11-15
 
 **Rama:** `arena/7c1fbc9c-shalev`, basada en `9609ed90715e84b87e135fb03f805ebff0263382`.
