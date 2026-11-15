@@ -3,6 +3,9 @@ package cu.shalev.app.avisos
 import android.app.Application
 import android.os.Looper
 import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.AccessibilityManager
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -41,8 +44,23 @@ import org.robolectric.annotation.GraphicsMode
 class AvisosIslaUiTest {
     @get:Rule val rule = createComposeRule()
 
+    /**
+     * Robolectric no trae un «Tiempo para actuar» real del sistema (puede devolver «sin límite»); como en las pruebas
+     * de Material3, se sustituye por uno que devuelve el tiempo base.
+     */
+    private val accesibilidadSinAjuste = object : AccessibilityManager {
+        override fun calculateRecommendedTimeoutMillis(
+            originalTimeoutMillis: Long,
+            containsIcons: Boolean,
+            containsText: Boolean,
+            containsControls: Boolean,
+        ): Long = originalTimeoutMillis
+    }
+
     private fun pintar(estado: ShalevAvisosState) = rule.setContent {
-        ShalevTheme(darkTheme = false) { ShalevSnackbarHost(estado) }
+        CompositionLocalProvider(LocalAccessibilityManager provides accesibilidadSinAjuste) {
+            ShalevTheme(darkTheme = false) { ShalevSnackbarHost(estado) }
+        }
     }
 
     /** Avanza el reloj de Compose y el del looper principal de Robolectric (donde esperan los `delay`). */
