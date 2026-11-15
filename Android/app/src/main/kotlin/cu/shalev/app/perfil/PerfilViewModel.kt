@@ -31,6 +31,8 @@ data class PerfilUiState(
     val guardando: Boolean = false,
     /** 0.21.0 (C12): módulos activos del negocio; null = no se muestra (app secundaria o aún cargando). */
     val modulos: Set<cu.shalev.domain.model.Modulo>? = null,
+    /** ID para recuperar la licencia en otro teléfono; null = no se muestra la tarjeta (app secundaria o cargando). */
+    val idLicencia: IdLicenciaUi? = null,
 ) {
     val sinGuardar: Boolean get() = cargado && form.cambiado(perfil)
 }
@@ -45,6 +47,7 @@ class PerfilViewModel @Inject constructor(
     private val guardarPerfil: GuardarPerfil,
     private val preferenciasRepo: cu.shalev.domain.repository.PreferenciasRepository,
     private val tipoAppRepo: cu.shalev.domain.repository.TipoAppRepository,
+    private val licenciaRepo: cu.shalev.domain.repository.LicenciaRepository,
 ) : ViewModel() {
 
     /** null = sin borrador: el formulario refleja el Perfil guardado. */
@@ -57,8 +60,12 @@ class PerfilViewModel @Inject constructor(
         pr.modulos.takeIf { t != cu.shalev.domain.model.TipoApp.SECUNDARIA }
     }
 
-    val state: StateFlow<PerfilUiState> = combine(perfilRepo.perfil, borrador, guardando, modulos) { p, b, g, m ->
-        PerfilUiState(cargado = true, perfil = p, form = b ?: DatosPerfilForm.desde(p), guardando = g, modulos = m)
+    private val idLicencia = combine(licenciaRepo.snapshot, tipoAppRepo.tipo) { l, t ->
+        if (t == cu.shalev.domain.model.TipoApp.SECUNDARIA || l == null) null else IdLicenciaUi(idRecuperacion(l))
+    }
+
+    val state: StateFlow<PerfilUiState> = combine(perfilRepo.perfil, borrador, guardando, modulos, idLicencia) { p, b, g, m, id ->
+        PerfilUiState(cargado = true, perfil = p, form = b ?: DatosPerfilForm.desde(p), guardando = g, modulos = m, idLicencia = id)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PerfilUiState())
 
     fun editar(f: (DatosPerfilForm) -> DatosPerfilForm) = borrador.update { f(it ?: state.value.form) }

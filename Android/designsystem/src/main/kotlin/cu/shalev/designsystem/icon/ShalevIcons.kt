@@ -64,6 +64,7 @@ object ShalevIcons {
     val Buscar: ImageVector get() = MaterialSolido.Search
     val Filtrar: ImageVector get() = MaterialSolido.FilterList
     val Pegar: ImageVector get() = MaterialSolido.ContentPaste
+    val Copiar: ImageVector get() = MaterialSolido.ContentCopy
     val Limpiar: ImageVector get() = MaterialSolido.Close
     val Atras: ImageVector get() = MaterialSolido.ArrowBack
     val Abrir: ImageVector get() = MaterialSolido.KeyboardArrowRight
@@ -187,6 +188,7 @@ internal object MaterialSolido {
     val Sms: ImageVector by lazy { icono("Sms", "M 20 2 H 4 c -1.1 0 -1.99 .9 -1.99 2 L 2 22 l 4 -4 h 14 c 1.1 0 2 -.9 2 -2 V 4 c 0 -1.1 -.9 -2 -2 -2 z M 9 11 H 7 V 9 h 2 v 2 z m 4 0 h -2 V 9 h 2 v 2 z m 4 0 h -2 V 9 h 2 v 2 z") }
     val Search: ImageVector by lazy { icono("Search", "M 15.5 14 h -.79 l -.28 -.27 A 6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16 c 1.61 0 3.09 -.59 4.23 -1.57 l .27 .28 v .79 l 5 4.99 L 20.49 19 l -4.99 -5 z m -6 0 C 7.01 14 5 11.99 5 9.5 S 7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14 z") }
     val FilterList: ImageVector by lazy { icono("FilterList", "M 10 18 h 4 v -2 h -4 v 2 z M 3 6 v 2 h 18 V 6 H 3 z m 3 7 h 12 v -2 H 6 v 2 z") }
+    val ContentCopy: ImageVector by lazy { icono("ContentCopy", "M 16 1 H 4 c -1.1 0 -2 .9 -2 2 v 14 h 2 V 3 h 12 V 1 z m 3 4 H 8 c -1.1 0 -2 .9 -2 2 v 14 c 0 1.1 .9 2 2 2 h 11 c 1.1 0 2 -.9 2 -2 V 7 c 0 -1.1 -.9 -2 -2 -2 z m 0 16 H 8 V 7 h 11 v 14 z") }
     val ContentPaste: ImageVector by lazy { icono("ContentPaste", "M 19 2 h -4.18 C 14.4 .84 13.3 0 12 0 c -1.3 0 -2.4 .84 -2.82 2 H 5 c -1.1 0 -2 .9 -2 2 v 16 c 0 1.1 .9 2 2 2 h 14 c 1.1 0 2 -.9 2 -2 V 4 c 0 -1.1 -.9 -2 -2 -2 z m -7 0 c .55 0 1 .45 1 1 s -.45 1 -1 1 -1 -.45 -1 -1 .45 -1 1 -1 z m 7 18 H 5 V 4 h 2 v 3 h 10 V 4 h 2 v 16 z") }
     val ArrowBack: ImageVector by lazy { icono("ArrowBack", "M 20 11 H 7.83 l 5.59 -5.59 L 12 4 l -8 8 8 8 1.41 -1.41 L 7.83 13 H 20 v -2 z", espejo = true) }
     val KeyboardArrowRight: ImageVector by lazy { icono("KeyboardArrowRight", "M 8.59 16.59 13.17 12 8.59 7.41 10 6 l 6 6 -6 6 -1.41 -1.41 z", espejo = true) }

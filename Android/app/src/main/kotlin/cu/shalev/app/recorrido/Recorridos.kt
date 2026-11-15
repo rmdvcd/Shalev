@@ -80,6 +80,7 @@ object ObjetivosRecorrido {
     const val PERFIL_DATOS = "perfil_datos"
     const val PERFIL_GUARDAR = "perfil_guardar"
     const val PERFIL_MODULOS = "perfil_modulos"
+    const val PERFIL_ID_LICENCIA = "perfil_id_licencia"
     const val LICENCIA_ESTADO = "licencia_estado"
     const val LICENCIA_PRECIOS = "licencia_precios"
     const val LICENCIA_RENOVAR = "licencia_renovar"
@@ -315,6 +316,7 @@ enum class Recorrido(val clave: String, val pasos: List<CoachMarkPaso>) {
         listOf(
             paso(ObjetivosRecorrido.PERFIL_DATOS, "Tus datos", "Escribe nombre, apellidos y carné. Solo se envían al pedir la licencia."),
             paso(ObjetivosRecorrido.PERFIL_GUARDAR, "Guardar", "Toca Guardar para conservar los cambios."),
+            paso(ObjetivosRecorrido.PERFIL_ID_LICENCIA, "ID", "Toca Mostrar para ver y copiar el ID con que recuperas tu licencia."),
             paso(ObjetivosRecorrido.PERFIL_MODULOS, "Secciones", "Marca las secciones que usas. Las demás se ocultan."),
         ),
     ),

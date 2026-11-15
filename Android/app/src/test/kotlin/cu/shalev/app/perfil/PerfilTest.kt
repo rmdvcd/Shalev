@@ -25,7 +25,36 @@ class PerfilTest {
 
     private val tel = Telefono(id = 7, numero = "+5352345678")
     private val repo = PerfilRepo(Perfil(nombre = "Ana", apellidos = "Díaz", ci = "85010112345", telefonos = listOf(tel), pagoTelefonoId = 7))
-    private fun vm() = PerfilViewModel(repo, GuardarPerfil(repo), cu.shalev.app.PrefRepo(), cu.shalev.app.TipoRepo())
+    private val lic = cu.shalev.app.LicRepo()
+    private val tipo = cu.shalev.app.TipoRepo()
+    private fun vm() = PerfilViewModel(repo, GuardarPerfil(repo), cu.shalev.app.PrefRepo(), tipo, lic)
+
+    private val uuid = "3f2b8c1e-5a7d-4e9f-b0c2-9d8e7f6a5b4c"
+    private fun instalada(id: String) = cu.shalev.domain.model.LicenciaInstalada(
+        id, cu.shalev.licencia.contract.TipoLicencia.ANUAL, java.time.Instant.EPOCH, null,
+    )
+
+    // ---------- ID de la licencia
+
+    @Test fun elIdDeRecuperacionEsElDeLaLicenciaInstalada() {
+        val base = lic.flow.value!!
+        assertEquals(null, idRecuperacion(null))
+        assertEquals(null, idRecuperacion(base)) // prueba: sin licencia instalada
+        assertEquals(uuid, idRecuperacion(base.copy(instalada = instalada(uuid))))
+        assertEquals(uuid, idRecuperacion(base.copy(instalada = instalada(uuid.uppercase()))))
+        // La licencia local de desarrollo no viene de GL: no sirve para recuperar.
+        assertEquals(null, idRecuperacion(base.copy(instalada = instalada(cu.shalev.licencia.ID_MAESTRA_LICENCIA))))
+    }
+
+    @Test fun laPrincipalMuestraElIdYLaSecundariaNo() = runTest {
+        val vm = vm()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        assertEquals(IdLicenciaUi(null), vm.state.value.idLicencia)
+        lic.flow.value = lic.flow.value!!.copy(instalada = instalada(uuid))
+        assertEquals(IdLicenciaUi(uuid), vm.state.value.idLicencia)
+        tipo.flow.value = cu.shalev.domain.model.TipoApp.SECUNDARIA
+        assertEquals(null, vm.state.value.idLicencia)
+    }
 
     // ---------- lógica
 
