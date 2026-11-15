@@ -29,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -87,6 +86,8 @@ import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.domain.model.FiltroServicios
 import cu.shalev.domain.model.ServicioDisponible
 import cu.shalev.domain.service.FormatoExport
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 /** Acciones de la pantalla (una clase para no arrastrar 25 lambdas y poder probar el Content sin Hilt). */
 class AccionesServicios(
@@ -126,7 +127,7 @@ fun ServiciosScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     val guardarPdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.PDF.mime)) { viewModel.guardarEn(it?.toString()) }
     val guardarXlsx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.XLSX.mime)) { viewModel.guardarEn(it?.toString()) }
     LaunchedEffect(mensajeInicial) {
@@ -172,7 +173,7 @@ fun ServiciosScreen(
 fun ServiciosContent(
     state: ServiciosUiState,
     acciones: AccionesServicios,
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
 ) {
     val venta = state.modoVenta
     // 1.0.2: ayuda de la pestaña (botón «?» de la esquina superior izquierda).

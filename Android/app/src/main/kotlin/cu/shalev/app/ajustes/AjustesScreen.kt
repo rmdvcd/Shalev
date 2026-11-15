@@ -108,7 +108,7 @@ fun AjustesScreen(
     // 0.26.0 (§6): sin interruptor (la consulta semanal es fija); queda «Buscar ahora».
     val actVm: cu.shalev.app.actualizacion.ActualizacionViewModel = hiltViewModel()
     val actualizacion by actVm.estado.collectAsStateWithLifecycle()
-    val snackbar = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
+    val snackbar = cu.shalev.designsystem.component.rememberAvisos()
     androidx.compose.runtime.LaunchedEffect(actVm) { actVm.eventos.collect { snackbar.showSnackbar(it) } }
     // 0.27.0 (T11): acceso con clave (este teléfono); cambiarlo pide antes la huella o el PIN.
     val accesoVm: cu.shalev.app.acceso.AccesoViewModel = hiltViewModel()
@@ -170,7 +170,7 @@ fun AjustesContent(
     onCerrarActualizar: () -> Unit = {},
     /** 1.0.4: «Confirmar» del cuadro «Actualización descargada». */
     onAplicarActualizar: () -> Unit = {},
-    snackbar: androidx.compose.material3.SnackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() },
+    snackbar: cu.shalev.designsystem.component.ShalevAvisosState = cu.shalev.designsystem.component.rememberAvisos(),
     accesoClave: Boolean = false,
     onAccesoClave: (Boolean) -> Unit = {},
     onBack: (() -> Unit)? = null,

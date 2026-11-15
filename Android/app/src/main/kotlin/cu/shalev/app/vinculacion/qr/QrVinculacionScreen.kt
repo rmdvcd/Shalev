@@ -36,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.remember
-import androidx.compose.material3.SnackbarHostState
 import cu.shalev.designsystem.component.ShalevCard
 import cu.shalev.designsystem.component.CardTone
 import cu.shalev.designsystem.component.ShalevButtonRow
@@ -44,6 +43,7 @@ import cu.shalev.designsystem.component.ShalevSnackbarHost
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import cu.shalev.designsystem.component.rememberAvisos
 
 object QrTags {
     const val CAMARA = "qr.camara"
@@ -59,7 +59,7 @@ fun QrVinculacionScreen(
     viewModel: QrVinculacionViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     val permiso = rememberPermisoCamara(false, onSolicitado = {})
     val camaraOk = permiso.estado == EstadoPermiso.CONCEDIDO
     LaunchedEffect(viewModel) {

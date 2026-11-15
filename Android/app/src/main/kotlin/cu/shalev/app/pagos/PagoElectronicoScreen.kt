@@ -21,7 +21,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,6 +65,8 @@ import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.token.ShalevMotion
 import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 object PagoTags {
     fun opcion(tipo: TipoCuentaPago, id: Long?) = "pago_${tipo.name}_${id ?: "ninguno"}"
@@ -81,7 +82,7 @@ private data class ElementoPago(val id: Long, val texto: String, val alias: Stri
 @Composable
 fun PagoElectronicoScreen(onBack: () -> Unit, viewModel: PagoElectronicoViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     LaunchedEffect(viewModel) {
         viewModel.eventos.collect { e -> if (e is EventoPago.Mensaje) snackbar.showSnackbar(e.texto) }
     }
@@ -118,7 +119,7 @@ fun PagoElectronicoContent(
     state: PagoUiState,
     onBack: () -> Unit,
     acciones: AccionesListaPago,
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
 ) {
     // Un solo «+» flotante abajo a la derecha con las 2 opciones (en vez de un + por lista).
     var expandido by rememberSaveable { mutableStateOf(false) }

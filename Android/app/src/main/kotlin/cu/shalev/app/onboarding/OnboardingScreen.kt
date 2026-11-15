@@ -34,7 +34,6 @@ import androidx.compose.ui.semantics.stateDescription
 import cu.shalev.designsystem.component.ShalevListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -86,6 +85,8 @@ import cu.shalev.domain.model.DatosIniciales
 import cu.shalev.domain.model.PasoConfiguracion
 import cu.shalev.licencia.LicenseState
 import cu.shalev.licencia.contract.TipoLicencia
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 /**
  * Asistente de primera ejecución (y "Completar configuración" desde Ajustes).
@@ -100,7 +101,7 @@ fun OnboardingScreen(
 ) {
     LaunchedEffect(viewModel) { viewModel.iniciar(modo, soloPaso) }
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     LaunchedEffect(viewModel) {
         viewModel.events.collect { e ->
@@ -169,7 +170,7 @@ object OnboardingTags {
 }
 
 @Composable
-fun OnboardingContent(state: OnboardingUiState, acciones: OnboardingAcciones, snackbar: SnackbarHostState = remember { SnackbarHostState() }) {
+fun OnboardingContent(state: OnboardingUiState, acciones: OnboardingAcciones, snackbar: ShalevAvisosState = rememberAvisos()) {
     val paso = state.paso
     if (state.cargando || paso == null) {
         Surface(color = MaterialTheme.colorScheme.background) { ShalevLoading(Modifier.fillMaxSize()) }

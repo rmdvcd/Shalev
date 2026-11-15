@@ -117,6 +117,12 @@ object ShalevIcons {
     val Reloj: ImageVector get() = MaterialSolido.AccessTime
     val Alerta: ImageVector get() = MaterialSolido.WarningAmber
 
+    // Avisos (isla de notificaciones): el tipo se reconoce por la forma del icono, no solo por el color.
+    val AvisoExito: ImageVector get() = MaterialSolido.CheckCircle
+    val AvisoInfo: ImageVector get() = MaterialSolido.Info
+    val AvisoAdvertencia: ImageVector get() = MaterialSolido.Warning
+    val AvisoError: ImageVector get() = MaterialSolido.ErrorCirculo
+
     /**
      * Glifo de WhatsApp (24×24). Los flags de arco van con separadores explícitos (`0 0 1`):
      * la forma compacta `01-5.031` no la interpretan bien todos los parsers. Validado renderizando el path.
@@ -197,6 +203,10 @@ internal object MaterialSolido {
     val EventBusy: ImageVector by lazy { icono("EventBusy", "m 9.31 17 2.44 -2.44 L 14.19 17 l 1.06 -1.06 -2.44 -2.44 2.44 -2.44 L 14.19 10 l -2.44 2.44 L 9.31 10 l -1.06 1.06 2.44 2.44 -2.44 2.44 L 9.31 17 z M 19 3 h -1 V 1 h -2 v 2 H 8 V 1 H 6 v 2 H 5 c -1.11 0 -1.99 .9 -1.99 2 L 3 19 a 2 2 0 0 0 2 2 h 14 c 1.1 0 2 -.9 2 -2 V 5 c 0 -1.1 -.9 -2 -2 -2 z m 0 16 H 5 V 8 h 14 v 11 z") }
     val Block: ImageVector by lazy { icono("Block", "M 12 2 C 6.48 2 2 6.48 2 12 s 4.48 10 10 10 10 -4.48 10 -10 S 17.52 2 12 2 z M 4 12 c 0 -4.42 3.58 -8 8 -8 1.85 0 3.55 .63 4.9 1.69 L 5.69 16.9 A 7.902 7.902 0 0 1 4 12 z m 8 8 c -1.85 0 -3.55 -.63 -4.9 -1.69 L 18.31 7.1 A 7.902 7.902 0 0 1 20 12 c 0 4.42 -3.58 8 -8 8 z") }
     val AccessTime: ImageVector by lazy { icono("AccessTime", "M 11.99 2 C 6.47 2 2 6.48 2 12 s 4.47 10 9.99 10 C 17.52 22 22 17.52 22 12 S 17.52 2 11.99 2 z M 12 20 c -4.42 0 -8 -3.58 -8 -8 s 3.58 -8 8 -8 8 3.58 8 8 -3.58 8 -8 8 z", "M 12.5 7 H 11 v 6 l 5.25 3.15 .75 -1.23 -4.5 -2.67 z") }
+    val CheckCircle: ImageVector by lazy { icono("CheckCircle", "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z") }
+    val Info: ImageVector by lazy { icono("Info", "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z") }
+    val Warning: ImageVector by lazy { icono("Warning", "M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z") }
+    val ErrorCirculo: ImageVector by lazy { icono("ErrorCirculo", "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z") }
     val WarningAmber: ImageVector by lazy { icono("WarningAmber", "M 12 5.99 19.53 19 H 4.47 L 12 5.99 M 12 2 1 21 h 22 L 12 2 z", "M 13 16 h -2 v 2 h 2 z m 0 -6 h -2 v 5 h 2 z") }
 
     /** 24×24, relleno sólido (el color real lo pone `Icon` con tint). [espejo] = se invierte en idiomas RTL. */

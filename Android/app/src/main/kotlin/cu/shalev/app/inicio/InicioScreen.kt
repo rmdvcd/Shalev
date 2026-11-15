@@ -33,7 +33,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -89,6 +88,7 @@ import cu.shalev.designsystem.component.ShalevPrimaryButton
 import cu.shalev.designsystem.component.ShalevSecondaryButton
 import cu.shalev.designsystem.component.ShalevSecondaryText
 import cu.shalev.designsystem.component.ShalevSnackbarHost
+import cu.shalev.designsystem.component.TipoAviso
 import cu.shalev.designsystem.component.ShalevStatusBanner
 import cu.shalev.designsystem.component.ShalevTextoAjustable
 import cu.shalev.designsystem.component.ShalevTopBar
@@ -112,6 +112,8 @@ import java.time.ZoneId
 import kotlinx.coroutines.launch
 
 import cu.shalev.app.ubicacion.LocalViewModel
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 object InicioTags {
     const val LISTA = "inicio_lista"
@@ -196,7 +198,7 @@ fun InicioScreen(
     localViewModel: LocalViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     LaunchedEffect(mensajeInicial) {
         if (mensajeInicial != null) { onMensajeMostrado(); snackbar.showSnackbar(mensajeInicial) }
     }
@@ -211,7 +213,7 @@ fun InicioScreen(
                 is EventoInicio.IrA -> onNavigate(e.route)
                 is EventoInicio.Mensaje -> snackbar.showSnackbar(e.texto)
                 is EventoInicio.TurnoCerrado -> scope.launch {
-                    val r = snackbar.showSnackbar(e.texto, actionLabel = "Ver", withDismissAction = true, duration = SnackbarDuration.Long)
+                    val r = snackbar.showSnackbar(e.texto, actionLabel = "Ver", withDismissAction = true, duration = SnackbarDuration.Long, tipo = TipoAviso.EXITO)
                     if (r == SnackbarResult.ActionPerformed) onNavigate(Route.TurnoDetalle(e.turnoId))
                 }
             }
@@ -280,7 +282,7 @@ fun InicioScreen(
 fun InicioContent(
     state: InicioUiState,
     acciones: AccionesInicio,
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
     zona: ZoneId = ZoneId.systemDefault(),
     solicitudesCierre: Int = 0,
     caja: cu.shalev.app.caja.CajaUiState = cu.shalev.app.caja.CajaUiState(),

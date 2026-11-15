@@ -31,9 +31,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,9 +52,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -70,62 +65,6 @@ import cu.shalev.designsystem.token.ShalevMotion
 import cu.shalev.designsystem.token.ShalevRadius
 import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
-
-/**
- * Snackbar sobre inverseSurface (contraste AA en ambos temas).
- * P18 (A15): todos los mensajes de la app pasan por aquí, con el mismo aspecto, y cada uno que aparece va acompañado
- * de una vibración muy breve (respeta el ajuste del sistema) para quien no está mirando la pantalla.
- */
-@Composable
-fun ShalevSnackbarHost(state: SnackbarHostState, modifier: Modifier = Modifier) {
-    val haptics = rememberShalevHaptics()
-    val actual = state.currentSnackbarData
-    LaunchedEffect(actual) { if (actual != null) haptics.seleccion() }
-    SnackbarHost(state, modifier) { data ->
-        Snackbar(
-            snackbarData = data,
-            shape = RoundedCornerShape(ShalevRadius.md),
-            containerColor = MaterialTheme.colorScheme.inverseSurface,
-            contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-            actionColor = MaterialTheme.colorScheme.inversePrimary,
-        )
-    }
-}
-
-/** 1.0.4: cuánto se ve un aviso de operación realizada antes de irse solo. */
-const val AVISO_EXITO_MS = 2_000L
-
-/**
- * 1.0.4: aviso flotante de operación realizada (agregar, guardar, eliminar…): cuadro con ✓ y el mensaje.
- * No bloquea la pantalla y se va solo a los [AVISO_EXITO_MS].
- */
-@Composable
-fun ShalevAvisoExito(texto: String, onFin: () -> Unit, modifier: Modifier = Modifier) {
-    val haptics = rememberShalevHaptics()
-    LaunchedEffect(texto) { haptics.exito(); kotlinx.coroutines.delay(AVISO_EXITO_MS); onFin() }
-    Surface(
-        modifier = modifier
-            .padding(horizontal = ShalevSpacing.md)
-            .widthIn(max = 480.dp)
-            .semantics { liveRegion = LiveRegionMode.Polite },
-        shape = RoundedCornerShape(ShalevRadius.md),
-        color = MaterialTheme.colorScheme.inverseSurface,
-        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-        shadowElevation = ShalevElevation.mid,
-    ) {
-        Row(
-            Modifier.padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-        ) {
-            Icon(
-                ShalevIcons.Confirmar, contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(ShalevSize.icon),
-            )
-            Text(texto, style = MaterialTheme.typography.bodyLarge)
-        }
-    }
-}
 
 /**
  * Diálogo con el título centrado arriba (0.27.0: sin logo). El pie muestra la acción de confirmación con su etiqueta

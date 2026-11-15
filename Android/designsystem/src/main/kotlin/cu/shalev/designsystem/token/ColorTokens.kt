@@ -134,6 +134,11 @@ object ColorTokens {
     const val WHATSAPP = 0xFF0B7A5E
     const val ON_WHATSAPP = WHITE
 
+    // ---- Avisos (isla de notificaciones, Notificacion.md §1 y §8). La insignia que cuenta los avisos acumulados usa
+    // un rojo más oscuro que el de error para que el número blanco pase 4.5:1 (ContrastTest).
+    const val AVISO_INSIGNIA = 0xFFD70015
+    const val ON_AVISO_INSIGNIA = WHITE
+
     /** Opacidad del texto secundario (60–70 %). */
     const val SECONDARY_ALPHA = 0.65f
 }

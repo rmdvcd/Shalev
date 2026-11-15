@@ -31,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -76,6 +75,8 @@ import cu.shalev.domain.model.PermisoEmpleado
 import cu.shalev.domain.model.TipoApp
 import cu.shalev.domain.model.Vinculacion
 import java.time.Instant
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 object VinculacionTags {
     const val AGREGAR = "vinculacion.agregar"
@@ -117,7 +118,7 @@ fun VinculacionScreen(
     LaunchedEffect(abrirSecundaria) {
         if (abrirSecundaria && !secundariaAbierta) { secundariaAbierta = true; viewModel.pedirSecundaria() }
     }
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     LaunchedEffect(Unit) { viewModel.mensajes.collect { snackbar.showSnackbar(it) } }
     val alEscanear by rememberUpdatedState(onEscanear) // 0.21.6: la lambda vigente, no la de la primera composición
     LaunchedEffect(Unit) { viewModel.escanear.collect { alEscanear() } }
@@ -148,7 +149,7 @@ fun VinculacionScreen(
 fun VinculacionContent(
     s: VinculacionUi,
     onBack: () -> Unit = {},
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
     onAgregar: () -> Unit = {},
     onEditar: (Empleado) -> Unit = {},
     onCerrarForm: () -> Unit = {},

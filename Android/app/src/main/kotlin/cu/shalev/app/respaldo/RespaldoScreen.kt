@@ -27,7 +27,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +66,8 @@ import cu.shalev.designsystem.component.shalevContentWidth
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.token.ShalevSpacing
 import java.time.ZoneId
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 object RespaldoTags {
     const val CONTRASENA = "respaldo.contrasena"
@@ -108,7 +109,7 @@ class AccionesRespaldo(
 fun RespaldoScreen(onBack: () -> Unit, viewModel: RespaldoViewModel = hiltViewModel()) {
     SecureWindow()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     var copiaPrevia by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     // Gestor de archivos del dispositivo, enraizado en el almacenamiento interno (Descargas). Si el
     // dispositivo no resuelve esa ubicación, el selector abre donde pueda: igual lo elige el usuario.
@@ -174,7 +175,7 @@ fun RespaldoContent(
     state: RespaldoUiState,
     onBack: () -> Unit,
     acciones: AccionesRespaldo,
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
     zona: ZoneId = ZoneId.systemDefault(),
 ) {
     Scaffold(

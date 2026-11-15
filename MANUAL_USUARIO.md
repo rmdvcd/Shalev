@@ -133,6 +133,19 @@ El recorrido no vuelve a salir después de **Finalizar** u **Omitir**. Si cierra
 
 Mientras una pantalla carga sus datos verás **huesos grises** con la forma aproximada de la lista, tarjeta o gráfico que aparecerá, en vez de una rueda de espera.
 
+#### Avisos de la app (la «isla» de abajo)
+
+Cuando guardas, vendes, eliminas o algo no sale bien, Shalev te avisa con una **píldora** abajo, sobre la barra inferior, siempre en el mismo sitio. No tapa la pantalla ni te obliga a parar.
+
+- **Icono y color según el tipo:** ✓ verde, todo bien; ⓘ azul, información; ⚠ ámbar, revisa algo; ⓧ rojo, no se pudo hacer.
+- **Cuánto duran:** los de *todo bien* e *información* se van solos a los 5 segundos (10 si traen un botón como **Ver**). Los de *revisa algo* y *no se pudo* **se quedan hasta que los cierres**, para que no se te escapen.
+- **Varios avisos:** se juntan en una sola píldora con un **número rojo** que cuenta cuántos hay. Si el mismo aviso llega varias veces seguidas, verás **×3**, **×4**…
+- **Tócala para abrirla:** se convierte en una tarjeta con el detalle, el botón del aviso (por ejemplo **Ver** o **Reintentar**), **Cerrar**, las flechas para pasar de uno a otro («1 de 3») y **Limpiar**. *Limpiar* pide un segundo toque (cambia a **Borrar** en rojo) antes de quitar todos. Toca el título para volver a la píldora.
+- **Desliza la píldora a un lado** para cerrar el aviso que ves.
+- Mientras la tocas o la tarjeta está abierta, ningún aviso se va solo. Si en Android tienes *Accesibilidad → Tiempo para actuar* más largo, los avisos duran lo que hayas elegido. TalkBack lee primero el tipo («Error: …») y la acción **Cerrar aviso**.
+
+Los avisos que llegan **con la app cerrada** (un empleado que se conecta, una sincronización terminada, el turno abierto) siguen yendo a las notificaciones de Android.
+
 ### 3.3 Tema claro, tema oscuro y letra grande
 
 Shalev sigue automáticamente el **modo claro** o **modo oscuro** configurado en tu teléfono Android, garantizando siempre alto contraste para leer sin esfuerzo tanto a plena luz del sol como de noche. Además, respeta el **tamaño de fuente del sistema** (hasta el 200 % de ampliación) pasando los textos e importes a varias líneas sin recortar cifras.
