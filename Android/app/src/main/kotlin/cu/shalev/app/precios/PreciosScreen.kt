@@ -6,7 +6,6 @@ import cu.shalev.designsystem.component.coachMark
 import cu.shalev.app.recorrido.RecorridoModulo
 import cu.shalev.app.recorrido.Recorrido
 import cu.shalev.designsystem.component.ShalevCheckbox
-import cu.shalev.designsystem.component.ShalevComboBox
 import cu.shalev.designsystem.theme.ShalevTextos
 import cu.shalev.domain.model.nombreCompleto
 import androidx.compose.ui.text.style.TextAlign
@@ -22,6 +21,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
@@ -70,6 +71,8 @@ import cu.shalev.designsystem.ilustracion.ShalevIlustracion
 import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.domain.model.MetodoPago
+import cu.shalev.domain.model.CondicionPreajuste
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.model.PreajustePrecios
 import cu.shalev.domain.model.Producto
 import cu.shalev.domain.model.Servicio
@@ -177,7 +180,7 @@ fun PreciosContent(
                         value = Percent.format(p.puntosBasicos),
                         indicatorColor = if (p.activo) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                         onClick = { acciones.onEditar(p) },
-                        // P24: el resumen (método, importe, nº productos) ya no se ve en la fila; TalkBack lo sigue leyendo.
+                        // El resumen (condición y nº de artículos) no se ve en la fila; TalkBack lo sigue leyendo.
                         modifier = Modifier.testTag(PreciosTags.item(p.id)).then(shalevAnimateItem())
                             .then(if (p == state.preajustes.first()) Modifier.coachMark(ObjetivosRecorrido.PRECIOS_LISTA) else Modifier)
                             .semantics { stateDescription = resumenPreajuste(p, state.existentes(p)) },
@@ -217,9 +220,9 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
         onDismiss = acciones.onCerrar,
         sinGuardar = f.copy(busqueda = inicial.busqueda, mostrarErrores = inicial.mostrarErrores) != inicial,
         title = if (f.nuevo) "Nuevo ajuste de precios" else "Editar ajuste",
-        // 1.0.3: sin botón Cancelar en el pie (se cierra tocando fuera o con Atrás).
         recorrido = recorridoVentana(Recorrido.VENTANA_PRECIO),
         footer = {
+            ShalevSecondaryButton("Cancelar", icon = ShalevIcons.Cancelar, onClick = acciones.onCerrar, enabled = !state.guardando)
             if (!f.nuevo) ShalevIconAction(
                 ShalevIcons.Eliminar, "Eliminar ajuste", etiqueta = "Eliminar", onClick = acciones.onBorrar,
                 modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_ELIMINAR),
@@ -227,6 +230,17 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
             ShalevPrimaryButton("Guardar", icon = ShalevIcons.Guardar, onClick = acciones.onGuardar, loading = state.guardando, modifier = Modifier.testTag(PreciosTags.GUARDAR).coachMark(ObjetivosRecorrido.VENTANA_GUARDAR))
         },
     ) {
+        ShalevTextField(
+            filtro = FiltroEntrada.NOMBRE,
+            value = f.nombre,
+            onValueChange = { v -> acciones.onCambiar { it.copy(nombre = v) } },
+            label = "Nombre del ajuste",
+            placeholder = nombreSugerido(f),
+            leadingIcon = ShalevIcons.Precios,
+            modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_NOMBRE),
+            isError = CampoPrecio.NOMBRE in errCampos,
+            errorText = errCampos[CampoPrecio.NOMBRE], validarAlSalir = true, forzarError = f.mostrarErrores,
+        )
         Titulo("1. ¿Subir o bajar el precio?")
         ShalevChip(
             label = if (f.sube) "Subir precio" else "Bajar precio",
@@ -249,14 +263,7 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
         )
 
         Titulo("2. ¿Cuándo se aplica?")
-        ShalevComboBox(
-            label = "Método de pago",
-            opciones = listOf(null, MetodoPago.EFECTIVO, MetodoPago.TRANSFERENCIA),
-            seleccion = f.metodo,
-            etiqueta = { it?.let(::etiqueta) ?: "Cualquier pago" },
-            onSeleccion = { metodo -> acciones.onCambiar { it.copy(metodo = metodo) } },
-            modifier = Modifier.coachMark(ObjetivosRecorrido.PRECIO_CUANDO),
-        )
+        GrupoCondicionPreajuste(f, acciones, errCampos[CampoPrecio.VOLUMEN])
         Titulo("3. ¿A qué artículos?")
         val permisos = cu.shalev.app.common.LocalPermisosApp.current
         val tipos = buildList {
@@ -298,17 +305,6 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
         }
         err[CampoPrecio.PRODUCTOS]?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
 
-        Titulo("4. Nombre (opcional)")
-        ShalevTextField(
-            filtro = FiltroEntrada.NOMBRE,
-            value = f.nombre,
-            onValueChange = { v -> acciones.onCambiar { it.copy(nombre = v) } },
-            label = "Nombre del ajuste",
-            placeholder = nombreSugerido(f),
-            modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_NOMBRE),
-            isError = CampoPrecio.NOMBRE in errCampos,
-            errorText = errCampos[CampoPrecio.NOMBRE], validarAlSalir = true, forzarError = f.mostrarErrores,
-        )
         state.vistaPrevia?.let {
             ShalevCard(tone = CardTone.Highlight, modifier = Modifier.testTag(PreciosTags.VISTA_PREVIA).coachMark(ObjetivosRecorrido.PRECIO_VISTA)) {
                 ShalevSecondaryText("Así quedaría al cobrar")
@@ -316,6 +312,91 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
             }
         }
     }
+}
+
+/** Grupo exclusivo de casillas: una regla se activa por pago, volumen o tipo de cliente, nunca por varias causas. */
+@Composable
+private fun GrupoCondicionPreajuste(
+    f: PreajusteForm,
+    acciones: AccionesPrecios,
+    errorVolumen: String?,
+) {
+    Column(
+        Modifier.fillMaxWidth().selectableGroup().coachMark(ObjetivosRecorrido.PRECIO_CUANDO),
+        verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+    ) {
+        CondicionPreajuste.entries.forEach { condicion ->
+            val seleccionada = f.condicion == condicion
+            Row(
+                Modifier.fillMaxWidth()
+                    .selectable(
+                        selected = seleccionada,
+                        role = Role.RadioButton,
+                        onClick = { acciones.onCambiar { it.copy(condicion = condicion) } },
+                    )
+                    .padding(vertical = ShalevSpacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+            ) {
+                ShalevCheckbox(checked = seleccionada, onCheckedChange = null)
+                Text(tituloCondicion(condicion), style = MaterialTheme.typography.bodyLarge)
+            }
+            if (seleccionada) when (condicion) {
+                CondicionPreajuste.METODO_PAGO -> {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs, Alignment.CenterHorizontally),
+                    ) {
+                        listOf<MetodoPago?>(MetodoPago.EFECTIVO, MetodoPago.TRANSFERENCIA, null).forEach { metodo ->
+                            ShalevChip(
+                                label = metodo?.let(::etiqueta) ?: "Todos",
+                                selected = f.metodo == metodo,
+                                onClick = { acciones.onCambiar { it.copy(metodo = metodo) } },
+                                icon = when (metodo) {
+                                    MetodoPago.EFECTIVO -> ShalevIcons.Efectivo
+                                    MetodoPago.TRANSFERENCIA -> ShalevIcons.Transferencia
+                                    null -> ShalevIcons.Precios
+                                },
+                            )
+                        }
+                    }
+                }
+                CondicionPreajuste.VOLUMEN_VENTA -> ShalevTextField(
+                    filtro = FiltroEntrada.ENTERO,
+                    value = f.volumenMinimo,
+                    onValueChange = { valor -> acciones.onCambiar { it.copy(volumenMinimo = valor) } },
+                    label = "Unidades desde",
+                    placeholder = "12",
+                    leadingIcon = ShalevIcons.Inventario,
+                    supportingText = "A partir de esta cantidad se considera venta mayorista.",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = errorVolumen != null,
+                    errorText = errorVolumen,
+                    validarAlSalir = true,
+                    forzarError = f.mostrarErrores,
+                )
+                CondicionPreajuste.CLIENTE -> Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs, Alignment.CenterHorizontally),
+                ) {
+                    TipoClientePreajuste.entries.forEach { cliente ->
+                        ShalevChip(
+                            label = etiqueta(cliente),
+                            selected = f.tipoCliente == cliente,
+                            onClick = { acciones.onCambiar { it.copy(tipoCliente = cliente) } },
+                            icon = if (cliente == TipoClientePreajuste.PARTICULAR) ShalevIcons.Perfil else ShalevIcons.Local,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun tituloCondicion(condicion: CondicionPreajuste): String = when (condicion) {
+    CondicionPreajuste.METODO_PAGO -> "Método de pago"
+    CondicionPreajuste.VOLUMEN_VENTA -> "Volumen de venta"
+    CondicionPreajuste.CLIENTE -> "Cliente"
 }
 
 @Composable

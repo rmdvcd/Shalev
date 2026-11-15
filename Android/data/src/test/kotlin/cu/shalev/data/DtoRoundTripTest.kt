@@ -2,6 +2,7 @@ package cu.shalev.data
 
 import cu.shalev.core.money.Cup
 import cu.shalev.core.quantity.Cantidad
+import cu.shalev.data.dto.PreajusteDto
 import cu.shalev.data.dto.PreferenciasDto
 import cu.shalev.data.dto.RespaldoDto
 import cu.shalev.data.dto.TurnoDto
@@ -9,6 +10,7 @@ import cu.shalev.data.dto.VentaDto
 import cu.shalev.data.dto.toDomain
 import cu.shalev.data.dto.toDto
 import cu.shalev.data.local.ShalevJson
+import cu.shalev.domain.model.CondicionPreajuste
 import cu.shalev.domain.model.DatosCliente
 import cu.shalev.domain.model.DetalleVenta
 import cu.shalev.domain.model.Insumo
@@ -24,6 +26,7 @@ import cu.shalev.domain.model.RecetaLinea
 import cu.shalev.domain.model.ResumenTurno
 import cu.shalev.domain.model.TarjetaBancaria
 import cu.shalev.domain.model.Telefono
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.model.TipoEntidad
 import cu.shalev.domain.model.TipoMovimiento
 import cu.shalev.domain.model.Transaccion
@@ -56,7 +59,10 @@ class DtoRoundTripTest {
     @Test fun `respaldo completo ida y vuelta por JSON conserva todo`() {
         val perfil = Perfil("Ana", "Pérez", "85010112345", listOf(TarjetaBancaria(1, "9227069995328054", "BPA")),
             listOf(Telefono(2, "+5351234567")), 1, 2)
-        val pre = PreajustePrecios(4, "Transferencia +10 %", 1000, setOf(7L), MetodoPago.TRANSFERENCIA, Cup(100000), true)
+        val pre = PreajustePrecios(
+            id = 4, nombre = "Empresa +10 %", puntosBasicos = 1000, productoIds = setOf(7L), activo = true,
+            servicioIds = setOf(9L), condicion = CondicionPreajuste.CLIENTE, tipoCliente = TipoClientePreajuste.EMPRESA,
+        )
         val turno = Turno(2, T, T.plusSeconds(3600), ResumenTurno(1, 2, Cup(31900), Cup.ZERO, Cup(31900), Cup(9100), 1))
         val mov = MovimientoInventario(5, T, TipoMovimiento.VENTA, TipoEntidad.PRODUCTO, 7, "Refresco ñandú", -2, 10, 2, 11, null)
         val receta = Receta(7, listOf(RecetaLinea(3, Cantidad(250))))
@@ -79,6 +85,17 @@ class DtoRoundTripTest {
         assertEquals(perfil, back.perfil!!.toDomain())
         assertEquals(pre.copy(importeMinimo = null), back.preajustes.single().toDomain())
         assertEquals(prefs, back.preferencias!!.toDomain())
+    }
+
+    @Test fun `preajuste antiguo sin condicion conserva el comportamiento por metodo`() {
+        val antiguo = ShalevJson.decodeFromString(
+            PreajusteDto.serializer(),
+            """{"id":4,"nombre":"Efectivo","puntosBasicos":500,"productoIds":[7],"metodoPago":"EFECTIVO"}""",
+        ).toDomain()
+        assertEquals(CondicionPreajuste.METODO_PAGO, antiguo.condicion)
+        assertEquals(MetodoPago.EFECTIVO, antiguo.metodoPago)
+        assertEquals(null, antiguo.volumenMinimo)
+        assertEquals(null, antiguo.tipoCliente)
     }
 
     @Test fun `campos desconocidos se ignoran (compatibilidad hacia delante)`() {

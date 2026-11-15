@@ -6,12 +6,15 @@ import cu.shalev.core.result.AppError
 import cu.shalev.core.result.AppResult
 import cu.shalev.domain.model.ClaseArticulo
 import cu.shalev.domain.model.Categorias
+import cu.shalev.domain.model.CondicionPreajuste
 import cu.shalev.domain.model.DetalleVenta
 import cu.shalev.domain.model.FiltroServicios
 import cu.shalev.domain.model.IdArticulo
 import cu.shalev.domain.model.MetodoPago
+import cu.shalev.domain.model.PreajustePrecios
 import cu.shalev.domain.model.RecetaLinea
 import cu.shalev.domain.model.Servicio
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.model.Venta
 import cu.shalev.domain.model.comoProducto
 import cu.shalev.domain.model.vendible
@@ -37,7 +40,8 @@ class ServiciosTest {
     private val productos = FakeProductos()
     private val insumos = FakeInsumos().apply { put(insumo(1, "Tinte", precio = 30, cantidad = 5)) }
     private val servicios = FakeServicios()
-    private val cotizar = CotizarVenta(productos, FakePrecios(), insumos, servicios)
+    private val precios = FakePrecios()
+    private val cotizar = CotizarVenta(productos, precios, insumos, servicios)
 
     @Test fun alcanceYCostoSalenDeLosInsumosPorVez() {
         val d = ServiciosFiltro.disponible(servicio(1), listOf(RecetaLinea(1, Cantidad.enteras(2))), insumos.items.value)
@@ -89,6 +93,29 @@ class ServiciosTest {
         // 3 veces necesitan 6 de tinte y solo hay 5.
         val sinInsumos = cotizar(listOf(LineaSolicitada(10, 3, ClaseArticulo.SERVICIO)), MetodoPago.EFECTIVO)
         assertTrue((sinInsumos as AppResult.Err).error is AppError.StockInsuficiente)
+    }
+
+    @Test fun preajustesDeServiciosAplicanPorVolumenYTipoDeCliente() = runTest {
+        servicios.crear(servicio(10, importe = 250), emptyList())
+        precios.guardarPreajuste(
+            PreajustePrecios(1, "Mayorista -10", -1000, productoIds = emptySet(), servicioIds = setOf(10),
+                condicion = CondicionPreajuste.VOLUMEN_VENTA, volumenMinimo = 2),
+        )
+        precios.guardarPreajuste(
+            PreajustePrecios(2, "Empresa +5", 500, productoIds = emptySet(), servicioIds = setOf(10),
+                condicion = CondicionPreajuste.CLIENTE, tipoCliente = TipoClientePreajuste.EMPRESA),
+        )
+        val empresa = cotizar(
+            listOf(LineaSolicitada(10, 2, ClaseArticulo.SERVICIO)), MetodoPago.EFECTIVO, TipoClientePreajuste.EMPRESA,
+        ) as AppResult.Ok
+        assertEquals(Cup.ofPesos(475), empresa.value.total) // 2 × (250 − 10 % + 5 %)
+
+        val particular = cotizar(
+            listOf(LineaSolicitada(10, 2, ClaseArticulo.SERVICIO)), MetodoPago.EFECTIVO, TipoClientePreajuste.PARTICULAR,
+        ) as AppResult.Ok
+        assertEquals(Cup.ofPesos(450), particular.value.total) // Volumen permanece; la condición Empresa no.
+        assertEquals(-1000, particular.value.ajustes.getValue(10))
+        assertEquals(-500, empresa.value.ajustes.getValue(10))
     }
 
     @Test fun productosYServiciosNoSeMezclanEnUnaVenta() = runTest {

@@ -1,5 +1,7 @@
 package cu.shalev.app.notificacion
 
+import android.content.Context
+import android.content.res.Configuration
 import androidx.core.app.NotificationCompat
 import cu.shalev.designsystem.component.TipoAviso
 import cu.shalev.designsystem.token.ColorTokens
@@ -25,8 +27,9 @@ object ReglasNotificacion {
     /** Dos avisos iguales separados por menos de esto son una ráfaga («×N»). */
     const val VENTANA_RAFAGA_MS = 2 * 60_000L
 
-    /** Primario de marca: información y carga. */
+    /** Primario claro de marca: compatibilidad de las pruebas sin un [Context]. */
     const val COLOR_MARCA = 0xFF2B4FA3.toInt()
+    private const val COLOR_MARCA_OSCURO = 0xFF66D1EF.toInt()
 
     fun expira(tipo: TipoAviso): Long? = if (tipo.persistente) null else EXPIRA_MS
 
@@ -39,12 +42,21 @@ object ReglasNotificacion {
         else -> NotificationCompat.CATEGORY_STATUS
     }
 
-    /** Color de estado del icono pequeño (tema claro de la barra; Android lo ajusta en oscuro). */
-    fun color(tipo: TipoAviso): Int = when (tipo) {
-        TipoAviso.EXITO -> ColorTokens.L_SUCCESS.toInt()
-        TipoAviso.ERROR -> ColorTokens.L_ERROR.toInt()
-        TipoAviso.ADVERTENCIA -> ColorTokens.L_ALERT_STOCK_BAJO.toInt()
-        TipoAviso.INFO, TipoAviso.CARGA -> COLOR_MARCA
+    /** Color de estado del icono pequeño para el tema claro (también lo usan pruebas sin [Context]). */
+    fun color(tipo: TipoAviso): Int = colorParaTema(tipo, oscuro = false)
+
+    /** El sistema dibuja el fondo; el acento sí acompaña el tema claro u oscuro activo de Shalev. */
+    fun color(context: Context, tipo: TipoAviso): Int = colorParaTema(
+        tipo,
+        oscuro = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES,
+    )
+
+    /** Se expone al módulo para probar las dos paletas sin depender de una [Context] Android. */
+    internal fun colorParaTema(tipo: TipoAviso, oscuro: Boolean): Int = when (tipo) {
+        TipoAviso.EXITO -> (if (oscuro) ColorTokens.D_SUCCESS else ColorTokens.L_SUCCESS).toInt()
+        TipoAviso.ERROR -> (if (oscuro) ColorTokens.D_ERROR else ColorTokens.L_ERROR).toInt()
+        TipoAviso.ADVERTENCIA -> (if (oscuro) ColorTokens.D_ALERT_STOCK_BAJO else ColorTokens.L_ALERT_STOCK_BAJO).toInt()
+        TipoAviso.INFO, TipoAviso.CARGA -> if (oscuro) COLOR_MARCA_OSCURO else COLOR_MARCA
     }
 
     /** «La app de Luis se conectó (×3)». */

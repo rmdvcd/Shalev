@@ -19,6 +19,7 @@ import cu.shalev.domain.model.Insumo
 import cu.shalev.domain.model.ElaboradoEnVenta
 import cu.shalev.domain.model.Receta
 import cu.shalev.domain.model.MetodoPago
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.model.Transaccion
 import cu.shalev.domain.model.Venta
 import cu.shalev.domain.repository.InsumoRepository
@@ -45,17 +46,23 @@ class CotizarVenta @Inject constructor(
     private val insumos: InsumoRepository,
     private val servicios: ServicioRepository,
 ) {
-    suspend operator fun invoke(lineas: List<LineaSolicitada>, metodo: MetodoPago): AppResult<Cotizacion> =
-        planificar(lineas, metodo).map { it.cotizacion }
+    suspend operator fun invoke(
+        lineas: List<LineaSolicitada>,
+        metodo: MetodoPago,
+        tipoCliente: TipoClientePreajuste = TipoClientePreajuste.PARTICULAR,
+    ): AppResult<Cotizacion> = planificar(lineas, metodo, tipoCliente = tipoCliente).map { it.cotizacion }
 
     /** Cotización + recetas/insumos leídos, para que [RegistrarVenta] arme el consumo sin volver a leer. */
     internal suspend fun planificar(
-        solicitadas: List<LineaSolicitada>, metodo: MetodoPago, devueltos: Devueltos = Devueltos.NINGUNO,
+        solicitadas: List<LineaSolicitada>,
+        metodo: MetodoPago,
+        devueltos: Devueltos = Devueltos.NINGUNO,
+        tipoCliente: TipoClientePreajuste = TipoClientePreajuste.PARTICULAR,
     ): AppResult<Plan> {
         try {
             val deServicios = solicitadas.count { it.clase == ClaseArticulo.SERVICIO }
             if (deServicios > 0 && deServicios < solicitadas.size) return AppResult.Err(AppError.Validacion("lineas", AppError.Regla.NO_PERMITIDO))
-            if (deServicios > 0) return planificarServicios(solicitadas, metodo, devueltos)
+            if (deServicios > 0) return planificarServicios(solicitadas, metodo, devueltos, tipoCliente)
             // P29: los insumos vendibles entran como «producto» con id negativo (IdArticulo) y precio por unidad de medida.
             val idsInsumo = solicitadas.filter { it.clase == ClaseArticulo.INSUMO }.map { it.productoId }.toSet()
             val vendidos = (if (idsInsumo.isEmpty()) emptyList() else insumos.obtenerVarios(idsInsumo)).map(devueltos::aplicar)
@@ -80,7 +87,7 @@ class CotizarVenta @Inject constructor(
                     }
                 }
             }
-            return PlanificadorVenta.cotizar(lineas, mapa, metodo, precios.preajustesActivos(), alcanza, costos)
+            return PlanificadorVenta.cotizar(lineas, mapa, metodo, precios.preajustesActivos(), alcanza, costos, tipoCliente)
                 .map { c ->
                     val detalles = c.detalles.map { d ->
                         if (IdArticulo.esInsumo(d.productoId)) d.copy(productoId = IdArticulo.insumoId(d.productoId), clase = ClaseArticulo.INSUMO) else d
@@ -91,10 +98,16 @@ class CotizarVenta @Inject constructor(
     }
 
     /**
-     * P29: venta de servicios (aparte de los productos). Sin preajustes de precio; el tope es lo que permiten los
-     * insumos que consume cada servicio (sin insumos, sin tope) y el costo, el de esos insumos.
+     * P29: venta de servicios (aparte de los productos). Los preajustes seleccionados para servicios se aplican con
+     * la misma condición de pago, volumen o cliente; el tope es lo que permiten los insumos que consume cada servicio
+     * (sin insumos, sin tope) y el costo, el de esos insumos.
      */
-    private suspend fun planificarServicios(lineas: List<LineaSolicitada>, metodo: MetodoPago, devueltos: Devueltos): AppResult<Plan> {
+    private suspend fun planificarServicios(
+        lineas: List<LineaSolicitada>,
+        metodo: MetodoPago,
+        devueltos: Devueltos,
+        tipoCliente: TipoClientePreajuste,
+    ): AppResult<Plan> {
         val ss = servicios.obtenerVarios(lineas.map { it.productoId }.toSet()).filterNot { it.eliminado }
         val recetas = ss.associate { it.id to servicios.insumos(it.id) }.filterValues { it.isNotEmpty() }
             .mapValues { (id, ls) -> Receta(id, ls) }
@@ -117,7 +130,7 @@ class CotizarVenta @Inject constructor(
         }
         // El planificador trabaja con artículos genéricos; para servicios usa sus ids seleccionados como ids de producto.
         val ajustesServicios = precios.preajustesActivos().map { it.copy(productoIds = it.servicioIds) }
-        return PlanificadorVenta.cotizar(lineas.map { it.copy(clase = ClaseArticulo.PRODUCTO) }, mapa, metodo, ajustesServicios, alcanza, costos)
+        return PlanificadorVenta.cotizar(lineas.map { it.copy(clase = ClaseArticulo.PRODUCTO) }, mapa, metodo, ajustesServicios, alcanza, costos, tipoCliente)
             .map { c -> Plan(c.copy(detalles = c.detalles.map { it.copy(clase = ClaseArticulo.SERVICIO) }, elaborados = emptyMap()), recetas, insumosLeidos, servicios = true) }
     }
 
@@ -192,8 +205,11 @@ class RegistrarVenta @Inject constructor(
     private val clock: Clock,
 ) {
     suspend operator fun invoke(
-        lineas: List<LineaSolicitada>, metodo: MetodoPago, transferencia: DatosTransferencia? = null,
+        lineas: List<LineaSolicitada>,
+        metodo: MetodoPago,
+        transferencia: DatosTransferencia? = null,
         aceptada: cu.shalev.domain.service.Cotizacion? = null,
+        tipoCliente: TipoClientePreajuste = TipoClientePreajuste.PARTICULAR,
     ): AppResult<Long> {
         val turno = turnos.activo() ?: return AppResult.Err(AppError.TurnoCerrado)
 
@@ -202,7 +218,7 @@ class RegistrarVenta @Inject constructor(
             is AppResult.Ok -> r.value
         }
 
-        val plan = when (val r = cotizar.planificar(lineas, metodo)) {
+        val plan = when (val r = cotizar.planificar(lineas, metodo, tipoCliente = tipoCliente)) {
             is AppResult.Err -> return r
             is AppResult.Ok -> r.value
         }
@@ -223,7 +239,7 @@ class RegistrarVenta @Inject constructor(
             Venta(turnoId = turno.id, fecha = now, metodoPago = metodo, detalles = cot.detalles, transaccion = transaccion),
             elaborados,
         ) {
-            when (val vigente = cotizar.planificar(lineas, metodo)) {
+            when (val vigente = cotizar.planificar(lineas, metodo, tipoCliente = tipoCliente)) {
                 is AppResult.Err -> vigente
                 is AppResult.Ok -> if (vigente.value.cotizacion == cot && vigente.value.elaborados() == AppResult.Ok(elaborados)) AppResult.Ok(Unit)
                     else AppResult.Err(AppError.Validacion("cotizacion", AppError.Regla.NO_PERMITIDO))

@@ -4,10 +4,12 @@ import cu.shalev.core.money.Cup
 import cu.shalev.core.quantity.Cantidad
 import cu.shalev.core.result.AppError.Regla
 import cu.shalev.domain.model.Categorias
+import cu.shalev.domain.model.CondicionPreajuste
 import cu.shalev.domain.model.DatosCliente
 import cu.shalev.domain.model.PreajustePrecios
 import cu.shalev.domain.model.Receta
 import cu.shalev.domain.model.RecetaLinea
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.validation.Validadores
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -69,5 +71,19 @@ class ValidadoresTest {
     @Test fun `preajuste`() {
         assertEquals(setOf("nombre", "puntosBasicos", "productoIds"), campos(Validadores.preajuste(PreajustePrecios(nombre = "", puntosBasicos = 0, productoIds = emptySet()))))
         assertEquals(setOf("puntosBasicos"), campos(Validadores.preajuste(PreajustePrecios(nombre = "x", puntosBasicos = 20_000, productoIds = setOf(1)))))
+    }
+
+    @Test fun `preajuste valida los datos de la condicion elegida`() {
+        val base = PreajustePrecios(nombre = "A", puntosBasicos = 500, productoIds = setOf(1))
+        assertEquals(
+            setOf("volumenMinimo"),
+            campos(Validadores.preajuste(base.copy(condicion = CondicionPreajuste.VOLUMEN_VENTA))),
+        )
+        assertTrue(Validadores.preajuste(base.copy(condicion = CondicionPreajuste.VOLUMEN_VENTA, volumenMinimo = 4)).isEmpty())
+        assertEquals(
+            setOf("tipoCliente"),
+            campos(Validadores.preajuste(base.copy(condicion = CondicionPreajuste.CLIENTE))),
+        )
+        assertTrue(Validadores.preajuste(base.copy(condicion = CondicionPreajuste.CLIENTE, tipoCliente = TipoClientePreajuste.EMPRESA)).isEmpty())
     }
 }

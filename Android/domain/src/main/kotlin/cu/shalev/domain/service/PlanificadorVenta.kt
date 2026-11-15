@@ -9,6 +9,8 @@ import cu.shalev.core.result.AppResult
 import cu.shalev.domain.model.DetalleVenta
 import cu.shalev.domain.model.MetodoPago
 import cu.shalev.domain.model.PreajustePrecios
+import cu.shalev.domain.model.CondicionPreajuste
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.model.Producto
 
 /**
@@ -57,6 +59,8 @@ object PlanificadorVenta {
         alcanza: Map<Long, Long> = emptyMap(),
         /** productoId → costo por unidad según la receta actual (solo Elaborados; sin entrada = precioCosto). */
         costosReceta: Map<Long, Cup> = emptyMap(),
+        /** Tipo elegido para la venta; las reglas de cliente no dependen del nombre ni de datos personales. */
+        tipoCliente: TipoClientePreajuste = TipoClientePreajuste.PARTICULAR,
     ): AppResult<Cotizacion> {
         try {
             if (lineas.isEmpty()) return AppResult.Err(AppError.Validacion("lineas", AppError.Regla.REQUERIDO))
@@ -73,9 +77,13 @@ object PlanificadorVenta {
             }.map { it.first.nombreCompleto }
             if (faltantes.isNotEmpty()) return AppResult.Err(AppError.StockInsuficiente(faltantes))
 
-            val totalBase = items.sumOfCup { (p, cant) -> p.precioVenta * cant }
+            val unidades = items.fold(0L) { total, (_, cantidad) -> Math.addExact(total, cantidad) }
             val aplicables = preajustes.filter { pa ->
-                pa.activo && (pa.metodoPago == null || pa.metodoPago == metodoPago)
+                pa.activo && when (pa.condicion) {
+                    CondicionPreajuste.METODO_PAGO -> pa.metodoPago == null || pa.metodoPago == metodoPago
+                    CondicionPreajuste.VOLUMEN_VENTA -> unidades >= (pa.volumenMinimo ?: Long.MAX_VALUE)
+                    CondicionPreajuste.CLIENTE -> pa.tipoCliente == tipoCliente
+                }
             }
             val ajustes = mutableMapOf<Long, Int>()
             val detalles = items.map { (p, cant) ->

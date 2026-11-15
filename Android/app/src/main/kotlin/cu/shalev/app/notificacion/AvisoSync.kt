@@ -243,7 +243,6 @@ class AvisoSync @Inject constructor(
 
 /** Las notificaciones de la sincronización, separadas para comprobarlas en Robolectric. */
 internal object NotificacionesSync {
-    const val TITULO = "Shalev"
     const val CORTADA = "La sincronización se cortó"
     const val CORTADA_DETALLE = "No terminó de recibir los datos. Comprueba la wifi del local y toca Reintentar."
     const val REINTENTAR = "Reintentar"
@@ -255,7 +254,7 @@ internal object NotificacionesSync {
     }
 
     fun textoSincronizada(nombre: String?, repeticiones: Int): String = ReglasNotificacion.conRafaga(
-        if (nombre != null) "Sincronización con $nombre terminada" else "Sincronización terminada", repeticiones,
+        nombre?.let { "Con $it" } ?: "Datos actualizados", repeticiones,
     )
 
     fun textoFase(p: ProgresoSync): String = when {
@@ -267,11 +266,11 @@ internal object NotificacionesSync {
         else -> ReglasNotificacion.porcentaje((p.fraccion * 100).toInt())
     }
 
-    private fun base(context: Context, canal: String, tipo: TipoAviso, texto: String) =
+    private fun base(context: Context, canal: String, tipo: TipoAviso, titulo: String, texto: String) =
         NotificationCompat.Builder(context, canal)
-            .setSmallIcon(R.drawable.ic_stat_shalev)
-            .setColor(ReglasNotificacion.color(tipo))
-            .setContentTitle(TITULO)
+            .setSmallIcon(R.drawable.ic_stat_sync)
+            .setColor(ReglasNotificacion.color(context, tipo))
+            .setContentTitle(titulo)
             .setContentText(texto)
             .setPriority(ReglasNotificacion.prioridad(tipo))
             .setCategory(ReglasNotificacion.categoria(tipo))
@@ -280,8 +279,10 @@ internal object NotificacionesSync {
 
     fun progreso(context: Context, p: ProgresoSync, apps: Int): Notification {
         val total = p.total.toInt().coerceAtLeast(1)
-        return base(context, AvisoSync.CANAL_PROGRESO, TipoAviso.CARGA, textoFase(p))
-            .setContentTitle(if (apps > 1) "Sincronizando $apps apps" else "Sincronizando")
+        return base(
+            context, AvisoSync.CANAL_PROGRESO, TipoAviso.CARGA,
+            if (apps > 1) "Sincronizando $apps apps" else "Sincronizando", textoFase(p),
+        )
             .setProgress(total, p.actual.toInt().coerceIn(0, total), !p.conTotal)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -293,7 +294,7 @@ internal object NotificacionesSync {
     fun conexion(context: Context, nombre: String?, conectado: Boolean, repeticiones: Int): Notification {
         val tipo = if (conectado) TipoAviso.INFO else TipoAviso.ADVERTENCIA
         val canal = if (conectado) AvisoSync.CANAL_CONECTADA else AvisoSync.CANAL_DESCONECTADA
-        return base(context, canal, tipo, textoConexion(nombre, conectado, repeticiones))
+        return base(context, canal, tipo, "Apps vinculadas", textoConexion(nombre, conectado, repeticiones))
             .setAutoCancel(true)
             // Ráfaga: la repetición actualiza el mismo aviso sin volver a sonar.
             .setOnlyAlertOnce(repeticiones > 1)
@@ -302,17 +303,17 @@ internal object NotificacionesSync {
     }
 
     fun sincronizada(context: Context, nombre: String?, repeticiones: Int): Notification =
-        base(context, AvisoSync.CANAL_SINCRONIZADA, TipoAviso.EXITO, textoSincronizada(nombre, repeticiones))
+        base(context, AvisoSync.CANAL_SINCRONIZADA, TipoAviso.EXITO, "Sincronización terminada", textoSincronizada(nombre, repeticiones))
             .setAutoCancel(true)
             .setOnlyAlertOnce(repeticiones > 1)
             .build()
 
     fun cortada(context: Context): Notification =
-        base(context, PlanOperacion.CANAL_PROBLEMAS, TipoAviso.ADVERTENCIA, CORTADA)
-            .setStyle(NotificationCompat.BigTextStyle().bigText("$CORTADA. $CORTADA_DETALLE"))
+        base(context, PlanOperacion.CANAL_PROBLEMAS, TipoAviso.ADVERTENCIA, CORTADA, CORTADA_DETALLE)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(CORTADA_DETALLE))
             .setAutoCancel(true)
             .addAction(
-                R.drawable.ic_stat_shalev, REINTENTAR,
+                R.drawable.ic_stat_sync, REINTENTAR,
                 AccionNotificacionReceiver.intent(context, AccionNotificacionReceiver.REINTENTAR_SYNC),
             )
             .build()
@@ -322,7 +323,7 @@ internal object NotificacionesSync {
         lineas.take(5).forEach { estilo.addLine(it) }
         // Con alguna desconexión dentro, el resumen tampoco se va solo (su tipo manda la permanencia).
         val tipo = if (persistente) TipoAviso.ADVERTENCIA else TipoAviso.INFO
-        return base(context, AvisoSync.CANAL_CONECTADA, tipo, ReglasNotificacion.resumen(lineas.size))
+        return base(context, AvisoSync.CANAL_CONECTADA, tipo, "Apps vinculadas", ReglasNotificacion.resumen(lineas.size))
             .setStyle(estilo)
             .setNumber(lineas.size)
             .setGroup(AvisoSync.GRUPO_SYNC)

@@ -5,16 +5,18 @@ import cu.shalev.core.money.Cup
 import cu.shalev.core.money.Money
 import cu.shalev.core.money.Percent
 import cu.shalev.domain.model.MetodoPago
+import cu.shalev.domain.model.CondicionPreajuste
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.model.PreajustePrecios
 import cu.shalev.domain.model.Producto
 import java.math.BigDecimal
 
-enum class CampoPrecio { PORCENTAJE, IMPORTE, PRODUCTOS, NOMBRE }
+enum class CampoPrecio { PORCENTAJE, IMPORTE, PRODUCTOS, NOMBRE, VOLUMEN }
 enum class TipoSeleccionPrecio(val titulo: String) { PRODUCTOS("Productos"), SERVICIOS("Servicios") }
 
 object TextosPrecios {
     const val TITULO = "Precios"
-    const val EXPLICACION = "Sube o baja precios al cobrar según el pago. El precio guardado no cambia."
+    const val EXPLICACION = "Sube o baja precios al cobrar según la condición que elijas. El precio guardado no cambia."
     const val VACIO_TITULO = "Aún no hay ajustes de precio"
     const val VACIO_DETALLE = "Ej.: +5 % con transferencia."
     const val SIN_PRODUCTOS = "Primero agrega productos en Inventario."
@@ -24,6 +26,7 @@ object TextosPrecios {
     @Deprecated("El importe mínimo ya no forma parte de Precios")
     const val ERROR_IMPORTE = "El importe mínimo ya no se utiliza"
     const val ERROR_PRODUCTOS = "Elige al menos un producto o servicio"
+    const val ERROR_VOLUMEN = "Escribe una cantidad de unidades mayor que cero"
     const val ERROR_NOMBRE = "El nombre es demasiado largo"
     const val ERROR_GENERICO = "No se pudo guardar. Inténtalo de nuevo."
     const val MAX_LISTA = 50
@@ -35,7 +38,12 @@ data class PreajusteForm(
     val nombre: String = "",
     val sube: Boolean = true,
     val porcentaje: String = "",
+    /** Las tres condiciones se ven como un grupo exclusivo de casillas en el formulario. */
+    val condicion: CondicionPreajuste = CondicionPreajuste.METODO_PAGO,
+    /** null representa «Todos» al aplicar por método de pago. */
     val metodo: MetodoPago? = null,
+    val volumenMinimo: String = "",
+    val tipoCliente: TipoClientePreajuste = TipoClientePreajuste.PARTICULAR,
     @Deprecated("El importe mínimo ya no forma parte de Precios") val importeMinimo: String = "",
     val productoIds: Set<Long> = emptySet(),
     val servicioIds: Set<Long> = emptySet(),
@@ -48,6 +56,8 @@ data class PreajusteForm(
 
     /** Puntos básicos con signo, o null si el texto no es un porcentaje positivo válido. */
     val puntosBasicos: Int? get() = Percent.parse(porcentaje.replace(',', '.'))?.takeIf { it > 0 }?.let { if (sube) it else -it }
+    /** Cantidad entera de artículos de la venta que activa el precio mayorista. */
+    val unidadesMinimas: Long? get() = volumenMinimo.trim().toLongOrNull()?.takeIf { it > 0 }
 }
 
 fun validar(f: PreajusteForm): Map<CampoPrecio, String> = buildMap {
@@ -58,6 +68,9 @@ fun validar(f: PreajusteForm): Map<CampoPrecio, String> = buildMap {
         pb < -9_000 -> put(CampoPrecio.PORCENTAJE, TextosPrecios.ERROR_BAJAR)
     }
     if (f.productoIds.isEmpty() && f.servicioIds.isEmpty()) put(CampoPrecio.PRODUCTOS, TextosPrecios.ERROR_PRODUCTOS)
+    if (f.condicion == CondicionPreajuste.VOLUMEN_VENTA && f.unidadesMinimas == null) {
+        put(CampoPrecio.VOLUMEN, TextosPrecios.ERROR_VOLUMEN)
+    }
     if (f.nombre.trim().length > MAX_NOMBRE) put(CampoPrecio.NOMBRE, TextosPrecios.ERROR_NOMBRE)
 }
 
@@ -66,8 +79,12 @@ private const val MAX_NOMBRE = 80
 /** Nombre automático si el usuario no escribe uno: "+10 % con Transferencia". */
 fun nombreSugerido(f: PreajusteForm): String {
     val pct = f.puntosBasicos?.let { Percent.format(it) } ?: if (f.sube) "Subir precio" else "Bajar precio"
-    val metodo = f.metodo?.let { " con ${etiqueta(it)}" }.orEmpty()
-    return "$pct$metodo"
+    val condicion = when (f.condicion) {
+        CondicionPreajuste.METODO_PAGO -> f.metodo?.let { " con ${etiqueta(it)}" } ?: " para todos los pagos"
+        CondicionPreajuste.VOLUMEN_VENTA -> f.unidadesMinimas?.let { " desde $it unidades" } ?: " por volumen"
+        CondicionPreajuste.CLIENTE -> " para ${etiqueta(f.tipoCliente).lowercase()}"
+    }
+    return "$pct$condicion"
 }
 
 fun aPreajuste(f: PreajusteForm): PreajustePrecios = PreajustePrecios(
@@ -75,9 +92,12 @@ fun aPreajuste(f: PreajusteForm): PreajustePrecios = PreajustePrecios(
     nombre = f.nombre.trim().ifEmpty { nombreSugerido(f) },
     puntosBasicos = f.puntosBasicos ?: 0,
     productoIds = f.productoIds, servicioIds = f.servicioIds,
-    metodoPago = f.metodo,
+    metodoPago = f.metodo.takeIf { f.condicion == CondicionPreajuste.METODO_PAGO },
     importeMinimo = null,
     activo = f.activo,
+    condicion = f.condicion,
+    volumenMinimo = f.unidadesMinimas.takeIf { f.condicion == CondicionPreajuste.VOLUMEN_VENTA },
+    tipoCliente = f.tipoCliente.takeIf { f.condicion == CondicionPreajuste.CLIENTE },
 )
 
 fun desde(p: PreajustePrecios): PreajusteForm = PreajusteForm(
@@ -85,7 +105,10 @@ fun desde(p: PreajustePrecios): PreajusteForm = PreajusteForm(
     nombre = p.nombre,
     sube = p.puntosBasicos > 0,
     porcentaje = BigDecimal.valueOf(kotlin.math.abs(p.puntosBasicos).toLong(), 2).stripTrailingZeros().toPlainString(),
+    condicion = p.condicion,
     metodo = p.metodoPago,
+    volumenMinimo = p.volumenMinimo?.toString().orEmpty(),
+    tipoCliente = p.tipoCliente ?: TipoClientePreajuste.PARTICULAR,
     productoIds = p.productoIds, servicioIds = p.servicioIds,
     tipoSeleccion = if (p.productoIds.isEmpty() && p.servicioIds.isNotEmpty()) TipoSeleccionPrecio.SERVICIOS else TipoSeleccionPrecio.PRODUCTOS,
     activo = p.activo,
@@ -96,9 +119,18 @@ fun etiqueta(m: MetodoPago): String = when (m) {
     MetodoPago.TRANSFERENCIA -> "Transferencia"
 }
 
-/** Resumen accesible: método de pago y número de artículos. */
+fun etiqueta(cliente: TipoClientePreajuste): String = when (cliente) {
+    TipoClientePreajuste.PARTICULAR -> "Particular"
+    TipoClientePreajuste.EMPRESA -> "Empresa"
+}
+
+/** Resumen accesible: condición y número de artículos. */
 fun resumenPreajuste(p: PreajustePrecios, existentes: Int = p.productoIds.size): String = listOfNotNull(
-    p.metodoPago?.let { "Solo ${etiqueta(it)}" } ?: "Cualquier pago",
+    when (p.condicion) {
+        CondicionPreajuste.METODO_PAGO -> p.metodoPago?.let { "Solo ${etiqueta(it)}" } ?: "Todos los pagos"
+        CondicionPreajuste.VOLUMEN_VENTA -> "Desde ${p.volumenMinimo ?: 0} unidades"
+        CondicionPreajuste.CLIENTE -> p.tipoCliente?.let(::etiqueta) ?: "Cliente"
+    },
     if (existentes == 1) "1 artículo" else "$existentes artículos",
 ).joinToString(" · ")
 

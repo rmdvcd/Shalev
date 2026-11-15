@@ -11,28 +11,27 @@ import org.junit.Test
 
 /** 0.19.2 · Cuándo corre el servicio en primer plano de la principal y qué dice la notificación única. */
 class PlanAvisoTest {
-    @Test fun detalleExpandidoSinTurnoPropioNoMuestraImporte() {
-        val texto = PlanAviso.detalle(PlanAviso(servicio = true, mostrar = true, turnoDesde = null, conectadas = 2, vinculadas = 3), null)
-        org.junit.Assert.assertTrue(texto.contains("Turno de esta app cerrado"))
-        org.junit.Assert.assertTrue(texto.contains("Sincronización local activa"))
-        org.junit.Assert.assertFalse(texto.contains("Ventas del turno:"))
-        org.junit.Assert.assertTrue(texto.contains("Turno cerrado · 2 de 3 apps conectadas"))
+    @Test fun detalleExpandidoSoloMuestraLaInformacionQueNoEstaEnElResumen() {
+        val texto = PlanAviso.detalle(PlanAviso(servicio = true, mostrar = true, turnoDesde = null, conectadas = 2, vinculadas = 3))!!
+        assertTrue(texto.contains("Sincronización local activa"))
+        assertTrue(texto.contains("0 turnos abiertos en el negocio"))
+        assertFalse(texto.contains("Ventas del turno:"))
+        assertFalse(texto.contains("2 de 3 apps conectadas"))
     }
 
-    @Test fun detalleExpandidoMuestraElTotalValidoDelTurnoPropio() {
+    @Test fun elResumenMuestraElTotalValidoDelTurnoPropio() {
         val total = Cup.ofPesos(12_345)
         val plan = PlanAviso.calcular(visible = false, turnoPropioDesde = desde, atencion = principal(abiertos = 1, conectadas = 2, vinculadas = 3), ventasTurno = total)
-        val texto = PlanAviso.detalle(plan, "9:30")
         val compacto = PlanAviso.texto(plan, "9:30")
         assertTrue(compacto.startsWith("Ventas del turno: ${Money.format(total)} · 2 de 3 apps conectadas"))
         assertTrue(compacto.endsWith("Turno abierto desde las 9:30"))
-        assertTrue(texto.contains("2 de 3 apps conectadas"))
+        assertFalse(PlanAviso.detalle(plan)!!.contains("Ventas del turno:"))
     }
 
     @Test fun totalSeOmiteSiNoHayTurnoDeEstaAppAunqueLlegueUnValor() {
         val plan = PlanAviso.calcular(visible = true, turnoPropioDesde = null, atencion = principal(), ventasTurno = Cup.ofPesos(50))
         assertEquals(null, plan.ventasTurno)
-        assertFalse(PlanAviso.detalle(plan, null).contains("Ventas del turno:"))
+        assertFalse(PlanAviso.detalle(plan)!!.contains("Ventas del turno:"))
     }
 
 
@@ -82,7 +81,7 @@ class PlanAvisoTest {
     @Test fun detalleMuestraTurnosDeLaRedSinDatosPersonales() {
         val p = PlanAviso.calcular(false, desde, principal(abiertos = 3, conectadas = 2))
         assertEquals(3, p.turnosAbiertos)
-        assertTrue(PlanAviso.detalle(p, "9:30").contains("3 turnos abiertos en el negocio"))
+        assertTrue(PlanAviso.detalle(p)!!.contains("3 turnos abiertos en el negocio"))
         assertEquals(0, PlanAviso.calcular(false, desde, sinSecundarias).turnosAbiertos)
     }
 

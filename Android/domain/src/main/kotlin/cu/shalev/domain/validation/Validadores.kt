@@ -3,6 +3,7 @@ package cu.shalev.domain.validation
 import cu.shalev.domain.model.RecetaLinea
 import cu.shalev.domain.model.Servicio
 import cu.shalev.domain.model.Categorias
+import cu.shalev.domain.model.CondicionPreajuste
 import cu.shalev.core.money.Cup
 import cu.shalev.core.quantity.Cantidad
 import cu.shalev.core.result.AppError.Regla
@@ -115,6 +116,13 @@ object Validadores {
         if (p.puntosBasicos == 0 || p.puntosBasicos !in RANGO_AJUSTE) add(Validacion("puntosBasicos", Regla.RANGO))
         if (p.productoIds.isEmpty() && p.servicioIds.isEmpty()) add(Validacion("productoIds", Regla.REQUERIDO))
         if (p.importeMinimo != null && p.importeMinimo <= Cup.ZERO) add(Validacion("importeMinimo", Regla.RANGO))
+        when (p.condicion) {
+            CondicionPreajuste.METODO_PAGO -> Unit
+            CondicionPreajuste.VOLUMEN_VENTA -> if (p.volumenMinimo == null || p.volumenMinimo <= 0) {
+                add(Validacion("volumenMinimo", Regla.RANGO))
+            }
+            CondicionPreajuste.CLIENTE -> if (p.tipoCliente == null) add(Validacion("tipoCliente", Regla.REQUERIDO))
+        }
     }
 
     fun contrasena(c: CharArray): Validacion? =

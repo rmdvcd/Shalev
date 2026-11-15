@@ -2,8 +2,10 @@ package cu.shalev.app.precios
 
 import cu.shalev.app.prod
 import cu.shalev.core.money.Cup
+import cu.shalev.domain.model.CondicionPreajuste
 import cu.shalev.domain.model.MetodoPago
 import cu.shalev.domain.model.PreajustePrecios
+import cu.shalev.domain.model.TipoClientePreajuste
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -46,6 +48,28 @@ class PreciosLogicTest {
         assertEquals(p.copy(importeMinimo = null), aPreajuste(f))
     }
 
+    @Test fun condicionesExclusivasGuardanSoloElDatoQueCorresponde() {
+        val base = PreajusteForm(porcentaje = "10", productoIds = setOf(1), metodo = MetodoPago.TRANSFERENCIA,
+            volumenMinimo = "12", tipoCliente = TipoClientePreajuste.EMPRESA)
+        val porPago = aPreajuste(base.copy(condicion = CondicionPreajuste.METODO_PAGO))
+        assertEquals(MetodoPago.TRANSFERENCIA, porPago.metodoPago)
+        assertNull(porPago.volumenMinimo); assertNull(porPago.tipoCliente)
+
+        val porVolumen = aPreajuste(base.copy(condicion = CondicionPreajuste.VOLUMEN_VENTA))
+        assertNull(porVolumen.metodoPago); assertEquals(12L, porVolumen.volumenMinimo); assertNull(porVolumen.tipoCliente)
+
+        val porCliente = aPreajuste(base.copy(condicion = CondicionPreajuste.CLIENTE))
+        assertNull(porCliente.metodoPago); assertNull(porCliente.volumenMinimo)
+        assertEquals(TipoClientePreajuste.EMPRESA, porCliente.tipoCliente)
+    }
+
+    @Test fun volumenDebeSerUnaCantidadEnteraPositiva() {
+        val base = PreajusteForm(porcentaje = "5", productoIds = setOf(1), condicion = CondicionPreajuste.VOLUMEN_VENTA)
+        assertEquals(TextosPrecios.ERROR_VOLUMEN, validar(base)[CampoPrecio.VOLUMEN])
+        assertEquals(TextosPrecios.ERROR_VOLUMEN, validar(base.copy(volumenMinimo = "0"))[CampoPrecio.VOLUMEN])
+        assertTrue(validar(base.copy(volumenMinimo = "3")).isEmpty())
+    }
+
     @Test fun vistaPreviaConElPrimerProductoElegido() {
         val ps = listOf(prod(1, "Refresco", venta = 100), prod(2, "Pan", venta = 50))
         assertEquals("Pan: 50 CUP → 55 CUP", vistaPrevia(PreajusteForm(porcentaje = "10", productoIds = setOf(2)), ps))
@@ -56,7 +80,7 @@ class PreciosLogicTest {
     @Test fun resumenYBusqueda() {
         val p = PreajustePrecios(1, "X", 500, setOf(1, 2, 3), MetodoPago.TRANSFERENCIA, Cup.ofPesos(5000))
         assertEquals("Solo Transferencia · 2 artículos", resumenPreajuste(p, existentes = 2))
-        assertEquals("Cualquier pago · 1 artículo", resumenPreajuste(p.copy(metodoPago = null, importeMinimo = null, productoIds = setOf(1))))
+        assertEquals("Todos los pagos · 1 artículo", resumenPreajuste(p.copy(metodoPago = null, importeMinimo = null, productoIds = setOf(1))))
         val ps = (1L..60L).map { prod(it, if (it == 7L) "Café Serrano" else "P$it") }
         assertEquals(TextosPrecios.MAX_LISTA, filtrar(ps, "").size)
         assertEquals(listOf(7L), filtrar(ps, "café").map { it.id })

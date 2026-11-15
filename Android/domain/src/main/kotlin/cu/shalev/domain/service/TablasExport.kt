@@ -14,6 +14,8 @@ import cu.shalev.domain.model.ItemMovimiento
 import cu.shalev.domain.model.MovimientoInventario
 import cu.shalev.domain.model.Perfil
 import cu.shalev.domain.model.PreajustePrecios
+import cu.shalev.domain.model.CondicionPreajuste
+import cu.shalev.domain.model.TipoClientePreajuste
 import cu.shalev.domain.model.Producto
 import cu.shalev.domain.model.TipoEntidad
 import cu.shalev.domain.model.Transaccion
@@ -386,11 +388,19 @@ object TablasExport {
 
     fun preajustes(ps: List<PreajustePrecios>, productos: Map<Long, Producto>) = TablaExport(
         titulo = "Preajustes de precios",
-        columnas = listOf("Nombre", "Ajuste", "Método", "Importe mínimo", "Productos", "Activo"),
+        columnas = listOf("Nombre", "Ajuste", "Cuándo se aplica", "Productos", "Activo"),
         filas = ps.map { p ->
+            val condicion = when (p.condicion) {
+                CondicionPreajuste.METODO_PAGO -> p.metodoPago?.let(Estadisticas::etiqueta) ?: "Todos los pagos"
+                CondicionPreajuste.VOLUMEN_VENTA -> "Desde ${p.volumenMinimo ?: 0} unidades"
+                CondicionPreajuste.CLIENTE -> when (p.tipoCliente) {
+                    TipoClientePreajuste.EMPRESA -> "Cliente: Empresa"
+                    else -> "Cliente: Particular"
+                }
+            }
             listOf(
-                p.nombre, Percent.format(p.puntosBasicos), p.metodoPago?.let(Estadisticas::etiqueta) ?: "Cualquiera",
-                p.importeMinimo?.let(Money::formatExport) ?: "—", p.productoIds.mapNotNull { productos[it]?.nombreCompleto }.sorted().joinToString("; "),
+                p.nombre, Percent.format(p.puntosBasicos), condicion,
+                p.productoIds.mapNotNull { productos[it]?.nombreCompleto }.sorted().joinToString("; "),
                 if (p.activo) "Sí" else "No",
             )
         },
