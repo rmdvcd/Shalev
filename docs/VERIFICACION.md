@@ -1,5 +1,16 @@
 # Shalev — Verificación real
 
+## Checklist de permisos en la primera apertura — 2026-11-15
+
+**Rama:** `arena/8ccaa15b-shalev`, basada en `c18fc14af4ca7f6109a470193a52a4c87a38ada5`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| CI `43721057341`, `43721477873` | Dos errores de compilación, corregidos: `rememberSaveable` con un `MutableState` necesita `stateSaver` (no `saver`), y faltaba importar `assert` en la prueba de UI. |
+| CI `43722256439` | **Verde**: tests JVM: 1092 ejecutados, 0 fallidos, 0 errores, 0 omitidos (nuevos: 4 de `ChecklistPermisosTest` y 5 de `PermisosInicialesUiTest` en Robolectric, con un `ActivityResultRegistry` falso que hace de diálogo del sistema); los instrumentados compilan; lint, permisos, API mínima 26 y R8/APK debug aprobados. |
+| `tools/verificacion/botones.py` | 0 infracciones (Continuar, Omitir, Listo). |
+| No comprobado en un teléfono real | El encadenado con los diálogos reales de Android (en especial «Seleccionar fotos» de Android 14, que cuenta como Denegado para Fotos). |
+
 ## Notificaciones del sistema con las reglas de Notificacion.md y barra de progreso — 2026-11-15
 
 **Rama:** `arena/14d7bb12-shalev`, basada en `dd097033e9d0a91acc758e6cb767cb1930a81d27`.
