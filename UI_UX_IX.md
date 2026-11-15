@@ -178,7 +178,7 @@ Auditoría de **todas las ventanas y componentes de las dos apps**, incluidas la
 **Pendientes restantes (solo decisiones de producto o capturas Android).**
 
 1. **AND-001 (Alta, Shalev)** — la casilla de selección mide 24 dp; el arreglo (`size(ShalevSize.touchTarget)` conservando el dibujo de 16 dp) exige regrabar las capturas Roborazzi afectadas. Pendiente de decisión del dueño desde 0.32.0.
-2. **AND-002 (Media, Shalev)** — los permisos de la primera apertura se piden en lote (cámara, avisos y fotos, necesario para que `TrialViewModel` recupere el período de prueba al reinstalar); cada permiso se explica y «Ahora no» no insiste.
+2. **AND-002 (Media, Shalev)** — los permisos de la primera apertura (cámara, notificaciones y fotos, necesario para que `TrialViewModel` recupere el período de prueba al reinstalar) se muestran en un checklist con el para qué de cada uno; «Continuar» los pide uno a uno y cada fila se marca Permitido o Denegado al responder. «Omitir» no insiste.
 3. **AND-003 (Media, Shalev)** — sin `PullToRefresh` en las listas locales; solo sería opcional en `VinculacionScreen`.
 
 **Verificación en CI.** `ci.yml` (Android) e `ios-build.yml` (`macos-15-intel`: `swift test` + `xcodebuild` universal para Appetize.io + `xcodebuild` Release para `IShalev.ipa` sin firma) compilan y pasan en verde.

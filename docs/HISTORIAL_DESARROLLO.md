@@ -1,3 +1,15 @@
+## Checklist de permisos en la primera apertura (2026-11-15)
+
+- **Petición:** al pedir los permisos en la configuración inicial, mostrar un checklist con cada permiso y una breve descripción de para qué es, que se marque según se acepten o se denieguen.
+- **Antes:** la ventana listaba los permisos, pero «Continuar» los pedía todos juntos (`RequestMultiplePermissions`) y se cerraba sin mostrar qué se había concedido. «Ahora no» solo existía como gesto de cerrar: no había botón.
+- **Ahora:** `ChecklistPermisosIniciales` pide los permisos **uno a uno** (`RequestPermission`, en el orden Cámara, Notificaciones en Android 13+, Fotos). Cada fila lleva una marca con icono, palabra y color: *Pendiente* (reloj, gris), *Pidiendo* (rueda, primario), *Permitido* (✓, `success`) y *Denegado* (ⓧ, `error`). Es una región viva *polite*, así que TalkBack anuncia el cambio.
+  - Tras cada respuesta hay una pausa de 600 ms (`PAUSA_ENTRE_PERMISOS_MS`) para que se vea la marca antes de que el siguiente diálogo del sistema la tape.
+  - Los permisos ya concedidos salen marcados y no se piden. Si todos lo estaban, la ventana no aparece.
+  - Al terminar: «Permitidos: N de M.», y si hubo alguno negado, cómo activarlo en Ajustes de Android. El botón pasa a **Listo**. Antes de empezar, **Omitir** (nuevo, con la misma forma que el «Omitir» del asistente) no pide nada.
+  - El estado (`ChecklistPermisos`, sin Android) se guarda con `rememberSaveable`: sobrevive al giro de pantalla y a la muerte del proceso con el diálogo del sistema delante.
+- «Aviso de turno» pasa a **Notificaciones**, con el para qué ampliado (turno, sincronización, actualizaciones y respaldos), como ya decía el manual.
+- Pruebas: `ChecklistPermisosTest` (JVM: lista por versión de Android, orden, marcas, ya concedidos, respuestas sueltas) y `PermisosInicialesUiTest` (Robolectric, con un `ActivityResultRegistry` falso que hace de diálogo del sistema: uno a uno con las marcas, ya concedidos, resumen sin aviso de Ajustes, Omitir y todo concedido de antes).
+
 ## Notificaciones del sistema con las reglas de la isla y barra de progreso (Notificacion.md, 2026-11-15)
 
 - **Petición:** aplicar Notificacion.md también a las notificaciones de Android, e incluir la barra de progreso horizontal de la actualización y de la exportación/importación de respaldos.
