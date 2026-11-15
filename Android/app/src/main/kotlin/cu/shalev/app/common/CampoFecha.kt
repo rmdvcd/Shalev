@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,6 +37,10 @@ object FechasUi {
     /** El DatePicker de M3 trabaja en milisegundos UTC a medianoche. */
     fun aMillis(f: LocalDate): Long = f.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
     fun deMillis(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()
+
+    /** El día se puede elegir si cae dentro de [minimo]..[maximo] (un extremo nulo no limita). */
+    fun permitida(f: LocalDate, minimo: LocalDate?, maximo: LocalDate?): Boolean =
+        (minimo == null || !f.isBefore(minimo)) && (maximo == null || !f.isAfter(maximo))
 }
 
 /**
@@ -52,6 +57,8 @@ fun CampoFecha(
     supportingText: String? = null,
     enabled: Boolean = true,
     tag: String = "campo_fecha",
+    minimo: LocalDate? = null,
+    maximo: LocalDate? = null,
 ) {
     var abierto by rememberSaveable { mutableStateOf(false) }
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
@@ -73,7 +80,16 @@ fun CampoFecha(
         }
     }
     if (abierto) {
-        val state = rememberDatePickerState(initialSelectedDateMillis = (fecha ?: LocalDate.now()).let(FechasUi::aMillis))
+        // Los días fuera de [minimo]..[maximo] salen deshabilitados en el calendario: no se pueden elegir.
+        val limites = remember(minimo, maximo) {
+            object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = FechasUi.permitida(FechasUi.deMillis(utcTimeMillis), minimo, maximo)
+                override fun isSelectableYear(year: Int) =
+                    (minimo == null || year >= minimo.year) && (maximo == null || year <= maximo.year)
+            }
+        }
+        val inicial = (fecha ?: LocalDate.now()).takeIf { FechasUi.permitida(it, minimo, maximo) }
+        val state = rememberDatePickerState(initialSelectedDateMillis = inicial?.let(FechasUi::aMillis), selectableDates = limites)
         val cerrar = remember { { abierto = false } }
         DatePickerDialog(
             onDismissRequest = cerrar,

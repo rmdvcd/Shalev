@@ -104,7 +104,9 @@ fun ShalevTextField(
     val errorVisible = ShalevValidacion.errorVisible(isError, validarAlSalir, forzarError, salio, vacioSinFoco = value.isEmpty() && !conFoco)
     val helper = if (errorVisible && errorText != null) errorText else supportingText
     val cambiar: (String) -> Unit = { escrito ->
-        val nuevo = filtro.aceptar(value, escrito)
+        // Un campo de una línea no guarda saltos de línea pegados (motivos, encabezados, nombres…): pasan a ser espacios.
+        val linea = if (singleLine) escrito.replace("\r\n", " ").replace('\n', ' ').replace('\r', ' ') else escrito
+        val nuevo = filtro.aceptar(value, linea)
         if (nuevo != value) editado = true
         onValueChange(nuevo)
     }

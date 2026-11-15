@@ -60,8 +60,8 @@ class GuardarDatosIniciales @Inject constructor(
         fun validar(d: DatosIniciales): AppError.Validacion? = when {
             d.nombre.isNotBlank() && !Validators.nombre(d.nombre) -> AppError.Validacion("nombre")
             d.apellidos.isNotBlank() && !Validators.nombre(d.apellidos) -> AppError.Validacion("apellidos")
-            d.ci.isNotBlank() && !Validators.ci(d.ci) -> AppError.Validacion("ci")
-            d.telefono.isNotBlank() && Phone.normalize(d.telefono) == null -> AppError.Validacion("telefono")
+            d.ci.isNotBlank() && !Validators.carneCubano(d.ci) -> AppError.Validacion("ci")
+            d.telefono.isNotBlank() && !Phone.esMovilCubano(d.telefono) -> AppError.Validacion("telefono")
             else -> null
         }
     }

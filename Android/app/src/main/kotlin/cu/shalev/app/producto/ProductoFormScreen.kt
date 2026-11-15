@@ -214,7 +214,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
             modifier = Modifier.testTag(ProductoFormTags.NOMBRE).coachMark(ObjetivosRecorrido.FORM_NOMBRE),
         )
         ShalevTextField(
-            filtro = FiltroEntrada.TEXTO,
+            filtro = FiltroEntrada.DESCRIPCION,
             // 0.24.0: una línea; obligatoria solo si ya hay otro producto con el mismo nombre.
             value = f.descripcion, onValueChange = a.onDescripcion, label = "Descripción", placeholder = ProductoFormLogic.EJEMPLO_DESCRIPCION,
             supportingText = ProductoFormLogic.ayudaDescripcion(f.descripcion), imeAction = ImeAction.Next,
@@ -228,6 +228,7 @@ private fun Formulario(state: ProductoFormUiState, a: AccionesForm, modifier: Mo
             CampoFecha(
                 fecha = f.fechaCaducidad, onFecha = a.onFecha, label = "Fecha de caducidad (opcional)",
                 modifier = Modifier.fillMaxWidth(), tag = ProductoFormTags.FECHA,
+                minimo = java.time.LocalDate.now(), // una caducidad nueva no puede estar ya vencida
             )
         }
 
@@ -306,7 +307,7 @@ private fun CampoCategoria(
     val opciones = todas.filter { valor.isBlank() || it.contains(valor.trim(), ignoreCase = true) }
     ExposedDropdownMenuBox(expanded = abierto && opciones.isNotEmpty(), onExpandedChange = { abierto = it }) {
         ShalevTextField(
-            filtro = FiltroEntrada.NOMBRE,
+            filtro = FiltroEntrada.CATEGORIA,
             value = valor, onValueChange = { onValor(it); abierto = true }, label = "Categoría *",
             isError = error != null, errorText = error, validarAlSalir = true, forzarError = forzarError, supportingText = "Elige o escribe una nueva",
             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).testTag(ProductoFormTags.CATEGORIA).coachMark(ObjetivosRecorrido.FORM_CATEGORIA),

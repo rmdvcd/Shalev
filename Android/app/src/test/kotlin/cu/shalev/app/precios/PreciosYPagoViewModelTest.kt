@@ -98,19 +98,19 @@ class PreciosYPagoViewModelTest {
         val vm = pagoVm()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         vm.nuevo(TipoCuentaPago.TARJETA)
-        vm.editarEdicion { it.copy(numero = "9205129900001234", alias = "BANDEC") }
+        vm.editarEdicion { it.copy(numero = "9205129900001232", alias = "BANDEC") }
         vm.guardarEdicion()
         assertNull(vm.state.value.edicion)
         val id = perfil.state.value.tarjetas.single().id
         vm.nuevo(TipoCuentaPago.TARJETA)
-        vm.editarEdicion { it.copy(numero = "9205 1299 0000 1234") }
+        vm.editarEdicion { it.copy(numero = "9205 1299 0000 1232") }
         vm.guardarEdicion()
         assertEquals(TextosPago.DUPLICADO, vm.state.value.edicion!!.error)
         vm.cerrarEdicion()
         vm.editar(TipoCuentaPago.TARJETA, id)
-        vm.editarEdicion { it.copy(numero = "9205 1299 0000 9999") }
+        vm.editarEdicion { it.copy(numero = "9205 1299 0000 9995") }
         vm.guardarEdicion()
-        assertEquals("9205129900009999", perfil.state.value.tarjetas.single().numero)
+        assertEquals("9205129900009995", perfil.state.value.tarjetas.single().numero)
         vm.elegir(TipoCuentaPago.TARJETA, id)
         assertEquals(id, perfil.state.value.pagoTarjetaId)
         vm.pedirBorrado(TipoCuentaPago.TARJETA, id); vm.confirmarBorrado()

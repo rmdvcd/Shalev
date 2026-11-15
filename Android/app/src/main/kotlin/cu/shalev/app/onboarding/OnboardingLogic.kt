@@ -90,8 +90,8 @@ object TourPendiente {
 fun mensajeDato(campo: String): String = when (campo) {
     "nombre" -> "Escribe solo letras (2 a 80)"
     "apellidos" -> "Escribe solo letras (2 a 80)"
-    "ci" -> "Revisa el carné: 5 a 20 letras o números"
-    "telefono" -> "Número no válido. Ejemplo: 52345678"
+    "ci" -> "Revisa el carné: 11 dígitos que empiezan por tu fecha de nacimiento (AAMMDD)"
+    "telefono" -> "Escribe un móvil de 8 dígitos que empiece por 5 o 6. Ejemplo: 52345678"
     else -> "Revisa este dato"
 }
 

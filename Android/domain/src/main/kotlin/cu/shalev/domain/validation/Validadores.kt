@@ -26,7 +26,6 @@ object Validadores {
     const val MAX_CATEGORIA = 40
     /** 0.24.0: descripción resumida que distingue artículos del mismo nombre (una línea). Antes, 500. */
     const val MAX_DESCRIPCION = 40
-    private val CI_CUBANO = Regex("^[0-9]{11}$")
     private val NUM_TRANSACCION = Regex("^[A-Za-z0-9]{6,30}$")
     private val CUENTA = Regex("^[0-9]{12,20}$")
     const val MIN_CONTRASENA = 8
@@ -86,7 +85,7 @@ object Validadores {
     fun cliente(c: DatosCliente): List<Validacion> = buildList {
         if (c.nombreApellidos.isBlank()) add(Validacion("clienteNombre", Regla.REQUERIDO))
         else if (!Validators.nombre(c.nombreApellidos)) add(Validacion("clienteNombre", Regla.FORMATO))
-        if (!CI_CUBANO.matches(c.ci.trim())) add(Validacion("clienteCi", if (c.ci.isBlank()) Regla.REQUERIDO else Regla.FORMATO))
+        if (!Validators.carneCubano(c.ci)) add(Validacion("clienteCi", if (c.ci.isBlank()) Regla.REQUERIDO else Regla.FORMATO))
         if (Phone.normalize(c.telefono) == null) add(Validacion("clienteTelefono", if (c.telefono.isBlank()) Regla.REQUERIDO else Regla.FORMATO))
     }
 
@@ -102,6 +101,8 @@ object Validadores {
     fun perfil(p: Perfil): List<Validacion> = buildList {
         if (p.nombre.isNotBlank() && !Validators.nombre(p.nombre)) add(Validacion("nombre", Regla.FORMATO))
         if (p.apellidos.isNotBlank() && !Validators.nombre(p.apellidos)) add(Validacion("apellidos", Regla.FORMATO))
+        // El formulario exige el carné cubano (Validators.carneCubano); aquí basta el formato del contrato para que un carné
+        // guardado con una versión anterior no impida guardar tarjetas o teléfonos.
         if (p.ci.isNotBlank() && !Validators.ci(p.ci)) add(Validacion("ci", Regla.FORMATO))
         if (p.tarjetas.any { normalizarCuenta(it.numero) != it.numero }) add(Validacion("tarjetas", Regla.FORMATO))
         if (p.telefonos.any { Phone.normalize(it.numero) != it.numero }) add(Validacion("telefonos", Regla.FORMATO))

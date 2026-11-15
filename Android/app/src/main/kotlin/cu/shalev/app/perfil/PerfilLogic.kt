@@ -10,7 +10,8 @@ object TextosPerfil {
     const val MODULOS_EXPLICACION = "Lo que no marques se oculta en la barra, Inicio y Registros. No se borra nada."
     const val EXPLICACION = "Se usan para pedir la licencia. Solo se guardan, protegidos, en este teléfono."
     const val ERROR_NOMBRE = "Solo letras y espacios; se admiten apóstrofos y guiones (2 a 80)."
-    const val ERROR_CI = "Entre 5 y 20 letras o números"
+    const val ERROR_CI = "11 dígitos: empieza por tu fecha de nacimiento (AAMMDD)"
+    const val ERROR_MOVIL = "Móvil de 8 dígitos que empiece por 5 o 6"
     const val GUARDADO = "Datos guardados"
     const val ERROR_GENERICO = "No se pudo guardar. Inténtalo de nuevo."
     const val DESCARTAR_TITULO = "¿Salir sin guardar?"
@@ -29,7 +30,7 @@ data class DatosPerfilForm(
 ) {
     val errorNombre: String? get() = TextosPerfil.ERROR_NOMBRE.takeIf { nombre.isNotBlank() && !Validators.nombre(nombre) }
     val errorApellidos: String? get() = TextosPerfil.ERROR_NOMBRE.takeIf { apellidos.isNotBlank() && !Validators.nombre(apellidos) }
-    val errorCi: String? get() = TextosPerfil.ERROR_CI.takeIf { ci.isNotBlank() && !Validators.ci(ci) }
+    val errorCi: String? get() = TextosPerfil.ERROR_CI.takeIf { ci.isNotBlank() && !Validators.carneCubano(ci) }
     val valido: Boolean get() = errorNombre == null && errorApellidos == null && errorCi == null
 
     /** Solo los datos personales: las listas se conservan tal como estén guardadas. */

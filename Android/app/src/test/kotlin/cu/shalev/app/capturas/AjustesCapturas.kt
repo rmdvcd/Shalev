@@ -65,7 +65,7 @@ class AjustesCapturas {
 
     private val perfil = Perfil(
         "María", "González Pérez", "85010112345",
-        tarjetas = listOf(TarjetaBancaria(3, "9205129970876454")), telefonos = listOf(Telefono(1, "52345678")),
+        tarjetas = listOf(TarjetaBancaria(3, "9205129970876455")), telefonos = listOf(Telefono(1, "52345678")),
         pagoTarjetaId = 3, pagoTelefonoId = 1,
     )
 

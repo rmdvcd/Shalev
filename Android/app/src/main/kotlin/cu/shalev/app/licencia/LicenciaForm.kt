@@ -52,8 +52,8 @@ data class LicenciaForm(
 
     val nombreOk: Boolean get() = Validators.nombre(nombre)
     val apellidosOk: Boolean get() = Validators.nombre(apellidos)
-    val ciOk: Boolean get() = Validators.ci(ci)
-    val telefonoOk: Boolean get() = Phone.normalize(telefono) != null
+    val ciOk: Boolean get() = Validators.carneCubano(ci)
+    val telefonoOk: Boolean get() = Phone.esMovilCubano(telefono)
     val valido: Boolean get() = nombreOk && apellidosOk && ciOk && telefonoOk
     /** ID canónico a recuperar (null = vacío o sin un ID reconocible). */
     val idRecupera: String? get() = recupera.takeIf { it.isNotBlank() }?.let { cu.shalev.licencia.contract.IdLicencia.extraer(it) }

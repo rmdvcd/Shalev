@@ -234,7 +234,7 @@ private fun FormularioPreajuste(state: PreciosUiState, f: PreajusteForm, accione
             icon = if (f.sube) ShalevIcons.Agregar else ShalevIcons.Quitar,
         )
         ShalevTextField(
-            filtro = FiltroEntrada.DECIMAL,
+            filtro = FiltroEntrada.PORCENTAJE,
             value = f.porcentaje,
             onValueChange = { v -> acciones.onCambiar { it.copy(porcentaje = v) } },
             label = "Porcentaje",

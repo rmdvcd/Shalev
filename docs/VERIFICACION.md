@@ -1,5 +1,15 @@
 # Shalev — Verificación real
 
+## Filtros de entrada según el formato de cada dato — 2026-11-13
+
+**Rama:** `arena/32cf7af0-shalev`, basada en `b423aea0f9f7036d2af594686868192fff357cd8`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| Datos de prueba | Script Python: los 13 carnés de 11 dígitos usados en pruebas tienen fecha válida; los 7 inválidos nuevos fallan a propósito. Las tarjetas de pruebas que deben ser válidas pasan Luhn (9205129900001232, 9205129900009995, 9205129970876455, 9227069995328054). |
+| `python3 tools/verificacion/botones.py` | **0 incumplimientos**. |
+| CI `43657680875` (commit de los filtros) | **Verde**: tests JVM 1028 ejecutados, 0 fallidos, 0 omitidos; lint, permisos, API mínima 26 y R8/APK debug aprobados. Instrumentados del emulador no ejecutados (solo con `[instrumentados]` o semanal). |
+
 ## Recorridos en todas las ventanas y botones de una palabra — 2026-11-13
 
 **Rama:** `arena/940dc5f1-shalev`, basada en `0540b764787e6dc0258378b7ae3ef4033c7f9450`.

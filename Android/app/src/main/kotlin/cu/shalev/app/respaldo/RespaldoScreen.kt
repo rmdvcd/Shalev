@@ -367,7 +367,7 @@ private fun CampoContrasena(
     forzarError: Boolean = false,
 ) {
     ShalevTextField(
-        filtro = FiltroEntrada.LIBRE,
+        filtro = FiltroEntrada.CONTRASENA,
         value = valor, onValueChange = onCambio, label = etiqueta, imeAction = imeAction, onImeAction = onImeAction,
         validarAlSalir = validarAlSalir, forzarError = forzarError,
         isError = error != null, errorText = error, supportingText = ayuda,

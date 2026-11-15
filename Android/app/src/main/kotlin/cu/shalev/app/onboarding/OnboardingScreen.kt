@@ -337,13 +337,13 @@ private fun PasoDatos(state: OnboardingUiState, acciones: OnboardingAcciones) {
         val err = erroresDatos(d)
         val forzar = state.mostrarErroresDatos
         ShalevTextField(
-            filtro = FiltroEntrada.NOMBRE,
+            filtro = FiltroEntrada.PERSONA,
             value = d.nombre, onValueChange = { v -> acciones.onDatos { it.copy(nombre = v) } }, label = "Nombre",
             isError = "nombre" in err, errorText = err["nombre"], validarAlSalir = true, forzarError = forzar, imeAction = ImeAction.Next,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier,
         )
         ShalevTextField(
-            filtro = FiltroEntrada.NOMBRE,
+            filtro = FiltroEntrada.PERSONA,
             value = d.apellidos, onValueChange = { v -> acciones.onDatos { it.copy(apellidos = v) } }, label = "Apellidos",
             isError = "apellidos" in err, errorText = err["apellidos"], validarAlSalir = true, forzarError = forzar, imeAction = ImeAction.Next,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier,

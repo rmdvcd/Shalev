@@ -122,7 +122,8 @@ class AjustesPantallasUiTest {
                 )
             }
         }
-        rule.onNodeWithTag(PerfilTags.NOMBRE).performTextReplacement("12345!!!")
+        // Los dígitos y símbolos ya no entran (filtro PERSONA): una sola letra sigue siendo un nombre no válido.
+        rule.onNodeWithTag(PerfilTags.NOMBRE).performTextReplacement("M")
         rule.onNodeWithText(TextosPerfil.ERROR_NOMBRE).performScrollTo().assertIsDisplayed()
     }
 
