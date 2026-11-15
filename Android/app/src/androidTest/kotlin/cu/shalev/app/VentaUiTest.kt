@@ -1,5 +1,6 @@
 package cu.shalev.app
 
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
@@ -75,6 +76,11 @@ class VentaUiTest {
                 )
             }
         }
+        // Los controles de cantidad conservan su descripción para TalkBack, pero no muestran «−1»/«+1» junto al icono.
+        rule.onNodeWithText("−1").assertDoesNotExist()
+        rule.onNodeWithText("+1").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Una menos de Refresco").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Una más de Refresco").assertIsDisplayed()
         rule.onNodeWithTag(VentaTags.mas(1)).assertIsNotEnabled()          // 5 de 5: no se puede más
         rule.onNodeWithTag(VentaTags.menos(1)).performClick()
         assertEquals(listOf(1L to 4L), cambios)

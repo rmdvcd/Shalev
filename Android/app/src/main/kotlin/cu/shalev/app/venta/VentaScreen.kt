@@ -353,7 +353,8 @@ internal fun LineaEditable(l: LineaCarrito, onCantidad: (Long, Long) -> Unit, on
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             ShalevIconAction(
                 ShalevIcons.Disminuir, "Una menos de ${l.producto.nombreCompleto}", onClick = { onCantidad(id, l.cantidad - 1) },
-                enabled = l.cantidad > 1, style = IconActionStyle.Tonal, etiqueta = "−1", modifier = Modifier.testTag(VentaTags.menos(id)), repetible = true,
+                enabled = l.cantidad > 1, style = IconActionStyle.Tonal, mostrarTexto = false,
+                modifier = Modifier.testTag(VentaTags.menos(id)), repetible = true,
             )
             ShalevTextField(
                 filtro = FiltroEntrada.ENTERO,
@@ -365,7 +366,8 @@ internal fun LineaEditable(l: LineaCarrito, onCantidad: (Long, Long) -> Unit, on
             )
             ShalevIconAction(
                 ShalevIcons.Aumentar, "Una más de ${l.producto.nombreCompleto}", onClick = { onCantidad(id, l.cantidad + 1) },
-                enabled = l.cantidad < l.maximo, style = IconActionStyle.Tonal, etiqueta = "+1", modifier = Modifier.testTag(VentaTags.mas(id)), repetible = true,
+                enabled = l.cantidad < l.maximo, style = IconActionStyle.Tonal, mostrarTexto = false,
+                modifier = Modifier.testTag(VentaTags.mas(id)), repetible = true,
             )
             Box(Modifier.weight(1f))
             ShalevIconAction(
