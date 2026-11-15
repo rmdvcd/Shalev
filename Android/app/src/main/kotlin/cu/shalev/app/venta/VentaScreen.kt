@@ -30,7 +30,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -92,6 +91,8 @@ import cu.shalev.domain.model.MetodoPago
 import cu.shalev.domain.service.PagoQr
 import cu.shalev.domain.usecase.ObservarPermisoVenta.Permiso
 import java.time.ZoneId
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 object VentaTags {
     const val BLOQUEO = "venta_bloqueo"
@@ -158,7 +159,7 @@ fun VentaScreen(
     cajaVm: cu.shalev.app.caja.CajaViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val capturaSmsAutomaticaActiva = rememberAccesoCapturaSms()
@@ -221,7 +222,7 @@ fun VentaContent(
     tipo: TipoVenta,
     state: VentaUiState,
     acciones: AccionesVenta,
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
     zona: ZoneId = ZoneId.systemDefault(),
     capturaSmsAutomaticaActiva: Boolean = false,
 ) {

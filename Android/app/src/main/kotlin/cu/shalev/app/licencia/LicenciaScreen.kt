@@ -24,7 +24,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,6 +76,7 @@ import cu.shalev.domain.model.Licencia
 import cu.shalev.licencia.contract.TipoLicencia
 import cu.shalev.licencia.contract.Via
 import java.time.Instant
+import cu.shalev.designsystem.component.rememberAvisos
 
 /** Acciones del panel (agrupadas para que [LicenciaContent] sea sin estado y testeable sin Hilt). */
 class LicenciaAcciones(
@@ -112,7 +112,7 @@ fun LicenciaScreen(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     // 0.25.0: mensaje de licencia compartido con Shalev → se rellena y se activa sin pegarlo (también en el bloqueo).
     val licenciaCompartida by entradaVm.licenciaPendiente.collectAsStateWithLifecycle()
     LaunchedEffect(licenciaCompartida, state.licencia != null) {

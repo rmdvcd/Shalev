@@ -31,7 +31,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -99,6 +98,8 @@ import cu.shalev.domain.service.FormatoExport
 import cu.shalev.domain.service.TablasExport
 import cu.shalev.domain.usecase.TipoRegistro
 import java.time.ZoneId
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 class AccionesRegistros(
     val onPestana: (PestanaRegistros) -> Unit = {},
@@ -149,7 +150,7 @@ fun RegistrosScreen(
     // Datos de clientes (nombre, carné, número de transferencia): sin capturas ni miniatura en Recientes mientras se ven.
     if (state.datos is VistaRegistro.Transferencias || state.ficha is FichaRegistro.DeTransferencia) SecureWindow()
     val context = LocalContext.current
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     // CreateDocument fija el tipo MIME al crearse: uno por formato guardable.
     val guardarPdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.PDF.mime)) { viewModel.guardarEn(it?.toString()) }
     val guardarXlsx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.XLSX.mime)) { viewModel.guardarEn(it?.toString()) }
@@ -222,7 +223,7 @@ fun RegistrosContent(
     state: RegistrosUiState,
     turnos: EstadoCarga<List<Turno>>,
     acciones: AccionesRegistros,
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
     zona: ZoneId = ZoneId.systemDefault(),
     clientes: ClientesUiState = ClientesUiState(cargando = false),
     accionesClientes: AccionesClientes = AccionesClientes(),

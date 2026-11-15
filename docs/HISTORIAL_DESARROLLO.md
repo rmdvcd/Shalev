@@ -1,3 +1,22 @@
+## Avisos de la app como «isla» (Notificacion.md, 2026-11-13)
+
+- **Guía aplicada:** Notificacion.md (toasts estilo Dynamic Island) en su versión para Android (§5): sin copiar el toast web; el componente propio sustituye al Snackbar de Material, que solo muestra uno a la vez y no admite pila, contador ni paginador.
+- **Antes:** cada pantalla tenía su Snackbar de Material (abajo, solo texto, sin tipo) y los avisos de «operación realizada» salían en otro cuadro arriba (2 s). Dos posiciones distintas, y todos los mensajes duraban lo mismo, fueran éxito o error.
+- **Ahora:** una sola isla para toda la app (`ShalevAvisosState` en `LocalShalevAvisos`, la crea MainScaffold), abajo y sobre la barra inferior en todas las pantallas:
+  - En reposo, una píldora de una línea: icono del tipo (✓ éxito, ⓘ información, ⚠ advertencia, ⓧ error, rueda para carga), mensaje, «×N» de ráfagas e insignia roja con el número de avisos (`AVISO_INSIGNIA` #D70015, 5.4:1 con blanco).
+  - Al tocarla, la misma forma crece hasta ser una tarjeta (muelle sin rebote, interrumpible): descripción, una acción con verbo, **Cerrar**, paginador «1 de N» y **Limpiar** en dos pasos (el primer toque arma **Borrar** en rojo). Tocar el título la contrae.
+  - **Urgencia = permanencia:** éxito e información se van a los 5 s, o a los 10 s si tienen acción; advertencia, error y carga se quedan hasta cerrarlos. El tiempo pasa por `calculateRecommendedTimeoutMillis` («Tiempo para actuar» de Accesibilidad). Se pausa al tocar, al arrastrar y con la tarjeta abierta, y luego sigue con lo que quedaba.
+  - Deslizar a un lado cierra el aviso; con TalkBack está la acción «Cerrar aviso». La región viva está montada antes del mensaje: *polite* para éxito, información y carga; *assertive* para advertencia y error. El tipo se lee antes del texto («Error: …»), no solo con color.
+  - Pila con lo más nuevo arriba y tope de 100: la insignia sigue contando los descartados.
+  - Promesas: `seguir()` crea un solo aviso que pasa de carga a éxito o error, con **Reintentar** en el mismo aviso. Un mensaje suelto de «operación en marcha» («Guardando un respaldo…») lo sustituye el siguiente, en vez de apilar dos.
+  - Vibra una vez por aviso: éxito y error con su patrón, el resto con un toque breve.
+- `showSnackbar` conserva la firma de `SnackbarHostState`, así que las pantallas cambian solo el tipo (`rememberAvisos()`). No espera a que se cierre el aviso salvo que tenga acción, para que un error que se queda no bloquee los siguientes mensajes. Varios anfitriones (pantallas en transición) comparten la isla y solo pinta uno.
+- Los mensajes siguen siendo texto plano: `ClasificadorAviso` deduce el tipo por las pautas fijas de los textos («No se pudo…» → error, «Revisa…/No hay…» → advertencia, «… guardado/eliminado» → éxito). Explícitos: `AvisoExito` (éxito) y «Turno cerrado… Ver» de Inicio (éxito con acción).
+- `AvisoExito` ya no pinta su cuadro arriba: entra en la isla como éxito. Se quitan `ShalevAvisoExito` y `AVISO_EXITO_MS`.
+- Las notificaciones del sistema (turno, conexión y sincronización con las apps vinculadas) no cambian: son eventos sin acción del usuario o con la app en segundo plano, que la guía manda al sistema (§5.4).
+- Iconos nuevos: `AvisoExito`, `AvisoInfo`, `AvisoAdvertencia` y `AvisoError` (Material CheckCircle, Info, Warning y Error).
+- Pruebas: `AvisosEstadoTest` (permanencia, ráfagas, paginador, tope, Limpiar, atención, promesas, sustitución y clasificación de textos reales), `AvisosIslaUiTest` (Robolectric: píldora e insignia, tarjeta y paginador, Limpiar, acción, deslizar, tiempos, un solo anfitrión, región viva) y `ContrastTest.islaDeAvisos`.
+
 ## Métodos de pago y Top 3 de Inicio según el período elegido (2026-11-15)
 
 - **Antes:** Métodos de pago y todos los Top 3 de Inicio usaban siempre los últimos 30 días, aunque se eligiera otro período en **Período** (Shalev.txt: el selector solo afectaba a Ventas y Ganancia bruta).

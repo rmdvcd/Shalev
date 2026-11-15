@@ -58,7 +58,6 @@ import java.time.Instant
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -71,6 +70,8 @@ import cu.shalev.designsystem.component.ShalevLinearProgress
 import cu.shalev.designsystem.component.ShalevSnackbarHost
 import cu.shalev.domain.service.FormatoExport
 import java.time.ZoneId
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 object TurnoDetalleTags {
     const val ARQUEO = "turno_arqueo"
@@ -109,7 +110,7 @@ fun TurnoDetalleScreen(onBack: () -> Unit, viewModel: TurnoDetalleViewModel = hi
     val exportacion by viewModel.exportacion.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refrescar() }
     val context = LocalContext.current
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     val guardarPdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.PDF.mime)) { viewModel.guardarEn(it?.toString()) }
     val guardarXlsx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.XLSX.mime)) { viewModel.guardarEn(it?.toString()) }
     LaunchedEffect(viewModel) {
@@ -140,7 +141,7 @@ fun TurnoDetalleContent(
     pestanaInicial: PestanaTurno = PestanaTurno.RESUMEN,
     exportacion: ExportacionTurnoUi = ExportacionTurnoUi(),
     exportar: AccionesExportarTurno? = null,
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
 ) {
     val titulo = (state as? EstadoCarga.Exito)?.datos?.turno?.let { tituloDetalleTurno(it, zona) } ?: "Turno"
     // P38: sin el permiso «Exportar» (secundaria) no se comparte; la secundaria solo tiene sus propios turnos.

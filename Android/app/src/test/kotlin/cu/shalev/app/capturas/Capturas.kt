@@ -1,6 +1,5 @@
 package cu.shalev.app.capturas
 
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -12,6 +11,8 @@ import com.github.takahirom.roborazzi.captureScreenRoboImage
 import cu.shalev.designsystem.theme.ShalevTheme
 import java.time.Instant
 import java.time.ZoneId
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 /**
  * P23 — Capturas reales de la interfaz con Robolectric + Roborazzi (JVM, sin emulador y sin red).
@@ -67,8 +68,8 @@ fun ComposeContentTestRule.capturar(
 
 /** Snackbar visible desde el primer fotograma (los mensajes reales los emite el ViewModel). */
 @Composable
-fun snackbarCon(mensaje: String): SnackbarHostState {
-    val s = remember { SnackbarHostState() }
+fun snackbarCon(mensaje: String): ShalevAvisosState {
+    val s = rememberAvisos()
     LaunchedEffect(mensaje) { s.showSnackbar(mensaje) }
     return s
 }

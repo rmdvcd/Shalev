@@ -15,7 +15,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -46,6 +45,8 @@ import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
 import kotlinx.coroutines.launch
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 /** Filas de la ficha (una sola fuente: DeveloperContact, la misma que usa Licencia). Pura, testeada. */
 object SoporteInfo {
@@ -79,7 +80,7 @@ object SoporteTags {
 @Composable
 fun SoporteScreen(onBack: (() -> Unit)?) {
     val context = LocalContext.current
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     val scope = rememberCoroutineScope()
     val sinApp = { scope.launch { snackbar.showSnackbar("No hay una app disponible para enviar el mensaje") } }
     RecorridoModulo(Recorrido.SOPORTE, listo = true) {
@@ -99,7 +100,7 @@ fun SoporteContent(
     version: String,
     onWhatsapp: () -> Unit,
     onSms: () -> Unit,
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
 ) {
     Scaffold(
         topBar = { ShalevTopBar(title = "Soporte", onBack = onBack) },

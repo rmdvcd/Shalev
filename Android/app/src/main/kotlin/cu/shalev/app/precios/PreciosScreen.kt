@@ -27,7 +27,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -74,6 +73,8 @@ import cu.shalev.domain.model.MetodoPago
 import cu.shalev.domain.model.PreajustePrecios
 import cu.shalev.domain.model.Producto
 import cu.shalev.domain.model.Servicio
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 object PreciosTags {
     const val NUEVO = "precios_nuevo"
@@ -91,7 +92,7 @@ object PreciosTags {
 @Composable
 fun PreciosScreen(onBack: () -> Unit, viewModel: PreciosViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     LaunchedEffect(viewModel) { viewModel.mensajes.collect { snackbar.showSnackbar(it) } }
     RecorridoModulo(Recorrido.PRECIOS, listo = state.form == null && state.borrar == null) {
         PreciosContent(
@@ -130,7 +131,7 @@ fun PreciosContent(
     state: PreciosUiState,
     onBack: () -> Unit,
     acciones: AccionesPrecios,
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
 ) {
     Scaffold(
         topBar = {

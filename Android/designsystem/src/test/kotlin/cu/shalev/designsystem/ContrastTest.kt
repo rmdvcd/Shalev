@@ -152,4 +152,24 @@ class ContrastTest {
         check("plata", T.ON_MEDALLA_PLATA, T.MEDALLA_PLATA, TEXT)
         check("bronce", T.ON_MEDALLA_BRONCE, T.MEDALLA_BRONCE, TEXT)
     }
+
+    /**
+     * Isla de avisos (Notificacion.md §4 y §8): icono de cada tipo ≥3:1 sobre la superficie inversa de cada tema, texto
+     * secundario de la tarjeta (85 %) ≥4.5:1 e insignia roja con número blanco ≥4.5:1.
+     */
+    @Test fun islaDeAvisos() {
+        cu.shalev.designsystem.component.TipoAviso.entries.forEach { tipo ->
+            val claro = cu.shalev.designsystem.component.colorTipoArgb(tipo, temaOscuro = false)
+            val oscuro = cu.shalev.designsystem.component.colorTipoArgb(tipo, temaOscuro = true)
+            check("icono $tipo / isla (tema claro)", claro, T.L_INVERSE_SURFACE, UI)
+            check("icono $tipo / isla (tema oscuro)", oscuro, T.D_INVERSE_SURFACE, UI)
+        }
+        val alfa = T.SECONDARY_ALPHA + 0.2f
+        check("descripción / isla (claro)", blend(T.L_INVERSE_ON_SURFACE, T.L_INVERSE_SURFACE, alfa), T.L_INVERSE_SURFACE, TEXT)
+        check("descripción / isla (oscuro)", blend(T.D_INVERSE_ON_SURFACE, T.D_INVERSE_SURFACE, alfa), T.D_INVERSE_SURFACE, TEXT)
+        check("insignia de avisos", T.ON_AVISO_INSIGNIA, T.AVISO_INSIGNIA, TEXT)
+        // Acción rellena de la tarjeta: primario inverso con el texto en la superficie inversa.
+        check("acción de la isla (claro)", T.L_INVERSE_SURFACE, T.L_INVERSE_PRIMARY, TEXT)
+        check("acción de la isla (oscuro)", T.D_INVERSE_SURFACE, T.D_INVERSE_PRIMARY, TEXT)
+    }
 }

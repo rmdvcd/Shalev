@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,6 +59,8 @@ import cu.shalev.designsystem.component.ShalevTopBar
 import cu.shalev.designsystem.component.shalevContentWidth
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.token.ShalevSpacing
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 object PerfilTags {
     const val MODULOS = "perfil.modulos"
@@ -94,7 +95,7 @@ fun PerfilScreen(
 ) {
     SecureWindow()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     LaunchedEffect(viewModel) { viewModel.mensajes.collect { snackbar.showSnackbar(it) } }
     RecorridoModulo(Recorrido.PERFIL, listo = true) {
         PerfilContent(
@@ -111,7 +112,7 @@ fun PerfilContent(
     state: PerfilUiState,
     onBack: () -> Unit,
     acciones: AccionesPerfil,
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
 ) {
     val atras = rememberSalidaProtegida(state.sinGuardar, { acciones.onDescartar(); onBack() }, TextosPerfil.DESCARTAR_TEXTO)
     var verId by rememberSaveable { mutableStateOf(false) }

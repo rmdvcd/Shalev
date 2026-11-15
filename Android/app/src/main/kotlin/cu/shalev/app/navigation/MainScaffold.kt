@@ -16,7 +16,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -124,7 +124,11 @@ fun MainScaffold(snapshot: Licencia) {
     // 1.1: recorridos de las ventanas emergentes (un solo ViewModel para toda la app).
     val recorridosVm: cu.shalev.app.recorrido.RecorridosViewModel = hiltViewModel()
 
+    // Notificacion.md: una sola isla de avisos para toda la app (sobrevive al cambio de pantalla).
+    val avisos = remember { cu.shalev.designsystem.component.ShalevAvisosState() }
+
     CompositionLocalProvider(
+        cu.shalev.designsystem.component.LocalShalevAvisos provides avisos,
         cu.shalev.app.common.LocalPermisosApp provides permisos,
         cu.shalev.designsystem.component.LocalBloqueoGestos provides bloqueoGestos,
         cu.shalev.app.recorrido.LocalRecorridos provides recorridosVm,
@@ -358,6 +362,13 @@ fun MainScaffold(snapshot: Licencia) {
             composable<Route.Ayuda> { AyudaScreen(onBack = { nav.popBackStack() }) }
             composable<Route.Soporte> { SoporteScreen(onBack = { nav.popBackStack() }) }
         }
+        // Isla de avisos de respaldo: solo se pinta si la pantalla visible no tiene la suya (Notificacion.md §5:
+        // en Android, abajo y sobre la barra inferior).
+        cu.shalev.designsystem.component.ShalevSnackbarHost(
+            avisos,
+            Modifier.align(Alignment.BottomCenter).imePadding(),
+            prioridad = cu.shalev.designsystem.component.PRIORIDAD_AVISOS_RESPALDO,
+        )
         }
     }
     }
@@ -367,13 +378,9 @@ fun MainScaffold(snapshot: Licencia) {
             onExportarRespaldo = { nav.navigate(Route.Respaldo) { launchSingleTop = true } },
         )
     }
-    // 1.0.4: cuadro flotante de «operación realizada» (guardar, agregar, eliminar…), común a todas las pantallas.
-    cu.shalev.app.common.AvisoExitoHost(
-        Modifier
-            .align(androidx.compose.ui.Alignment.TopCenter)
-            .statusBarsPadding()
-            .padding(top = cu.shalev.designsystem.token.ShalevSpacing.xs),
-    )
+    // 1.0.4 / Notificacion.md: los avisos de «operación realizada» (guardar, agregar, vender…) entran en la isla
+    // compartida como éxito; ya no van en un cuadro aparte arriba (la posición es la misma en toda la app).
+    cu.shalev.app.common.AvisoExitoHost(avisos)
     }
     }
 }

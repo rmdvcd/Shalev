@@ -36,7 +36,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -104,6 +103,8 @@ import cu.shalev.domain.model.TipoArticulo
 import cu.shalev.domain.model.TipoAlerta
 import cu.shalev.domain.service.FormatoExport
 import cu.shalev.domain.service.TablasExport
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 /** Acciones de la pantalla (una sola clase para no arrastrar 20 lambdas y poder probar el Content sin Hilt). */
 class AccionesInventario(
@@ -148,7 +149,7 @@ fun InventarioScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     // CreateDocument fija el tipo MIME al crearse: uno por formato guardable.
     val guardarPdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.PDF.mime)) { viewModel.guardarEn(it?.toString()) }
     val guardarXlsx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(FormatoExport.XLSX.mime)) { viewModel.guardarEn(it?.toString()) }
@@ -197,7 +198,7 @@ fun InventarioScreen(
 fun InventarioContent(
     state: InventarioUiState,
     acciones: AccionesInventario,
-    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    snackbar: ShalevAvisosState = rememberAvisos(),
 ) {
     val venta = state.modoVenta
     // 1.0.2: ayuda de la pestaña (botón «?» de la esquina superior izquierda).

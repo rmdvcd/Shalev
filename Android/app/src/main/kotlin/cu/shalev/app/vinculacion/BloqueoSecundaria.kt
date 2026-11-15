@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,6 +22,7 @@ import cu.shalev.designsystem.component.ShalevTextButton
 import cu.shalev.designsystem.component.ShalevTopBar
 import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.token.ShalevSpacing
+import cu.shalev.designsystem.component.rememberAvisos
 
 /**
  * P37: puerta de la app SECUNDARIA cuando la licencia de la principal no está activa. Aquí no se activa nada (la
@@ -31,7 +31,7 @@ import cu.shalev.designsystem.token.ShalevSpacing
 @Composable
 fun BloqueoSecundaria(viewModel: VinculacionViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     LaunchedEffect(Unit) { viewModel.mensajes.collect { snackbar.showSnackbar(it) } }
     Scaffold(
         topBar = { ShalevTopBar(title = "Shalev", marca = true) },

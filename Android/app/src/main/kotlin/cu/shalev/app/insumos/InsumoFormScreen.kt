@@ -21,7 +21,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +52,8 @@ import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.ilustracion.ShalevIlustracion
 import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.domain.model.UnidadMedida
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 object InsumoFormTags {
     const val PRECIO_VENTA = "insumo_precio_venta"
@@ -80,7 +81,7 @@ class AccionesInsumoForm(
 @Composable
 fun InsumoFormScreen(onBack: () -> Unit, onGuardado: (String) -> Unit, viewModel: InsumoFormViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     LaunchedEffect(viewModel) {
         viewModel.eventos.collect { e ->
             when (e) {
@@ -102,7 +103,7 @@ fun InsumoFormScreen(onBack: () -> Unit, onGuardado: (String) -> Unit, viewModel
 }
 
 @Composable
-fun InsumoFormContent(state: InsumoFormUiState, acciones: AccionesInsumoForm, snackbar: SnackbarHostState = remember { SnackbarHostState() }) {
+fun InsumoFormContent(state: InsumoFormUiState, acciones: AccionesInsumoForm, snackbar: ShalevAvisosState = rememberAvisos()) {
     val atras = rememberSalidaProtegida(state.sinGuardar, acciones.onBack)
     Scaffold(
         topBar = {

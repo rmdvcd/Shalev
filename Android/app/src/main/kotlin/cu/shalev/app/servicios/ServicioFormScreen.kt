@@ -27,7 +27,6 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +66,8 @@ import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.ilustracion.ShalevIlustracion
 import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.domain.model.Insumo
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.rememberAvisos
 
 object ServicioFormTags {
     const val NOMBRE = "servicio_nombre"
@@ -101,7 +102,7 @@ class AccionesServicioForm(
 @Composable
 fun ServicioFormScreen(onBack: () -> Unit, onGuardado: (String) -> Unit, viewModel: ServicioFormViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
+    val snackbar = rememberAvisos()
     // Selector de fotos del sistema: no necesita permisos de almacenamiento.
     val elegirFoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { viewModel.fotoElegida(it?.toString()) }
     LaunchedEffect(viewModel) {
@@ -127,7 +128,7 @@ fun ServicioFormScreen(onBack: () -> Unit, onGuardado: (String) -> Unit, viewMod
 }
 
 @Composable
-fun ServicioFormContent(state: ServicioFormUiState, acciones: AccionesServicioForm, snackbar: SnackbarHostState = remember { SnackbarHostState() }) {
+fun ServicioFormContent(state: ServicioFormUiState, acciones: AccionesServicioForm, snackbar: ShalevAvisosState = rememberAvisos()) {
     BackHandler(enabled = state.hojaInsumos) { acciones.onMostrarInsumos(false) }
     val atras = rememberSalidaProtegida(state.sinGuardar && !state.hojaInsumos, acciones.onBack)
     Scaffold(
