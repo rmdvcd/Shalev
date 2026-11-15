@@ -203,7 +203,7 @@ internal fun ChecklistPermisosIniciales(
     onTerminar: () -> Unit,
     onOmitir: () -> Unit,
 ) {
-    var check by rememberSaveable(saver = ChecklistPermisos.saver(items)) { mutableStateOf(ChecklistPermisos.inicial(items, yaConcedido)) }
+    var check by rememberSaveable(stateSaver = ChecklistPermisos.saver(items)) { mutableStateOf(ChecklistPermisos.inicial(items, yaConcedido)) }
     var enCurso by rememberSaveable { mutableStateOf(false) }
     val terminar by rememberUpdatedState(onTerminar)
     val lanzador = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { concedido ->
