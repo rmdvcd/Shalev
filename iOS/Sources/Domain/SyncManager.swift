@@ -8,6 +8,11 @@ private struct SyncPairingOffer {
     var privateKey: P256.KeyAgreement.PrivateKey
 }
 
+private struct SyncBaseFileRecord {
+    var url: URL
+    var sha256: String
+}
+
 @MainActor
 final class SyncManager: ObservableObject {
     @Published private(set) var role: SyncRole
@@ -35,6 +40,9 @@ final class SyncManager: ObservableObject {
     private var requestInFlight = false
     private var requestID: Int64 = 0
     private var commandResults: [Int64: [String: (value: Int64?, error: String?)]] = [:]
+    private var outgoingBaseFiles: [String: SyncBaseFileRecord] = [:]
+    private var lastOutgoingBaseCleanup: Date?
+    private var importingBase = false
     private var startingListener = false
     private var incomingConnections = 0
 
@@ -187,6 +195,7 @@ final class SyncManager: ObservableObject {
         employee.syncActive = false; employee.codeExpiresAt = nil
         pairingOffers.removeValue(forKey: employeeID)
         try store.saveLinkedApp(employee)
+        if let requestID = employee.importRequestID { discardOutgoingBase(employeeID: employeeID, requestID: requestID) }
         // Se conserva la clave para que el próximo saludo reciba un «quitada» autenticado.
         if let session = serverSessions.removeValue(forKey: employeeID) {
             try? await session.send(SyncJSON.message("quitada")); await session.close()
@@ -207,6 +216,19 @@ final class SyncManager: ObservableObject {
         notifyCatalogChanged()
     }
 
+    func resolveImportRequest(employeeID: Int64, requestID: String, authorize: Bool) throws {
+        guard !isSecondary, Self.validImportRequestID(requestID),
+              var employee = store.linkedApps.first(where: { $0.syncID == employeeID && $0.syncActive }),
+              employee.importRequestID == requestID,
+              SyncImportRequestState(serverValue: employee.importRequestState) == .pending else {
+            throw SyncError.permission
+        }
+        employee.importRequestState = authorize ? SyncImportRequestState.authorized.rawValue : SyncImportRequestState.rejected.rawValue
+        try store.saveLinkedApp(employee)
+        if !authorize { discardOutgoingBase(employeeID: employeeID, requestID: requestID) }
+        notifyCatalogChanged()
+    }
+
     func requestSecondaryClose() async throws {
         guard isSecondary, var link else { throw SyncError.permission }
         link.closeRequested = true
@@ -224,8 +246,11 @@ final class SyncManager: ObservableObject {
 
     // MARK: - Vinculación de esta app como secundaria
 
-    func linkSecondary(qr: String, phone: String?) async throws {
-        guard !isSecondary else { throw SyncError.permission }
+    func linkSecondary(qr: String, phone: String?, initialOptIn: Bool = false,
+                       backupExportedAt: Date? = nil) async throws {
+        guard role == .principal, !isSecondary else { throw SyncError.permission }
+        let eligibleInitialLink = initialOptIn && linkedApps.isEmpty
+        guard backupExportedAt != nil || eligibleInitialLink else { throw SyncError.backupRequired }
         let code = try SyncPairingCode.decode(qr, requireCurrent: true)
         isBusy = true; status = "Vinculando…"; lastError = nil
         defer { isBusy = false }
@@ -251,15 +276,21 @@ final class SyncManager: ObservableObject {
             let key = try SyncCrypto.employeeKey(privateKey: privateKey, peerSPKI: principalPublic, token: code.token)
             await socket.cancel()
             listener?.cancel(); listener = nil; isListening = false
-            configuration.role = .secondary
-            configuration.employeeKeys.removeAll()
-            configuration.link = SyncLink(businessID: code.businessID,
+            for session in serverSessions.values { await session.close() }
+            serverSessions.removeAll(); connectedEmployeeIDs.removeAll()
+            try store.resetForSecondary(employeeName: code.employeeName)
+            var next = configuration
+            next.role = .secondary
+            next.employeeKeys.removeAll()
+            next.link = SyncLink(businessID: code.businessID,
                 businessName: AndroidBackupCodec.string(response["nombreNegocio"], default: code.businessName),
                 employeeID: code.employeeID, employeeName: code.employeeName, key: key, hosts: code.hosts, port: code.port,
                 phone: phone?.trimmingCharacters(in: .whitespacesAndNewlines))
+            try secureStore.save(next)
+            configuration = next
             role = .secondary
-            try persist()
-            try store.resetForSecondary(employeeName: code.employeeName)
+            objectWillChange.send()
+            discardAllOutgoingBaseFiles()
             store.requiresClosingApproval = true; store.allowsSaleCorrections = false; store.allowsRemoteSaleCorrections = false
             status = "Vinculada; recibiendo catálogo…"
             _ = try await synchronize()
@@ -272,17 +303,112 @@ final class SyncManager: ObservableObject {
 
     func unlinkSecondary() async throws {
         guard isSecondary else { return }
+        let oldRequestID = configuration.link?.importRequestID
+        try await becomePrincipal(resetData: true, discardedRequestID: oldRequestID)
+    }
+
+    private func becomePrincipal(resetData: Bool, discardedRequestID: String? = nil) async throws {
         syncTask?.cancel()
         if let clientSession { await clientSession.close() }
         clientSession = nil
         maintenanceTask?.cancel(); maintenanceTask = nil
-        configuration.role = .principal; configuration.link = nil; configuration.employeeKeys.removeAll()
+        if resetData { try store.resetAfterUnlink() }
+
+        var next = configuration
+        next.businessID = try Self.newBusinessID()
+        next.role = .principal
+        next.link = nil
+        next.employeeKeys.removeAll()
+        try secureStore.save(next)
+        configuration = next
         role = .principal
-        try persist()
-        try store.resetAfterUnlink()
+        objectWillChange.send()
+        if let discardedRequestID { discardIncomingBase(requestID: discardedRequestID) }
         store.requiresClosingApproval = false; store.allowsSaleCorrections = true; store.allowsRemoteSaleCorrections = true
-        status = "App principal"; catalogChanged = false
+        status = "App principal"; lastError = nil; catalogChanged = false
         try await startPrincipal()
+    }
+
+    func requestBaseImport() async throws {
+        guard isSecondary, var link else { throw SyncError.permission }
+        let state = link.importState
+        guard state != .incompatible, state != .authorized, state != .consumed else {
+            throw SyncError.remote(state.userMessage ?? "No se puede crear otra solicitud ahora.")
+        }
+        let previousRequestID = link.importRequestID
+        let requestID: String
+        if state == .pending || state == .pendingSend {
+            guard let existing = link.importRequestID, Self.validImportRequestID(existing) else { throw SyncError.invalidMessage }
+            requestID = existing
+        } else {
+            requestID = UUID().uuidString.lowercased()
+            link.baseImportedLocally = false
+        }
+        link.importRequestID = requestID
+        link.importRequestState = SyncImportRequestState.pendingSend.rawValue
+        configuration.link = link
+        try persist()
+        if let previousRequestID, previousRequestID != requestID { discardIncomingBase(requestID: previousRequestID) }
+        _ = try await synchronize()
+    }
+
+    func importPrincipalBase() async throws {
+        guard !importingBase else { throw SyncError.remote("Ya hay una importación en curso.") }
+        importingBase = true
+        defer { importingBase = false }
+        guard isSecondary, var link, let requestID = link.importRequestID,
+              Self.validImportRequestID(requestID) else { throw SyncError.permission }
+        var state = link.importState
+        guard state == .authorized || state == .consumed else {
+            throw SyncError.remote(state.userMessage ?? "La importación no está autorizada.")
+        }
+
+        if !link.hasImportedBaseLocally {
+            let downloaded = isCompleteIncomingBase(requestID: requestID)
+            let hasPendingOperations = pendingCount > 0
+            if hasPendingOperations || (state == .authorized && !downloaded) {
+                _ = try await synchronize()
+                if hasPendingOperations { discardIncomingBase(requestID: requestID) }
+                guard pendingCount == 0 else {
+                    throw SyncError.remote("Quedan operaciones locales por enviar. Sincroniza con la principal antes de reemplazar esta base.")
+                }
+                guard let refreshed = configuration.link,
+                      refreshed.importRequestID == requestID else { throw SyncError.permission }
+                link = refreshed
+                state = link.importState
+                guard state == .authorized || state == .consumed else {
+                    throw SyncError.remote(state.userMessage ?? "La autorización ya no está disponible.")
+                }
+            }
+        }
+
+        isBusy = true
+        status = link.hasImportedBaseLocally ? "Finalizando cambio a principal…" : "Descargando la base autorizada…"
+        defer { isBusy = false }
+
+        if !link.hasImportedBaseLocally {
+            if state == .consumed && !isCompleteIncomingBase(requestID: requestID) {
+                throw SyncError.permission
+            }
+            let backupURL = try await downloadIncomingBase(requestID: requestID)
+            let backup = try Data(contentsOf: backupURL, options: [.mappedIfSafe])
+            try store.restoreEncryptedBackup(backup, password: "")
+            guard var updated = configuration.link, updated.importRequestID == requestID else { throw SyncError.permission }
+            updated.baseImportedLocally = true
+            configuration.link = updated
+            try persist()
+            link = updated
+        }
+
+        state = link.importState
+        if state == .authorized {
+            guard try await confirmBaseImport(requestID: requestID) else {
+                throw SyncError.remote("La autorización ya no está disponible. Solicita otra autorización o empieza con una base nueva.")
+            }
+        } else if state != .consumed {
+            throw SyncError.permission
+        }
+        try await becomePrincipal(resetData: false, discardedRequestID: requestID)
     }
 
     private func removedByPrincipal() async throws {
@@ -337,6 +463,7 @@ final class SyncManager: ObservableObject {
                 "solicitaCierre": link.closeRequested, "versionCode": 1])
             if let hash = link.catalogHash { message["hash"] = hash }
             if let phone = link.phone { message["telefono"] = phone }
+            if let requestID = link.importRequestID { message["solicitudImportacionId"] = requestID }
             let response = try await clientRequest(message, expected: "sync_ok")
             guard store.activeLocationName == synchronizationLocation else {
                 throw SyncError.remote("Se cambió el local durante la sincronización. Inténtalo de nuevo.")
@@ -363,6 +490,15 @@ final class SyncManager: ObservableObject {
                     SyncPhotoRef(entity: AndroidBackupCodec.string($0["entidad"]), id: AndroidBackupCodec.int64($0["id"]),
                         name: AndroidBackupCodec.string($0["nombre"]), bytes: AndroidBackupCodec.int64($0["bytes"]))
                 }
+            }
+            let answeredRequestID = AndroidBackupCodec.optionalString(response["solicitudImportacionId"])
+            if let requestID = link.importRequestID {
+                link.importRequestState = answeredRequestID == requestID
+                    ? (AndroidBackupCodec.optionalString(response["estadoSolicitudImportacion"])
+                        ?? SyncImportRequestState.incompatible.rawValue)
+                    : SyncImportRequestState.incompatible.rawValue
+            } else {
+                link.importRequestState = SyncImportRequestState.none.rawValue
             }
             link.catalogHash = AndroidBackupCodec.optionalString(response["hash"]) ?? link.catalogHash
             link.lastSync = Date()
@@ -442,6 +578,328 @@ final class SyncManager: ObservableObject {
             throw error
         }
     }
+
+    private func serveBaseBlock(_ request: [String: Any], employeeID: Int64) async -> [String: Any] {
+        let messageID = AndroidBackupCodec.int64(request["id"])
+        let requestID = AndroidBackupCodec.string(request["solicitudId"])
+        let offset = AndroidBackupCodec.int64(request["desde"])
+        guard Self.validImportRequestID(requestID), offset >= 0,
+              let employee = store.linkedApps.first(where: { $0.syncID == employeeID && $0.syncActive }),
+              employee.importRequestID == requestID,
+              SyncImportRequestState(serverValue: employee.importRequestState) == .authorized else {
+            return baseBlockError(messageID, requestID, offset, "no_autorizada")
+        }
+        do {
+            let record = try prepareOutgoingBase(employeeID: employeeID, requestID: requestID)
+            let total = try fileSize(record.url)
+            guard total > 0, total <= Self.maximumBaseBytes, offset <= total else {
+                return baseBlockError(messageID, requestID, offset, "no_disponible")
+            }
+            let bytes: Data
+            if offset == total {
+                bytes = Data()
+            } else {
+                let file = try FileHandle(forReadingFrom: record.url)
+                defer { try? file.close() }
+                try file.seek(toOffset: UInt64(offset))
+                bytes = try file.read(upToCount: Int(min(Int64(Self.baseChunkBytes), total - offset))) ?? Data()
+                guard !bytes.isEmpty else { return baseBlockError(messageID, requestID, offset, "no_disponible") }
+            }
+            return SyncJSON.message("base_bloque", ["id": messageID, "solicitudId": requestID, "desde": offset,
+                "datos": bytes.base64EncodedString(), "total": total, "sha256": record.sha256])
+        } catch {
+            return baseBlockError(messageID, requestID, offset, "no_disponible")
+        }
+    }
+
+    private func confirmBaseOnPrincipal(_ request: [String: Any], employeeID: Int64) throws -> [String: Any] {
+        let messageID = AndroidBackupCodec.int64(request["id"])
+        let requestID = AndroidBackupCodec.string(request["solicitudId"])
+        guard Self.validImportRequestID(requestID),
+              var employee = store.linkedApps.first(where: { $0.syncID == employeeID && $0.syncActive }),
+              employee.importRequestID == requestID else {
+            return SyncJSON.message("base_confirmada", ["id": messageID, "confirmada": false])
+        }
+        let state = SyncImportRequestState(serverValue: employee.importRequestState)
+        if state == .authorized {
+            employee.importRequestState = SyncImportRequestState.consumed.rawValue
+            try store.saveLinkedApp(employee)
+            discardOutgoingBase(employeeID: employeeID, requestID: requestID)
+        } else if state != .consumed {
+            return SyncJSON.message("base_confirmada", ["id": messageID, "confirmada": false])
+        }
+        return SyncJSON.message("base_confirmada", ["id": messageID, "confirmada": true])
+    }
+
+    private func confirmBaseImport(requestID: String) async throws -> Bool {
+        let id = nextID()
+        let response = try await clientRequest(SyncJSON.message("base_confirmar", ["id": id, "solicitudId": requestID]),
+            expected: "base_confirmada")
+        guard AndroidBackupCodec.int64(response["id"]) == id else { throw SyncError.invalidMessage }
+        return AndroidBackupCodec.bool(response["confirmada"])
+    }
+
+    private func downloadIncomingBase(requestID: String) async throws -> URL {
+        guard Self.validImportRequestID(requestID) else { throw SyncError.invalidMessage }
+        let (destination, marker) = try baseFileURLs(folder: Self.incomingBaseFolder, requestID: requestID)
+        if isCompleteIncomingBase(requestID: requestID) { return destination }
+        let fileManager = FileManager.default
+        if !fileManager.fileExists(atPath: destination.path) {
+            guard fileManager.createFile(atPath: destination.path, contents: nil) else { throw SyncError.storage }
+        }
+        var offset = (try? fileSize(destination)) ?? 0
+        if offset < 0 || offset > Self.maximumBaseBytes {
+            try discardBaseFiles(destination: destination, marker: marker)
+            guard fileManager.createFile(atPath: destination.path, contents: nil) else { throw SyncError.storage }
+            offset = 0
+        }
+        var expectedTotal: Int64 = -1
+        var expectedSHA: String?
+        var response = try await requestBaseBlock(requestID: requestID, offset: offset)
+
+        while true {
+            try validateBaseBlock(response, requestID: requestID, expectedOffset: offset)
+            var total = AndroidBackupCodec.int64(response["total"])
+            var sha = AndroidBackupCodec.optionalString(response["sha256"])?.lowercased() ?? ""
+            guard total > 0, total <= Self.maximumBaseBytes, Self.validBaseHash(sha) else {
+                throw SyncError.remote("La copia recibida no tiene un tamaño o una huella válidos.")
+            }
+            if expectedTotal < 0 {
+                expectedTotal = total
+                expectedSHA = sha
+                let previous = readBaseMetadata(marker)
+                let metadataMatches = previous?.requestID == requestID && previous?.total == total && previous?.sha256 == sha
+                if offset > total || (offset > 0 && !metadataMatches) {
+                    let file = try FileHandle(forUpdating: destination)
+                    try file.truncate(atOffset: 0)
+                    try file.close()
+                    offset = 0
+                    try writeBaseMetadata(marker, requestID: requestID, total: total, sha256: sha)
+                    response = try await requestBaseBlock(requestID: requestID, offset: 0)
+                    try validateBaseBlock(response, requestID: requestID, expectedOffset: 0)
+                    let restartedTotal = AndroidBackupCodec.int64(response["total"])
+                    let restartedSHA = AndroidBackupCodec.optionalString(response["sha256"])?.lowercased() ?? ""
+                    guard restartedTotal == total, restartedSHA == sha else {
+                        throw SyncError.remote("La copia cambió durante la descarga.")
+                    }
+                } else {
+                    try writeBaseMetadata(marker, requestID: requestID, total: total, sha256: sha)
+                }
+            } else if total != expectedTotal || sha != expectedSHA {
+                throw SyncError.remote("La copia cambió durante la descarga.")
+            }
+
+            if offset == expectedTotal { break }
+            let encoded = AndroidBackupCodec.string(response["datos"])
+            guard let bytes = Data(base64Encoded: encoded), !bytes.isEmpty,
+                  bytes.count <= Self.baseChunkBytes,
+                  offset + Int64(bytes.count) <= expectedTotal else {
+                throw SyncError.remote("La copia recibida contiene un bloque inválido.")
+            }
+            let file = try FileHandle(forUpdating: destination)
+            try file.seek(toOffset: UInt64(offset))
+            try file.write(contentsOf: bytes)
+            try file.close()
+            offset += Int64(bytes.count)
+            response = try await requestBaseBlock(requestID: requestID, offset: offset)
+        }
+
+        guard try fileSize(destination) == expectedTotal,
+              try sha256File(destination) == expectedSHA else {
+            try discardBaseFiles(destination: destination, marker: marker)
+            throw SyncError.remote("La copia no pasó la verificación SHA-256.")
+        }
+        return destination
+    }
+
+    private func requestBaseBlock(requestID: String, offset: Int64) async throws -> [String: Any] {
+        guard let link, link.importRequestID == requestID,
+              link.importState == .authorized else { throw SyncError.permission }
+        let id = nextID()
+        let response = try await clientRequest(SyncJSON.message("base_pedir", [
+            "id": id, "solicitudId": requestID, "desde": offset
+        ]), expected: "base_bloque")
+        guard AndroidBackupCodec.int64(response["id"]) == id else { throw SyncError.invalidMessage }
+        return response
+    }
+
+    private func validateBaseBlock(_ response: [String: Any], requestID: String, expectedOffset: Int64) throws {
+        guard AndroidBackupCodec.string(response["solicitudId"]) == requestID,
+              AndroidBackupCodec.int64(response["desde"]) == expectedOffset else { throw SyncError.invalidMessage }
+        if let error = AndroidBackupCodec.optionalString(response["error"]) {
+            if error == "no_autorizada" {
+                throw SyncError.remote("La autorización ya no está disponible. Solicita otra autorización o empieza con una base nueva.")
+            }
+            throw SyncError.remote("La copia autorizada ya no está disponible. Pide una nueva autorización.")
+        }
+    }
+
+    private func isCompleteIncomingBase(requestID: String) -> Bool {
+        guard let (file, marker) = try? baseFileURLs(folder: Self.incomingBaseFolder, requestID: requestID),
+              let metadata = readBaseMetadata(marker), metadata.requestID == requestID,
+              let size = try? fileSize(file), size == metadata.total, size > 0, size <= Self.maximumBaseBytes,
+              let hash = try? sha256File(file) else { return false }
+        return hash == metadata.sha256
+    }
+
+    private func prepareOutgoingBase(employeeID: Int64, requestID: String) throws -> SyncBaseFileRecord {
+        guard Self.validImportRequestID(requestID),
+              let employee = store.linkedApps.first(where: { $0.syncID == employeeID && $0.syncActive }),
+              employee.importRequestID == requestID,
+              SyncImportRequestState(serverValue: employee.importRequestState) == .authorized else {
+            throw SyncError.permission
+        }
+        cleanExpiredOutgoingBaseFiles()
+        let key = "\(employeeID):\(requestID)"
+        let (destination, marker) = try baseFileURLs(folder: Self.outgoingBaseFolder, requestID: requestID, employeeID: employeeID)
+        if let cached = outgoingBaseFiles[key],
+           let size = try? fileSize(cached.url), size > 0, size <= Self.maximumBaseBytes,
+           let modification = try? FileManager.default.attributesOfItem(atPath: cached.url.path)[.modificationDate] as? Date,
+           modification >= Date().addingTimeInterval(-Self.baseCacheLifetime) {
+            return cached
+        }
+        outgoingBaseFiles.removeValue(forKey: key)
+        if let metadata = readBaseMetadata(marker), metadata.requestID == requestID,
+           let size = try? fileSize(destination), size == metadata.total, size > 0, size <= Self.maximumBaseBytes,
+           let modification = try? FileManager.default.attributesOfItem(atPath: destination.path)[.modificationDate] as? Date,
+           modification >= Date().addingTimeInterval(-Self.baseCacheLifetime),
+           let actualHash = try? sha256File(destination), actualHash == metadata.sha256 {
+            let record = SyncBaseFileRecord(url: destination, sha256: actualHash)
+            outgoingBaseFiles[key] = record
+            return record
+        }
+
+        let fileManager = FileManager.default
+        try? fileManager.removeItem(at: destination)
+        try? fileManager.removeItem(at: marker)
+        let temporary = destination.appendingPathExtension("tmp")
+        try? fileManager.removeItem(at: temporary)
+        // El respaldo interno omite la licencia. La clave integrada del formato passwordless está ofuscada, no es
+        // confidencial frente a quien inspeccione la app; la sesión autenticada AES-GCM protege el transporte.
+        var backup = try AndroidBackupCodec.encode(store.data, password: "")
+        defer { if !backup.isEmpty { backup.resetBytes(in: 0..<backup.count) } }
+        guard !backup.isEmpty, backup.count <= Self.maximumBaseBytes else { throw SyncError.storage }
+        try backup.write(to: temporary, options: .atomic)
+        let hash = try sha256File(temporary)
+        try fileManager.moveItem(at: temporary, to: destination)
+        try writeBaseMetadata(marker, requestID: requestID, total: Int64(backup.count), sha256: hash)
+        let record = SyncBaseFileRecord(url: destination, sha256: hash)
+        outgoingBaseFiles[key] = record
+        return record
+    }
+
+    private func baseBlockError(_ id: Int64, _ requestID: String, _ offset: Int64, _ error: String) -> [String: Any] {
+        SyncJSON.message("base_bloque", ["id": id, "solicitudId": requestID, "desde": max(0, offset), "error": error])
+    }
+
+    private func discardOutgoingBase(employeeID: Int64, requestID: String) {
+        let key = "\(employeeID):\(requestID)"
+        outgoingBaseFiles.removeValue(forKey: key)
+        guard let (file, marker) = try? baseFileURLs(folder: Self.outgoingBaseFolder, requestID: requestID, employeeID: employeeID) else { return }
+        try? discardBaseFiles(destination: file, marker: marker)
+    }
+
+    private func discardAllOutgoingBaseFiles() {
+        outgoingBaseFiles.removeAll()
+        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        try? FileManager.default.removeItem(at: caches.appendingPathComponent(Self.outgoingBaseFolder, isDirectory: true))
+    }
+
+    private func cleanExpiredOutgoingBaseFiles(now: Date = Date()) {
+        if let lastOutgoingBaseCleanup, now.timeIntervalSince(lastOutgoingBaseCleanup) < 60 * 60 { return }
+        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        lastOutgoingBaseCleanup = now
+        let directory = caches.appendingPathComponent(Self.outgoingBaseFolder, isDirectory: true)
+        guard let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey]) else { return }
+        let expiration = now.addingTimeInterval(-Self.baseCacheLifetime)
+        for file in files {
+            guard let attributes = try? FileManager.default.attributesOfItem(atPath: file.path),
+                  let modified = attributes[.modificationDate] as? Date else { continue }
+            if modified < expiration { try? FileManager.default.removeItem(at: file) }
+        }
+        outgoingBaseFiles = outgoingBaseFiles.filter { entry in
+            guard let attributes = try? FileManager.default.attributesOfItem(atPath: entry.value.url.path),
+                  let modified = attributes[.modificationDate] as? Date else { return false }
+            return modified >= expiration
+        }
+    }
+
+    private func discardIncomingBase(requestID: String) {
+        guard let (file, marker) = try? baseFileURLs(folder: Self.incomingBaseFolder, requestID: requestID) else { return }
+        try? discardBaseFiles(destination: file, marker: marker)
+    }
+
+    private func baseFileURLs(folder: String, requestID: String, employeeID: Int64? = nil) throws -> (URL, URL) {
+        guard Self.validImportRequestID(requestID),
+              let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { throw SyncError.storage }
+        let directory = caches.appendingPathComponent(folder, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let digest = SHA256.hash(data: Data(requestID.utf8)).map { String(format: "%02x", $0) }.joined()
+        let stem = (employeeID.map { "\($0)_" } ?? "") + String(digest.prefix(24))
+        return (directory.appendingPathComponent("\(stem).shalev"), directory.appendingPathComponent("\(stem).meta"))
+    }
+
+    private func discardBaseFiles(destination: URL, marker: URL) throws {
+        try? FileManager.default.removeItem(at: destination)
+        try? FileManager.default.removeItem(at: marker)
+        try? FileManager.default.removeItem(at: destination.appendingPathExtension("tmp"))
+    }
+
+    private func fileSize(_ file: URL) throws -> Int64 {
+        let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+        guard let size = attributes[.size] as? NSNumber else { throw SyncError.storage }
+        return size.int64Value
+    }
+
+    private func readBaseMetadata(_ file: URL) -> (requestID: String, total: Int64, sha256: String)? {
+        guard let raw = try? String(contentsOf: file, encoding: .utf8) else { return nil }
+        let fields = raw.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard fields.count == 3, Self.validImportRequestID(fields[0]),
+              let total = Int64(fields[1]), Self.validBaseHash(fields[2]) else { return nil }
+        return (fields[0], total, fields[2])
+    }
+
+    private func writeBaseMetadata(_ file: URL, requestID: String, total: Int64, sha256: String) throws {
+        try "\(requestID)\n\(total)\n\(sha256)".write(to: file, atomically: true, encoding: .utf8)
+    }
+
+    private func sha256File(_ file: URL) throws -> String {
+        guard let stream = InputStream(url: file) else { throw SyncError.storage }
+        stream.open()
+        defer { stream.close() }
+        var hasher = SHA256()
+        var buffer = [UInt8](repeating: 0, count: 64 * 1_024)
+        while true {
+            let count = buffer.withUnsafeMutableBufferPointer { pointer in
+                stream.read(pointer.baseAddress!, maxLength: pointer.count)
+            }
+            if count < 0 { throw SyncError.storage }
+            if count == 0 { break }
+            hasher.update(data: Data(buffer[0..<count]))
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func validBaseHash(_ value: String) -> Bool {
+        value.count == 64 && value.allSatisfy { $0.isHexDigit }
+    }
+
+    private static func validImportRequestID(_ value: String) -> Bool {
+        importRequestIDPattern.firstMatch(in: value, range: NSRange(value.startIndex..., in: value)) != nil
+    }
+
+    private static func newBusinessID() throws -> String {
+        try SyncCrypto.random(12).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static let importRequestIDPattern = try! NSRegularExpression(
+        pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    )
+    private static let baseChunkBytes = 48 * 1_024
+    private static let maximumBaseBytes: Int64 = 128 * 1_024 * 1_024 + 256
+    private static let baseCacheLifetime: TimeInterval = 24 * 60 * 60
+    private static let incomingBaseFolder = "importacion_principal_entrante"
+    private static let outgoingBaseFolder = "importacion_principal_saliente"
 
     private func startMaintenance() {
         guard isSecondary, maintenanceTask == nil else { return }
@@ -631,6 +1089,8 @@ final class SyncManager: ObservableObject {
                 case "ping": try await session.send(SyncJSON.message("pong", ["id": AndroidBackupCodec.int64(pending["id"])]))
                 case "cmd": try await session.send(try respondToCommand(pending, employeeID: employeeID))
                 case "foto_pedir": try await session.send(photoBlock(pending))
+                case "base_pedir": try await session.send(await serveBaseBlock(pending, employeeID: employeeID))
+                case "base_confirmar": try await session.send(try confirmBaseOnPrincipal(pending, employeeID: employeeID))
                 case "apk_pedir": try await session.send(SyncJSON.message("apk_bloque", ["id": AndroidBackupCodec.int64(pending["id"]),
                     "desde": AndroidBackupCodec.int64(pending["desde"]), "datos": "", "total": 0, "error": "no_encontrado"]))
                 default: throw SyncError.invalidMessage
@@ -655,8 +1115,15 @@ final class SyncManager: ObservableObject {
         var next = SyncCatalog.acknowledgeChanges(acknowledged, employeeID: employeeID, in: store.data)
         let applied = try SyncCatalog.applyBatch(batch, employeeID: employeeID, to: next)
         next = applied.app
+        var obsoleteImportRequestID: String?
         if let index = (next.employees ?? []).firstIndex(where: { $0.syncID == employeeID }) {
             next.employees?[index].lastSyncAt = Date()
+            if let incoming = AndroidBackupCodec.optionalString(message["solicitudImportacionId"]),
+               Self.validImportRequestID(incoming), next.employees?[index].importRequestID != incoming {
+                obsoleteImportRequestID = next.employees?[index].importRequestID
+                next.employees?[index].importRequestID = incoming
+                next.employees?[index].importRequestState = SyncImportRequestState.pending.rawValue
+            }
             if let phone = AndroidBackupCodec.optionalString(message["telefono"]) { next.employees?[index].phone = phone }
             if AndroidBackupCodec.bool(message["solicitaCierre"]) {
                 if next.employees?[index].employeeCloseRequestAt == nil { next.employees?[index].employeeCloseRequestAt = Date() }
@@ -669,6 +1136,9 @@ final class SyncManager: ObservableObject {
             if rejectionPending { next.employees?[index].employeeCloseRequestAt = nil }
         }
         try store.replaceDataForSync(next)
+        if let obsoleteImportRequestID, Self.validImportRequestID(obsoleteImportRequestID) {
+            discardOutgoingBase(employeeID: employeeID, requestID: obsoleteImportRequestID)
+        }
         guard let current = store.linkedApps.first(where: { $0.syncID == employeeID }) else { throw SyncError.invalidMessage }
         var license = SyncLicense.from(licenseManager.state, trialExpiresAt: licenseManager.trialExpirationForSync)
         let activeApps = store.linkedApps.filter(\.syncActive).sorted {
@@ -689,6 +1159,11 @@ final class SyncManager: ObservableObject {
         let open = store.activeShifts.first(where: { $0.employeeID == employeeID && $0.closedAt == nil })
         response["cerrarTurno"] = current.closeRequestedAt != nil && open != nil
         response["cierreRechazado"] = rejectionPending
+        if let requestID = AndroidBackupCodec.optionalString(message["solicitudImportacionId"]),
+           Self.validImportRequestID(requestID), current.importRequestID == requestID {
+            response["solicitudImportacionId"] = requestID
+            response["estadoSolicitudImportacion"] = current.importRequestState ?? SyncImportRequestState.pending.rawValue
+        }
         if let approvedOpen = store.activeShifts.first(where: {
             $0.employeeID == employeeID && $0.closedAt == nil && $0.closingCount?.approvedAt != nil
         }) {

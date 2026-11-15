@@ -7,10 +7,18 @@ import UIKit
 /// lista de secundarias con su estado y botón flotante para agregar.
 struct SyncView: View {
     @ObservedObject var sync: SyncManager
+    var allowInitialSecondary = false
+    var lockedMode = false
+    var onInitialSecondaryLinked: () -> Void = {}
+    @AppStorage("shalev.backup.exportedAt") private var backupExportedAt = 0.0
     @State private var adding = false
     @State private var linking = false
+    @State private var showBackup = false
+    @State private var showBackupRequired = false
     @State private var confirmLink = false
     @State private var confirmUnlink = false
+    @State private var showRoleOptions = false
+    @State private var confirmImport = false
     @State private var errorMessage: String?
 
     private var activeEmployees: [LocalEmployee] {
@@ -20,6 +28,53 @@ struct SyncView: View {
     private var allowedPermissions: [EmployeePermission] {
         let allowed = sync.permissions(sync.link?.permissions ?? [])
         return EmployeePermission.allCases.filter { allowed.contains($0) }
+    }
+
+    private var initialSecondaryEligible: Bool {
+        allowInitialSecondary && sync.linkedApps.isEmpty
+    }
+
+    private var currentImportState: SyncImportRequestState { sync.link?.importState ?? .none }
+
+    private var importActionTitle: String {
+        switch sync.link?.importState ?? .none {
+        case .authorized, .consumed: "Importar base autorizada"
+        case .pending, .pendingSend: "Consultar autorización"
+        case .rejected, .none: "Solicitar importar la base"
+        case .incompatible: "Actualizar la app principal"
+        }
+    }
+
+    private func requestSecondaryConversion() {
+        guard backupExportedAt > 0 || initialSecondaryEligible else {
+            showBackupRequired = true
+            return
+        }
+        confirmLink = true
+    }
+
+    private func runImportAction() {
+        guard !sync.isBusy else { return }
+        let state = currentImportState
+        if state == .authorized || state == .consumed {
+            confirmImport = true
+            return
+        }
+        performImportAction(for: state)
+    }
+
+    private func performImportAction(for state: SyncImportRequestState) {
+        guard !sync.isBusy else { return }
+        Task {
+            do {
+                switch state {
+                case .authorized, .consumed: try await sync.importPrincipalBase()
+                case .pending, .pendingSend: _ = try await sync.synchronize()
+                case .none, .rejected: try await sync.requestBaseImport()
+                case .incompatible: errorMessage = state.userMessage
+                }
+            } catch { errorMessage = error.localizedDescription }
+        }
     }
 
     var body: some View {
@@ -55,9 +110,17 @@ struct SyncView: View {
         }
         .sheet(isPresented: $linking) {
             SyncLinkScanner { text in
-                do { try await sync.linkSecondary(qr: text, phone: nil); linking = false }
-                catch { errorMessage = error.localizedDescription }
+                do {
+                    let exportedAt = backupExportedAt > 0 ? Date(timeIntervalSince1970: backupExportedAt) : nil
+                    try await sync.linkSecondary(qr: text, phone: nil, initialOptIn: allowInitialSecondary,
+                        backupExportedAt: exportedAt)
+                    linking = false
+                    onInitialSecondaryLinked()
+                } catch { errorMessage = error.localizedDescription }
             }
+        }
+        .sheet(isPresented: $showBackup) {
+            NavigationStack { BackupSettingsView(store: sync.store) }
         }
         .alert("¿Convertir esta app en secundaria?", isPresented: $confirmLink) {
             Button("Cancelar", role: .cancel) {}
@@ -65,12 +128,33 @@ struct SyncView: View {
         } message: {
             Text("Después de escanear el QR se borrarán los datos locales y esta app conservará solo el catálogo recibido y sus propias operaciones.")
         }
-        .alert("¿Desvincular esta app?", isPresented: $confirmUnlink) {
+        .alert("Antes de cambiar a secundaria", isPresented: $showBackupRequired) {
             Button("Cancelar", role: .cancel) {}
-            Button("Borrar datos y desvincular", role: .destructive) {
+            Button("Crear respaldo") { showBackup = true }
+        } message: {
+            Text("Exporta un respaldo de este teléfono antes de vincularlo como secundaria. El primer vínculo sin respaldo solo se permite desde la configuración inicial, en una instalación sin apps vinculadas.")
+        }
+        .alert(lockedMode ? "¿Desvincular y empezar desde cero?" : "¿Empezar con una base nueva?", isPresented: $confirmUnlink) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Borrar datos y empezar", role: .destructive) {
                 Task { do { try await sync.unlinkSecondary() } catch { errorMessage = error.localizedDescription } }
             }
-        } message: { Text("Se borrarán el catálogo y las operaciones locales de esta secundaria.") }
+        } message: {
+            Text("Se borrarán el catálogo y las operaciones locales de esta secundaria. No se puede deshacer.")
+        }
+        .confirmationDialog("Cambiar a app principal", isPresented: $showRoleOptions, titleVisibility: .visible) {
+            Button("Empezar con una base nueva", role: .destructive) { confirmUnlink = true }
+            Button(importActionTitle) { runImportAction() }.disabled(currentImportState == .incompatible)
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Puedes empezar desde cero o solicitar permiso a la app principal para importar una copia completa. La importación reemplaza todos los datos de este teléfono.")
+        }
+        .confirmationDialog("¿Importar la base autorizada?", isPresented: $confirmImport, titleVisibility: .visible) {
+            Button("Reemplazar datos e importar", role: .destructive) { performImportAction(for: currentImportState) }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Se reemplazarán todos los datos locales por la copia de la app principal y esta app cambiará a principal. No se puede deshacer.")
+        }
         .alert("Sincronización", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Entendido", role: .cancel) {}
         } message: { Text(errorMessage ?? "") }
@@ -123,19 +207,65 @@ struct SyncView: View {
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
 
-        if activeEmployees.isEmpty {
-            Button {
-                confirmLink = true
-            } label: {
-                Label("Usar esta app como secundaria…", systemImage: "arrow.left.arrow.right")
-            }
-            .buttonStyle(ShalevTonalButtonStyle())
+        Text(initialSecondaryEligible
+            ? "Vinculación inicial: puedes continuar sin respaldo porque elegiste ser secundaria y aún no hay apps vinculadas."
+            : backupExportedAt > 0
+                ? "Antes de cambiar esta app a secundaria, conserva el respaldo exportado."
+                : "Antes de cambiar esta app a secundaria, exporta un respaldo de sus datos.")
+            .font(.shalev(12))
+            .foregroundStyle(Color.shalevSecondaryText)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+
+        Button(action: requestSecondaryConversion) {
+            Label("Usar esta app como secundaria…", systemImage: "arrow.left.arrow.right")
         }
+        .buttonStyle(ShalevTonalButtonStyle())
     }
 
     // MARK: - App secundaria
 
     @ViewBuilder private var secondaryContent: some View {
+        if lockedMode { lockedSecondaryContent }
+        else { normalSecondaryContent }
+    }
+
+    @ViewBuilder private var lockedSecondaryContent: some View {
+        ShalevCard {
+            VStack(spacing: 8) {
+                Image(systemName: "lock.slash")
+                    .font(.shalev(24, weight: .semibold))
+                    .foregroundStyle(Color.shalevError)
+                Text("Esta secundaria está bloqueada por la licencia de la app principal.")
+                    .font(.shalev(15, weight: .semibold))
+                    .foregroundStyle(Color.shalevText)
+                    .multilineTextAlignment(.center)
+                Text("Puedes volver a intentarlo más tarde o cambiar esta app a principal. Conserva la base autorizada o empieza desde cero.")
+                    .font(.shalev(13))
+                    .foregroundStyle(Color.shalevSecondaryText)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        networkCard(title: sync.status, detail: sync.lastError ?? "La licencia no impide conservar tus datos locales.",
+                    symbol: "wifi.slash")
+        if currentImportState != .none {
+            if currentImportState == .incompatible {
+                noticeCard(symbol: "externaldrive.badge.person.crop", title: "Importación de la base",
+                           detail: currentImportState.userMessage ?? "")
+            } else {
+                noticeCard(symbol: "externaldrive.badge.person.crop", title: "Importación de la base",
+                           detail: currentImportState.userMessage ?? "", actionTitle: importActionTitle) { runImportAction() }
+            }
+        }
+        Button { showRoleOptions = true } label: {
+            Label("Cambiar a app principal…", systemImage: "arrow.left.arrow.right")
+        }
+        .buttonStyle(ShalevTonalButtonStyle())
+        .disabled(sync.isBusy)
+    }
+
+    @ViewBuilder private var normalSecondaryContent: some View {
         ShalevCard {
             VStack(spacing: 4) {
                 Text("Secundaria de \(sync.link?.businessName ?? "tu negocio")")
@@ -203,6 +333,17 @@ struct SyncView: View {
             noticeCard(symbol: "xmark.circle", title: "La principal no aprobó la solicitud de cierre",
                        detail: "Puedes seguir vendiendo.", actionTitle: "Entendido") { sync.dismissCloseNotices() }
         }
+        let importState = sync.link?.importState ?? .none
+        if !lockedMode, importState != .none {
+            if importState == .incompatible {
+                noticeCard(symbol: "externaldrive.badge.person.crop", title: "Importación de la base",
+                           detail: importState.userMessage ?? "")
+            } else {
+                noticeCard(symbol: "externaldrive.badge.person.crop", title: "Importación de la base",
+                           detail: importState.userMessage ?? "", actionTitle: importActionTitle) { runImportAction() }
+            }
+        }
+
         if sync.link?.closeRequested == true {
             noticeCard(symbol: "clock", title: "Solicitud de cierre pendiente de aprobación",
                        detail: "La principal la verá al conectarse.")
@@ -222,9 +363,11 @@ struct SyncView: View {
             .frame(maxWidth: .infinity)
 
         Button {
-            confirmUnlink = true
+            if lockedMode { confirmUnlink = true }
+            else { showRoleOptions = true }
         } label: {
-            Label("Desvincular y borrar datos", systemImage: "iphone.slash")
+            Label(lockedMode ? "Desvincular y borrar datos" : "Cambiar a app principal…",
+                  systemImage: lockedMode ? "iphone.slash" : "arrow.left.arrow.right")
         }
         .buttonStyle(ShalevTonalButtonStyle())
         .disabled(sync.isBusy)
@@ -283,8 +426,10 @@ private struct SyncLinkedAppRow: View {
     @State private var editing = false
     @State private var showingQR = false
     @State private var confirmRemove = false
+    @State private var importDecision: Bool?
     @State private var errorMessage: String?
 
+    private var importState: SyncImportRequestState { SyncImportRequestState(serverValue: employee.importRequestState) }
     private var remoteShift: Shift? { sync.store.activeShifts.first(where: { $0.employeeID == employee.syncID && $0.closedAt == nil }) }
     private var isConnected: Bool { sync.connectedEmployeeIDs.contains(employee.syncID ?? 0) }
 
@@ -354,6 +499,24 @@ private struct SyncLinkedAppRow: View {
                     .foregroundStyle(Color.shalevError)
             }
 
+            if importState != .none {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(importState.userMessage ?? "Solicitud de importación")
+                        .font(.shalev(12))
+                        .foregroundStyle(importState == .rejected || importState == .incompatible ? Color.shalevError : Color.shalevSecondaryText)
+                    if importState == .pending, employee.importRequestID != nil {
+                        HStack(spacing: 14) {
+                            Button("Autorizar importación…") { importDecision = true }
+                            Button("Rechazar", role: .destructive) { importDecision = false }
+                        }
+                        .font(.shalev(12, weight: .semibold))
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.shalevPrimaryContainer.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
+            }
+
             HStack(spacing: 14) {
                 Button("QR") { showingQR = true }
                 Button("Permisos y cobro") { editing = true }
@@ -371,6 +534,22 @@ private struct SyncLinkedAppRow: View {
                 Task { do { try await sync.removeLinkedApp(employee.syncID ?? 0) } catch { errorMessage = error.localizedDescription } }
             }
         } message: { Text("La próxima conexión autenticada borrará los datos de esa secundaria.") }
+        .alert(importDecision == true ? "¿Autorizar la importación?" : "¿Rechazar la solicitud?",
+               isPresented: Binding(get: { importDecision != nil }, set: { if !$0 { importDecision = nil } })) {
+            Button("Cancelar", role: .cancel) { importDecision = nil }
+            Button(importDecision == true ? "Autorizar" : "Rechazar", role: importDecision == false ? .destructive : nil) {
+                guard let authorize = importDecision,
+                      let requestID = employee.importRequestID,
+                      let employeeID = employee.syncID else { importDecision = nil; return }
+                do { try sync.resolveImportRequest(employeeID: employeeID, requestID: requestID, authorize: authorize) }
+                catch { errorMessage = error.localizedDescription }
+                importDecision = nil
+            }
+        } message: {
+            Text(importDecision == true
+                ? "La app de \(employee.name) recibirá una copia cifrada de la base completa por la sesión autenticada. Sus datos locales serán reemplazados; las claves de acceso no se transfieren."
+                : "La app de \(employee.name) no podrá importar esta copia. Podrá volver a solicitar autorización.")
+        }
         .alert("Sincronización", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Entendido", role: .cancel) {}
         } message: { Text(errorMessage ?? "") }

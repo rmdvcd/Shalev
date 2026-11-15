@@ -3,6 +3,7 @@ package cu.shalev.app.vinculacion
 import cu.shalev.core.result.AppError
 import cu.shalev.domain.model.Empleado
 import cu.shalev.domain.model.EstadoConexion
+import cu.shalev.domain.model.EstadoSolicitudImportacion
 import cu.shalev.domain.model.PermisoEmpleado
 import cu.shalev.domain.model.TipoApp
 import java.time.Instant
@@ -43,6 +44,46 @@ class VinculacionLogicTest {
         assertEquals("La predeterminada (•••• 1111)", VinculacionLogic.predeterminada("•••• 1111"))
     }
 
+    @Test fun reglaDeRespaldoDeConversionNoSeMezclaConElVinculoInicial() {
+        val vinculacion = cu.shalev.domain.model.Vinculacion
+        assertTrue(vinculacion.necesitaRespaldoPrevio(
+            tieneRespaldoExportado = false, vinculacionInicial = false, tipo = TipoApp.PRINCIPAL,
+            eligioSecundaria = true, empleados = 0,
+        ))
+        assertTrue(vinculacion.necesitaRespaldoPrevio(
+            tieneRespaldoExportado = false, vinculacionInicial = false, tipo = TipoApp.PRINCIPAL,
+            eligioSecundaria = false, empleados = 2,
+        ))
+        assertTrue(vinculacion.necesitaRespaldoPrevio(
+            tieneRespaldoExportado = false, vinculacionInicial = true, tipo = TipoApp.PRINCIPAL,
+            eligioSecundaria = false, empleados = 0,
+        ))
+        assertFalse(vinculacion.necesitaRespaldoPrevio(
+            tieneRespaldoExportado = false, vinculacionInicial = true, tipo = TipoApp.PRINCIPAL,
+            eligioSecundaria = true, empleados = 0,
+        ))
+        assertTrue(vinculacion.necesitaRespaldoPrevio(
+            tieneRespaldoExportado = false, vinculacionInicial = true, tipo = TipoApp.SECUNDARIA,
+            eligioSecundaria = true, empleados = 0,
+        ))
+        assertFalse(vinculacion.necesitaRespaldoPrevio(
+            tieneRespaldoExportado = true, vinculacionInicial = false, tipo = TipoApp.PRINCIPAL,
+            eligioSecundaria = false, empleados = 2,
+        ))
+        assertTrue(vinculacion.puedeCambiarATipoSecundaria(TipoApp.PRINCIPAL))
+        assertFalse(vinculacion.puedeCambiarATipoSecundaria(TipoApp.SECUNDARIA))
+        assertTrue(vinculacion.puedeCambiarATipoPrincipal(TipoApp.SECUNDARIA))
+        assertFalse(vinculacion.puedeCambiarATipoPrincipal(TipoApp.PRINCIPAL))
+    }
+
+    @Test fun solicitudDeImportacionApareceEnLaFichaDeLaSecundaria() {
+        assertEquals(
+            "Solicita importar la base completa · requiere tu autorización",
+            VinculacionLogic.solicitudImportacion(EstadoSolicitudImportacion.PENDIENTE),
+        )
+        assertNull(VinculacionLogic.solicitudImportacion(EstadoSolicitudImportacion.CONSUMIDA))
+    }
+
     @Test fun aliasYNumeroDeTarjetaVanEnFilasSeparadas() {
         assertEquals("Cuenta principal\n•••• 1234", VinculacionLogic.etiquetaTarjeta("Cuenta principal", "•••• 1234"))
         assertEquals("•••• 1234", VinculacionLogic.etiquetaTarjeta(" ", "•••• 1234"))
@@ -61,6 +102,8 @@ class VinculacionLogicTest {
         assertEquals("Ya hay una app con ese nombre.", VinculacionLogic.errorNombre(AppError.Duplicado("nombre")))
         assertNull(VinculacionLogic.errorNombre(AppError.SinPermiso))
         assertTrue(VinculacionLogic.error(AppError.SinPermiso).contains("cubre tu licencia")) // 0.21.0 (C4)
+        assertTrue(VinculacionLogic.error(AppError.Validacion("importacion_no_autorizada")).contains("base nueva"))
+        assertTrue(VinculacionLogic.error(AppError.Validacion("pendientes_importacion")).contains("Sincroniza con la principal"))
         assertTrue(VinculacionLogic.error(AppError.SinPrincipal(2)).contains("2 envíos pendientes"))
     }
 }

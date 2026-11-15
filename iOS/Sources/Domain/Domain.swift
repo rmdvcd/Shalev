@@ -614,6 +614,9 @@ struct LocalEmployee: Codable, Identifiable, Equatable {
     var deviceID: String? = nil
     var closeRequestedAt: Date? = nil
     var employeeCloseRequestAt: Date? = nil
+    /// Petición de la secundaria para importar la base de este negocio; estado interno, nunca va en respaldos.
+    var importRequestID: String? = nil
+    var importRequestState: String? = nil
 
     var hasPIN: Bool { pinSalt?.count == EmployeePIN.saltLength && pinVerifier?.count == EmployeePIN.keyLength }
 }
@@ -622,7 +625,7 @@ extension LocalEmployee {
     private enum CodingKeys: String, CodingKey {
         case id, name, permissions, createdAt, pinSalt, pinVerifier, pinFailedAttempts, pinLockedUntil
         case syncID, syncActive, linkedAt, lastSyncAt, codeExpiresAt, paymentCardID, paymentPhoneID
-        case phone, deviceID, closeRequestedAt, employeeCloseRequestAt
+        case phone, deviceID, closeRequestedAt, employeeCloseRequestAt, importRequestID, importRequestState
     }
 
     init(from decoder: Decoder) throws {
@@ -646,6 +649,8 @@ extension LocalEmployee {
         deviceID = try values.decodeIfPresent(String.self, forKey: .deviceID)
         closeRequestedAt = try values.decodeIfPresent(Date.self, forKey: .closeRequestedAt)
         employeeCloseRequestAt = try values.decodeIfPresent(Date.self, forKey: .employeeCloseRequestAt)
+        importRequestID = try values.decodeIfPresent(String.self, forKey: .importRequestID)
+        importRequestState = try values.decodeIfPresent(String.self, forKey: .importRequestState)
     }
 }
 
@@ -2157,10 +2162,17 @@ enum BackupCodec {
 
     static func encode(_ data: AppData, password: String) throws -> Data {
         guard password.count >= 8 else { throw BusinessError.backupPassword }
+        var portable = data
+        portable.employees = portable.employees?.map { employee in
+            var copy = employee
+            copy.importRequestID = nil
+            copy.importRequestState = nil
+            return copy
+        }
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys]
-        let clear = try encoder.encode(data)
+        let clear = try encoder.encode(portable)
         let salt = try randomBytes(count: saltLength)
         let key = try deriveKey(password: password, salt: salt)
         let box = try AES.GCM.seal(clear, using: key, authenticating: magic + salt)
@@ -2181,7 +2193,14 @@ enum BackupCodec {
             let clear = try AES.GCM.open(box, using: key, authenticating: magic + salt)
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
-            return try decoder.decode(AppData.self, from: clear)
+            var restored = try decoder.decode(AppData.self, from: clear)
+            restored.employees = restored.employees?.map { employee in
+                var copy = employee
+                copy.importRequestID = nil
+                copy.importRequestState = nil
+                return copy
+            }
+            return restored
         } catch let error as BusinessError {
             throw error
         } catch {

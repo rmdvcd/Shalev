@@ -499,6 +499,27 @@ Al tocar el nombre de un empleado en **Ajustes → Apps vinculadas** de la princ
 |:---:|:---:|
 | *Figura 12.1 — Vista del dueño con estado de conexión y turnos* | *Figura 12.2 — Vista del empleado con permisos y botón Sincronizar* |
 
+### 12.5 Cambiar una app principal o secundaria
+
+> Este flujo corresponde a la integración nueva de conversión de roles; no está disponible en las versiones publicadas anteriores.
+
+**De Principal a Secundaria:**
+
+1. Antes de empezar, entra en **Ajustes → Respaldo** y exporta una copia `.shalev` de este teléfono. La app debe registrar que se guardó una copia; tener un archivo antiguo de otro teléfono no reemplaza este paso.
+2. Abre **Ajustes → Apps vinculadas → Usar esta app como secundaria**, confirma y escanea el QR de la principal a la que te unirás.
+3. Al completarse el vínculo, los datos locales de este teléfono se reemplazan por el catálogo de la nueva principal. Conserva aparte el respaldo que acabas de guardar.
+
+La única excepción es durante la configuración inicial: si elegiste «Secundaria» y todavía no hay apps de empleados vinculadas, puedes continuar sin exportar un respaldo. Esa excepción no se puede elegir luego desde Ajustes.
+
+**De Secundaria a Principal:**
+
+1. En **Ajustes → Apps vinculadas**, toca **Cambiar a app principal** y elige entre empezar con una base nueva o pedir autorización para importar la base completa.
+2. Para importar, envía la solicitud y espera a que el dueño la autorice desde la ficha de tu app en **Apps vinculadas** de la principal. Si tienes ventas, turnos u otras operaciones por enviar, sincronízalos primero. Ambos teléfonos deben poder sincronizarse para transferir la copia.
+3. Cuando aparezca **Importación autorizada**, confirma **Importar base**. La copia reemplazará los datos locales y este teléfono pasará a ser una Principal independiente; la Principal original sigue funcionando y no cambia de tipo.
+4. Si eliges **Empezar con una base nueva**, se borran los datos locales de esta secundaria y el teléfono queda como una Principal vacía. Esta opción no copia datos.
+
+La importación requiere permiso del dueño, se realiza por la conexión autenticada y cifrada entre las apps y verifica la copia antes de aplicarla. No transfiere licencias, claves de acceso ni códigos QR. Revisa **Ajustes → Licencia** después del cambio: la licencia de la principal anterior no pasa a este teléfono.
+
 ---
 
 ## 13. Respaldo (.shalev), restauración y cambio de teléfono
@@ -523,6 +544,8 @@ Como todos tus datos viven únicamente en tu teléfono y no en internet, hacer c
 | Locales, recepciones, lotes e historial de correcciones | La vinculación activa y las claves privadas del dispositivo |
 | Todos los turnos, arqueos de caja, ventas, transferencias y movimientos | **La licencia activa en sí** (está ligada al teléfono, aunque el respaldo **sí guarda el ID** para que la recuperes gratis en el nuevo) |
 | Perfil, tarjetas, teléfonos, preajustes, **clientes fijos y preferencias del negocio** | **Los códigos QR activos de vinculación** (los nombres y permisos de los empleados se conservan, pero deberás generarles un QR nuevo) |
+
+El id y estado temporal de una solicitud para importar una base, las claves de vínculo y la autorización del dueño son datos propios de cada teléfono: no se guardan en el respaldo portátil. La copia remota usada para cambiar de rol tampoco sustituye el `.shalev` manual ni traslada la licencia.
 
 ### 13.3 Cómo restaurar una copia (Importar) y mudarte de teléfono
 
@@ -659,17 +682,21 @@ secundarias.
 
 ## Sincronización desde lugares distintos (piloto Android)
 
-En una versión con conexión remota habilitada por el distribuidor, principal y secundarias
-pueden usar Internet —datos móviles o wifi— desde redes distintas. No hay que introducir
-servidores, abrir puertos o configurar una VPN. El QR sigue siendo el mecanismo de vinculación;
-si se comparte a distancia, hazlo solo con el empleado autorizado y antes de que caduque.
+Solo una versión **Android** que el distribuidor haya compilado con el endpoint HTTPS aprobado
+puede habilitar esta conexión remota; no viene activada por defecto ni se configura desde Ajustes
+o el QR. La Principal y las Secundarias deben usar builds con el mismo endpoint. Pueden usar
+Internet —datos móviles o wifi— desde redes distintas.
+No hay que introducir servidores, abrir puertos o configurar una VPN. El QR sigue siendo el
+mecanismo de vinculación; si se comparte a distancia, hazlo solo con el empleado autorizado y
+antes de que caduque. El relé solo retransmite tramas cifradas, no almacena la base del negocio;
+el proveedor puede ver la IP, el horario y el volumen de conexión. La app iOS no usa este relé.
 
-La app intenta primero la conexión directa por wifi o punto de acceso y después la remota.
-La principal debe estar abierta/disponible y con Internet. Si no hay conexión o el servicio
-remoto no está disponible, se mantiene el comportamiento offline anterior; no supone poder
-abrir un turno sin sincronizar ni elimina las restricciones existentes. Reintenta cuando
-la principal vuelva a estar disponible. Sin una versión habilitada para conexión remota,
-encender datos móviles en ambos teléfonos no garantiza que puedan comunicarse.
+La app Android intenta primero la conexión directa por wifi o punto de acceso y después el relé.
+La principal debe estar abierta/disponible y con Internet. Si no hay conexión o el relé no está
+disponible, se mantiene el comportamiento offline anterior; no supone poder abrir un turno sin
+sincronizar ni elimina las restricciones existentes. Reintenta cuando la principal vuelva a estar
+disponible. Sin una versión Android habilitada para el relé, encender datos móviles en ambos
+teléfonos no garantiza que puedan comunicarse desde redes distintas.
 
 
 ## DShalev: venta desde una PC

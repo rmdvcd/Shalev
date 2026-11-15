@@ -1,6 +1,6 @@
 # Shalev — Formatos de respaldo y de exportación
 
-Formatos de archivo que la app Android Shalev escribe y lee (versión de trabajo **1.0.1**, revisión 2026-11-13): contenedor `.shalev` **v4** (lee v3/v4) y contenido `RespaldoDto` **v5** (importa v3–v5). Son versiones independientes; no existe un nuevo contenedor v5.
+Formatos de archivo que la app Android Shalev escribe y lee (versión base **1.0.1**; integración de conversión aún no publicada en esta rama; revisión 2026-11-15): contenedor `.shalev` **v4** (lee v3/v4) y contenido `RespaldoDto` **v5** (importa v3–v5). Son versiones independientes; no existe un nuevo contenedor v5.
 
 | Formato | Extensión | Tipo MIME | Cifrado | Se importa |
 |---|---|---|---|---|
@@ -92,7 +92,7 @@ Desde la 0.27.0 se escribe la **v4**, que añade un byte indicador (con o sin co
 | `clientesFijos[]` | 0.27.0 (opcional; `[]` en respaldos anteriores, sin subir la versión): `nombreApellidos`, `ci` (único), `telefono`, `creadoEn`, `actualizadoEn`. Las transferencias llevan además `clienteFijo` (booleano, `false` por defecto) |
 | `licencia` | v4 (opcional): datos **públicos** de la licencia instalada: `id`, `tipo`, `secundarias`, `venceEn` (epoch ms; null = perpetua), `ci` del titular. **No** es la licencia (está atada a la clave del teléfono): solo rellena el campo «ID de la licencia anterior» para pedir la recuperación en otro teléfono |
 
-### Contenido añadido en DTO v5 / Room v18
+### Contenido añadido en DTO v5 / Room v21
 
 - `almacenesLocales[]`: `nombre`, selectores `inventario`/`servicios` e `id` estable. Se conserva al renombrar. Las filas de catálogo/historial conservan `local` y los empleados llevan `localId`. Al leer un respaldo sin identidad se reutiliza la del mismo nombre si existe en el teléfono.
 - `fichasCosto[]`: ficha (`id`, nombre, margen, tipo de margen, tasa y partidas decimales CUP/USD), `localId`, `actualizadoEn`. Los borradores históricos se conservan aunque no sean exportables. La exportación al catálogo es transaccional y no forma parte del formato de imágenes promocionales.
@@ -110,6 +110,15 @@ Los comandos remotos añaden `localId` y una bandeja cifrada durable en la secun
 
 La copia previa a actualizar sigue usando `.shalev` v4/DTO v5 sin contraseña, en almacenamiento privado. **No se restaura automáticamente**. Guardarla e importarla son decisiones explícitas; importar reemplaza el estado actual.
 
+### Copia interna para convertir el rol (integración de esta rama)
+
+La importación autorizada reutiliza el contenedor `.shalev` v4 y el DTO portable v5; **no** crea una versión de archivo nueva ni modifica el contrato del respaldo manual. La Principal exporta una copia interna sin contraseña solamente después de que el dueño autorizó el id de solicitud vigente. La generación no actualiza el recordatorio de respaldo y omite el bloque `licencia` (también el ID público recuperable).
+
+- Los bloques viajan por la sesión sincronizada autenticada y cifrada (AES-GCM), en partes de 48 KiB. El archivo no puede superar 128 MiB y el teléfono que lo recibe comprueba tamaño y SHA-256 antes de inspeccionarlo/importarlo.
+- El permiso se verifica contra empleado activo + id de solicitud + estado `AUTORIZADA`; después del acuse idempotente pasa a `CONSUMIDA`. El respaldo portátil no incluye `solicitudImportacionId`, `estadoSolicitudImportacion`, claves del vínculo, tokens QR ni credenciales de empleados.
+- Una copia recibida queda en la caché privada para reanudar y recuperar una interrupción, y se elimina al completar el cambio de rol o al borrar los datos; el sistema puede purgar la caché antes. En la Principal, la copia saliente se reutiliza hasta 24 h; las vencidas se limpian al preparar otra copia. Ninguna caché es almacenamiento permanente ni reemplaza exportar un `.shalev` manual.
+- El cifrado interno sin contraseña **no proporciona confidencialidad frente a quien obtenga el archivo**: el secreto de compatibilidad está en el código. La protección del envío es el canal de sesión; no se debe compartir ni guardar la copia interna como respaldo personal.
+
 ### Conteo de cierre (desde Room v13)
 
 `turnos[].conteoCierre` es opcional, `null` en datos antiguos, sin cambiar las versiones del contenedor ni del DTO:
@@ -119,7 +128,7 @@ La copia previa a actualizar sigue usando `.shalev` v4/DTO v5 sin contraseña, e
 - `inventario[]`: `entidad` (PRODUCTO/INSUMO), `id`, `nombre`, `unidad`, `esperado`, `contado`, `actualizadoEn`. Cantidades nativas: unidades para productos, milésimas para insumos. El nombre, la unidad y las cantidades son la instantánea del conteo, no se recalculan al exportar.
 - `motivo`: obligatorio con diferencias; `aprobadoPor` y `aprobadoEn` son nulos hasta que la principal aplica la conciliación. El efectivo calculado debe coincidir con `contadoCent`.
 
-Room v13 añadió `turno.conteoCierreJson TEXT NULL` (migración 12→13). La versión de trabajo actual es **v20**: la migración 19→20 añade al Perfil `nombreNegocio` y `logoUri`; los JSON históricos se conservan para probar sus migraciones.
+Room v13 añadió `turno.conteoCierreJson TEXT NULL` (migración 12→13). El esquema de trabajo de esta rama es **v21**: 19→20 añade al Perfil `nombreNegocio` y `logoUri`; 20→21 añade a `empleado` `solicitudImportacionId TEXT NULL` y `estadoSolicitudImportacion TEXT NOT NULL DEFAULT 'NINGUNA'`. Son metadatos temporales del flujo de autorización de importación; no se incluyen en `EmpleadoRespaldoDto` ni en el respaldo portable. Los JSON históricos se conservan para probar sus migraciones; el JSON v21 aún requiere validación de Room/KSP.
 
 En el protocolo LAN v1, el conteo viaja con el DTO del turno. La respuesta añade los campos opcionales `conteoAprobado` y `conteoTurnoUuid`: la secundaria solo acepta la aprobación si coincide el turno y la declaración completa. La principal ignora cualquier autorización que declare la propia secundaria y conserva la que ya otorgó ante reenvíos. Las dos apps deben estar actualizadas para el nuevo flujo.
 

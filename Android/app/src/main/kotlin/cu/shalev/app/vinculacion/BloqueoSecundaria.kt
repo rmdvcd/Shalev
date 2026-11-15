@@ -26,7 +26,7 @@ import cu.shalev.designsystem.component.rememberAvisos
 
 /**
  * P37: puerta de la app SECUNDARIA cuando la licencia de la principal no está activa. Aquí no se activa nada (la
- * licencia es de la principal): se sincroniza para recibir la licencia nueva, o se desvincula.
+ * licencia es de la principal): se sincroniza para recibir la licencia nueva, o se convierte a principal nueva.
  */
 @Composable
 fun BloqueoSecundaria(viewModel: VinculacionViewModel = hiltViewModel()) {
@@ -53,17 +53,23 @@ fun BloqueoSecundaria(viewModel: VinculacionViewModel = hiltViewModel()) {
                 )
             }
             ShalevButtonRow {
-                ShalevTextButton(text = VinculacionLogic.DESVINCULAR, icon = ShalevIcons.Desvincular, onClick = viewModel::pedirDesvincular, enabled = !state.trabajando)
+                ShalevTextButton(
+                    text = VinculacionLogic.EMPEZAR_DESDE_CERO,
+                    icon = ShalevIcons.Desvincular,
+                    onClick = viewModel::pedirEmpezarDesdeCero,
+                    enabled = !state.trabajando,
+                )
             }
         }
     }
     if (state.confirmarDesvincular) {
         ShalevDialog(
-            title = "¿Desvincular esta app?",
+            title = "¿Empezar con una base nueva?",
             text = VinculacionLogic.CONFIRMAR_DESVINCULAR,
             onDismiss = viewModel::cancelarDesvincular,
             onConfirm = viewModel::confirmarDesvincular,
-            confirmDescription = VinculacionLogic.DESVINCULAR,
+            confirmDescription = VinculacionLogic.EMPEZAR_DESDE_CERO,
+            confirmEtiqueta = VinculacionLogic.EMPEZAR_DESDE_CERO,
             confirmIcon = ShalevIcons.Desvincular,
             destructive = true,
         )

@@ -14,7 +14,7 @@ class Migracion1011Test {
 
     @Test fun migracion10_11RecreaProductoSinCodigoConservandoDatos() {
         // Versión actual del esquema (v20: datos del negocio; v17: recibos; v16: locales).
-        assertEquals(20, ShalevDatabase.VERSION)
+        assertEquals(21, ShalevDatabase.VERSION)
         assertEquals(10, ShalevDatabase.MIGRACION_10_11.startVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_10_11.endVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_11_12.startVersion)

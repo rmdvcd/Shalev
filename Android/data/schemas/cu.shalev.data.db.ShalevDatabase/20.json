@@ -2420,7 +2420,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2b12edce211a4bbc89c0e70acfa55e31')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3f971998948a0b81a4794c8515961e43')"
     ]
   }
 }

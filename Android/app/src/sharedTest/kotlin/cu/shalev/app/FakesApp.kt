@@ -333,7 +333,15 @@ class SecundariaRepoFake : cu.shalev.domain.repository.SecundariaRepository {
         contadoDeclarado = contado
         flow.value = flow.value.copy(cierreSolicitado = true); return AppResult.Ok(Unit)
     }
-    override suspend fun sincronizarAhora(): AppResult<Unit> = AppResult.Err(AppError.SinPrincipal())
+    var resultadoSincronizar: AppResult<Unit> = AppResult.Err(AppError.SinPrincipal())
+    var sincronizaciones = 0
+    override suspend fun sincronizarAhora(): AppResult<Unit> { sincronizaciones++; return resultadoSincronizar }
+    var solicitudesImportacion = 0
+    var resultadoSolicitudImportacion: AppResult<Unit> = AppResult.Ok(Unit)
+    override suspend fun solicitarImportacion(): AppResult<Unit> { solicitudesImportacion++; return resultadoSolicitudImportacion }
+    var importacionesBase = 0
+    var resultadoImportacionBase: AppResult<Unit> = AppResult.Ok(Unit)
+    override suspend fun importarBasePrincipal(): AppResult<Unit> { importacionesBase++; return resultadoImportacionBase }
     override suspend fun desvincular(): AppResult<Unit> = AppResult.Ok(Unit)
     override suspend fun descartarAvisoCierre() { flow.value = flow.value.copy(turnoCerradoPorPrincipal = false, cierreRechazado = false) }
 }

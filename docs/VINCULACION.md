@@ -6,17 +6,17 @@ Desde la 0.19.0, cada instalación de Shalev es una **app principal** o una **ap
 |---|---|---|
 | Quién la usa | El dueño, gerente o administrador | Cada empleado |
 | Base de datos | La general: catálogo, todas las ventas y todos los turnos (también los de las secundarias) | Una copia del catálogo y solo sus propios turnos y ventas |
-| Licencia | Se activa aquí (como siempre) | No se activa: la cubre la de la principal, con un máximo de **5** secundarias |
-| Si la licencia de la principal vence | Pantalla de Licencia | Pantalla «La licencia de la app principal no está activa» (solo Sincronizar o Desvincular) |
+| Licencia | Se activa aquí (como siempre) | No se activa: la cubre la de la principal, hasta **10** secundarias (la prueba, 5) |
+| Si la licencia de la principal vence | Pantalla de Licencia | Pantalla «La licencia de la app principal no está activa» (sincronizar o empezar con una base nueva) |
 | Ajustes visibles | Todos | Apps vinculadas, Consultas en internet, Permisos del teléfono, Ayuda, Soporte (y Precios si tiene ese permiso) |
 
-Una instalación nueva o una actualización es **principal**. Una instalación pasa a secundaria solo al escanear el código de una principal.
+Una instalación nueva o una actualización comienza como **principal**, salvo que en el recorrido inicial se elija Secundaria. Para convertirse desde Ajustes, una Principal debe tener una exportación de respaldo registrada antes de escanear un QR; la única excepción es el primer vínculo opt-in de una instalación sin apps de empleados vinculadas. Una Secundaria puede volver a Principal con una base nueva o pedir autorización a la Principal vinculada para importar su base completa. Esa importación crea una Principal independiente: no cambia el rol de la Principal original.
 
 ## Decisiones del usuario (P38)
 
-1. **Transporte: la red de los dos teléfonos, sin servidor ni relé.** Puede ser la wifi del local, la zona wifi del teléfono principal **o los datos móviles de la operadora (1.0.1)**. No hay servidor ni relé: la conexión es directa entre los dos teléfonos.
-   - **1.0.1 (datos móviles).** Antes solo se anunciaban las IPv4 privadas y los textos pedían «la misma wifi». Ahora el QR `SPVI-VINC1:` lleva **todas** las IPv4 activas de la principal (privadas primero y después las de datos móviles, ver `RedLocal.utiles`), la secundaria prueba por orden y guarda como respaldo las direcciones del QR además de la que funcionó. El descubrimiento NSD (mDNS) sigue solo en la misma red local.
-   - **Límite:** al no haber relé, la conexión por datos móviles depende de que la operadora enrute entre los dos teléfonos (en Cuba, CGNAT: puede no funcionar entre abonados). Con la misma wifi o zona wifi funciona como siempre.
+1. **Transporte:** conexión directa por wifi del local, zona wifi o datos móviles (1.0.1). Solo las builds Android que configuran el endpoint HTTPS aprobado (`-PshalevRelayUrl=...`) pueden usar además el intermediario remoto opcional, no habilitado por defecto, autorizado el 2026-11-05; iOS usa conexión directa y no utiliza este relé. En conexión directa, el QR `SPVI-VINC1:` lleva las IPv4 activas (privadas primero y después las móviles) y la secundaria prueba por orden; NSD sigue limitado a la red local.
+   - **Límite directo:** el tráfico por datos móviles depende de que la operadora enrute entre los dos teléfonos (en Cuba, CGNAT puede impedirlo); con la misma wifi o zona wifi funciona como siempre.
+   - **Relé opcional de Android:** retransmite tramas de la sesión ya cifradas; el proveedor puede ver IP, horario y volumen, no la base de negocio en claro. No almacena la base. Ver `relay/README.md` y [SECURITY.md](../SECURITY.md).
 2. **Permisos configurables por empleado** desde la principal:
    - Vender productos.
    - Vender servicios.
@@ -35,8 +35,9 @@ Una instalación nueva o una actualización es **principal**. Una instalación p
   - La regla 3 garantiza que nada se pierde entre turnos.
 - **La app no activa la zona wifi.** Android no lo permite sin permisos extra; el usuario la activa a mano.
 - **El código QR caduca a los 10 minutos y es de un solo uso.** Generar uno nuevo para la misma persona anula la clave anterior (por ejemplo, si cambió de teléfono).
-- **Al vincular se borran los datos del teléfono secundario.** Se usa `MantenimientoRepository.borrarTodo`, igual que «Borrar todo». Solo ocurre si la vinculación tuvo éxito; si algo falla, no se toca nada. La app avisa antes.
-- **Las fotos no viajan.** Al editar desde una secundaria se conserva la foto de la principal.
+- **Al vincular se reemplazan los datos locales**. Al convertir Principal→Secundaria se exige un respaldo previo registrado, salvo el opt-in inicial con cero empleados; el vínculo validado reemplaza la base por el negocio de la Principal. Una conversión fallida no debe borrar el estado actual.
+- **La importación Secundaria→Principal requiere autorización del dueño**. El empleado solicita desde Apps vinculadas; la principal acepta o rechaza la solicitud específica. Tras aprobación, el cliente sincroniza sus pendientes, descarga/verifica la copia y pide confirmación antes de reemplazar la base. Si se elige empezar desde cero, se borran los datos locales y no se descarga copia.
+- **Las fotos viajan** en la instantánea de catálogo por bloques (desde 0.32.0); las referencias se conservan en su álbum local.
 - **El nombre y el carné del dueño no viajan.** La secundaria recibe solo las tarjetas y teléfonos de cobro (para el QR de Transfermóvil). Su «Perfil» es el nombre del empleado, que queda en los turnos que abre y cierra.
 - **Existencias negativas.** Si dos apps venden el último artículo a la vez, la principal acepta las dos ventas, deja la existencia en negativo y anota en el movimiento «Vendido en otra app sin existencias suficientes: revisa el conteo». Rechazar una venta ya cobrada sería peor.
 
@@ -51,11 +52,14 @@ data/db/dao/SyncDaos.kt               SyncDao (empleados, pendientes, aplicar po
 data/sync/Protocolo.kt                Mensajes (kotlinx.serialization), Instantanea, Lote, Accion, CodigoQr
 data/sync/CanalCifrado.kt             CriptoSync (ECDH/HKDF/HMAC), Tramas, CanalCifrado (AES-GCM), Saludos
 data/sync/ConfigSync.kt               Tipo y datos de la secundaria (DataStore cifrado con el Keystore)
-data/sync/RedLocal.kt                 IPv4 privadas + NSD (_shalev._tcp)
+data/sync/RedLocal.kt                 IPv4 + NSD (_shalev._tcp) para conexión directa
+data/sync/RelaySync.kt                 relé HTTPS opcional, endpoint fijado en build; solo retransmite tramas cifradas
 data/sync/AlmacenSync.kt              Leer/escribir la BD para sincronizar (siempre en db.tx)
 data/sync/ServidorSync.kt             Servidor TCP de la principal (puerto 47811…47820)
 data/sync/EjecutorComandos.kt         Acciones remotas con los repositorios de siempre + permiso
 data/sync/ClienteSync.kt              Cliente de la secundaria (automático / manual)
+data/sync/CopiaBaseSync.kt             Exportación por bloques con autorización de empleado + solicitud
+app/vinculacion/                      Conversión de rol, solicitud, aprobación y confirmación destructiva
 data/sync/RepositoriosSegunTipo.kt    Decoradores de Producto/Insumo/Servicio/Precios/Venta/Turno/Exportador
 data/sync/VinculacionRepositoriesImpl.kt
                                       Implementaciones + PuertaTurnoImpl + ArranqueSync
@@ -91,6 +95,7 @@ app/common/PermisosLocales.kt         LocalPermisosApp (oculta botones según pe
   - `Sincronizar(lote, hash)` → `SincronizarOk(recibidos, hash, instantanea?)`
   - `Comando(accion, clave?)` → `ResultadoComando(valor | error)`. Desde 0.21.8, `clave` (UUID) hace el comando idempotente: ver §0.21.8.
   - `Aviso` (principal → secundarias: «hay cambios, sincroniza»)
+  - `BasePedir` → `BaseBloque` (copia completa autorizada, bloques de 48 KiB, hasta 128 MiB; SHA-256 del archivo completo) → `BaseConfirmar` → `BaseConfirmada`. El estado y el id de solicitud forman parte de la sincronización; la copia solo se sirve a empleado activo con autorización vigente. Ver §1.0.2.
   - `Quitada`
   - `Ping`/`Pong`, cada 30 s; sin noticias en 90 s se corta.
 
@@ -236,9 +241,9 @@ Detalle en `docs/HISTORIAL_DESARROLLO.md` (Prompts 55–57, 0.21.6–0.21.8).
 - **Sonidos:** tres canales nuevos (el sonido queda congelado en el canal): «App conectada», «App desconectada» y «Sincronización terminada», con los audios de `Android/app/src/main/res/raw` (`conectada.wav`, `desconectada.wav`, `sincronizada.wav`, generados por `tools/sonidos/generar-sonidos.ps1`). El aviso de turno (canal «Turno») sigue mudo.
 - **El conteo de inventario es parcial**: solo se cuentan los artículos con movimientos **de ese turno** y la pantalla los separa por pestañas de categoría (`LineaConteo.categoria`, campo opcional del DTO). En la principal, la diferencia se aplica sobre el valor actual (no se rechaza el conteo si el artículo se movió después).
 
-## 0.27.0
+## 0.27.0 — Regla histórica
 
-- **Una principal nunca pasa a secundaria** (T9): la opción no aparece y `VinculacionViewModel` la rechaza (`PRINCIPAL_NO_SECUNDARIA`). El tipo se elige en el recorrido inicial; cambiarlo exige exportar el respaldo y borrar los datos de la app.
+- **Una principal nunca pasa a secundaria** (T9, decisión de 0.27.0): entonces la opción no aparecía y `VinculacionViewModel` la rechazaba (`PRINCIPAL_NO_SECUNDARIA`). La integración de conversión posterior descrita en §1.0.2 reemplaza esta limitación.
 - **Acceso con clave** en una secundaria: solo desde Ajustes (su recorrido termina al vincularse).
 - **Clientes fijos:** la transferencia de cada venta lleva `clienteFijo` (opcional, `false` por defecto; protocolo sigue en v1). Al recibir una venta con la marca, la principal registra o actualiza el cliente por carné en la misma transacción. La lista de la principal **no** se envía a las secundarias.
 
@@ -251,3 +256,27 @@ La §0.21.8 conserva la descripción histórica de la caché RAM original; este 
 - La misma clave con contenido diferente se rechaza (`clave_reutilizada`) y deja intactos tanto el recibo original como el catálogo. La huella canoniza el orden del mapa en `CambiarPrecios`; el id de transporte no forma parte del contenido.
 - La clave se limita al empleado y conserva el límite de 64 caracteres. Comandos antiguos sin clave o con una clave vacía/no válida siguen ejecutándose sin deduplicación. El protocolo SPVI permanece en versión 1.
 - Importar un respaldo reemplaza el estado de negocio y borra los recibos locales; los recibos no forman parte del archivo de respaldo. Las pruebas instrumentadas cubren persistencia tras reabrir la base, conflicto, errores y concurrencia; falta ejecutarlas con JDK y Android SDK.
+
+## 1.0.2 — Conversión de roles e importación autorizada (integración de esta rama, 2026-11-15)
+
+Esta funcionalidad está en la rama de trabajo basada en `2343adb143327c773c9ea7e302e17863eaa7edce`; no es una publicación 1.0.2. No se ha compilado ni probado en emulador o teléfonos en este entorno.
+
+### Principal → Secundaria
+
+- Android e iOS piden una exportación de respaldo registrada en este teléfono antes de cambiar de rol. El único bypass es la configuración inicial en la que se optó explícitamente por Secundaria, antes de vincular empleados.
+- Se confirma la acción destructiva y se escanea el QR de la Principal. El cambio de datos ocurre solo cuando el vínculo se ha autenticado; un error previo al commit no debe borrar la base local. El respaldo exportado queda aparte y no se importa automáticamente.
+
+### Secundaria → Principal
+
+- La app ofrece **Empezar desde cero** o **solicitar importar la base**. El primer camino desvincula y crea un negocio local vacío, con confirmación destructiva.
+- Para importar, la secundaria envía un id de solicitud persistido en la sincronización. La Principal la muestra en la ficha del empleado y el dueño la autoriza o rechaza. La autorización se liga al empleado activo y al id concreto, no a cualquier conexión del negocio.
+- Tras autorizar, la secundaria sincroniza operaciones/comandos pendientes y se detiene si quedan por enviar. Descarga el archivo `.shalev` completo en bloques de 48 KiB, valida offsets, tamaño (máximo 128 MiB) y SHA-256, inspecciona/importa el respaldo y pide confirmación destructiva. El acuse consume la autorización; reintentar el acuse de la misma solicitud es idempotente.
+- La aplicación persiste un punto local de recuperación después del commit de la base y antes del acuse. Si se pierde la respuesta o se cierra la app, puede completar el cambio de rol desde la copia completa cacheada sin volver a pedir datos ni perder el negocio importado. Una autorización consumida no permite descargar de nuevo si no está la copia local íntegra.
+- El cambio crea una Principal independiente con id de negocio nuevo; no modifica el rol ni la base de la Principal que autorizó la exportación. No se transfieren licencia, identificador recuperable de licencia, claves de empleados, QR ni metadatos de autorización.
+
+### Formato, caché y compatibilidad
+
+- No cambia el formato portable: `.shalev` contenedor v4, DTO v5. Android usa `exportarParaSincronizacion` (sin actualizar el recordatorio de respaldo y sin bloque de licencia); iOS genera el mismo formato Android sin el bloque de licencia. La autorización/id temporal se excluye de respaldos Android e iOS.
+- El archivo interno no lleva contraseña y su clave está ofuscada en el código público: **no es confidencial si alguien obtiene una copia**. El canal de sesión autenticado AES-256-GCM protege el tránsito; no convierte la caché en respaldo protegido. La Principal conserva su copia saliente hasta 24 h. El archivo entrante vive en la caché privada hasta completar el cambio/borrarlo o que el sistema purgue la caché. La limpieza de temporales no equivale a borrado seguro.
+- Room v21 añade `empleado.solicitudImportacionId` y `empleado.estadoSolicitudImportacion` (default `NINGUNA`); migración 20→21. El JSON de v21 y la migración SQL están en el árbol, pero deben generarse/validarse con Room/KSP. Una principal anterior que no devuelva el id/estado se muestra como incompatible y debe actualizarse.
+- Pruebas añadidas: lógica del ViewModel Android para solicitud/espera/autorización/consumo; compuerta y transmisión por bloques (`CopiaBaseSyncTest`); serialización del protocolo; migración 20→21; y exclusión del estado de autorización en respaldos iOS. Son cobertura fuente pendiente de ejecutar, no resultados medidos. Falta prueba de extremo a extremo cliente-servidor e intercambio Android↔iOS en dispositivos.

@@ -328,6 +328,7 @@ fun MainScaffold(snapshot: Licencia) {
                     onEscanear = { nav.navigateTo(Route.QrVinculacion) },
                     qrLeido = qr,
                     onQrConsumido = { e.savedStateHandle[KEY_QR_LEIDO] = null },
+                    onIrARespaldo = { nav.navigate(Route.Respaldo) { launchSingleTop = true } },
                 )
             }
             composable<Route.VincularSecundaria> { e ->
@@ -337,6 +338,7 @@ fun MainScaffold(snapshot: Licencia) {
                     onEscanear = { nav.navigateTo(Route.QrVinculacion) },
                     qrLeido = qr,
                     onQrConsumido = { e.savedStateHandle[KEY_QR_LEIDO] = null },
+                    onIrARespaldo = { nav.navigate(Route.Respaldo) { launchSingleTop = true } },
                     abrirSecundaria = true,
                 )
             }

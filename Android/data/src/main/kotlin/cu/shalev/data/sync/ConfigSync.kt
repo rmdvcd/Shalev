@@ -48,6 +48,11 @@ data class DatosSecundaria(
     val comandoPendiente: ComandoPendiente? = null,
     /** null = sin aviso; true = confirmada; false = rechazada. No guarda mensajes ni datos sensibles del comando. */
     val operacionRecuperada: Boolean? = null,
+    /** 1.0.2: id aleatorio de la petición de copia de la app principal. */
+    val solicitudImportacionId: String? = null,
+    val estadoSolicitudImportacion: String = "NINGUNA",
+    /** La copia ya fue importada localmente; permite terminar el cambio de rol tras una interrupción. */
+    val baseImportadaLocalmente: Boolean = false,
 ) {
     val permisosEmpleado: Set<PermisoEmpleado> get() = PermisoEmpleado.deNombres(permisos)
     val licenciaPrincipal: LicenciaPrincipal? get() = licencia?.aDominio()
@@ -109,8 +114,10 @@ class ConfigSync @Inject constructor(private val ds: SecureDataStore) {
 
     /** Vuelve a PRINCIPAL y olvida la vinculación (la clave se borra). */
     suspend fun hacerPrincipal() = mutex.withLock {
-        ds.put(K_TIPO, TipoApp.PRINCIPAL.name)
+        // Prepara una identidad nueva ANTES de publicar el rol para que el servidor no anuncie el negocio anterior.
+        ds.put(K_NEGOCIO, CriptoSync.aleatorio(12).aHex())
         ds.put(K_SECUNDARIA, null)
+        ds.put(K_TIPO, TipoApp.PRINCIPAL.name)
     }
 
     private companion object {

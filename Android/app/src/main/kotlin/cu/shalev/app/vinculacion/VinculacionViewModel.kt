@@ -1,6 +1,5 @@
 package cu.shalev.app.vinculacion
 
-import kotlinx.coroutines.flow.map
 import cu.shalev.domain.model.Telefono
 import cu.shalev.domain.model.TarjetaBancaria
 import cu.shalev.domain.repository.PerfilRepository
@@ -11,6 +10,7 @@ import cu.shalev.data.sync.CodigoQr
 import cu.shalev.domain.model.CodigoVinculacion
 import cu.shalev.domain.model.Empleado
 import cu.shalev.domain.model.EstadoPrincipal
+import cu.shalev.domain.model.EstadoSolicitudImportacion
 import cu.shalev.domain.model.EstadoSecundaria
 import cu.shalev.domain.model.PermisoEmpleado
 import cu.shalev.domain.model.TipoApp
@@ -45,6 +45,10 @@ data class FormEmpleado(
 /** QR listo para mostrar. [contenido] = texto del QR (lleva una clave de un solo uso: nunca se registra). */
 data class QrVinculacion(val nombreEmpleado: String, val contenido: String, val codigo: CodigoVinculacion)
 
+enum class OpcionCambioPrincipal { EMPEZAR_DESDE_CERO, IMPORTAR_DE_PRINCIPAL }
+
+data class ResolucionSolicitudImportacionUi(val empleado: Empleado, val autorizar: Boolean)
+
 data class VinculacionUi(
     val tipo: TipoApp = TipoApp.PRINCIPAL,
     val empleados: List<Empleado> = emptyList(),
@@ -55,6 +59,10 @@ data class VinculacionUi(
     val quitar: Empleado? = null,
     val confirmarSecundaria: Boolean = false,
     val confirmarDesvincular: Boolean = false,
+    val confirmarRespaldoPrevio: Boolean = false,
+    val opcionCambioPrincipal: OpcionCambioPrincipal = OpcionCambioPrincipal.IMPORTAR_DE_PRINCIPAL,
+    val resolucionSolicitudImportacion: ResolucionSolicitudImportacionUi? = null,
+    val ultimoRespaldo: Instant? = null,
     val trabajando: Boolean = false,
     /** 0.20.0 (H5): confirmación «¿Pedir el cierre del turno de …?». */
     val cerrarTurno: Empleado? = null,
@@ -71,8 +79,10 @@ data class VinculacionUi(
     /** 0.27.0 (T9): en el recorrido inicial se eligió «Secundaria» (si no, esta app es principal para siempre). */
     val eligioSecundaria: Boolean = false,
 ) {
-    /** 0.27.0 (T9): se ofrece «Usar esta app como secundaria» solo si la regla lo permite. */
+    /** Regla exclusiva del vínculo inicial desde el recorrido de configuración. */
     val puedeSerSecundaria: Boolean get() = cu.shalev.domain.model.Vinculacion.puedeVincularseComoSecundaria(tipo, eligioSecundaria, empleados.size)
+    /** Cambio de rol desde Ajustes; se aplican aparte los requisitos de respaldo o aprobación. */
+    val puedeCambiarATipoSecundaria: Boolean get() = cu.shalev.domain.model.Vinculacion.puedeCambiarATipoSecundaria(tipo)
     /** 0.21.0 (C4/C5): solo la principal agrega, y hasta el límite de la licencia. */
     val puedeAgregar: Boolean get() = tipo == TipoApp.PRINCIPAL && cu.shalev.domain.model.Vinculacion.puedeAgregar(empleados.size, limite)
     /** Ficha abierta en el formulario (datos vivos: turno abierto, cierre pedido). */
@@ -85,6 +95,11 @@ private data class Local(
     val quitar: Empleado? = null,
     val confirmarSecundaria: Boolean = false,
     val confirmarDesvincular: Boolean = false,
+    val confirmarRespaldoPrevio: Boolean = false,
+    val opcionCambioPrincipal: OpcionCambioPrincipal = OpcionCambioPrincipal.IMPORTAR_DE_PRINCIPAL,
+    val resolucionSolicitudImportacion: ResolucionSolicitudImportacionUi? = null,
+    /** true solo mientras se completa el flujo de primer vínculo desde el recorrido inicial. */
+    val vinculacionInicial: Boolean = false,
     val trabajando: Boolean = false,
     val cerrarTurno: Empleado? = null,
     val telefonoSecundaria: String = "",
@@ -99,6 +114,7 @@ class VinculacionViewModel @Inject constructor(
     perfilRepo: PerfilRepository,
     private val licencia: cu.shalev.domain.repository.LicenciaRepository,
     ajustesDispositivo: cu.shalev.domain.repository.AjustesDispositivoRepository,
+    private val estadoApp: cu.shalev.domain.repository.EstadoAppRepository,
 ) : ViewModel() {
     private val local = MutableStateFlow(Local())
     private val mensajesCh = Channel<String>(Channel.BUFFERED)
@@ -108,22 +124,13 @@ class VinculacionViewModel @Inject constructor(
     private val escanearCh = Channel<Unit>(Channel.CONFLATED)
     val escanear: Flow<Unit> = escanearCh.receiveAsFlow()
 
-    /** 0.27.0 (T9): leído siempre (aunque la pantalla no esté suscrita), para aplicar la regla en las acciones. */
-    private val eligioSecundaria: StateFlow<Boolean> =
-        ajustesDispositivo.ajustes.map { it.eligioSecundaria }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
-
-    /**
-     * La regla se evalúa con los valores REALES (se esperan con [first]): leer [StateFlow.value] aquí fallaba
-     * al abrir la vinculación justo después del recorrido inicial, porque el DataStore aún no había emitido y
-     * se leía el inicial (`false`) → «Esta app es la principal…» aunque se había elegido «Secundaria».
-     */
-    private suspend fun puedeSerSecundaria(): Boolean {
-        val b = base.first()
-        return cu.shalev.domain.model.Vinculacion.puedeVincularseComoSecundaria(b.tipo, b.eligioSecundaria, b.empleados.size)
-    }
-
-    private val base = combine(tipoRepo.tipo, principal.observarEmpleados(), principal.estado, secundaria.estado, ajustesDispositivo.ajustes) { t, e, p, s, a ->
+    private val baseSinRespaldo = combine(
+        tipoRepo.tipo, principal.observarEmpleados(), principal.estado, secundaria.estado, ajustesDispositivo.ajustes,
+    ) { t, e, p, s, a ->
         VinculacionUi(t, e, p, s, eligioSecundaria = a.eligioSecundaria)
+    }
+    private val base = combine(baseSinRespaldo, estadoApp.estado) { b, app ->
+        b.copy(ultimoRespaldo = app.ultimoRespaldo)
     }
 
     val state: StateFlow<VinculacionUi> = combine(base, local, perfilRepo.perfil, licencia.snapshot) { b, l, pf, lic ->
@@ -131,7 +138,10 @@ class VinculacionViewModel @Inject constructor(
             limite = lic?.secundariasPermitidas ?: cu.shalev.domain.model.Vinculacion.SECUNDARIAS_DEFECTO,
             telefonoSecundaria = l.telefonoSecundaria, errorTelefono = l.errorTelefono,
             form = l.form, qr = l.qr, quitar = l.quitar, confirmarSecundaria = l.confirmarSecundaria,
-            confirmarDesvincular = l.confirmarDesvincular, trabajando = l.trabajando, cerrarTurno = l.cerrarTurno,
+            confirmarDesvincular = l.confirmarDesvincular, confirmarRespaldoPrevio = l.confirmarRespaldoPrevio,
+            opcionCambioPrincipal = l.opcionCambioPrincipal,
+            resolucionSolicitudImportacion = l.resolucionSolicitudImportacion,
+            trabajando = l.trabajando, cerrarTurno = l.cerrarTurno,
             tarjetas = pf.tarjetas, telefonos = pf.telefonos, tarjetaPredeterminada = pf.tarjetaPago, telefonoPredeterminado = pf.telefonoPago,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VinculacionUi())
@@ -241,15 +251,39 @@ class VinculacionViewModel @Inject constructor(
 
     // ---------------------------------------------------------------- pasar a secundaria
 
-    fun pedirSecundaria() {
-        // Se espera a los valores reales (ver puedeSerSecundaria): al abrirse sola tras el recorrido,
-        // la comprobación inmediata leería el inicial y bloquearía a quien eligió «Secundaria».
+    fun pedirSecundaria(vinculacionInicial: Boolean = false) {
         viewModelScope.launch {
-            if (!puedeSerSecundaria()) { mensajesCh.trySend(VinculacionLogic.PRINCIPAL_NO_SECUNDARIA); return@launch } // 0.27.0 (T9)
-            local.update { it.copy(confirmarSecundaria = true, errorTelefono = null) }
+            val b = base.first()
+            if (!cu.shalev.domain.model.Vinculacion.puedeCambiarATipoSecundaria(b.tipo)) {
+                mensajesCh.trySend(VinculacionLogic.PRINCIPAL_NO_SECUNDARIA)
+                return@launch
+            }
+            if (vinculacionInicial && !cu.shalev.domain.model.Vinculacion.puedeVincularseComoSecundaria(
+                    b.tipo, b.eligioSecundaria, b.empleados.size,
+                )
+            ) {
+                mensajesCh.trySend(VinculacionLogic.VINCULACION_INICIAL_NO_PERMITIDA)
+                return@launch
+            }
+            val necesitaRespaldo = cu.shalev.domain.model.Vinculacion.necesitaRespaldoPrevio(
+                tieneRespaldoExportado = b.ultimoRespaldo != null,
+                vinculacionInicial = vinculacionInicial,
+                tipo = b.tipo,
+                eligioSecundaria = b.eligioSecundaria,
+                empleados = b.empleados.size,
+            )
+            local.update {
+                it.copy(
+                    confirmarRespaldoPrevio = necesitaRespaldo,
+                    confirmarSecundaria = !necesitaRespaldo,
+                    vinculacionInicial = vinculacionInicial,
+                    errorTelefono = null,
+                )
+            }
         }
     }
-    fun cancelarSecundaria() = local.update { it.copy(confirmarSecundaria = false) }
+    fun cancelarRespaldoPrevio() = local.update { it.copy(confirmarRespaldoPrevio = false, vinculacionInicial = false) }
+    fun cancelarSecundaria() = local.update { it.copy(confirmarSecundaria = false, vinculacionInicial = false) }
     fun telefonoSecundaria(v: String) = local.update {
         it.copy(telefonoSecundaria = cu.shalev.designsystem.component.FiltroEntrada.TELEFONO.aplicar(v), errorTelefono = null)
     }
@@ -265,11 +299,34 @@ class VinculacionViewModel @Inject constructor(
 
     /** Texto leído por el escáner en modo VINCULAR. */
     fun qrLeido(contenido: String) = trabajar {
-        if (!puedeSerSecundaria()) { mensajesCh.trySend(VinculacionLogic.PRINCIPAL_NO_SECUNDARIA); return@trabajar } // 0.27.0 (T9)
+        val b = base.first()
+        val inicial = local.value.vinculacionInicial
+        if (!cu.shalev.domain.model.Vinculacion.puedeCambiarATipoSecundaria(b.tipo)) {
+            local.update { it.copy(vinculacionInicial = false) }
+            mensajesCh.trySend(VinculacionLogic.PRINCIPAL_NO_SECUNDARIA)
+            return@trabajar
+        }
+        if (inicial && !cu.shalev.domain.model.Vinculacion.puedeVincularseComoSecundaria(b.tipo, b.eligioSecundaria, b.empleados.size)) {
+            local.update { it.copy(vinculacionInicial = false) }
+            mensajesCh.trySend(VinculacionLogic.VINCULACION_INICIAL_NO_PERMITIDA)
+            return@trabajar
+        }
+        if (cu.shalev.domain.model.Vinculacion.necesitaRespaldoPrevio(
+                tieneRespaldoExportado = b.ultimoRespaldo != null,
+                vinculacionInicial = inicial,
+                tipo = b.tipo,
+                eligioSecundaria = b.eligioSecundaria,
+                empleados = b.empleados.size,
+            )
+        ) {
+            local.update { it.copy(confirmarRespaldoPrevio = true, vinculacionInicial = false) }
+            return@trabajar
+        }
         when (val r = secundaria.vincular(contenido, local.value.telefonoSecundaria)) {
             is AppResult.Ok -> mensajesCh.trySend(VinculacionLogic.VINCULADA)
             is AppResult.Err -> mensajesCh.trySend(VinculacionLogic.error(r.error))
         }
+        local.update { it.copy(vinculacionInicial = false) }
     }
 
     // ---------------------------------------------------------------- secundaria
@@ -281,12 +338,71 @@ class VinculacionViewModel @Inject constructor(
         }
     }
 
-    fun pedirDesvincular() = local.update { it.copy(confirmarDesvincular = true) }
+    fun pedirDesvincular() = local.update {
+        it.copy(confirmarDesvincular = true, opcionCambioPrincipal = OpcionCambioPrincipal.IMPORTAR_DE_PRINCIPAL)
+    }
+    /** El acceso desde la pantalla de bloqueo tiene una acción destructiva explícita, no una solicitud de importación. */
+    fun pedirEmpezarDesdeCero() = local.update {
+        it.copy(confirmarDesvincular = true, opcionCambioPrincipal = OpcionCambioPrincipal.EMPEZAR_DESDE_CERO)
+    }
+    fun opcionCambioPrincipal(opcion: OpcionCambioPrincipal) = local.update { it.copy(opcionCambioPrincipal = opcion) }
     fun cancelarDesvincular() = local.update { it.copy(confirmarDesvincular = false) }
     fun confirmarDesvincular() {
+        val opcion = local.value.opcionCambioPrincipal
         local.update { it.copy(confirmarDesvincular = false) }
         trabajar {
-            if (secundaria.desvincular() is AppResult.Err) mensajesCh.trySend(VinculacionLogic.error(cu.shalev.core.result.AppError.Almacenamiento))
+            if (opcion == OpcionCambioPrincipal.EMPEZAR_DESDE_CERO) {
+                when (val r = secundaria.desvincular()) {
+                    is AppResult.Ok -> mensajesCh.trySend(VinculacionLogic.PRINCIPAL_DESDE_CERO)
+                    is AppResult.Err -> mensajesCh.trySend(VinculacionLogic.error(r.error))
+                }
+                return@trabajar
+            }
+            when (state.value.secundaria.estadoSolicitudImportacion) {
+                EstadoSolicitudImportacion.AUTORIZADA,
+                EstadoSolicitudImportacion.CONSUMIDA -> when (val r = secundaria.importarBasePrincipal()) {
+                    is AppResult.Ok -> mensajesCh.trySend(VinculacionLogic.BASE_IMPORTADA)
+                    is AppResult.Err -> mensajesCh.trySend(VinculacionLogic.error(r.error))
+                }
+                EstadoSolicitudImportacion.NO_COMPATIBLE -> mensajesCh.trySend(VinculacionLogic.ACTUALIZAR_PRINCIPAL)
+                EstadoSolicitudImportacion.PENDIENTE -> {
+                    mensajesCh.trySend(VinculacionLogic.ESPERANDO_AUTORIZACION)
+                    when (val r = secundaria.sincronizarAhora()) {
+                        is AppResult.Err -> mensajesCh.trySend(VinculacionLogic.error(r.error))
+                        is AppResult.Ok -> Unit
+                    }
+                }
+                else -> when (val r = secundaria.solicitarImportacion()) {
+                    is AppResult.Ok -> mensajesCh.trySend(VinculacionLogic.SOLICITUD_IMPORTACION_ENVIADA)
+                    is AppResult.Err -> mensajesCh.trySend(VinculacionLogic.error(r.error))
+                }
+            }
+        }
+    }
+
+    fun pedirAutorizarImportacion() {
+        val e = state.value.empleadoForm?.takeIf { it.estadoSolicitudImportacion == EstadoSolicitudImportacion.PENDIENTE } ?: return
+        local.update { it.copy(resolucionSolicitudImportacion = ResolucionSolicitudImportacionUi(e, autorizar = true)) }
+    }
+
+    fun pedirRechazarImportacion() {
+        val e = state.value.empleadoForm?.takeIf { it.estadoSolicitudImportacion == EstadoSolicitudImportacion.PENDIENTE } ?: return
+        local.update { it.copy(resolucionSolicitudImportacion = ResolucionSolicitudImportacionUi(e, autorizar = false)) }
+    }
+
+    fun cancelarResolucionImportacion() = local.update { it.copy(resolucionSolicitudImportacion = null) }
+
+    fun confirmarResolucionImportacion() {
+        val resolucion = local.value.resolucionSolicitudImportacion ?: return
+        local.update { it.copy(resolucionSolicitudImportacion = null) }
+        val solicitudId = resolucion.empleado.solicitudImportacionId ?: return
+        trabajar {
+            when (val r = principal.resolverSolicitudImportacion(resolucion.empleado.id, solicitudId, resolucion.autorizar)) {
+                is AppResult.Ok -> mensajesCh.trySend(
+                    if (resolucion.autorizar) VinculacionLogic.IMPORTACION_AUTORIZADA else VinculacionLogic.IMPORTACION_RECHAZADA,
+                )
+                is AppResult.Err -> mensajesCh.trySend(VinculacionLogic.error(r.error))
+            }
         }
     }
 

@@ -1,5 +1,7 @@
 package cu.shalev.data.sync
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import cu.shalev.data.dto.toDomain
 
 import cu.shalev.core.result.AppError
@@ -12,6 +14,10 @@ import cu.shalev.domain.model.ProgresoSync
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.IOException
+import java.io.File
+import java.io.RandomAccessFile
+import java.security.MessageDigest
+import java.util.Base64
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.UUID
@@ -62,6 +68,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
     private val deviceIds: cu.shalev.data.licencia.DeviceIdProvider,
     /** 0.31.0 (mitigación 7): comprueba el permiso firmado que manda la principal con su licencia. */
     private val permisos: cu.shalev.data.licencia.VerificadorPermisoSecundaria,
+    @ApplicationContext private val context: Context,
 ) {
     /** 0.25.0: cambios de ventas ya aplicados aquí, pendientes de confirmar a la principal (si se pierden, se reaplican: idempotente). */
     @Volatile private var cambiosAplicados: List<String> = emptyList()
@@ -91,6 +98,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
 
     private val conectando = Mutex()
     private val ronda = Mutex()
+    private val transferenciaBase = Mutex()
     private val bandeja = BandejaComandos(config::secundariaActual, config::guardarPendiente)
     /**
      * Sesión vigente. 0.21.7 (P-e, punto 1): quien ve un error cierra SOLO la sesión que usó (compare-and-set, ver
@@ -151,6 +159,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
                     Sincronizar(
                         id, lote, d.hash, telefono = d.telefono, solicitaCierre = d.cierreSolicitado,
                         cambiosAplicados = confirmar, versionCode = info.versionCode,
+                        solicitudImportacionId = d.solicitudImportacionId,
                     )
                 },
                 { hecho, total -> if (total >= FRAME_GRANDE) _progreso.value = ProgresoSync(hecho, total, FaseSync.ENVIANDO) },
@@ -175,8 +184,15 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
             }
             config.editarSecundaria { x ->
                 val inst = r.instantanea
+                val estadoCopia = when {
+                    x.solicitudImportacionId == null -> "NINGUNA"
+                    r.solicitudImportacionId == x.solicitudImportacionId ->
+                        r.estadoSolicitudImportacion ?: "NO_COMPATIBLE"
+                    else -> "NO_COMPATIBLE"
+                }
                 val base = x.copy(
                     ultimaSincronizacion = clock.now().toEpochMilli(), cierrePendiente = r.cerrarTurno,
+                    estadoSolicitudImportacion = estadoCopia,
                     // 0.21.0 (C6): aprobada (llega cerrarTurno) o rechazada: la solicitud ya está resuelta.
                     cierreSolicitado = x.cierreSolicitado && !r.cerrarTurno && !r.cierreRechazado,
                     avisoRechazo = x.avisoRechazo || (r.cierreRechazado && x.cierreSolicitado),
@@ -239,6 +255,163 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
             val uri = fotosLocal.uriLocal(f.nombre) ?: continue
             almacen.asignarFoto(f.entidad, f.id, uri)
         }
+    }
+
+    /**
+     * Descarga por bloques la copia completa autorizada. Continúa desde el último byte cuando se interrumpe y verifica
+     * tamaño y SHA-256 antes de devolver el archivo privado.
+     */
+    suspend fun basePrincipalDescargada(solicitudId: String): Boolean = withContext(Dispatchers.IO) {
+        val (destino, marca) = archivosBasePrincipal(solicitudId)
+        copiaCompletaValida(destino, marca, solicitudId)
+    }
+
+    suspend fun hayPendientesAntesDeImportar(): Boolean = withContext(Dispatchers.IO) {
+        almacen.pendientes() > 0 || config.secundariaActual()?.comandoPendiente != null
+    }
+
+    fun descartarBasePrincipal(solicitudId: String) {
+        val (destino, marca) = archivosBasePrincipal(solicitudId)
+        destino.delete()
+        marca.delete()
+    }
+
+    suspend fun descargarBasePrincipal(solicitudId: String): AppResult<File> = withContext(Dispatchers.IO) {
+        transferenciaBase.withLock {
+            val d = config.secundariaActual() ?: return@withLock AppResult.Err(AppError.NoEncontrado)
+            if (d.solicitudImportacionId != solicitudId || d.estadoSolicitudImportacion !in setOf("AUTORIZADA", "CONSUMIDA")) {
+                return@withLock AppResult.Err(AppError.SinPermiso)
+            }
+            val (destino, marca) = archivosBasePrincipal(solicitudId)
+            if (copiaCompletaValida(destino, marca, solicitudId)) return@withLock AppResult.Ok(destino)
+            // CONSUMIDA permite reintentar la finalización local solo si el respaldo completo ya está en la caché.
+            if (d.estadoSolicitudImportacion != "AUTORIZADA") return@withLock AppResult.Err(AppError.SinPermiso)
+            val s = sesionAbierta(d) ?: return@withLock AppResult.Err(AppError.SinPrincipal(almacen.pendientes()))
+            try {
+                suspend fun pedirBloque(desde: Long): BloqueBaseNegocio =
+                    s.pedir({ id -> PedirBaseNegocio(id, solicitudId, desde) }) as? BloqueBaseNegocio
+                        ?: throw ProtocoloException("respuesta inesperada")
+
+                RandomAccessFile(destino, "rw").use { archivo ->
+                    var hecho = archivo.length()
+                    var totalEsperado = -1L
+                    var shaEsperado: String? = null
+                    while (true) {
+                        var bloque = pedirBloque(hecho)
+                        if (bloque.solicitudId != solicitudId || bloque.desde != hecho) throw ProtocoloException("bloque fuera de orden")
+                        if (bloque.error != null) {
+                            destino.delete(); marca.delete()
+                            return@withLock AppResult.Err(
+                                if (bloque.error == CopiaBaseSync.ERROR_NO_AUTORIZADA) AppError.SinPermiso else AppError.Almacenamiento,
+                            )
+                        }
+                        val total = bloque.total
+                        val sha = bloque.sha256?.lowercase() ?: throw ProtocoloException("sin huella")
+                        if (total !in 1..MAX_COPIA_BYTES || !HUELLA.matches(sha)) throw ProtocoloException("tamaño o huella inválidos")
+                        if (totalEsperado < 0) {
+                            totalEsperado = total
+                            shaEsperado = sha
+                            val meta = "$solicitudId\n$total\n$sha"
+                            val metaAnterior = if (marca.isFile) runCatching { marca.readText(Charsets.UTF_8) }.getOrNull() else null
+                            if (hecho > total || (hecho > 0 && metaAnterior != meta)) {
+                                // La respuesta actual parte del offset antiguo: descártala y vuelve a pedir desde cero.
+                                archivo.setLength(0)
+                                hecho = 0
+                                marca.writeText(meta)
+                                archivo.seek(0)
+                                bloque = pedirBloque(0)
+                                if (bloque.solicitudId != solicitudId || bloque.desde != 0L) {
+                                    throw ProtocoloException("bloque fuera de orden")
+                                }
+                                if (bloque.error != null) {
+                                    destino.delete(); marca.delete()
+                                    return@withLock AppResult.Err(
+                                        if (bloque.error == CopiaBaseSync.ERROR_NO_AUTORIZADA) AppError.SinPermiso else AppError.Almacenamiento,
+                                    )
+                                }
+                                if (bloque.total != total || bloque.sha256?.lowercase() != sha) {
+                                    throw ProtocoloException("cambió la copia durante la descarga")
+                                }
+                            } else {
+                                marca.writeText(meta)
+                                archivo.seek(hecho)
+                            }
+                        } else if (total != totalEsperado || sha != shaEsperado) {
+                            throw ProtocoloException("cambió la copia durante la descarga")
+                        }
+                        if (hecho == totalEsperado) break
+                        val bytes = try { Base64.getDecoder().decode(bloque.datos) }
+                        catch (_: IllegalArgumentException) { throw ProtocoloException("bloque ilegible") }
+                        if (bytes.isEmpty() || bytes.size > CopiaBaseSync.TAMANO_BLOQUE || hecho + bytes.size > totalEsperado) {
+                            bytes.fill(0)
+                            throw ProtocoloException("bloque inválido")
+                        }
+                        archivo.seek(hecho)
+                        archivo.write(bytes)
+                        hecho += bytes.size
+                        bytes.fill(0)
+                        if (totalEsperado >= FRAME_GRANDE) _progreso.value = ProgresoSync(hecho, totalEsperado, FaseSync.RECIBIENDO)
+                    }
+                    if (archivo.length() != totalEsperado) throw ProtocoloException("copia incompleta")
+                }
+                val hash = sha256(destino)
+                if (!hash.equals(shaEsperado, ignoreCase = true)) {
+                    destino.delete(); marca.delete()
+                    return@withLock AppResult.Err(AppError.Validacion("sha256"))
+                }
+                AppResult.Ok(destino)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                AppResult.Err(AppError.SinPrincipal(almacen.pendientes()))
+            } finally {
+                _progreso.value = null
+            }
+        }
+    }
+
+    /** Consume en la app principal la autorización que permitió transferir la copia. */
+    suspend fun confirmarImportacionBase(solicitudId: String): AppResult<Unit> {
+        val d = config.secundariaActual() ?: return AppResult.Err(AppError.NoEncontrado)
+        val s = sesionAbierta(d) ?: return AppResult.Err(AppError.SinPrincipal(almacen.pendientes()))
+        return try {
+            val respuesta = s.pedir({ id -> ConfirmarBaseNegocio(id, solicitudId) }) as? BaseNegocioConfirmada
+                ?: throw ProtocoloException("respuesta inesperada")
+            if (respuesta.confirmada) AppResult.Ok(Unit) else AppResult.Err(AppError.SinPermiso)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            AppResult.Err(AppError.SinPrincipal(almacen.pendientes()))
+        }
+    }
+
+    private fun archivosBasePrincipal(solicitudId: String): Pair<File, File> {
+        val carpeta = File(context.cacheDir, CARPETA_COPIA_PRINCIPAL).apply { mkdirs() }
+        val clave = MessageDigest.getInstance("SHA-256").digest(solicitudId.toByteArray(Charsets.UTF_8))
+            .take(12).joinToString("") { "%02x".format(it) }
+        return File(carpeta, "$clave.shalev") to File(carpeta, "$clave.meta")
+    }
+
+    private fun copiaCompletaValida(file: File, marca: File, solicitudId: String): Boolean = runCatching {
+        if (!file.isFile || !marca.isFile || file.length() !in 1..MAX_COPIA_BYTES) return@runCatching false
+        val partes = marca.readText(Charsets.UTF_8).split('\n')
+        if (partes.size != 3 || partes[0] != solicitudId || partes[1].toLongOrNull() != file.length() || !HUELLA.matches(partes[2])) {
+            return@runCatching false
+        }
+        sha256(file).equals(partes[2], ignoreCase = true)
+    }.getOrDefault(false)
+
+    private fun sha256(file: File): String = MessageDigest.getInstance("SHA-256").run {
+        file.inputStream().use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val n = input.read(buffer)
+                if (n < 0) break
+                update(buffer, 0, n)
+            }
+            buffer.fill(0)
+        }
+        digest().joinToString("") { "%02x".format(it) }
     }
 
     /**
@@ -486,6 +659,8 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
                             is Pong -> esperando.remove(m.id)?.complete(m)
                             is BloqueApk -> esperando.remove(m.id)?.complete(m)
                             is BloqueFoto -> esperando.remove(m.id)?.complete(m)
+                            is BloqueBaseNegocio -> esperando.remove(m.id)?.complete(m)
+                            is BaseNegocioConfirmada -> esperando.remove(m.id)?.complete(m)
                             Aviso -> _cambiosPendientes.value = true
                             Quitada -> { alSerQuitada?.invoke(); break }
                             else -> Unit
@@ -549,6 +724,9 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
         const val FRAME_GRANDE = 1024L * 1024L
 
         const val TEXTO_SIN_CONEXION = "No se encuentra la app principal. Comprueba su conexión y disponibilidad."
+        private const val CARPETA_COPIA_PRINCIPAL = "importacion_principal"
+        private const val MAX_COPIA_BYTES = 128L * 1024 * 1024 + 256
+        private val HUELLA = Regex("[0-9a-f]{64}")
         const val TEXTO_CODIGO_INVALIDO = "Este código no es válido. Pide al dueño que genere uno nuevo."
 
         fun textoRechazo(motivo: String): String = when (motivo) {

@@ -6,6 +6,33 @@ import Combine
 
 enum SyncRole: String, Codable { case principal, secondary }
 
+enum SyncImportRequestState: String, Equatable {
+    case none = "NINGUNA"
+    case pendingSend = "PENDIENTE_ENVIO"
+    case pending = "PENDIENTE"
+    case authorized = "AUTORIZADA"
+    case rejected = "RECHAZADA"
+    case consumed = "CONSUMIDA"
+    case incompatible = "NO_COMPATIBLE"
+
+    init(serverValue: String?) {
+        if let serverValue, let state = Self(rawValue: serverValue) { self = state }
+        else { self = .none }
+    }
+
+    var userMessage: String? {
+        switch self {
+        case .none: nil
+        case .pendingSend: "La solicitud de importación aún no se ha enviado. Sincroniza para enviarla."
+        case .pending: "La solicitud está pendiente de aprobación en la app principal."
+        case .authorized: "La app principal autorizó la copia. Puedes importar la base."
+        case .rejected: "La app principal rechazó la solicitud. Puedes solicitar autorización de nuevo."
+        case .consumed: "La copia ya se transfirió. Puedes terminar el cambio a principal."
+        case .incompatible: "Actualiza la app principal para solicitar o transferir una copia."
+        }
+    }
+}
+
 struct SyncLicense: Codable, Equatable {
     var clase: String
     var tipo: String? = nil
@@ -102,6 +129,14 @@ struct SyncLink: Codable, Equatable {
     var closeNotice = false
     var closeRequested = false
     var closeRejectedNotice = false
+    /// Solicitud persistente de importación de la base vinculada.
+    var importRequestID: String? = nil
+    var importRequestState: String? = nil
+    /// Punto de recuperación: se fija tras guardar localmente la base y antes de consumir la autorización remota.
+    var baseImportedLocally: Bool? = nil
+
+    var importState: SyncImportRequestState { SyncImportRequestState(serverValue: importRequestState) }
+    var hasImportedBaseLocally: Bool { baseImportedLocally == true }
 }
 
 struct SyncSecureConfiguration: Codable {

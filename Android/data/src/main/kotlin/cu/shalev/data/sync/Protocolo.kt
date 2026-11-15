@@ -126,6 +126,8 @@ data class Sincronizar(
     val cambiosAplicados: List<String> = emptyList(),
     /** 0.25.0: versionCode instalado en la secundaria (para ofrecerle el APK que tenga la principal). null = 0.24 o anterior. */
     val versionCode: Int? = null,
+    /** 1.0.2: solicitud persistente de importar la base completa, asociada a una aprobación del dueño. */
+    val solicitudImportacionId: String? = null,
 ) : Mensaje
 
 @Serializable @SerialName("sync_ok")
@@ -144,6 +146,9 @@ data class SincronizarOk(
     val apk: VersionApk? = null,
     val conteoAprobado: cu.shalev.data.dto.ConteoCierreDto? = null,
     val conteoTurnoUuid: String? = null,
+    /** 1.0.2: respuesta a la solicitud de copia de esta secundaria. Ausente en principales anteriores. */
+    val solicitudImportacionId: String? = null,
+    val estadoSolicitudImportacion: String? = null,
 ) : Mensaje
 
 /**
@@ -188,6 +193,29 @@ data class BloqueFoto(
     val sha256: String? = null,
     val error: String? = null,
 ) : Mensaje
+
+/** 1.0.2: secundaria → principal, bloque de una copia completa ya autorizada por el dueño. */
+@Serializable @SerialName("base_pedir")
+data class PedirBaseNegocio(val id: Long, val solicitudId: String, val desde: Long) : Mensaje
+
+/** 1.0.2: bloque de respaldo `.shalev`, solo por la sesión cifrada y mientras la autorización siga vigente. */
+@Serializable @SerialName("base_bloque")
+data class BloqueBaseNegocio(
+    val id: Long,
+    val solicitudId: String,
+    val desde: Long,
+    val datos: String = "",
+    val total: Long = 0,
+    val sha256: String? = null,
+    val error: String? = null,
+) : Mensaje
+
+/** 1.0.2: la secundaria confirma que importó la copia; el permiso es de un solo uso. */
+@Serializable @SerialName("base_confirmar")
+data class ConfirmarBaseNegocio(val id: Long, val solicitudId: String) : Mensaje
+
+@Serializable @SerialName("base_confirmada")
+data class BaseNegocioConfirmada(val id: Long, val confirmada: Boolean) : Mensaje
 
 /** Secundaria → principal: acción que cambia el catálogo (solo con conexión y con permiso). */
 @Serializable @SerialName("cmd")

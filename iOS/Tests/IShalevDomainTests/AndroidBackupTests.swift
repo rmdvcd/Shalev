@@ -99,6 +99,28 @@ final class AndroidBackupTests: XCTestCase {
         XCTAssertEqual(restored.shifts.first?.closingCount?.inventory.count, 2)
     }
 
+    func testPortableBackupsOmitImportAuthorizationState() throws {
+        var app = AppData.empty
+        var employee = LocalEmployee(name: "Ana", permissions: [], syncID: 7)
+        employee.importRequestID = "4ea10bb2-d3cb-4e68-8dc9-1c7e2d107301"
+        employee.importRequestState = "AUTORIZADA"
+        app.employees = [employee]
+
+        let androidJSON = try AndroidBackupCodec.jsonForExport(app)
+        let androidRoot = try XCTUnwrap(JSONSerialization.jsonObject(with: androidJSON) as? [String: Any])
+        let androidEmployee = try XCTUnwrap(AndroidBackupCodec.dictionaries(androidRoot["empleados"]).first)
+        XCTAssertNil(androidEmployee["solicitudImportacionId"])
+        XCTAssertNil(androidEmployee["estadoSolicitudImportacion"])
+        let androidRestored = try AndroidBackupCodec.appFromJSON(androidJSON)
+        XCTAssertNil(androidRestored.employees?.first?.importRequestID)
+        XCTAssertNil(androidRestored.employees?.first?.importRequestState)
+
+        let iosBackup = try BackupCodec.encode(app, password: "clave-segura")
+        let iosRestored = try BackupCodec.decode(iosBackup, password: "clave-segura")
+        XCTAssertNil(iosRestored.employees?.first?.importRequestID)
+        XCTAssertNil(iosRestored.employees?.first?.importRequestState)
+    }
+
     func testAndroidBackupPreservesLocalListSelectionAndRecordOwnership() throws {
         var app = AppData.empty
         app.locations = [

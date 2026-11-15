@@ -390,6 +390,10 @@ data class EmpleadoEntity(
     val device: String? = null,
     /** Local asignado al vincular; no depende del selector de la principal. */
     val localId: String? = null,
+    /** 1.0.2: solicitud explícita de importar la base de la app principal vinculada. */
+    val solicitudImportacionId: String? = null,
+    /** Estado temporal de solicitud; no viaja en los respaldos del negocio. */
+    @ColumnInfo(defaultValue = "'NINGUNA'") val estadoSolicitudImportacion: String = "NINGUNA",
 )
 
 /**

@@ -16,6 +16,7 @@ enum SyncError: LocalizedError, Equatable {
     case rejected(String)
     case permission
     case syncRequired
+    case backupRequired
     case remote(String)
     case storage
 
@@ -37,6 +38,7 @@ enum SyncError: LocalizedError, Equatable {
         case .rejected(let reason): "La principal rechazó la conexión (\(reason))."
         case .permission: "La principal no concedió permiso para esta acción."
         case .syncRequired: "Sincroniza con la principal antes de abrir el turno."
+        case .backupRequired: "Antes de cambiar esta app a secundaria, exporta un respaldo de sus datos."
         case .remote(let message): message
         case .storage: "No se pudo guardar la configuración segura de sincronización."
         }

@@ -110,6 +110,18 @@ class RespaldoRoomTest {
         assertEquals(listOf("Refresco"), nombres())
     }
 
+    /** La copia de sincronización es interna: no cuenta como respaldo del usuario y no pide contraseña. */
+    @Test fun exportarParaSincronizacionNoReiniciaElRecordatorioDeRespaldo() = runBlocking {
+        val respaldoPrevio = ahora.minusSeconds(10 * 24 * 60 * 60L)
+        estadoApp.flujo.value = cu.shalev.domain.model.EstadoApp(ultimoRespaldo = respaldoPrevio)
+        val out = ByteArrayOutputStream()
+        ok(respaldo.exportarParaSincronizacion(out))
+
+        val info = ok(respaldo.inspeccionar(out.toByteArray().inputStream()))
+        assertEquals(false, info.conContrasena)
+        assertEquals(respaldoPrevio, estadoApp.flujo.value.ultimoRespaldo)
+    }
+
     /**
      * 0.27.0 (N2): «Cliente fijo» al vender lo guarda por carné (la segunda venta actualiza el teléfono, no duplica),
      * sus compras salen de las transferencias no anuladas, viaja en el respaldo y se puede quitar.

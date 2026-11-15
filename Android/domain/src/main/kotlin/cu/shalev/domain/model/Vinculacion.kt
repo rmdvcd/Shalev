@@ -14,10 +14,32 @@ import java.time.Instant
  *  - SECUNDARIA: la de un empleado, vinculada a una principal con un QR de un solo uso. Trabaja con una copia del
  *    catálogo de la principal y le envía sus turnos y ventas por la red local (wifi del local o zona wifi del
  *    teléfono principal), al momento o cuando el empleado lo pida.
- * Una app solo es SECUNDARIA mientras está vinculada: desvincularla (o que la principal la quite) borra sus datos
- * y la devuelve a PRINCIPAL.
+ * Una app solo es SECUNDARIA mientras está vinculada. Al pasarla a PRINCIPAL se puede empezar desde cero o
+ * importar, con autorización explícita de la app principal, una copia de su base de datos.
  */
 enum class TipoApp { PRINCIPAL, SECUNDARIA }
+
+/** Estado de una solicitud para importar la base completa de la app principal vinculada. */
+enum class EstadoSolicitudImportacion {
+    NINGUNA,
+    /** La solicitud aún no se ha enviado o recibido la respuesta del servidor. */
+    PENDIENTE_ENVIO,
+    /** La app principal recibió la solicitud y espera la decisión del dueño. */
+    PENDIENTE,
+    AUTORIZADA,
+    RECHAZADA,
+    /** Copia confirmada por la app solicitante; el id permite hacer idempotente el acuse tras un reinicio. */
+    CONSUMIDA,
+    /** La app principal debe actualizarse para entender la solicitud. */
+    NO_COMPATIBLE,
+
+    ;
+
+    companion object {
+        fun desde(codigo: String?): EstadoSolicitudImportacion =
+            entries.firstOrNull { it.name == codigo } ?: NINGUNA
+    }
+}
 
 /** Lo que el dueño permite a cada app secundaria (se elige en la principal y se puede cambiar cuando quiera). */
 enum class PermisoEmpleado(val etiqueta: String, val detalle: String) {
@@ -94,6 +116,9 @@ data class Empleado(
     val conteoCierre: ConteoCierre? = null,
     /** 0.26.0: versionCode de su app (null = aún no lo envió: 0.24 o anterior). */
     val versionCode: Int? = null,
+    /** Solicitud vigente de importar la base completa del negocio desde esta secundaria. */
+    val solicitudImportacionId: String? = null,
+    val estadoSolicitudImportacion: EstadoSolicitudImportacion = EstadoSolicitudImportacion.NINGUNA,
 ) {
     val vinculado: Boolean get() = vinculadoEn != null
     val cierrePedido: Boolean get() = cierreSolicitadoEn != null && turnoAbiertoDesde != null
@@ -230,6 +255,9 @@ data class EstadoSecundaria(
     val progreso: ProgresoSync? = null,
     val operacionPendiente: Boolean = false,
     val operacionRecuperada: Boolean? = null,
+    /** Solicitud de copia completa transmitida por sincronización y aprobada/rechazada por el dueño. */
+    val solicitudImportacionId: String? = null,
+    val estadoSolicitudImportacion: EstadoSolicitudImportacion = EstadoSolicitudImportacion.NINGUNA,
 )
 
 /** Lo que muestra la pantalla de vinculación en la principal. */
@@ -245,13 +273,25 @@ data class EstadoPrincipal(
 )
 
 object Vinculacion {
-    /**
-     * 0.27.0 (T9): una app principal nunca pasa a secundaria. Solo puede vincularse como secundaria la app que eligió
-     * «Secundaria» en el recorrido inicial, mientras no esté vinculada y no tenga apps de empleados. Para cambiar de
-     * tipo hay que borrar los datos de la app (antes, exportar el respaldo).
-     */
+    /** Regla de elegibilidad del vínculo inicial: no confundirla con cambiar el tipo desde Ajustes. */
     fun puedeVincularseComoSecundaria(tipo: TipoApp, eligioSecundaria: Boolean, empleados: Int): Boolean =
         tipo == TipoApp.PRINCIPAL && eligioSecundaria && empleados == 0
+
+    /** Conversión desde Ajustes: cualquier app principal puede cambiar de rol; las salvaguardas van aparte. */
+    fun puedeCambiarATipoSecundaria(tipo: TipoApp): Boolean = tipo == TipoApp.PRINCIPAL
+
+    /** Conversión de una secundaria a principal (con base nueva o importada). */
+    fun puedeCambiarATipoPrincipal(tipo: TipoApp): Boolean = tipo == TipoApp.SECUNDARIA
+
+    /** Solo el primer vínculo desde el recorrido puede omitir respaldo, y únicamente en una instalación vacía. */
+    fun necesitaRespaldoPrevio(
+        tieneRespaldoExportado: Boolean,
+        vinculacionInicial: Boolean,
+        tipo: TipoApp,
+        eligioSecundaria: Boolean,
+        empleados: Int,
+    ): Boolean = !tieneRespaldoExportado &&
+        !(vinculacionInicial && puedeVincularseComoSecundaria(tipo, eligioSecundaria, empleados))
 
     /**
      * 0.21.0 (C4, P46): cuántas apps secundarias cubre la licencia lo decide la propia licencia
