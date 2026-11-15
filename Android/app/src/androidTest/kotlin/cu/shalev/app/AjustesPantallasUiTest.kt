@@ -85,7 +85,9 @@ class AjustesPantallasUiTest {
     @Test fun pagoElectronicoTocarEligeLaTarjeta() {
         rule.setContent { ShalevTheme(darkTheme = false) { PagoElectronicoContent(PagoUiState(true, perfil), {}, accionesLista) } }
         rule.onNodeWithText("•••• 1234").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithTag(PagoTags.opcion(TipoCuentaPago.TARJETA, 3)).performClick()
+        // Se toca el número (el centro de la fila puede caer en «Editar»/«Eliminar», que ahora llevan palabra).
+        rule.onNodeWithTag(PagoTags.opcion(TipoCuentaPago.TARJETA, 3)).assertExists()
+        rule.onNodeWithText("•••• 1234", useUnmergedTree = true).performClick()
         assertEquals(listOf(TipoCuentaPago.TARJETA to 3L), elegidas)
     }
 

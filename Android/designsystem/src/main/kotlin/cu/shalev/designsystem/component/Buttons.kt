@@ -60,13 +60,15 @@ private val PaddingTexto = PaddingValues(horizontal = ShalevSpacing.md, vertical
 
 /**
  * P18 (A01): altura de los botones. Normalmente va de 40 a 48dp. Con letra grande del sistema
- * ([ShalevFontScale.GRANDE]) se quita el máximo: la etiqueta puede ocupar 2 líneas y nunca se recorta (WCAG 1.4.4).
+ * ([ShalevFontScale.GRANDE]) se quita el máximo y el mínimo sube a 48dp: la etiqueta puede ocupar 2 líneas y nunca
+ * se recorta (WCAG 1.4.4).
  * P24: los botones solo icono miden siempre 48dp de alto (área táctil completa).
  */
 @Composable
 private fun Modifier.alturaBoton(soloIcono: Boolean): Modifier = when {
     soloIcono -> heightIn(min = ShalevSize.touchTarget).widthIn(min = ShalevSize.touchTarget)
-    letraGrande() -> heightIn(min = ShalevSize.buttonMin)
+    // Con letra grande el botón crece con su etiqueta y nunca baja del área táctil de 48dp.
+    letraGrande() -> heightIn(min = ShalevSize.touchTarget)
     else -> heightIn(min = ShalevSize.buttonMin, max = ShalevSize.buttonMax)
 }
 
