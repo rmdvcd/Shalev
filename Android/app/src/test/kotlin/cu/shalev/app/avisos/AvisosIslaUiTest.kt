@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Looper
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.platform.AccessibilityManager
 import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -65,6 +66,10 @@ class AvisosIslaUiTest {
 
     /** Avanza el reloj de Compose y el del looper principal de Robolectric (donde esperan los `delay`). */
     private fun avanzar(ms: Long) {
+        // Con autoAdvance = false, el aviso de cambios del snapshot global viaja por el looper: sin esto, la isla no
+        // se recompone, el temporizador no arranca y avanzar el reloj no prueba nada.
+        Snapshot.sendApplyNotifications()
+        shadowOf(Looper.getMainLooper()).idle()
         rule.mainClock.advanceTimeBy(ms)
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(ms))
         rule.mainClock.advanceTimeBy(100)
@@ -140,7 +145,7 @@ class AvisosIslaUiTest {
         pintar(s)
         rule.mainClock.autoAdvance = false
         rule.runOnIdle { s.mostrar("Archivo guardado.") }
-        rule.mainClock.advanceTimeBy(1_000)
+        avanzar(1_000)
         assertEquals(1, s.total)
         avanzar(ShalevAvisosState.TIEMPO_CON_ACCION_MS)
         assertEquals("el éxito se va solo", 0, s.total)
