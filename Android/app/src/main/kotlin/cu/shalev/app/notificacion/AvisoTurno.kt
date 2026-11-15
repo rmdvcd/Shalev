@@ -32,7 +32,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -62,11 +61,11 @@ class AvisoTurno @Inject constructor(
     private val turnos: TurnoRepository,
     private val ventas: VentaRepository,
     private val arranque: ArranqueSync,
+    private val visibilidad: VisibilidadApp,
 ) {
     private data class TurnoAviso(val desde: Instant, val ventas: Cup?)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val enPrimerPlano = MutableStateFlow(false)
     private var iniciado = false
     /** Último plan aplicado (lo lee ServicioSync al arrancar y al terminar). Solo se toca en el hilo principal. */
     private var plan = PlanAviso.NINGUNO
@@ -82,11 +81,11 @@ class AvisoTurno @Inject constructor(
         iniciado = true
         app.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
             private var visibles = 0
-            override fun onActivityStarted(activity: Activity) { visibles++; enPrimerPlano.value = true }
+            override fun onActivityStarted(activity: Activity) { visibles++; visibilidad.cambiar(true) }
             override fun onActivityStopped(activity: Activity) {
                 visibles = (visibles - 1).coerceAtLeast(0)
                 // Un giro de pantalla para y vuelve a crear la actividad: no cuenta como salir de la app.
-                if (visibles == 0 && !activity.isChangingConfigurations) enPrimerPlano.value = false
+                if (visibles == 0 && !activity.isChangingConfigurations) visibilidad.cambiar(false)
             }
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
             override fun onActivityResumed(activity: Activity) = Unit
@@ -106,7 +105,7 @@ class AvisoTurno @Inject constructor(
                         .catch { emit(TurnoAviso(turno.abiertoEn, null)) }
                 }
                 .catch { emit(null) }
-            combine(enPrimerPlano, turnoYVentas, atencion) { visible, turno, at ->
+            combine(visibilidad.aLaVista, turnoYVentas, atencion) { visible, turno, at ->
                 PlanAviso.calcular(visible, turno?.desde, at, turno?.ventas)
             }
                 .distinctUntilChanged()

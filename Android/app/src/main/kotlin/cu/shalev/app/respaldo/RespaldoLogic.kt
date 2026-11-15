@@ -11,6 +11,11 @@ import java.time.ZoneId
 
 object TextosRespaldo {
     const val TITULO = "Respaldo"
+    /** Notificación del sistema con la barra de progreso (Notificacion.md aplicado a la barra de notificaciones). */
+    const val NOTIF_TITULO = "Respaldo de Shalev"
+    const val NOTIF_EXPORTANDO = "Exportando el respaldo"
+    const val NOTIF_IMPORTANDO = "Importando el respaldo"
+    const val NOTIF_COMPROBANDO = "Comprobando el respaldo"
     const val EXPLICACION = "Guarda una copia protegida de todo el negocio."
     /** 0.27.0 (T10): contraseña opcional. Auditoría 2026-10-14 (S-01): ENCENDIDA por defecto. */
     const val PROTEGER = "Proteger con contraseña"

@@ -66,7 +66,7 @@ La primera vez que abres Shalev aparecen dos ayudas muy breves para dejar la apl
 Al arrancar por primera vez, Shalev explica en lenguaje claro para qué sirve cada permiso antes de pedírtelo:
 
 1. **Cámara:** para fotografiar productos o servicios y escanear el código QR al vincular empleados.
-2. **Notificación de turno:** para mostrarte en la barra superior del teléfono cuándo dejaste un turno abierto o el avance de una sincronización.
+2. **Notificaciones:** para mostrarte en la barra superior del teléfono cuándo dejaste un turno abierto, el avance de una sincronización, de una actualización o de un respaldo, y su resultado.
 3. **Fotos:** se pide una sola vez para conservar la fecha de tu periodo de prueba en caso de reinstalación.
 
 Puedes pulsar **Continuar** para concederlos o **Ahora no** si prefieres seguir adelante; si niegas alguno, Shalev solo volverá a pedirlo cuando uses la función que lo necesita.
@@ -144,7 +144,13 @@ Cuando guardas, vendes, eliminas o algo no sale bien, Shalev te avisa con una **
 - **Desliza la píldora a un lado** para cerrar el aviso que ves.
 - Mientras la tocas o la tarjeta está abierta, ningún aviso se va solo. Si en Android tienes *Accesibilidad → Tiempo para actuar* más largo, los avisos duran lo que hayas elegido. TalkBack lee primero el tipo («Error: …») y la acción **Cerrar aviso**.
 
-Los avisos que llegan **con la app cerrada** (un empleado que se conecta, una sincronización terminada, el turno abierto) siguen yendo a las notificaciones de Android.
+Los avisos que llegan **con la app cerrada** van a las notificaciones de Android y siguen las mismas reglas:
+
+- **Barra de progreso:** mientras se **descarga una actualización** o se **exporta o importa un respaldo**, verás una notificación con una barra horizontal y el porcentaje (o la etapa, «Etapa 2 de 4»). La descarga tiene **Cancelar**. Al terminar, esa misma notificación cambia a *hecho* o *no se pudo*; no se juntan dos.
+- **Cuánto duran:** las de *todo bien* e *información* se quitan solas a los 15 minutos; las de *revisa algo* y *no se pudo* se quedan hasta que las toques o las deslices.
+- **Sin duplicados:** si tienes Shalev abierta, el resultado lo ves en la propia pantalla y la notificación se retira.
+- **Apps vinculadas:** cada empleado tiene una sola notificación que cambia de «se conectó» a «se desconectó». Si se repite, verás **(×3)** y no vuelve a sonar. Con varias, se agrupan bajo «N avisos de las apps vinculadas». Si la sincronización de la app secundaria se corta con Shalev cerrada, el aviso trae **Reintentar**.
+- En los ajustes de notificaciones de Android verás los canales **Actualización y respaldos** (sin sonido) y **Problemas** (suena una vez), además de los de sincronización y turno.
 
 ### 3.3 Tema claro, tema oscuro y letra grande
 
