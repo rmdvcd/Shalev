@@ -1,6 +1,7 @@
 package cu.shalev.app.avisos
 
 import android.app.Application
+import android.os.Looper
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -23,11 +24,13 @@ import cu.shalev.designsystem.component.ShalevSnackbarHost
 import cu.shalev.designsystem.component.TextosAvisos
 import cu.shalev.designsystem.component.TipoAviso
 import cu.shalev.designsystem.theme.ShalevTheme
+import java.time.Duration
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -40,6 +43,13 @@ class AvisosIslaUiTest {
 
     private fun pintar(estado: ShalevAvisosState) = rule.setContent {
         ShalevTheme(darkTheme = false) { ShalevSnackbarHost(estado) }
+    }
+
+    /** Avanza el reloj de Compose y el del looper principal de Robolectric (donde esperan los `delay`). */
+    private fun avanzar(ms: Long) {
+        rule.mainClock.advanceTimeBy(ms)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(ms))
+        rule.mainClock.advanceTimeBy(100)
     }
 
     @Test fun enReposoEsUnaPildoraConElMasNuevoYLaInsignia() {
@@ -102,8 +112,8 @@ class AvisosIslaUiTest {
         s.mostrar("uno", TipoAviso.ERROR)
         s.mostrar("dos", TipoAviso.ERROR)
         pintar(s)
-        rule.onNodeWithTag(AvisosTags.ISLA).performTouchInput { swipeLeft() }
-        rule.waitForIdle()
+        rule.onNodeWithTag(AvisosTags.ISLA).performTouchInput { swipeLeft(endX = left - width) }
+        avanzar(500)
         assertEquals(listOf("uno"), s.avisos.map { it.titulo })
     }
 
@@ -114,14 +124,11 @@ class AvisosIslaUiTest {
         rule.runOnIdle { s.mostrar("Archivo guardado.") }
         rule.mainClock.advanceTimeBy(1_000)
         assertEquals(1, s.total)
-        rule.mainClock.advanceTimeBy(ShalevAvisosState.TIEMPO_CON_ACCION_MS)
-        rule.mainClock.autoAdvance = true
-        rule.waitUntil(timeoutMillis = 15_000) { s.total == 0 }
-        rule.mainClock.autoAdvance = false
+        avanzar(ShalevAvisosState.TIEMPO_CON_ACCION_MS)
+        assertEquals("el éxito se va solo", 0, s.total)
 
         rule.runOnIdle { s.mostrar("No se pudo guardar. Inténtalo de nuevo.") }
-        rule.mainClock.advanceTimeBy(ShalevAvisosState.TIEMPO_CON_ACCION_MS * 3)
-        rule.waitForIdle()
+        avanzar(ShalevAvisosState.TIEMPO_CON_ACCION_MS * 3)
         assertEquals("el error se queda hasta que se cierra", 1, s.total)
     }
 
@@ -131,7 +138,7 @@ class AvisosIslaUiTest {
         s.abrir()
         pintar(s)
         rule.mainClock.autoAdvance = false
-        rule.mainClock.advanceTimeBy(ShalevAvisosState.TIEMPO_CON_ACCION_MS * 2)
+        avanzar(ShalevAvisosState.TIEMPO_CON_ACCION_MS * 2)
         assertEquals(1, s.total)
     }
 

@@ -1,4 +1,4 @@
-## Avisos de la app como «isla» (Notificacion.md, 2026-11-13)
+## Avisos de la app como «isla» (Notificacion.md, 2026-11-15)
 
 - **Guía aplicada:** Notificacion.md (toasts estilo Dynamic Island) en su versión para Android (§5): sin copiar el toast web; el componente propio sustituye al Snackbar de Material, que solo muestra uno a la vez y no admite pila, contador ni paginador.
 - **Antes:** cada pantalla tenía su Snackbar de Material (abajo, solo texto, sin tipo) y los avisos de «operación realizada» salían en otro cuadro arriba (2 s). Dos posiciones distintas, y todos los mensajes duraban lo mismo, fueran éxito o error.

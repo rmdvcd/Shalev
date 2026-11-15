@@ -233,8 +233,7 @@ private fun Isla(
 ) {
     val cs = MaterialTheme.colorScheme
     val oscuro = LocalShalevColors.current.isDark
-    // El desplazamiento sigue al dedo de forma síncrona (sin lanzar corrutinas por cada delta, que podrían cancelar la
-    // animación de salida); al soltar, se decide y el aviso se cierra aunque la animación se interrumpa.
+    // El desplazamiento sigue al dedo de forma síncrona (sin lanzar una corrutina por cada delta).
     var desplazamiento by remember(aviso.id) { mutableFloatStateOf(0f) }
     val umbral = with(LocalDensity.current) { 96.dp.toPx() }
     Surface(
@@ -248,14 +247,10 @@ private fun Isla(
                 interactionSource = arrastre,
                 onDragStopped = { velocidad ->
                     if (abs(desplazamiento) > umbral || abs(velocidad) > umbral * 8) {
-                        val lado = if (desplazamiento != 0f) sign(desplazamiento) else sign(velocidad)
-                        try {
-                            animate(desplazamiento, lado * umbral * 4, animationSpec = ShalevMotion.muelle()) { v, _ ->
-                                desplazamiento = v
-                            }
-                        } finally {
-                            state.cerrar(aviso)
-                        }
+                        // Se cierra al soltar, sin esperar a ninguna animación: la salida la dibuja AnimatedVisibility (o
+                        // el siguiente aviso ocupa su sitio), así el cierre no depende de que corra un fotograma.
+                        if (desplazamiento == 0f) desplazamiento = sign(velocidad) * umbral
+                        state.cerrar(aviso)
                     } else {
                         animate(desplazamiento, 0f, animationSpec = ShalevMotion.muelle()) { v, _ -> desplazamiento = v }
                     }
@@ -444,8 +439,9 @@ private fun Insignia(n: Int) {
             .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
             .background(Color(ColorTokens.AVISO_INSIGNIA), RoundedCornerShape(50))
             .padding(horizontal = 6.dp)
-            .clearAndSetSemantics { contentDescription = TextosAvisos.insigniaDescripcion(n) }
-            .testTag(AvisosTags.INSIGNIA),
+            // La etiqueta va antes: clearAndSetSemantics borra también lo que se declara después en la cadena.
+            .testTag(AvisosTags.INSIGNIA)
+            .clearAndSetSemantics { contentDescription = TextosAvisos.insigniaDescripcion(n) },
         contentAlignment = Alignment.Center,
     ) {
         Text(
