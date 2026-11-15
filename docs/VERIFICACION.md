@@ -1,5 +1,14 @@
 # Shalev — Verificación real
 
+## ID de la licencia en Perfil — 2026-11-15
+
+**Rama:** `arena/0bf6cb71-shalev`, basada en `dc23f12869580afa1679345c7145af960556591a`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| CI `43662763750` | **Verde**: tests JVM 1033 ejecutados (5 nuevos), 0 fallidos, 0 omitidos; lint, permisos, API mínima 26 y R8/APK debug aprobados. Instrumentados del emulador no ejecutados. |
+| `python3 tools/verificacion/botones.py` | **0 incumplimientos**. |
+
 ## Filtros de entrada según el formato de cada dato — 2026-11-13
 
 **Rama:** `arena/32cf7af0-shalev`, basada en `b423aea0f9f7036d2af594686868192fff357cd8`.
