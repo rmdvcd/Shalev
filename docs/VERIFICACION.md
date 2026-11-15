@@ -8,7 +8,7 @@
 |---|---|
 | Datos de prueba | Script Python: los 13 carnés de 11 dígitos usados en pruebas tienen fecha válida; los 7 inválidos nuevos fallan a propósito. Las tarjetas de pruebas que deben ser válidas pasan Luhn (9205129900001232, 9205129900009995, 9205129970876455, 9227069995328054). |
 | `python3 tools/verificacion/botones.py` | **0 incumplimientos**. |
-| Compilación y pruebas JVM/Robolectric | En el CI de la rama (sin JDK local). |
+| CI `43657680875` (commit de los filtros) | **Verde**: tests JVM 1028 ejecutados, 0 fallidos, 0 omitidos; lint, permisos, API mínima 26 y R8/APK debug aprobados. Instrumentados del emulador no ejecutados (solo con `[instrumentados]` o semanal). |
 
 ## Recorridos en todas las ventanas y botones de una palabra — 2026-11-13
 
