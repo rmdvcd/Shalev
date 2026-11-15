@@ -63,13 +63,15 @@ La primera vez que abres Shalev aparecen dos ayudas muy breves para dejar la apl
 
 ### 2.1 Permisos de la primera apertura
 
-Al arrancar por primera vez, Shalev explica en lenguaje claro para qué sirve cada permiso antes de pedírtelo:
+Al arrancar por primera vez, Shalev muestra una **lista de comprobación** con cada permiso y para qué sirve, antes de pedírtelo:
 
 1. **Cámara:** para fotografiar productos o servicios y escanear el código QR al vincular empleados.
-2. **Notificaciones:** para mostrarte en la barra superior del teléfono cuándo dejaste un turno abierto, el avance de una sincronización, de una actualización o de un respaldo, y su resultado.
+2. **Notificaciones** *(Android 13 o posterior)*: para mostrarte en la barra superior del teléfono cuándo dejaste un turno abierto, el avance de una sincronización, de una actualización o de un respaldo, y su resultado.
 3. **Fotos:** se pide una sola vez para conservar la fecha de tu periodo de prueba en caso de reinstalación.
 
-Puedes pulsar **Continuar** para concederlos o **Ahora no** si prefieres seguir adelante; si niegas alguno, Shalev solo volverá a pedirlo cuando uses la función que lo necesita.
+Al pulsar **Continuar**, Android te pregunta por cada permiso **uno a uno**. Cada fila de la lista se marca según respondes: ✓ **Permitido** en verde o ⓧ **Denegado** en rojo. Las que esperan su turno dicen *Pendiente*, y la que tienes delante, *Pidiendo*. Si ya habías dado alguno, sale marcado desde el principio y no se vuelve a pedir.
+
+Al final verás cuántos permitiste (por ejemplo, *«Permitidos: 2 de 3.»*) y el botón **Listo**. Si negaste alguno, la ventana te recuerda que puedes activarlo en *Ajustes de Android → Apps → Shalev → Permisos*; además, Shalev volverá a pedirlo cuando uses la función que lo necesita. Si prefieres no dar ninguno ahora, pulsa **Omitir**.
 
 ### 2.2 El recorrido inicial paso a paso
 
