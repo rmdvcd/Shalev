@@ -53,6 +53,9 @@ class ValidadoresTest {
     @Test fun `cliente de transferencia`() {
         assertTrue(Validadores.cliente(DatosCliente("María José Pérez", "85010112345", "51234567")).isEmpty())
         assertEquals(setOf("clienteNombre", "clienteCi", "clienteTelefono"), campos(Validadores.cliente(DatosCliente("M4ria", "123", "12"))))
+        // El carné empieza por la fecha de nacimiento AAMMDD: 11 dígitos con un mes 13 o un 31 de abril no son un carné.
+        assertEquals(setOf("clienteCi"), campos(Validadores.cliente(DatosCliente("María Pérez", "85130112345", "51234567"))))
+        assertEquals(setOf("clienteCi"), campos(Validadores.cliente(DatosCliente("María Pérez", "85043112345", "51234567"))))
         assertNull(Validadores.numeroTransaccion("TMW1234567"))
         assertEquals(Regla.FORMATO, Validadores.numeroTransaccion("12-34")!!.regla)
     }

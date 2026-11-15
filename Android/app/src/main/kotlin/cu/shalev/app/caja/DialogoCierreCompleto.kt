@@ -1,5 +1,6 @@
 package cu.shalev.app.caja
 
+import cu.shalev.designsystem.component.FiltroEntrada
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.designsystem.component.coachMark
 import cu.shalev.app.recorrido.Recorrido
@@ -110,10 +111,12 @@ fun DialogoCierreCompleto(
                     ls.forEachIndexed { i, l ->
                         ShalevTextField(
                             value = cantidades.getOrNull(i).orEmpty(),
-                            onValueChange = { nuevo -> if (nuevo.length <= 16 && nuevo.all { it.isDigit() || it == '.' || it == ',' }) {
+                            // Productos: unidades enteras; insumos: hasta 3 decimales (un solo separador, la coma pasa a punto).
+                            filtro = if (l.entidad == TipoEntidad.PRODUCTO) FiltroEntrada.ENTERO else FiltroEntrada.DECIMAL,
+                            onValueChange = { nuevo ->
                                 omitido = false
                                 cantidades = cantidades.toMutableList().also { valores -> if (i < valores.size) valores[i] = nuevo }
-                            } },
+                            },
                             label = "${l.nombre} (${l.unidad})",
                             supportingText = "Esperado: ${ConteoForm.formato(l.esperado, l.entidad)} ${l.unidad}",
                             keyboardOptions = KeyboardOptions(keyboardType = if (l.entidad == TipoEntidad.PRODUCTO) KeyboardType.Number else KeyboardType.Decimal),

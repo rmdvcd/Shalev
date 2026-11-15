@@ -496,7 +496,12 @@ internal fun LazyListScope.camposCliente(
 internal fun CampoClienteField(f: FormCliente, c: CampoCliente, onCampo: (CampoCliente, String) -> Unit, modifier: Modifier = Modifier) {
     val error = f.visibles()[c]
     ShalevTextField(
-        filtro = when (c) { CampoCliente.CI -> FiltroEntrada.CARNE; CampoCliente.NUMERO -> FiltroEntrada.TRANSACCION; else -> FiltroEntrada.LIBRE },
+        filtro = when (c) {
+            CampoCliente.NOMBRE -> FiltroEntrada.PERSONA
+            CampoCliente.CI -> FiltroEntrada.CARNE
+            CampoCliente.TELEFONO -> FiltroEntrada.TELEFONO
+            CampoCliente.NUMERO -> FiltroEntrada.TRANSACCION
+        },
         value = when (c) {
             CampoCliente.NOMBRE -> f.nombre
             CampoCliente.CI -> f.ci

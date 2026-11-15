@@ -58,7 +58,7 @@ class VentaCapturas {
         precioBase = pr.precioVenta, precioUnitario = pr.precioVenta, costoUnitario = pr.precioCosto,
     )
     private val detalles = listOf(d(pizza, 2), d(refresco, 2))
-    private val qr = PagoQr.Resultado.Ok("TRANSFERMOVIL_ETECSA,TRANSFERENCIA,9205129970876454,52345678,", "9205129970876454", "52345678")
+    private val qr = PagoQr.Resultado.Ok("TRANSFERMOVIL_ETECSA,TRANSFERENCIA,9205129970876455,52345678,", "9205129970876455", "52345678")
 
     private fun venta(id: String, s: VentaUiState, tipo: TipoVenta = TipoVenta.VENTA) =
         rule.capturar(id) { VentaContent(tipo, s, AccionesVenta(), zona = Captura.ZONA) }
@@ -100,7 +100,7 @@ class VentaCapturas {
     // ---------- Pago electrónico ----------
     private val perfil = Perfil(
         "Ana", "Díaz Rodríguez", "85010112345",
-        tarjetas = listOf(TarjetaBancaria(3, "9205129970876454"), TarjetaBancaria(4, "9227069995328054")),
+        tarjetas = listOf(TarjetaBancaria(3, "9205129970876455"), TarjetaBancaria(4, "9227069995328054")),
         telefonos = listOf(Telefono(1, "52345678"), Telefono(2, "53123456")),
         pagoTarjetaId = 3, pagoTelefonoId = 1,
     )
@@ -112,7 +112,7 @@ class VentaCapturas {
 
     @Test fun pagoLista() = pago("06c_pago_lista", PagoUiState(true, perfil))
     @Test fun pagoVacio() = pago("06d_pago_lista_vacia", PagoUiState(true, Perfil()))
-    @Test fun pagoEditar() = pago("06f_pago_hoja_editar_tarjeta", PagoUiState(true, perfil, edicion = EdicionPago(TipoCuentaPago.TARJETA, 3, "9205129970876454")))
+    @Test fun pagoEditar() = pago("06f_pago_hoja_editar_tarjeta", PagoUiState(true, perfil, edicion = EdicionPago(TipoCuentaPago.TARJETA, 3, "9205129970876455")))
     @Test fun pagoNuevoError() = pago("06e_pago_hoja_nuevo_telefono", PagoUiState(true, perfil, edicion = EdicionPago(TipoCuentaPago.TELEFONO, null, "5234", mostrarErrores = true)))
     @Test fun pagoBorrar() = pago("06g_pago_dialogo_eliminar", PagoUiState(true, perfil, borrar = TipoCuentaPago.TARJETA to 4L))
     @Test fun pagoSnackbar() = rule.capturar("06h_pago_snackbar_guardado") {

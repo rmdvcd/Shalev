@@ -1,5 +1,6 @@
 package cu.shalev.app.ubicacion
 
+import cu.shalev.designsystem.component.FiltroEntrada
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.designsystem.component.coachMark
 import cu.shalev.app.recorrido.Recorrido
@@ -73,7 +74,7 @@ fun LocalesAjustes(viewModel: LocalViewModel, onCerrar: () -> Unit) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
             ShalevTextField(
-                value = nombre, onValueChange = { nombre = it.take(80) }, label = "Nombre del local",
+                value = nombre, onValueChange = { nombre = it.take(80) }, label = "Nombre del local", filtro = FiltroEntrada.NOMBRE,
                 modifier = Modifier.coachMark(ObjetivosRecorrido.VENTANA_NOMBRE),
             )
             error?.let { Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error) }

@@ -120,7 +120,7 @@ private fun DatosPersonales(state: PerfilUiState, acciones: AccionesPerfil) {
     val f = state.form
     ShalevCard(modifier = Modifier.padding(horizontal = ShalevSpacing.md)) {
         ShalevTextField(
-            filtro = FiltroEntrada.NOMBRE,
+            filtro = FiltroEntrada.PERSONA,
             value = f.nombre, onValueChange = { v -> acciones.onEditar { it.copy(nombre = v) } },
             label = "Nombre", leadingIcon = ShalevIcons.Perfil,
             isError = f.errorNombre != null, errorText = f.errorNombre, validarAlSalir = false, forzarError = f.mostrarErrores,
@@ -129,7 +129,7 @@ private fun DatosPersonales(state: PerfilUiState, acciones: AccionesPerfil) {
             modifier = Modifier.testTag(PerfilTags.NOMBRE).coachMark(ObjetivosRecorrido.PERFIL_DATOS),
         )
         ShalevTextField(
-            filtro = FiltroEntrada.NOMBRE,
+            filtro = FiltroEntrada.PERSONA,
             value = f.apellidos, onValueChange = { v -> acciones.onEditar { it.copy(apellidos = v) } },
             label = "Apellidos",
             isError = f.errorApellidos != null, errorText = f.errorApellidos, validarAlSalir = false, forzarError = f.mostrarErrores,

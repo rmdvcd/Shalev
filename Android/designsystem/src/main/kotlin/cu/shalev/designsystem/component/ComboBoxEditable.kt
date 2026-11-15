@@ -33,7 +33,7 @@ fun ShalevComboBoxEditable(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ShalevTextField(
-                value = valor, onValueChange = onValor, label = "Almacén/Local",
+                value = valor, onValueChange = onValor, label = "Almacén/Local", filtro = FiltroEntrada.NOMBRE,
                 modifier = Modifier.weight(1f).menuAnchor(MenuAnchorType.PrimaryEditable),
                 enabled = enabled, isError = error != null, errorText = error,
                 supportingText = "Escribe y guarda, o selecciona un local existente",

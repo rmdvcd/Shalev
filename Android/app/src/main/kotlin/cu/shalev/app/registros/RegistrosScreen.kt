@@ -658,9 +658,15 @@ private fun HojaFiltro(actual: FiltroRegistros, tipo: TipoRegistro, acciones: Ac
             modifier = Modifier.fillMaxWidth().testTag(RegistrosTags.FILTRO_PERIODO).coachMark(ObjetivosRecorrido.FILTRO_PERIODO),
         )
         if (form.periodo == PeriodoRegistro.PERSONALIZADO) {
-            CampoFecha(form.desde, { form = form.copy(desde = it) }, label = "Desde", tag = RegistrosTags.FILTRO_DESDE, modifier = Modifier.fillMaxWidth())
+            // Sin días futuros (aún no hay registros) y «Hasta» no puede quedar antes de «Desde».
+            val hoy = java.time.LocalDate.now()
+            CampoFecha(
+                form.desde, { form = form.copy(desde = it) }, label = "Desde", tag = RegistrosTags.FILTRO_DESDE, modifier = Modifier.fillMaxWidth(),
+                maximo = form.hasta ?: hoy,
+            )
             CampoFecha(
                 form.hasta, { form = form.copy(hasta = it) }, label = "Hasta", tag = RegistrosTags.FILTRO_HASTA, modifier = Modifier.fillMaxWidth(),
+                minimo = form.desde, maximo = hoy,
                 supportingText = errores[CamposFiltroRegistros.FECHAS] ?: "Incluye el día completo. Deja una vacía para no poner límite.",
             )
         }

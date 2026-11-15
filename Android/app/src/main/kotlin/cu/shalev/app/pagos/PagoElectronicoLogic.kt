@@ -3,6 +3,7 @@ package cu.shalev.app.pagos
 import cu.shalev.core.format.NumberPresentation
 import cu.shalev.core.result.AppError
 import cu.shalev.core.validation.Phone
+import cu.shalev.core.validation.Validators
 import cu.shalev.domain.validation.Validadores
 
 enum class TipoCuentaPago { TELEFONO, TARJETA }
@@ -48,8 +49,9 @@ object TextosPago {
     const val NUEVO_TELEFONO = "Otro teléfono"
     const val NUEVA_TARJETA = "Otra tarjeta o cuenta"
     const val EN_USO = "En uso"
-    const val ERROR_TELEFONO = "Escribe un teléfono válido, por ejemplo 5123\u202F4567"
+    const val ERROR_TELEFONO = "Escribe un móvil que empiece por 5 o 6, por ejemplo 5123\u202F4567"
     const val ERROR_TARJETA = "Escribe solo los números de la tarjeta o cuenta (12 a 20 dígitos)"
+    const val ERROR_LUHN = "Revisa la tarjeta: algún dígito está mal escrito"
     const val DUPLICADO = "Ese número ya está en la lista"
     const val ERROR_GENERICO = "No se pudo guardar. Inténtalo de nuevo."
     const val GUARDADO = "Pago electrónico guardado"
@@ -57,10 +59,18 @@ object TextosPago {
 
 /** Validación en tiempo real (vacío = sin error: los campos nuevos son opcionales). */
 fun errorTelefono(texto: String): String? =
-    if (texto.isBlank() || Phone.normalize(texto) != null) null else TextosPago.ERROR_TELEFONO
+    if (texto.isBlank() || Phone.esMovilCubano(texto)) null else TextosPago.ERROR_TELEFONO
 
-fun errorTarjeta(texto: String): String? =
-    if (texto.isBlank() || Validadores.normalizarCuenta(texto) != null) null else TextosPago.ERROR_TARJETA
+/**
+ * Las tarjetas (16 dígitos que empiezan por 9: redes RED, AIS y Clásica) llevan dígito de control Luhn (ISO/IEC 7812),
+ * así que se detecta un dígito mal escrito. Las cuentas bancarias (12–20 dígitos) no lo llevan.
+ * Solo se comprueba al escribir: los números ya guardados no se invalidan.
+ */
+fun errorTarjeta(texto: String): String? {
+    if (texto.isBlank()) return null
+    val n = Validadores.normalizarCuenta(texto) ?: return TextosPago.ERROR_TARJETA
+    return if (Validators.pareceTarjeta(n) && !Validators.luhn(n)) TextosPago.ERROR_LUHN else null
+}
 
 fun errorNumero(tipo: TipoCuentaPago, texto: String): String? = when {
     texto.isBlank() -> if (tipo == TipoCuentaPago.TELEFONO) TextosPago.ERROR_TELEFONO else TextosPago.ERROR_TARJETA

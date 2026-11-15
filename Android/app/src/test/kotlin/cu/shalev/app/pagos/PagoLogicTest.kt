@@ -16,7 +16,12 @@ class PagoLogicTest {
     @Test fun validacionDeFormato() {
         assertNull(errorTelefono("5123 4567"))
         assertEquals(TextosPago.ERROR_TELEFONO, errorTelefono("123"))
-        assertNull(errorTarjeta("9205-1299-0000-1234"))
+        assertNull(errorTarjeta("9205-1299-0000-1232"))
+        assertNull(errorTelefono("6312 3456")) // serie 63 de ETECSA (2023)
+        assertEquals(TextosPago.ERROR_TELEFONO, errorTelefono("7834 5678")) // fijo de La Habana: no recibe SMS
+        assertEquals(TextosPago.ERROR_LUHN, errorTarjeta("9205-1299-0000-1234")) // dígito de control incorrecto
+        assertEquals(TextosPago.ERROR_LUHN, errorTarjeta("9205-1299-0000-1223")) // dos dígitos cambiados de sitio
+        assertNull(errorTarjeta("0598 1234 5678 9012")) // cuenta bancaria: sin dígito Luhn
         assertEquals(TextosPago.ERROR_TARJETA, errorTarjeta("9205"))
     }
 
@@ -60,7 +65,7 @@ class PagoLogicTest {
     @Test fun enEdicionElNumeroEsObligatorio() {
         assertEquals(TextosPago.ERROR_TELEFONO, EdicionPago(TipoCuentaPago.TELEFONO).error)
         assertEquals(TextosPago.ERROR_TARJETA, EdicionPago(TipoCuentaPago.TARJETA, numero = "").error)
-        assertNull(EdicionPago(TipoCuentaPago.TARJETA, numero = "9205 1299 0000 1234").error)
+        assertNull(EdicionPago(TipoCuentaPago.TARJETA, numero = "9205 1299 0000 1232").error)
         assertEquals(TextosPago.DUPLICADO, EdicionPago(TipoCuentaPago.TELEFONO, numero = "51234567", errorServidor = TextosPago.DUPLICADO).error)
     }
 

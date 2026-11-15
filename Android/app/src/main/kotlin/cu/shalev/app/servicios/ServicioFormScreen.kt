@@ -190,7 +190,7 @@ private fun Formulario(state: ServicioFormUiState, a: AccionesServicioForm, modi
             modifier = Modifier.testTag(ServicioFormTags.IMPORTE).coachMark(ObjetivosRecorrido.FORM_PRECIOS),
         )
         ShalevTextField(
-            filtro = FiltroEntrada.TEXTO,
+            filtro = FiltroEntrada.DESCRIPCION,
             // 0.24.0: una línea; obligatoria solo si ya hay otro servicio con el mismo nombre.
             value = f.descripcion, onValueChange = a.onDescripcion, label = "Descripción", placeholder = "A domicilio, 30 minutos",
             supportingText = cu.shalev.app.producto.ProductoFormLogic.ayudaDescripcion(f.descripcion),
@@ -214,7 +214,7 @@ private fun CampoTipo(valor: String, tipos: List<String>, error: String?, forzar
     val opciones = tipos.filter { valor.isBlank() || it.contains(valor.trim(), ignoreCase = true) }
     ExposedDropdownMenuBox(expanded = abierto && opciones.isNotEmpty(), onExpandedChange = { abierto = it }) {
         ShalevTextField(
-            filtro = FiltroEntrada.NOMBRE,
+            filtro = FiltroEntrada.CATEGORIA,
             value = valor, onValueChange = { onValor(it); abierto = true }, label = "Tipo *", placeholder = "Peluquería",
             isError = error != null, errorText = error, validarAlSalir = true, forzarError = forzarError, supportingText = "Elige o escribe uno nuevo",
             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).testTag(ServicioFormTags.TIPO).coachMark(ObjetivosRecorrido.FORM_CATEGORIA),

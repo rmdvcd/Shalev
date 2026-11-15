@@ -1,5 +1,6 @@
 package cu.shalev.app.registros
 
+import cu.shalev.designsystem.component.FiltroEntrada
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.designsystem.component.coachMark
 import cu.shalev.app.recorrido.Recorrido
@@ -396,7 +397,7 @@ fun ModificarVentaContent(s: ModificarVentaUiState, a: AccionesModificar) {
             if (s.buscando) {
                 item {
                     ShalevTextField(
-                        value = s.busqueda, onValueChange = a.onBuscar, label = TextosModificar.BUSCAR,
+                        value = s.busqueda, onValueChange = a.onBuscar, label = TextosModificar.BUSCAR, filtro = FiltroEntrada.BUSQUEDA,
                         anchoCompleto = true,
             modifier = Modifier.fillMaxWidth().testTag(ModificarTags.BUSCAR),
                     )

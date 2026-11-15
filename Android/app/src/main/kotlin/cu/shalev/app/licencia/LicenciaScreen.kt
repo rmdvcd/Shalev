@@ -1,5 +1,6 @@
 package cu.shalev.app.licencia
 
+import cu.shalev.app.perfil.TextosPerfil
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.designsystem.component.coachMark
 import cu.shalev.app.recorrido.RecorridoModulo
@@ -465,18 +466,18 @@ private fun DatosForm(state: LicenciaUiState, acciones: LicenciaAcciones) {
     Column(Modifier.testTag(LicenciaTags.FORM_DATOS).coachMark(ObjetivosRecorrido.LICENCIA_DATOS), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs), horizontalAlignment = Alignment.CenterHorizontally) {
         if (state.perfilVacio) ShalevSecondaryText("Tu Perfil está vacío: estos datos se guardarán también en él al solicitar.")
         ShalevTextField(
-            filtro = FiltroEntrada.NOMBRE,
+            filtro = FiltroEntrada.PERSONA,
             value = form.nombre, onValueChange = { v -> acciones.onEditar { it.copy(nombre = v) } },
             imeAction = ImeAction.Next,
-            label = "Nombre", isError = !form.nombreOk, errorText = "Solo letras, 2 a 80", validarAlSalir = true, forzarError = err,
+            label = "Nombre", isError = !form.nombreOk, errorText = TextosPerfil.ERROR_NOMBRE, validarAlSalir = true, forzarError = err,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
             modifier = Modifier,
         )
         ShalevTextField(
-            filtro = FiltroEntrada.NOMBRE,
+            filtro = FiltroEntrada.PERSONA,
             value = form.apellidos, onValueChange = { v -> acciones.onEditar { it.copy(apellidos = v) } },
             imeAction = ImeAction.Next,
-            label = "Apellidos", isError = !form.apellidosOk, errorText = "Solo letras, 2 a 80", validarAlSalir = true, forzarError = err,
+            label = "Apellidos", isError = !form.apellidosOk, errorText = TextosPerfil.ERROR_NOMBRE, validarAlSalir = true, forzarError = err,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
             modifier = Modifier,
         )
@@ -484,7 +485,7 @@ private fun DatosForm(state: LicenciaUiState, acciones: LicenciaAcciones) {
             filtro = FiltroEntrada.CARNE,
             value = form.ci, onValueChange = { v -> acciones.onEditar { it.copy(ci = v) } },
             imeAction = ImeAction.Next,
-            label = "Carné de identidad", isError = !form.ciOk, errorText = "5 a 20 letras o dígitos", validarAlSalir = true, forzarError = err,
+            label = "Carné de identidad", isError = !form.ciOk, errorText = TextosPerfil.ERROR_CI, validarAlSalir = true, forzarError = err,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier,
         )
@@ -500,7 +501,7 @@ private fun DatosForm(state: LicenciaUiState, acciones: LicenciaAcciones) {
             filtro = FiltroEntrada.TELEFONO,
             value = form.telefono, onValueChange = { v -> acciones.onEditar { it.conTelefono(v) } },
             imeAction = ImeAction.Done,
-            label = "Teléfono", placeholder = "5XXXXXXX", isError = !form.telefonoOk, errorText = "Número no válido", validarAlSalir = true, forzarError = err,
+            label = "Teléfono", placeholder = "5XXXXXXX", isError = !form.telefonoOk, errorText = TextosPerfil.ERROR_MOVIL, validarAlSalir = true, forzarError = err,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             modifier = Modifier,
         )
