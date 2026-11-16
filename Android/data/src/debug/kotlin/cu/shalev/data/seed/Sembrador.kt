@@ -3,6 +3,7 @@ package cu.shalev.data.seed
 import android.content.Context
 import androidx.room.withTransaction
 import cu.shalev.core.time.Clock
+import cu.shalev.core.validation.Validators
 import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.entity.AlmacenLocalEntity
 import cu.shalev.data.db.entity.ClienteFijoEntity
@@ -189,6 +190,19 @@ class Sembrador(
         "Ana", "Luis", "Dayana", "Carlos", "Marta", "Yoel", "Yanelis", "Ernesto",
     )
 
+    /** Carné del dueño: 11 dígitos con fecha de nacimiento válida (AAMMDD + siglo). */
+    private val ciDueño = "91040922502"
+
+    /**
+     * Tarjetas de cobro de demostración: **16 dígitos** de la red RED (92) con dígito de control Luhn válido, que es
+     * lo que exige la app al escribir una tarjeta. Los dígitos 5–8 identifican el banco (1299 BPA, 0699 BANDEC),
+     * así que la app muestra su icono. La primera es la que va en el QR.
+     */
+    private val tarjetasDemo = listOf(
+        "9205129900001232" to "CUP principal", // BPA
+        "9227069995328054" to "MLC BANDEC",    // BANDEC
+    )
+
     private data class Cliente(val nombre: String, val ci: String, val telefono: String)
 
     private val clientes = listOf(
@@ -196,8 +210,8 @@ class Sembrador(
         Cliente("José Rodríguez", "75091234567", "+5355678901"),
         Cliente("Yaima Castro", "90112845678", "+5355334455"),
         Cliente("Osmany Díaz", "82031456789", "+5355981122"),
-        Cliente("Lisandra Suárez", "93071567890", "+5355267788"),
-        Cliente("Rafael Moreno", "70020378901", "+5355443322"),
+        Cliente("Lisandra Suárez", "93071537890", "+5355267788"),
+        Cliente("Rafael Moreno", "70020308901", "+5355443322"),
     )
 
     // ---------------------------------------------------------------------------------------------
@@ -341,10 +355,28 @@ class Sembrador(
     )
 
     suspend fun sembrar(): String {
+        exigirFormatos()
         val inicio = clock.now()
         val desde = inicio.atZone(zona).toLocalDate().minusDays(diasHistorico.toLong())
         val plan = planificar(desde, inicio)
         return ejecutar(plan, desde, inicio)
+    }
+
+    /**
+     * Los datos de demostración tienen que pasar los mismos validadores que la app aplica al teclear:
+     * el carné son **11 dígitos** con fecha de nacimiento real y la tarjeta **16 dígitos** con Luhn válido.
+     * Si alguien edita el catálogo y rompe un formato, la siembra falla en vez de dejar datos que la app
+     * rechazaría al abrirlos.
+     */
+    private fun exigirFormatos() {
+        (clientes.map { it.ci } + ciDueño).forEach { ci ->
+            require(Validators.carneCubano(ci)) { "Carné de demostración inválido (11 dígitos, fecha real): $ci" }
+        }
+        tarjetasDemo.forEach { (numero, _) ->
+            require(numero.length == 16 && Validators.pareceTarjeta(numero) && Validators.luhn(numero)) {
+                "Tarjeta de demostración inválida (16 dígitos con Luhn válido): $numero"
+            }
+        }
     }
 
     /** Recorre el histórico de cada local y arma turnos, ventas, caja y ajustes de existencias. */
@@ -687,12 +719,21 @@ class Sembrador(
             db.openHelper.writableDatabase.execSQL("DELETE FROM empleado")
 
             // --- Perfil, cobro y clientes ---------------------------------------------------------
-            val tarjetaId = db.perfilDao().insertarTarjeta(TarjetaEntity(numero = "9234567812349021", alias = "CUP principal"))
+            // La primera tarjeta es la que recibe las transferencias; la segunda queda en la lista.
+            val tarjetaId = db.perfilDao().insertarTarjeta(
+                TarjetaEntity(numero = tarjetasDemo.first().first, alias = tarjetasDemo.first().second),
+            )
+            tarjetasDemo.drop(1).forEach { (numero, alias) ->
+                db.perfilDao().insertarTarjeta(TarjetaEntity(numero = numero, alias = alias))
+            }
             val telefonoId = db.perfilDao().insertarTelefono(TelefonoEntity(numero = "+5352168959", alias = "Personal"))
             db.perfilDao().guardar(
                 PerfilEntity(
-                    id = 1, nombre = "Ronnie", apellidos = "Montero", ci = "91040922502",
+                    id = 1, nombre = "Ronnie", apellidos = "Montero", ci = ciDueño,
                     pagoTarjetaId = tarjetaId, pagoTelefonoId = telefonoId,
+                    // v20: datos comerciales del negocio que salen en PDF, Excel y en los textos compartidos.
+                    nombreNegocio = "Bodega La Esquina",
+                    logoUri = logoNegocio(),
                 ),
             )
             db.clienteFijoDao().insertarTodos(
@@ -872,6 +913,48 @@ class Sembrador(
             }
             movimientos.chunked(500).forEach { db.movimientoDao().insertarTodos(it) }
             totalMovimientos = movimientos.size + altas.size
+
+            // --- Preajustes de precio (v19: cada regla tiene una sola condición) -------------------
+            // 1) Por método de pago: 5 % al pagar en efectivo en cuatro productos de rotación.
+            val preEfectivo = db.preciosDao().insertar(
+                PreajusteEntity(
+                    nombre = "Efectivo", puntosBasicos = 500, metodoPago = "EFECTIVO",
+                    importeMinimoCent = null, activo = true,
+                    condicion = "METODO_PAGO", volumenMinimo = null, tipoCliente = null,
+                ),
+            )
+            val idsBodega = idsProducto[localBodega]!!
+            db.preciosDao().insertarProductos(
+                listOf(idsBodega[19], idsBodega[21], idsBodega[25], idsBodega[27])
+                    .map { PreajusteProductoEntity(preEfectivo, it) },
+            )
+
+            // 2) Por volumen: 8 % desde 5 unidades en la misma venta (productos a granel).
+            val preVolumen = db.preciosDao().insertar(
+                PreajusteEntity(
+                    nombre = "Por mayor (desde 5)", puntosBasicos = 800, metodoPago = null,
+                    importeMinimoCent = null, activo = true,
+                    condicion = "VOLUMEN_VENTA", volumenMinimo = 5, tipoCliente = null,
+                ),
+            )
+            db.preciosDao().insertarProductos(
+                listOf(idsBodega[1], idsBodega[2], idsBodega[4], idsBodega[13])
+                    .map { PreajusteProductoEntity(preVolumen, it) },
+            )
+
+            // 3) Por tipo de cliente: 12 % a empresas en tres servicios.
+            val preEmpresa = db.preciosDao().insertar(
+                PreajusteEntity(
+                    nombre = "Empresas", puntosBasicos = 1200, metodoPago = null,
+                    importeMinimoCent = null, activo = true,
+                    condicion = "CLIENTE", volumenMinimo = null, tipoCliente = "EMPRESA",
+                ),
+            )
+            val idsServBodega = idsServicio[localBodega]!!
+            db.preciosDao().insertarServicios(
+                listOf(idsServBodega[0], idsServBodega[9], idsServBodega[14])
+                    .map { PreajusteServicioEntity(preEmpresa, it) },
+            )
         }
 
         return buildString {
@@ -886,7 +969,9 @@ class Sembrador(
             }
             appendLine("Ventas: $totalVentas ($ventasAnuladas anuladas, $ventasCorregidas corregidas)")
             appendLine("Movimientos de existencias: $totalMovimientos · Ajustes con motivo: ${ajustes.size}")
-            appendLine("Preajustes de precio: 2 de productos · 1 de servicios")
+            appendLine("Preajustes: efectivo 5 % · volumen desde 5 unidades 8 % · empresas 12 % (servicios)")
+            appendLine("Perfil: negocio con nombre comercial${if (logoNegocio() != null) " y logo" else " (sin logo)"} · " +
+                "${tarjetasDemo.size} tarjetas de 16 dígitos con Luhn válido")
             appendLine("Apps secundarias: ${nombresEmpleados.size} (cada una con su local)")
             appendLine("Desde: ${desde} · hasta: ${ahora.atZone(zona).toLocalDate()}")
         }
@@ -942,7 +1027,7 @@ class Sembrador(
                     ventaId = ventaId, fecha = vp.en, importeCent = total,
                     numero = "TRF-%06d".format(100000 + azar.nextInt(899999)),
                     clienteNombre = c.nombre, clienteCi = c.ci, clienteTelefono = c.telefono,
-                    tarjetaCobro = "9234567812349021", telefonoCobro = "+5352168959",
+                    tarjetaCobro = tarjetasDemo.first().first, telefonoCobro = "+5352168959",
                     clienteFijo = azar.nextInt(100) < 55,
                     local = local,
                 ),
@@ -1017,6 +1102,12 @@ class Sembrador(
     /** URI de la foto si el archivo existe (se empujan por adb a files/fotos). */
     private fun foto(prefijo: String, indice: Int): String? {
         val f = File(File(contexto.filesDir, "fotos"), "%s%02d.jpg".format(prefijo, indice + 1))
+        return if (f.isFile) "file://" + f.absolutePath else null
+    }
+
+    /** Logo del negocio (v20) si el archivo está en files/fotos; sin archivo, el perfil queda sin logo. */
+    private fun logoNegocio(): String? {
+        val f = File(File(contexto.filesDir, "fotos"), "logo.jpg")
         return if (f.isFile) "file://" + f.absolutePath else null
     }
 }

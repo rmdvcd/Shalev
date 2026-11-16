@@ -6,6 +6,17 @@
 - **Documentación y pruebas manuales:** se aclara el límite en ayuda, errores, manual, README y seguridad, y se añaden casos para misma Wi-Fi, zona Wi-Fi, datos móviles y recuperación a `PRUEBAS_DISPOSITIVO.md`. Se regeneró `MANUAL_USUARIO.pdf` desde el Markdown (32 páginas, 7 diagramas vectoriales). Las capturas Roborazzi de Apps vinculadas/Ayuda y la revisión visual/TalkBack quedan pendientes por falta de Android SDK.
 - **Pruebas automatizadas añadidas:** selección IPv4, validación del QR y backoff de reintento para Android e iOS. En esta revisión **no se ejecutaron** tests ni compilaciones: este contenedor no tiene JDK/Android SDK ni Swift/Xcode; tampoco se probó con teléfonos u operadoras reales. Estado y siguientes pasos en `docs/VERIFICACION.md`.
 
+## Seguir como app secundaria al vencer la prueba (2026-11-15)
+
+- **Petición:** que al vencerse el periodo de prueba la app no quede solo en el bloqueo, sino que pueda seguir usándose como app secundaria.
+- **Antes:** con la prueba agotada, `BloqueoGate` mostraba el panel de Licencia y Soporte, y nada más. La vinculación como secundaria solo existía en Ajustes → Apps vinculadas y en el recorrido inicial de una instalación nueva (`eligioSecundaria`), así que un teléfono bloqueado no tenía forma de vincularse a la principal del negocio.
+- **Ahora:** el aviso de bloqueo del panel de Licencia ofrece **Seguir como app secundaria** (`VinculacionLogic.SEGUIR_COMO_SECUNDARIA`), con un texto que explica que se trabajará con los datos de la principal.
+  - La regla vive en el dominio: `Vinculacion.puedeSeguirComoSecundaria(estado)` → solo `LicenseState.TrialExpired`. Una licencia vencida, una transferida/revocada y un reloj manipulado se siguen resolviendo con GL; tampoco aparece con la prueba o una licencia activa.
+  - La puerta reutiliza la pantalla real de vinculación (`VinculacionScreen`) y el escáner (`QrVinculacionScreen`) sin NavHost: `PantallaBloqueo.SECUNDARIA` y `PantallaBloqueo.RESPALDO`. El respaldo previo (obligatorio si aún no hay uno) se exporta desde la propia puerta, porque Ajustes está cerrado.
+  - `VinculacionScreen` gana `abrirSecundariaEnBloqueo`: abre el diálogo al entrar como **conversión** (`vinculacionInicial = false`, con respaldo previo) en vez del vínculo inicial de una instalación vacía.
+  - Al vincular, `SecundariaRepositoryImpl.vincular` marca la app como `SECUNDARIA`, completa el onboarding y sincroniza: `RootViewModel` sale del bloqueo con la licencia de la principal y, si aún no la ha recibido, muestra `BloqueoSecundaria` con «Sincronizar ahora».
+- Pruebas: `VinculacionBloqueoTest` (dominio: solo la prueba vencida habilita la salida) y `PantallaBloqueoTest` (atrás de Secundaria y Respaldo vuelve a Licencia).
+
 ## Checklist de permisos en la primera apertura (2026-11-15)
 
 - **Petición:** al pedir los permisos en la configuración inicial, mostrar un checklist con cada permiso y una breve descripción de para qué es, que se marque según se acepten o se denieguen.

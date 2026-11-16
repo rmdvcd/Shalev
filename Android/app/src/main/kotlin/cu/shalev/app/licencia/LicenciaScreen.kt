@@ -1,6 +1,7 @@
 package cu.shalev.app.licencia
 
 import cu.shalev.app.perfil.TextosPerfil
+import cu.shalev.app.vinculacion.VinculacionLogic
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.designsystem.component.coachMark
 import cu.shalev.app.recorrido.RecorridoModulo
@@ -89,6 +90,11 @@ class LicenciaAcciones(
     val onPegar: () -> Unit,
     /** Solo en el bloqueo: abre Soporte desde el aviso (fuera del bloqueo, Soporte está en Ajustes). */
     val onSoporte: (() -> Unit)? = null,
+    /**
+     * Solo en el bloqueo por prueba vencida: vincula este teléfono como app secundaria de una principal con licencia
+     * activa. null = no se ofrece (licencia vencida, revocada o reloj manipulado).
+     */
+    val onSecundaria: (() -> Unit)? = null,
     /** 0.22.0 (L-e): mismo tipo y secundarias que la instalada; true = datos válidos (salta a «Pide la licencia»). */
     val onRenovarIgual: () -> Boolean = { false },
     /** Prepara la ampliación de apps secundarias de la licencia vigente; true = datos válidos (salta al paso 2). */
@@ -104,6 +110,7 @@ fun LicenciaScreen(
     onBack: (() -> Unit)?,
     bloqueada: Boolean = false,
     onSoporte: (() -> Unit)? = null,
+    onSecundaria: (() -> Unit)? = null,
     viewModel: LicenciaViewModel = hiltViewModel(),
     entradaVm: cu.shalev.app.common.EntradaViewModel = hiltViewModel(),
     recuperacionVm: RecuperacionViewModel = hiltViewModel(),
@@ -162,6 +169,7 @@ fun LicenciaScreen(
                     onActivar = viewModel::activarLicencia,
                     onPegar = { clipboard.getText()?.text?.let { t -> viewModel.editar { it.copy(mensajeLicencia = t) } } },
                     onSoporte = onSoporte,
+                    onSecundaria = onSecundaria,
                     onRenovarIgual = viewModel::renovarIgual,
                     onAmpliarSecundarias = viewModel::ampliarSecundarias,
                 ),
@@ -178,6 +186,8 @@ object LicenciaTags {
     const val PRECIO_TOTAL = "licencia.precio_total"
     const val AVISO_BLOQUEO = "licencia.aviso_bloqueo"
     const val SOPORTE = "licencia.soporte"
+    /** 1.0.2: «Seguir como app secundaria» desde el bloqueo por prueba vencida. */
+    const val SECUNDARIA = "licencia.seguir_secundaria"
     const val BOTON_SOLICITAR = "licencia.solicitar"
     const val BOTON_ACTIVAR = "licencia.activar"
     const val RESUMEN_DATOS = "licencia.resumen"
@@ -231,6 +241,19 @@ fun LicenciaContent(
             ) {
                 Text("Shalev está bloqueado hasta que actives una licencia válida.", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 ShalevSecondaryText("Tus datos siguen guardados.")
+                // 1.0.2: con la prueba vencida también se puede seguir trabajando como app secundaria de otra principal.
+                acciones.onSecundaria?.let { secundaria ->
+                    ShalevSecondaryText(VinculacionLogic.SEGUIR_COMO_SECUNDARIA_DETALLE)
+                    ShalevButtonRow {
+                        ShalevTextButton(
+                            text = VinculacionLogic.SEGUIR_COMO_SECUNDARIA,
+                            icon = ShalevIcons.Vinculacion,
+                            etiqueta = "Secundaria",
+                            onClick = secundaria,
+                            modifier = Modifier.testTag(LicenciaTags.SECUNDARIA),
+                        )
+                    }
+                }
                 acciones.onSoporte?.let { soporte ->
                     ShalevButtonRow { ShalevTextButton("Contactar soporte", icon = ShalevIcons.Soporte, etiqueta = "Soporte", onClick = soporte, modifier = Modifier.testTag(LicenciaTags.SOPORTE)) }
                 }

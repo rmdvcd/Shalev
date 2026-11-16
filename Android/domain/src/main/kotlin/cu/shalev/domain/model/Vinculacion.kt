@@ -277,6 +277,16 @@ object Vinculacion {
     fun puedeVincularseComoSecundaria(tipo: TipoApp, eligioSecundaria: Boolean, empleados: Int): Boolean =
         tipo == TipoApp.PRINCIPAL && eligioSecundaria && empleados == 0
 
+    /**
+     * 1.0.2: con la **prueba vencida** esta app todavía puede vincularse como secundaria de una app principal con
+     * licencia activa: deja de usar su propia licencia y trabaja con la del negocio que la vincule. Es la única salida
+     * del bloqueo por prueba agotada, además de pedir una licencia.
+     *
+     * No aplica al resto de bloqueos: una licencia transferida o revocada (§ recuperación en otro teléfono) y un
+     * reloj manipulado se resuelven con GL, no vinculando el teléfono a otra principal.
+     */
+    fun puedeSeguirComoSecundaria(estado: LicenseState): Boolean = estado is LicenseState.TrialExpired
+
     /** Conversión desde Ajustes: cualquier app principal puede cambiar de rol; las salvaguardas van aparte. */
     fun puedeCambiarATipoSecundaria(tipo: TipoApp): Boolean = tipo == TipoApp.PRINCIPAL
 
