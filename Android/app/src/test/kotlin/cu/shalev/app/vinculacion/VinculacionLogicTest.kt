@@ -8,6 +8,7 @@ import cu.shalev.domain.model.PermisoEmpleado
 import cu.shalev.domain.model.TipoApp
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
