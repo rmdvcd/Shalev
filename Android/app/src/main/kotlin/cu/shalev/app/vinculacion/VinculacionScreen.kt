@@ -229,7 +229,7 @@ fun VinculacionContent(
             onDismiss = onCancelarRespaldoPrevio,
             onConfirm = onIrARespaldo,
             confirmDescription = VinculacionLogic.CREAR_RESPALDO,
-            confirmEtiqueta = VinculacionLogic.CREAR_RESPALDO,
+            confirmEtiqueta = "Crear",
             confirmIcon = ShalevIcons.Respaldo,
         )
     }
@@ -548,7 +548,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.secundaria(
                 ShalevStatusBanner(text = VinculacionLogic.IMPORTACION_AUTORIZADA, tone = BannerTone.Info, modifier = Modifier.padding(horizontal = ShalevSpacing.md))
                 ShalevButtonRow(Modifier.padding(vertical = ShalevSpacing.xs)) {
                     ShalevPrimaryButton(
-                        text = VinculacionLogic.IMPORTAR_BASE, icon = ShalevIcons.Respaldo, etiqueta = "Importar base",
+                        text = VinculacionLogic.IMPORTAR_BASE, icon = ShalevIcons.Respaldo, etiqueta = "Importar",
                         onClick = onPedirDesvincular, enabled = !s.trabajando,
                     )
                 }
@@ -620,7 +620,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.secundaria(
     item {
         ShalevButtonRow(Modifier.padding(vertical = ShalevSpacing.md)) {
             ShalevTextButton(
-                text = VinculacionLogic.CAMBIAR_A_PRINCIPAL, icon = ShalevIcons.Desvincular, onClick = onPedirDesvincular,
+                text = VinculacionLogic.CAMBIAR_A_PRINCIPAL, icon = ShalevIcons.Desvincular, etiqueta = "Cambiar", onClick = onPedirDesvincular,
                 enabled = !s.trabajando, modifier = Modifier.testTag(VinculacionTags.DESVINCULAR).coachMark(ObjetivosRecorrido.VINCULACION_DESVINCULAR),
             )
         }

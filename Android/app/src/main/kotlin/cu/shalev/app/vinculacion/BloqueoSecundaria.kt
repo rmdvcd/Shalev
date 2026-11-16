@@ -56,6 +56,7 @@ fun BloqueoSecundaria(viewModel: VinculacionViewModel = hiltViewModel()) {
                 ShalevTextButton(
                     text = VinculacionLogic.EMPEZAR_DESDE_CERO,
                     icon = ShalevIcons.Desvincular,
+                    etiqueta = "Empezar",
                     onClick = viewModel::pedirEmpezarDesdeCero,
                     enabled = !state.trabajando,
                 )
@@ -69,7 +70,7 @@ fun BloqueoSecundaria(viewModel: VinculacionViewModel = hiltViewModel()) {
             onDismiss = viewModel::cancelarDesvincular,
             onConfirm = viewModel::confirmarDesvincular,
             confirmDescription = VinculacionLogic.EMPEZAR_DESDE_CERO,
-            confirmEtiqueta = VinculacionLogic.EMPEZAR_DESDE_CERO,
+            confirmEtiqueta = "Empezar",
             confirmIcon = ShalevIcons.Desvincular,
             destructive = true,
         )
