@@ -293,9 +293,16 @@ final class SyncManager: ObservableObject {
             discardAllOutgoingBaseFiles()
             store.requiresClosingApproval = true; store.allowsSaleCorrections = false; store.allowsRemoteSaleCorrections = false
             status = "Vinculada; recibiendo catálogo…"
-            _ = try await synchronize()
+            // Si falla la primera descarga, iniciar el reintento cuando termine esa petición para no competir con ella.
+            do {
+                _ = try await synchronize()
+            } catch {
+                startMaintenance()
+                throw error
+            }
+            startMaintenance()
         } catch {
-            status = "No se pudo vincular"
+            status = isSecondary ? "Vinculada; reconectando…" : "No se pudo vincular"
             lastError = error.localizedDescription
             throw error
         }
@@ -907,12 +914,23 @@ final class SyncManager: ObservableObject {
             var backoff: UInt64 = 2
             while !Task.isCancelled {
                 guard let self, self.isSecondary else { return }
-                try? await Task.sleep(nanoseconds: 30 * 1_000_000_000)
-                if Task.isCancelled || self.isBusy || self.requestInFlight { continue }
+                if self.isBusy || self.requestInFlight || self.syncTask != nil {
+                    try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
+                    continue
+                }
                 do {
+                    // Primer ping inmediato: también abre la sesión tras un fallo inicial de vinculación/arranque.
                     let id = self.nextID()
                     _ = try await self.clientRequest(SyncJSON.message("ping", ["id": id]), expected: "pong")
                     backoff = 2
+                    // Completar el catálogo inicial tras un corte, sin competir con otra acción iniciada por el usuario.
+                    if self.link?.lastSync == nil, !self.isBusy, !self.requestInFlight, self.syncTask == nil {
+                        _ = try await self.synchronize()
+                    }
+                    if ["Reconectando…", "Conectando con la principal…", "Vinculada; reconectando…"].contains(self.status) {
+                        self.status = "Conectada con la principal"
+                    }
+                    try? await Task.sleep(nanoseconds: 30 * 1_000_000_000)
                 } catch {
                     if !self.isSecondary { return }
                     if let session = self.clientSession { await session.close() }
@@ -920,9 +938,6 @@ final class SyncManager: ObservableObject {
                     self.status = "Reconectando…"
                     try? await Task.sleep(nanoseconds: backoff * 1_000_000_000)
                     backoff = min(60, backoff * 2)
-                    if !self.isBusy, !self.requestInFlight, self.clientSession == nil {
-                        self.clientSession = try? await self.establishClient()
-                    }
                 }
             }
         }

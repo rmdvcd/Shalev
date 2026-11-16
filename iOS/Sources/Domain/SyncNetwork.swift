@@ -162,7 +162,7 @@ enum SyncTiming {
 enum SyncConnector {
     static func connect(hosts: [String], port: Int, businessID: String) async throws -> SyncSocket {
         var lastError: Error = SyncError.disconnected
-        for host in hosts where !host.isEmpty {
+        for host in hosts.prefix(SyncLocalAddresses.maximumHosts) where SyncLocalAddresses.isUsableIPv4(host) {
             let socket = SyncSocket(host: host, port: port)
             do {
                 try await SyncTiming.void(4, socket: socket) { try await socket.start() }
@@ -248,32 +248,86 @@ final class SyncListener: @unchecked Sendable {
 }
 
 enum SyncLocalAddresses {
+    static let maximumHosts = 32
+
     static func ipv4() -> [String] {
         var pointer: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&pointer) == 0 else { return [] }
         defer { freeifaddrs(pointer) }
-        var privateAddresses: [String] = []
-        var others: [String] = []
+        var candidates: [(interface: String, address: String)] = []
         var current = pointer
         while let item = current {
             defer { current = item.pointee.ifa_next }
             let flags = item.pointee.ifa_flags
             guard flags & UInt32(IFF_UP) != 0, flags & UInt32(IFF_LOOPBACK) == 0,
-                  item.pointee.ifa_addr.pointee.sa_family == UInt8(AF_INET) else { continue }
+                  let socketAddress = item.pointee.ifa_addr,
+                  socketAddress.pointee.sa_family == UInt8(AF_INET) else { continue }
             var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
             let length = socklen_t(MemoryLayout<sockaddr_in>.size)
-            guard getnameinfo(item.pointee.ifa_addr, length, &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST) == 0 else { continue }
+            guard getnameinfo(socketAddress, length, &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST) == 0 else { continue }
             let address = String(cString: host)
-            if isPrivate(address) { privateAddresses.append(address) } else { others.append(address) }
+            guard isUsableIPv4(address), let interfaceName = item.pointee.ifa_name else { continue }
+            candidates.append((String(cString: interfaceName), address))
+        }
+        return ordered(candidates)
+    }
+
+    /// El código QR solo transporta IPv4 numéricas utilizables, nunca hostnames ni loopback/link-local/multicast.
+    static func isUsableIPv4(_ address: String) -> Bool {
+        let parts = address.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 4 else { return false }
+        var octets: [Int] = []
+        for part in parts {
+            guard (1...3).contains(part.count), part.utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }),
+                  !(part.count > 1 && part.first == "0"), let value = Int(part), (0...255).contains(value) else {
+                return false
+            }
+            octets.append(value)
+        }
+        let first = octets[0], second = octets[1]
+        return first != 0 && first != 127 && !(first == 169 && second == 254) && first < 224
+    }
+
+    /// LAN/Zona Wi-Fi primero; IP móvil privada/CGNAT al final para evitar que tape una ruta local que sí funciona.
+    static func ordered(_ candidates: [(interface: String, address: String)]) -> [String] {
+        let sorted = candidates.enumerated().filter { isUsableIPv4($0.element.address) }.sorted { lhs, rhs in
+            let a = priority(interface: lhs.element.interface, address: lhs.element.address)
+            let b = priority(interface: rhs.element.interface, address: rhs.element.address)
+            return a == b ? lhs.offset < rhs.offset : a < b
         }
         var seen = Set<String>()
-        return (privateAddresses + others).filter { seen.insert($0).inserted }
+        var result: [String] = []
+        for candidate in sorted where seen.insert(candidate.element.address).inserted {
+            result.append(candidate.element.address)
+            if result.count == maximumHosts { break }
+        }
+        return result
+    }
+
+    private static func priority(interface: String, address: String) -> Int {
+        let name = interface.lowercased()
+        let localInterface = ["wlan", "wifi", "ap", "softap", "swlan", "p2p", "en", "eth"].contains { name.hasPrefix($0) }
+        let cellular = ["rmnet", "ccmni", "ccemni", "cc2mni", "pdp", "wwan", "cell"].contains { name.hasPrefix($0) }
+        let privateOrCGNAT = isPrivate(address) || isCGNAT(address)
+        switch (localInterface, cellular, privateOrCGNAT) {
+        case (true, _, true): return 0
+        case (true, _, false): return 1
+        case (false, false, true): return 2
+        case (false, false, false): return 3
+        case (false, true, false): return 4 // Una IPv4 pública celular puede aceptar conexiones entrantes.
+        case (false, true, true): return 5 // La IP móvil privada/CGNAT depende del operador y suele ser inalcanzable.
+        }
     }
 
     private static func isPrivate(_ address: String) -> Bool {
         let parts = address.split(separator: ".").compactMap { Int($0) }
         guard parts.count == 4 else { return false }
         return parts[0] == 10 || (parts[0] == 192 && parts[1] == 168)
-            || (parts[0] == 172 && (16...31).contains(parts[1])) || (parts[0] == 169 && parts[1] == 254)
+            || (parts[0] == 172 && (16...31).contains(parts[1]))
+    }
+
+    private static func isCGNAT(_ address: String) -> Bool {
+        let parts = address.split(separator: ".").compactMap { Int($0) }
+        return parts.count == 4 && parts[0] == 100 && (64...127).contains(parts[1])
     }
 }

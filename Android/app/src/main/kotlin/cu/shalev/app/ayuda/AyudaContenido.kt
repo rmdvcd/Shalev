@@ -135,7 +135,7 @@ object AyudaContenido {
         pasos = listOf(
             "En Ajustes → Apps vinculadas toca + para generar un código QR",
             "En la secundaria indica tu teléfono y escanea el código",
-            "Usa Wi-Fi o datos móviles para mantener la conexión",
+            "Usa la misma wifi o zona wifi; por datos móviles, la operadora puede bloquear la conexión.",
             "El dueño revisa permisos y cierres. El empleado conserva su local asignado",
             "Si hay una operación sin confirmar, sincroniza y revisa su resultado antes de hacer otro cambio"
         ),

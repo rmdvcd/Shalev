@@ -313,7 +313,7 @@ class SecundariaRepositoryImpl @Inject constructor(
         config.hacerSecundaria(datos)
         preferencias.completarOnboarding()
         val primera = cliente.sincronizar()
-        // Si la primera descarga falla, la app ya está vinculada: lo reintenta el usuario («Sincronizar ahora»).
+        // Si la primera descarga falla por red, la vinculación persiste y ClienteSync reintenta el catálogo inicial.
         return if (primera is AppResult.Err && primera.error !is AppError.SinPrincipal) primera else AppResult.Ok(Unit)
     }
 

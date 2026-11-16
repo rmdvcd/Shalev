@@ -462,10 +462,9 @@ Si trabajas con dependientes, cajeros o barberos, cada empleado puede instalar S
 
 ### 12.1 Qué necesitan ambos teléfonos para conectarse
 
-Basta con que los dos teléfonos compartan red (desde la versión 1.0.1 también **datos móviles**):
-- Conectados ambos al **router Wi-Fi del local**, o bien
-- Activando la **Zona Wi-Fi (punto de acceso portátil)** en el teléfono principal del dueño y conectando a ella los teléfonos de los empleados (no hace falta encender los datos móviles), o bien
-- Con los dos teléfonos en **datos móviles** de la operadora (sin wifi de por medio). El código QR lleva las direcciones del teléfono del dueño y la app del empleado prueba con todas; si la operadora no deja conectar entre sus abonados (CGNAT), usa la misma wifi o la zona wifi.
+Para una conexión local y predecible, conecta ambos teléfonos al **mismo router Wi-Fi del local**, o activa la **Zona Wi-Fi (punto de acceso portátil)** en el teléfono principal del dueño y conecta a ella los teléfonos de los empleados (no hace falta encender los datos móviles).
+
+También se puede intentar con ambos teléfonos en **datos móviles**, pero el QR solo puede ofrecer las direcciones disponibles: la conexión depende de que las operadoras enruten tráfico entrante entre esos teléfonos. Muchas usan CGNAT o bloquean esas conexiones; que ambos tengan datos o Internet no garantiza que puedan vincularse o sincronizar. Si falla, usa la misma wifi o la zona wifi.
 
 ### 12.2 Cómo vincular el teléfono de un empleado por primera vez
 
@@ -484,7 +483,7 @@ Al tocar el nombre de un empleado en **Ajustes → Apps vinculadas** de la princ
 - **Permisos individuales:** por defecto un empleado nuevo puede **Vender productos**, **Vender servicios** y **Exportar y compartir**. El dueño decide si además le activa **Editar inventario y servicios** o **Cambiar precios**.
 - **Tarjeta de cobro del empleado:** elige a cuál de tus tarjetas bancarias irán las transferencias que cobre ese trabajador. Su código QR combinará **tu tarjeta bancaria** con **el número móvil del propio empleado**, de modo que el dinero cae directo en tu cuenta pero el SMS de confirmación de PAGOxMOVIL le llega al teléfono del empleado para que pueda comprobar el pago al instante sin interrumpirte.
 - **Conexión abierta y sincronización controlada:**
-  - Mientras estén en la misma red (Wi-Fi, zona wifi o datos móviles), la app del empleado mantiene la conexión abierta y el dueño ve **«Conectada ahora»**.
+  - En la misma Wi-Fi o zona wifi, la app del empleado mantiene la conexión abierta y el dueño ve **«Conectada ahora»**. Por datos móviles solo lo hará si las operadoras permiten conexiones directas entre los teléfonos; la app reintenta cuando la red vuelve a estar disponible.
   - **Sincronización manual:** para ahorrar batería y evitar interrupciones en medio de una cola, el empleado toca el botón central **Sincronizar ahora** en *Apps vinculadas* cuando desea enviar sus ventas pendientes (*«N pendientes de enviar»*) y recibir novedades. Si el dueño cambia precios o productos, la app del empleado le muestra el aviso *«El dueño cambió el catálogo. Sincroniza para recibirlo»*.
   - **Sincronizaciones automáticas esenciales:** ocurren solas al **abrir un turno** (para no vender nunca con precios viejos) y al **solicitar el cierre del turno**.
   - **Barra de avance y avisos sonoros:** mientras viajan los datos verás una barra de progreso en la notificación y en *Apps vinculadas*, acompañada de sonidos diferenciados cuando un empleado se conecta, se desconecta o termina de sincronizar (personalizables en los ajustes de notificaciones de Android).
@@ -635,7 +634,7 @@ Para que disfrutes siempre de las últimas mejoras y que la App Principal y las 
 3. **¿Por qué el código QR de Transfermóvil no le pone el precio solo al cliente?**
    Porque el estándar oficial del QR de cuentas/tarjetas en Transfermóvil no admite el campo de importe. El cliente escanea el QR para no tener que teclear los 16 dígitos de tu tarjeta ni tu móvil, y solo escribe el **Importe a transferir** que Shalev le muestra debajo.
 4. **¿Qué hago si un empleado no logra sincronizar con mi teléfono?**
-   Comprueba que ambos teléfonos estén conectados a la misma red Wi-Fi del local (o a la Zona Wi-Fi del teléfono principal) y que la App Principal esté abierta o con su notificación activa. Mientras tanto, el empleado puede seguir vendiendo sin perder nada.
+   Prioriza la misma Wi-Fi o la Zona Wi-Fi del teléfono principal y comprueba que la App Principal esté abierta o con su notificación activa. Los datos móviles pueden quedar bloqueados por CGNAT o filtros de operadora; si falla, usa la red local. Mientras tanto, el empleado puede seguir vendiendo sin perder nada.
 5. **¿Puedo corregir una venta de ayer cuyo turno ya cerré?**
    No: los turnos cerrados quedan sellados para garantizar que los arqueos históricos cuadren siempre. Solo puedes modificar o anular ventas dentro de un turno **abierto** desde la App Principal.
 

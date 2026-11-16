@@ -87,9 +87,12 @@ actividad real de Android y hardware):
    de un archivo cortado/dañado y comprobar que ningún fallo sustituye el negocio.
 7. **Migración teléfono a teléfono**: con el segundo teléfono, leer el QR (ambos roles: este equipo envía
    y recibe), comprobar que los datos llegan y que el emisor ofrece borrarse al confirmar el receptor.
-8. **Sincronización**: principal + secundaria en la misma wifi: vincular con código, vender en la
-   secundaria sin conexión, reconectar y comprobar que el lote sube una sola vez; quitar la secundaria
-   desde la principal y comprobar el aviso de «quitada».
+8. **Sincronización principal/secundaria** (registrar modelo, versiones, tipo de red y operador):
+   - **Misma Wi-Fi:** vincular por QR, verificar descarga inicial, enviar una venta y confirmar que llega una sola vez. Repetir en una red local sin Internet si está disponible.
+   - **Zona Wi-Fi:** activar el punto de acceso en la principal, unir la secundaria y repetir el flujo con datos móviles desactivados. Confirmar que la principal aparece conectada y que una venta se sincroniza.
+   - **Datos móviles directos:** probar la vinculación inicial y la sincronización con Wi-Fi desactivada en ambos teléfonos; anotar si usan el mismo operador. Un fallo no demuestra por sí solo un error de la app: CGNAT o filtros pueden bloquear conexiones entrantes aunque haya Internet. No presentar este caso como aprobado si la operadora no permite la ruta.
+   - **Recuperación de red:** con una secundaria ya vinculada, apagar y restaurar Wi-Fi/datos, confirmar que vuelve a conectar sin duplicar ventas. Probar también una IP cambiada con un QR nuevo. Si se prueba el relé, usar aparte ambas builds Android con el mismo endpoint HTTPS aprobado y registrar que se trata de ese transporte.
+   - Quitar la secundaria desde la principal y comprobar el aviso autenticado de «quitada».
 9. **Actualización**: con un APK de versión mayor en el repo configurado, comprobar aviso de actualización,
    descarga, verificación e instalación; con el mismo `versionCode`, no debe ofrecer nada. Tras actualizar,
    confirmar que la copia previa queda conservada y no sobrescribe las operaciones nuevas. «Guardar copia

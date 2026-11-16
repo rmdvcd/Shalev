@@ -47,6 +47,17 @@ class SyncProtocoloTest {
         assertNull(CodigoQr.decodificar(CodigoQr.PREFIJO + "e30")) // {}
     }
 
+    @Test fun qrNoPermiteHostnamesLoopbackNiListasDuplicadas() {
+        fun texto(hosts: String): String {
+            val json = """{"n":"a1b2c3d4e5f6","nn":"Negocio","h":$hosts,"p":47811,"e":3,"en":"Luis","t":"AAECAwQFBgcICQoLDA0ODw","x":1790953800000}"""
+            return CodigoQr.PREFIJO + java.util.Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(json.toByteArray(Charsets.UTF_8))
+        }
+        assertNull(CodigoQr.decodificar(texto("[\"localhost\"]")))
+        assertNull(CodigoQr.decodificar(texto("[\"127.0.0.1\"]")))
+        assertNull(CodigoQr.decodificar(texto("[\"192.168.1.2\",\"192.168.1.2\"]")))
+    }
+
     @Test fun lasDosAppsLleganALaMismaClaveSinQueViaje() {
         val token = CriptoSync.aleatorio(CodigoQr.TOKEN_BYTES)
         val sec = CriptoSync.parNuevo()

@@ -14,8 +14,8 @@ Una instalación nueva o una actualización comienza como **principal**, salvo q
 
 ## Decisiones del usuario (P38)
 
-1. **Transporte:** conexión directa por wifi del local, zona wifi o datos móviles (1.0.1). Solo las builds Android que configuran el endpoint HTTPS aprobado (`-PshalevRelayUrl=...`) pueden usar además el intermediario remoto opcional, no habilitado por defecto, autorizado el 2026-11-05; iOS usa conexión directa y no utiliza este relé. En conexión directa, el QR `SPVI-VINC1:` lleva las IPv4 activas (privadas primero y después las móviles) y la secundaria prueba por orden; NSD sigue limitado a la red local.
-   - **Límite directo:** el tráfico por datos móviles depende de que la operadora enrute entre los dos teléfonos (en Cuba, CGNAT puede impedirlo); con la misma wifi o zona wifi funciona como siempre.
+1. **Transporte:** conexión directa por wifi del local, zona wifi o datos móviles (1.0.1). Solo las builds Android que configuran el endpoint HTTPS aprobado (`-PshalevRelayUrl=...`) pueden usar además el intermediario remoto opcional, no habilitado por defecto, autorizado el 2026-11-05; iOS usa conexión directa y no utiliza este relé. En conexión directa, el QR `SPVI-VINC1:` lleva hasta 32 IPv4 numéricas utilizables, ordenadas para probar primero las interfaces wifi/zona wifi/Ethernet y después las demás; las direcciones privadas/CGNAT de interfaces móviles se conservan al final como último intento. NSD solo descubre en la red local.
+   - **Límite directo:** los datos móviles solo sirven si las operadoras permiten conexiones entrantes entre ambos teléfonos; CGNAT o filtros pueden impedir tanto la vinculación inicial como la sincronización posterior aunque ambos tengan Internet. No hay forma de detectar solo por la IP si el operador deja pasar la conexión. La misma wifi o zona wifi del teléfono principal proporciona un camino local y es la alternativa recomendada.
    - **Relé opcional de Android:** retransmite tramas de la sesión ya cifradas; el proveedor puede ver IP, horario y volumen, no la base de negocio en claro. No almacena la base. Ver `relay/README.md` y [SECURITY.md](../SECURITY.md).
 2. **Permisos configurables por empleado** desde la principal:
    - Vender productos.
@@ -107,16 +107,13 @@ app/common/PermisosLocales.kt         LocalPermisosApp (oculta botones según pe
 - La principal solo reenvía el catálogo si su hash SHA-256 cambió.
 - Al reemplazar el catálogo, la secundaria vuelve a descontar sus ventas aún no enviadas, para que lo ya vendido no «resucite».
 
-**Modos de la secundaria:**
-
-- **Automática** (predeterminado): mantiene la conexión, envía cada venta al momento y sincroniza con cada `Aviso` y, como mínimo, cada 30 s. Sin red reintenta con espera creciente: 5 s, 10 s, 20 s… hasta 60 s.
-- **Manual:** conecta solo al tocar «Sincronizar ahora», al abrir un turno o al hacer una acción que necesita a la principal, y después cierra.
+**Modo actual de la secundaria (0.32.0):** la sincronización de datos es manual (botón «Sincronizar ahora», abrir turno y acciones que requieren a la principal), pero la sesión de presencia se mantiene abierta con `Ping` cada 30 s; un `Aviso` informa que cambió el catálogo, no lo descarga automáticamente. Si se pierde la conexión, Android reintenta desde 5 s hasta 60 s e iOS desde 2 s hasta 60 s. Tras un corte de red o cambio temporal de Wi-Fi/datos, el cliente vuelve a probar las direcciones guardadas y, en la red local, NSD/Bonjour. Si el QR ya se autenticó pero falla la primera descarga, también se reintenta el catálogo inicial; si falla el propio saludo de vinculación, vuelve a escanear el QR vigente.
 
 ## Seguridad
 
 1. **QR:** `SPVI-VINC1:` + Base64url(JSON). Contiene:
    - El id del negocio: 12 bytes aleatorios que no identifican al dispositivo ni a la persona.
-   - Las IPv4 y el puerto.
+   - Hasta 32 IPv4 numéricas utilizables (sin hostnames ni duplicadas) y el puerto.
    - El id y el nombre del empleado.
    - Un **token de 16 bytes**.
    - El vencimiento.

@@ -6,33 +6,33 @@ import android.net.nsd.NsdServiceInfo
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.net.Inet4Address
 import java.net.NetworkInterface
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 
-/**
- * P37: red de las apps vinculadas sin permisos nuevos.
- *  - Direcciones: IPv4 de las interfaces activas. **1.0.1: también las de datos móviles**, para que la vinculación y
- *    la conexión funcionen por wifi, zona wifi o datos móviles (antes solo se anunciaban las privadas).
- *  - Descubrimiento: NSD (mDNS, `_shalev._tcp`) por si la principal cambió de dirección desde que se leyó el QR
- *    (solo funciona en la misma red local; por datos móviles manda la dirección del QR o la guardada al vincular).
- * Ni NetworkInterface ni NsdManager necesitan permisos aparte de INTERNET (ya declarado).
- */
+/** IPv4 de las interfaces disponibles y descubrimiento Bonjour/mDNS, sin permisos de red adicionales. */
 @Singleton
 class RedLocal @Inject constructor(@ApplicationContext private val context: Context) {
 
     private val nsd: NsdManager? get() = context.getSystemService(Context.NSD_SERVICE) as? NsdManager
     private var registro: NsdManager.RegistrationListener? = null
 
-    /** IPv4 útiles de las interfaces activas (ver [utiles]): primero las privadas y después las demás (datos móviles). */
+    /**
+     * IPv4 candidatas, priorizando primero Wi-Fi/Zona Wi-Fi y otras redes privadas; las interfaces celulares van al
+     * final porque sus IP privadas/CGNAT normalmente no admiten conexiones entrantes. Se conservan como último recurso
+     * cuando el operador sí permite tráfico entre sus abonados.
+     */
     fun direcciones(): List<String> = runCatching {
-        utiles(
+        candidatas(
             NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
                 .filter { it.isUp && !it.isLoopback }
-                .flatMap { it.inetAddresses.toList() }
-                .filterIsInstance<Inet4Address>(),
+                .flatMap { interfaz ->
+                    interfaz.inetAddresses.toList().filterIsInstance<Inet4Address>()
+                        .map { CandidataIPv4(interfaz.name, it) }
+                },
         )
     }.getOrDefault(emptyList())
 
@@ -66,20 +66,21 @@ class RedLocal @Inject constructor(@ApplicationContext private val context: Cont
         var escucha: NsdManager.DiscoveryListener? = null
         val encontrado = (try {
             withTimeoutOrNull(ms) {
-            suspendCancellableCoroutine<NsdServiceInfo?> { cont ->
-                val l = object : NsdManager.DiscoveryListener {
-                    override fun onDiscoveryStarted(t: String) = Unit
-                    override fun onDiscoveryStopped(t: String) = Unit
-                    override fun onStartDiscoveryFailed(t: String, e: Int) { if (cont.isActive) cont.resume(null) }
-                    override fun onStopDiscoveryFailed(t: String, e: Int) = Unit
-                    override fun onServiceLost(s: NsdServiceInfo) = Unit
-                    override fun onServiceFound(s: NsdServiceInfo) {
-                        if (s.serviceName == nombre && cont.isActive) cont.resume(s)
+                suspendCancellableCoroutine<NsdServiceInfo?> { cont ->
+                    val l = object : NsdManager.DiscoveryListener {
+                        override fun onDiscoveryStarted(t: String) = Unit
+                        override fun onDiscoveryStopped(t: String) = Unit
+                        override fun onStartDiscoveryFailed(t: String, e: Int) { if (cont.isActive) cont.resume(null) }
+                        override fun onStopDiscoveryFailed(t: String, e: Int) = Unit
+                        override fun onServiceLost(s: NsdServiceInfo) = Unit
+                        override fun onServiceFound(s: NsdServiceInfo) {
+                            if (s.serviceName == nombre && cont.isActive) cont.resume(s)
+                        }
                     }
+                    escucha = l
+                    runCatching { m.discoverServices(TIPO, NsdManager.PROTOCOL_DNS_SD, l) }
+                        .onFailure { escucha = null; if (cont.isActive) cont.resume(null) }
                 }
-                escucha = l
-                runCatching { m.discoverServices(TIPO, NsdManager.PROTOCOL_DNS_SD, l) }.onFailure { escucha = null; if (cont.isActive) cont.resume(null) }
-            }
             }
         } finally {
             escucha?.let { l -> runCatching { m.stopServiceDiscovery(l) } }
@@ -87,7 +88,7 @@ class RedLocal @Inject constructor(@ApplicationContext private val context: Cont
         return withTimeoutOrNull(ms) { resolver(m, encontrado) }
     }
 
-    @Suppress("DEPRECATION") // resolveService sigue funcionando en API 34+; la alternativa no existe en minSdk 26.
+    @Suppress("DEPRECATION") // resolveService sigue funcionando en API 34+; no hay sustituto para minSdk 26.
     private suspend fun resolver(m: NsdManager, s: NsdServiceInfo): Pair<String, Int>? = suspendCancellableCoroutine { cont ->
         runCatching {
             m.resolveService(s, object : NsdManager.ResolveListener {
@@ -104,17 +105,46 @@ class RedLocal @Inject constructor(@ApplicationContext private val context: Cont
         const val TIPO = "_shalev._tcp."
         fun nombreServicio(negocioId: String) = "Shalev-" + negocioId.take(12)
 
-        /**
-         * 1.0.1 (datos móviles): de las IPv4 candidatas deja las útiles para vincular y conectar. Quita la de
-         * loopback y la link-local (169.254.x, no enrutable), repite cada dirección una sola vez y las ordena:
-         * **primero las privadas** (192.168.x, 10.x, 172.16–31.x: wifi del local o zona wifi) y después las demás
-         * (las de datos móviles, que pueden ser públicas). Así el QR lleva todas y la secundaria prueba primero la
-         * red local; por datos móviles se usa la dirección que traiga el QR.
-         */
-        fun utiles(direcciones: List<Inet4Address>): List<String> {
-            val validas = direcciones.filterNot { it.isLoopbackAddress || it.isLinkLocalAddress }.distinctBy { it.hostAddress }
-            val (privadas, otras) = validas.partition { it.isSiteLocalAddress }
-            return (privadas + otras).mapNotNull { it.hostAddress }
+        /** Compatibilidad para tests/llamadores que solo tienen direcciones, sin la interfaz que las publicó. */
+        fun utiles(direcciones: List<Inet4Address>): List<String> = candidatas(
+            direcciones.map { CandidataIPv4("", it) },
+        )
+
+        /** Ordena por interfaz antes de limitar el QR; no deja que una IP celular 10.x adelante a la Wi-Fi 192.168.x. */
+        fun candidatas(direcciones: List<CandidataIPv4>): List<String> = direcciones
+            .filter { candidata ->
+                !candidata.direccion.isAnyLocalAddress && !candidata.direccion.isLoopbackAddress &&
+                    !candidata.direccion.isLinkLocalAddress && !candidata.direccion.isMulticastAddress &&
+                    candidata.direccion.hostAddress?.let { DireccionIPv4Sync.esCandidata(it) } == true
+            }
+            .sortedBy(::prioridad)
+            .distinctBy { it.direccion.hostAddress }
+            .take(DireccionIPv4Sync.MAX_DIRECCIONES)
+            .mapNotNull { it.direccion.hostAddress }
+
+        private fun prioridad(candidata: CandidataIPv4): Int {
+            val interfaz = candidata.interfaz.lowercase(Locale.ROOT)
+            val wifiOEthernet = listOf("wlan", "wifi", "ap", "softap", "swlan", "p2p", "eth", "en").any(interfaz::startsWith)
+            val celular = listOf("rmnet", "ccmni", "ccemni", "cc2mni", "pdp", "wwan", "cell").any(interfaz::startsWith)
+            val privadaOCgnat = candidata.direccion.isSiteLocalAddress || esCgnat(candidata.direccion)
+            return when {
+                wifiOEthernet && privadaOCgnat -> 0
+                wifiOEthernet -> 1
+                !celular && privadaOCgnat -> 2
+                !celular -> 3
+                !privadaOCgnat -> 4 // Una IPv4 pública celular puede aceptar conexiones entrantes.
+                else -> 5 // La IP celular privada/CGNAT solo funciona si el operador enruta entre teléfonos.
+            }
+        }
+
+        private fun esCgnat(direccion: Inet4Address): Boolean {
+            val bytes = direccion.address
+            val primero = bytes[0].toInt() and 0xff
+            val segundo = bytes[1].toInt() and 0xff
+            return primero == 100 && segundo in 64..127 // 100.64.0.0/10
         }
     }
 }
+
+/** Dirección IPv4 y la interfaz donde Android la encontró (p. ej. wlan0, ap0 o rmnet_data0). */
+internal data class CandidataIPv4(val interfaz: String, val direccion: Inet4Address)
