@@ -111,7 +111,7 @@ class RedLocal @Inject constructor(@ApplicationContext private val context: Cont
         )
 
         /** Ordena por interfaz antes de limitar el QR; no deja que una IP celular 10.x adelante a la Wi-Fi 192.168.x. */
-        fun candidatas(direcciones: List<CandidataIPv4>): List<String> = direcciones
+        internal fun candidatas(direcciones: List<CandidataIPv4>): List<String> = direcciones
             .filter { candidata ->
                 !candidata.direccion.isAnyLocalAddress && !candidata.direccion.isLoopbackAddress &&
                     !candidata.direccion.isLinkLocalAddress && !candidata.direccion.isMulticastAddress &&
