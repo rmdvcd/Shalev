@@ -79,6 +79,7 @@ struct Cup: Codable, Hashable, Comparable, Sendable {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.usesGroupingSeparator = true
         formatter.groupingSeparator = groupingSeparator
         formatter.decimalSeparator = "."
         formatter.minimumFractionDigits = 0

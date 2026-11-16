@@ -292,10 +292,10 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
                     s.pedir({ id -> PedirBaseNegocio(id, solicitudId, desde) }) as? BloqueBaseNegocio
                         ?: throw ProtocoloException("respuesta inesperada")
 
+                var shaEsperado: String? = null
                 RandomAccessFile(destino, "rw").use { archivo ->
                     var hecho = archivo.length()
                     var totalEsperado = -1L
-                    var shaEsperado: String? = null
                     while (true) {
                         var bloque = pedirBloque(hecho)
                         if (bloque.solicitudId != solicitudId || bloque.desde != hecho) throw ProtocoloException("bloque fuera de orden")
@@ -354,8 +354,9 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
                     }
                     if (archivo.length() != totalEsperado) throw ProtocoloException("copia incompleta")
                 }
+                val huellaEsperada = shaEsperado ?: throw ProtocoloException("sin huella")
                 val hash = sha256(destino)
-                if (!hash.equals(shaEsperado, ignoreCase = true)) {
+                if (!hash.equals(huellaEsperada, ignoreCase = true)) {
                     destino.delete(); marca.delete()
                     return@withLock AppResult.Err(AppError.Validacion("sha256"))
                 }
