@@ -1,5 +1,21 @@
 # Shalev — Verificación real
 
+## Conversión de roles e importación autorizada — revisión estática 2026-11-15
+
+**Rama:** `arena/a5ebc9df-shalev`, basada en `2343adb143327c773c9ea7e302e17863eaa7edce`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| Revisión estática de autorización, bloques, recuperación y exclusión de credenciales | Hecha leyendo Android e iOS; no equivale a ejecución. |
+| `git diff --check` | **Pasó** tras las ediciones de esta revisión. |
+| JSON Room 20/21 | Python parseó ambos; identity/setup coinciden (v20 `3f971998948a0b81a4794c8515961e43`, v21 `e16ea9932311520b49dfcee226167317`). El JSON 21 se parseó como JSON, no con Room/KSP. |
+| Smoke SQLite 20→21 | **Pasó**: construyó en SQLite en memoria las tablas del esquema JSON 20, aplicó las dos sentencias SQL declaradas en `ShalevDatabase.kt`, conservó el empleado de prueba y comprobó columna nullable, default `NINGUNA` y estado not null. No sustituye `MigrationTestHelper` ni la validación de Room. |
+| Pruebas JVM/instrumentadas Android, compilación, lint, API mínima, R8 | **No ejecutadas**: el entorno carece de Java/JDK y Android SDK. Las nuevas pruebas solo están añadidas al árbol fuente. |
+| `swift test` / `xcodebuild` y sesión Android↔iOS/Android↔Android | **No ejecutados**: este entorno no tiene Swift ni Xcode y no hay teléfonos de prueba. |
+| `14.json` histórico | Sin cambios en esta rama. Persiste la discrepancia ya observada entre identity `d22fecc2c49a9be2b5d8512a08373f09` y setup `aa447b39d448204c49f0be7adc212f8d`; no se corrigió manualmente, por requisito Room/KSP. |
+
+**Conclusión:** revisión estática y smoke SQLite solamente; no declarar el código, migración Room o flujos móviles como compilados, probados ni listos para publicar. Pendiente ejecutar `shalevCheck`, `shalevInstrumentedTests`, `swift test`, compilación iOS y pruebas manuales del flujo entre dispositivos cuando haya toolchains.
+
 ## Checklist de permisos en la primera apertura — 2026-11-15
 
 **Rama:** `arena/8ccaa15b-shalev`, basada en `c18fc14af4ca7f6109a470193a52a4c87a38ada5`.

@@ -46,6 +46,9 @@ interface PrincipalRepository {
     suspend fun rechazarCierre(empleadoId: Long): AppResult<Unit>
     /** Quita la secundaria: deja de sincronizar y, al conectarse, borra sus datos. Sus ventas ya recibidas se quedan. */
     suspend fun quitarEmpleado(empleadoId: Long): AppResult<Unit>
+    /** Autoriza o rechaza, desde la app principal, una solicitud concreta de copia completa. */
+    suspend fun resolverSolicitudImportacion(empleadoId: Long, solicitudId: String, autorizar: Boolean): AppResult<Unit> =
+        AppResult.Err(cu.shalev.core.result.AppError.NoEncontrado)
 }
 
 /** P37: lado de la app SECUNDARIA. */
@@ -64,8 +67,12 @@ interface SecundariaRepository {
     suspend fun solicitarCierre(contado: cu.shalev.core.money.Cup): AppResult<Unit>
     /** Envía lo pendiente y trae el catálogo. Error SinPrincipal si no hay conexión. */
     suspend fun sincronizarAhora(): AppResult<Unit>
-    /** Borra los datos de este teléfono y vuelve a PRINCIPAL. Lo no enviado se pierde (la UI avisa antes). */
+    /** Empieza con una base local nueva y vuelve a PRINCIPAL. Lo no enviado se pierde (la UI avisa antes). */
     suspend fun desvincular(): AppResult<Unit>
+    /** Solicita a la principal vinculada autorización para importar una copia completa del negocio. */
+    suspend fun solicitarImportacion(): AppResult<Unit> = AppResult.Err(cu.shalev.core.result.AppError.NoEncontrado)
+    /** Descarga e importa la copia autorizada; solo después pasa a PRINCIPAL y conserva los datos importados. */
+    suspend fun importarBasePrincipal(): AppResult<Unit> = AppResult.Err(cu.shalev.core.result.AppError.NoEncontrado)
     /** 0.20.0 (H5): el empleado leyó el aviso «Tu turno lo cerró el encargado» (0.21.0: o «no aprobó el cierre»). */
     suspend fun descartarAvisoCierre()
     /**

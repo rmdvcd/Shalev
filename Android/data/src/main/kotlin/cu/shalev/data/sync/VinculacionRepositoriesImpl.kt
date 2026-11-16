@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.cancellation.CancellationException
 
 private fun EmpleadoEntity.toDomain() = Empleado(
     id = id, nombre = nombre, permisos = PermisoEmpleado.deNombres(permisos.split(',')),
@@ -61,6 +62,8 @@ private fun EmpleadoEntity.toDomain() = Empleado(
     // 0 = rechazo pendiente de avisar: para la principal ya no es una solicitud.
     cierrePedidoPorEmpleadoEn = cierrePedidoPorEmpleadoEn?.takeIf { it > 0 }?.let(Instant::ofEpochMilli),
     versionCode = versionCode,
+    solicitudImportacionId = solicitudImportacionId,
+    estadoSolicitudImportacion = cu.shalev.domain.model.EstadoSolicitudImportacion.desde(estadoSolicitudImportacion),
 )
 
 private fun Set<PermisoEmpleado>.csv() = map { it.name }.sorted().joinToString(",")
@@ -219,6 +222,17 @@ class PrincipalRepositoryImpl @Inject constructor(
         return AppResult.Ok(Unit)
     }
 
+    override suspend fun resolverSolicitudImportacion(empleadoId: Long, solicitudId: String, autorizar: Boolean): AppResult<Unit> {
+        if (solicitudId.length !in 16..64) return AppResult.Err(AppError.NoEncontrado)
+        val e = sync.empleado(empleadoId)?.takeIf { it.activo } ?: return AppResult.Err(AppError.NoEncontrado)
+        if (e.solicitudImportacionId != solicitudId || e.estadoSolicitudImportacion != "PENDIENTE") {
+            return AppResult.Err(AppError.NoEncontrado)
+        }
+        sync.actualizarEmpleado(e.copy(estadoSolicitudImportacion = if (autorizar) "AUTORIZADA" else "RECHAZADA"))
+        servidor.avisar()
+        return AppResult.Ok(Unit)
+    }
+
     companion object {
         /** 0.21.0 (C6): valor de `cierrePedidoPorEmpleadoEn` para «rechazada, falta avisar al empleado». */
         const val RECHAZO_PENDIENTE = 0L
@@ -246,6 +260,7 @@ class SecundariaRepositoryImpl @Inject constructor(
     private val cliente: ClienteSync,
     private val mantenimiento: MantenimientoRepository,
     private val preferencias: PreferenciasRepository,
+    private val respaldos: cu.shalev.domain.repository.RespaldoRepository,
     @IoDispatcher io: CoroutineDispatcher,
     /** 0.25.0: conteo declarado al solicitar el cierre. */
     private val turnos: cu.shalev.data.repository.TurnoRepositoryImpl,
@@ -273,6 +288,8 @@ class SecundariaRepositoryImpl @Inject constructor(
                     apk = apk?.let { cu.shalev.domain.model.ApkEnPrincipal(it.nombre, it.code, it.bytes) },
                     cambiosPendientes = cambios, progreso = prog,
                     operacionPendiente = d.comandoPendiente != null, operacionRecuperada = d.operacionRecuperada,
+                    solicitudImportacionId = d.solicitudImportacionId,
+                    estadoSolicitudImportacion = cu.shalev.domain.model.EstadoSolicitudImportacion.desde(d.estadoSolicitudImportacion),
                 )
             }
         }.stateIn(scope, SharingStarted.Eagerly, EstadoSecundaria())
@@ -303,6 +320,132 @@ class SecundariaRepositoryImpl @Inject constructor(
     override suspend fun sincronizarAhora(): AppResult<Unit> = cliente.sincronizar()
 
     override suspend fun desvincular(): AppResult<Unit> = olvidar()
+
+    override suspend fun solicitarImportacion(): AppResult<Unit> {
+        val actual = config.secundariaActual() ?: return AppResult.Err(AppError.NoEncontrado)
+        val estado = cu.shalev.domain.model.EstadoSolicitudImportacion.desde(actual.estadoSolicitudImportacion)
+        if (estado == cu.shalev.domain.model.EstadoSolicitudImportacion.AUTORIZADA ||
+            estado == cu.shalev.domain.model.EstadoSolicitudImportacion.CONSUMIDA
+        ) return AppResult.Ok(Unit)
+
+        val id = if (estado == cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE ||
+            estado == cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE_ENVIO
+        ) actual.solicitudImportacionId else null
+        val solicitudId = id ?: java.util.UUID.randomUUID().toString()
+        if (actual.solicitudImportacionId != solicitudId || estado != cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE_ENVIO) {
+            config.editarSecundaria {
+                it.copy(
+                    solicitudImportacionId = solicitudId,
+                    estadoSolicitudImportacion = "PENDIENTE_ENVIO",
+                    baseImportadaLocalmente = if (it.solicitudImportacionId == solicitudId) it.baseImportadaLocalmente else false,
+                )
+            }
+        }
+        val r = cliente.sincronizar()
+        if (r is AppResult.Err) return r
+        val actualizado = config.secundariaActual() ?: return AppResult.Err(AppError.NoEncontrado)
+        return when (cu.shalev.domain.model.EstadoSolicitudImportacion.desde(actualizado.estadoSolicitudImportacion)) {
+            cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE,
+            cu.shalev.domain.model.EstadoSolicitudImportacion.AUTORIZADA -> AppResult.Ok(Unit)
+            cu.shalev.domain.model.EstadoSolicitudImportacion.RECHAZADA -> AppResult.Err(AppError.Validacion("solicitud_rechazada"))
+            cu.shalev.domain.model.EstadoSolicitudImportacion.NO_COMPATIBLE -> AppResult.Err(AppError.Validacion("actualizarPrincipal"))
+            else -> AppResult.Err(AppError.SinPrincipal())
+        }
+    }
+
+    override suspend fun importarBasePrincipal(): AppResult<Unit> {
+        var actual = config.secundariaActual() ?: return AppResult.Err(AppError.NoEncontrado)
+        val solicitudId = actual.solicitudImportacionId ?: return AppResult.Err(AppError.Validacion("importacion_no_autorizada"))
+        var estado = cu.shalev.domain.model.EstadoSolicitudImportacion.desde(actual.estadoSolicitudImportacion)
+        if (estado != cu.shalev.domain.model.EstadoSolicitudImportacion.AUTORIZADA &&
+            estado != cu.shalev.domain.model.EstadoSolicitudImportacion.CONSUMIDA
+        ) return AppResult.Err(AppError.Validacion("importacion_no_autorizada"))
+
+        if (!actual.baseImportadaLocalmente) {
+            // Si el permiso todavía está vigente, envía primero ventas y turnos pendientes. En un reintento tras
+            // recibir el acuse, no hay que volver a sincronizar si la copia completa ya está en caché.
+            val copiaDescargada = cliente.basePrincipalDescargada(solicitudId)
+            val pendientes = cliente.hayPendientesAntesDeImportar()
+            if (pendientes || (estado == cu.shalev.domain.model.EstadoSolicitudImportacion.AUTORIZADA && !copiaDescargada)) {
+                when (val sincronizada = cliente.sincronizar()) {
+                    is AppResult.Err -> return sincronizada
+                    is AppResult.Ok -> Unit
+                }
+                if (cliente.hayPendientesAntesDeImportar()) {
+                    return AppResult.Err(AppError.Validacion("pendientes_importacion"))
+                }
+            }
+            actual = config.secundariaActual() ?: return AppResult.Err(AppError.NoEncontrado)
+            estado = cu.shalev.domain.model.EstadoSolicitudImportacion.desde(actual.estadoSolicitudImportacion)
+            if (actual.solicitudImportacionId != solicitudId ||
+                (estado != cu.shalev.domain.model.EstadoSolicitudImportacion.AUTORIZADA &&
+                    estado != cu.shalev.domain.model.EstadoSolicitudImportacion.CONSUMIDA)
+            ) return AppResult.Err(AppError.Validacion("importacion_no_autorizada"))
+
+            val archivo = when (val descarga = cliente.descargarBasePrincipal(solicitudId)) {
+                is AppResult.Ok -> descarga.value
+                is AppResult.Err -> return if (descarga.error == AppError.SinPermiso) {
+                    AppResult.Err(AppError.Validacion("importacion_no_autorizada"))
+                } else descarga
+            }
+            val inspeccion = try {
+                archivo.inputStream().use { respaldos.inspeccionar(it) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                AppResult.Err(AppError.Almacenamiento)
+            }
+            if (inspeccion is AppResult.Err) return inspeccion
+            val importada = try {
+                archivo.inputStream().use { respaldos.importar(it, CharArray(0)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                AppResult.Err(AppError.Almacenamiento)
+            }
+            if (importada is AppResult.Err) return importada
+
+            // Persiste el punto de recuperación antes de consumir el permiso remoto: si se pierde el acuse o
+            // Android mata el proceso, ya no hace falta descargar otra vez la copia ni volver a importar los datos.
+            try {
+                config.editarSecundaria {
+                    if (it.solicitudImportacionId == solicitudId) it.copy(baseImportadaLocalmente = true) else it
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                return AppResult.Err(AppError.Almacenamiento)
+            }
+            actual = config.secundariaActual() ?: return AppResult.Err(AppError.NoEncontrado)
+        }
+
+        if (actual.solicitudImportacionId != solicitudId || !actual.baseImportadaLocalmente) {
+            return AppResult.Err(AppError.Validacion("importacion_no_autorizada"))
+        }
+        estado = cu.shalev.domain.model.EstadoSolicitudImportacion.desde(actual.estadoSolicitudImportacion)
+        if (estado == cu.shalev.domain.model.EstadoSolicitudImportacion.AUTORIZADA) {
+            // El acuse es idempotente; si se perdió la respuesta, la principal ya consumió esta misma solicitud.
+            when (val confirmacion = cliente.confirmarImportacionBase(solicitudId)) {
+                is AppResult.Err -> return if (confirmacion.error == AppError.SinPermiso) {
+                    AppResult.Err(AppError.Validacion("importacion_no_autorizada"))
+                } else confirmacion
+                is AppResult.Ok -> Unit
+            }
+        } else if (estado != cu.shalev.domain.model.EstadoSolicitudImportacion.CONSUMIDA) {
+            return AppResult.Err(AppError.Validacion("importacion_no_autorizada"))
+        }
+
+        try {
+            cliente.cerrarSesion()
+            config.hacerPrincipal()
+            cliente.descartarBasePrincipal(solicitudId)
+            return AppResult.Ok(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            return AppResult.Err(AppError.Almacenamiento)
+        }
+    }
 
     override suspend fun descartarAvisoCierre() = config.editarSecundaria { it.copy(avisoCierre = false, avisoRechazo = false) }
 

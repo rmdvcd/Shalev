@@ -77,6 +77,7 @@ struct ShalevRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage("shalev.onboarding.completed") private var onboardingCompleted = false
+    @State private var initialSecondaryOptIn = false
     @AppStorage("shalev.lock.enabled") private var appLockEnabled = false
     @AppStorage("shalev.module.sales") private var salesEnabled = true
     @AppStorage("shalev.module.inventory") private var inventoryEnabled = true
@@ -148,12 +149,16 @@ struct ShalevRootView: View {
                     .background(Color.shalevBackground.ignoresSafeArea())
             } else if !effectiveLicenseState.unlocked {
                 if sync.isSecondary {
-                    NavigationStack { SyncView(sync: sync) }
+                    NavigationStack { SyncView(sync: sync, lockedMode: true) }
                 } else {
                     LicenseView(store: store, license: licenseManager, blocking: true)
                 }
             } else if !onboardingCompleted && !sync.isSecondary {
-                OnboardingView(store: store, licenseManager: licenseManager, onComplete: { onboardingCompleted = true }, onLinkSecondary: {
+                OnboardingView(store: store, licenseManager: licenseManager, onComplete: {
+                    onboardingCompleted = true
+                    initialSecondaryOptIn = false
+                }, onLinkSecondary: {
+                    initialSecondaryOptIn = true
                     showSyncSetup = true
                 }, onAccessLockEnabled: { appUnlocked = true })
             } else if appLockEnabled && !appUnlocked {
@@ -227,6 +232,7 @@ struct ShalevRootView: View {
         .onChange(of: sync.isSecondary) { _, linked in
             if linked {
                 onboardingCompleted = true
+                initialSecondaryOptIn = false
                 showSyncSetup = false
             }
         }
@@ -284,10 +290,17 @@ struct ShalevRootView: View {
         }
         .sheet(isPresented: $showSyncSetup) {
             NavigationStack {
-                SyncView(sync: sync)
+                SyncView(sync: sync, allowInitialSecondary: initialSecondaryOptIn,
+                    onInitialSecondaryLinked: {
+                        initialSecondaryOptIn = false
+                        showSyncSetup = false
+                    })
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
-                            Button("Cerrar") { showSyncSetup = false }.foregroundStyle(Color.shalevPrimary)
+                            Button("Cerrar") {
+                                showSyncSetup = false
+                                initialSecondaryOptIn = false
+                            }.foregroundStyle(Color.shalevPrimary)
                         }
                     }
             }

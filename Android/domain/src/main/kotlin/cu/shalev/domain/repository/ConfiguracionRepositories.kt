@@ -142,6 +142,10 @@ interface RespaldoRepository {
         contrasena: CharArray, destino: OutputStream, progreso: (EtapaRespaldo) -> Unit = {},
     ): AppResult<ResumenRespaldo>
 
+    /** Copia privada de una sesión ya autorizada: no cuenta como respaldo exportado ni transfiere licencia del dispositivo. */
+    suspend fun exportarParaSincronizacion(destino: OutputStream): AppResult<ResumenRespaldo> =
+        exportar(CharArray(0), destino)
+
     /** Comprueba el archivo sin contraseña: ¿es de Shalev?, ¿está completo e intacto? No modifica nada. */
     suspend fun inspeccionar(origen: InputStream): AppResult<InfoRespaldo>
 

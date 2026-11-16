@@ -11,6 +11,29 @@
 9. Anotar en `docs/VERIFICACION.md` el SHA, comandos ejecutados y resultados observados. Diferenciar explícitamente pruebas que pasaron, fallaron, no se pudieron ejecutar o están pendientes.
 10. Para las repruebas de Perfil/cantidad Android y de nombres/retiro/responsive DShalev de la rama actual, seguir [PRUEBAS_IA_SHALEV_DSHALEV.md](PRUEBAS_IA_SHALEV_DSHALEV.md). `PRUEBAS_VENTANAS_ANDROID.md` y `PRUEBAS_VENTANAS_DSHALEV.md` contienen líneas base históricas, no validan los cambios posteriores.
 
+## Conversión de roles e importación autorizada de la base — integración pendiente (2026-11-15)
+
+La funcionalidad está en una rama de trabajo basada en 1.0.1; esta lista no afirma que las pruebas se hayan ejecutado ni que exista una sesión real entre teléfonos. El entorno de esta revisión carece de Java/JDK, Android SDK, Swift y Xcode.
+
+**Regresiones automatizadas añadidas o asociadas a la integración (pendientes de ejecutar):**
+
+- `VinculacionViewModelTest.cambioAPrincipalSolicitaConsultaImportaSoloConAutorizacion`: la UI pide permiso, consulta mientras está pendiente, solo importa con estado autorizado/consumido y muestra que se actualice una principal incompatible.
+- `CopiaBaseSyncTest`: no exporta ni sirve bloques a empleados inactivos, solicitud distinta o estado no autorizado; una solicitud autorizada transmite bloques contiguos, una sola copia y fin de archivo.
+- `Version020SyncTest`: ida y vuelta de mensajes de solicitud, bloque y acuse del protocolo.
+- `EsquemaTest.migracion20a21ConservaLosEmpleadosYAnadeLaSolicitudDeImportacion`: migración Room 20→21 con conservación de la fila.
+- `AndroidBackupTests.testPortableBackupsOmitImportAuthorizationState`: el respaldo portable iOS no hereda ids/estados temporales de autorización.
+
+**Prueba manual de aceptación en dos teléfonos (Android↔Android y Android↔iOS):**
+
+1. Principal con datos y sin respaldo registrado: confirmar que no se puede convertir; exportar una copia y repetir. Separadamente probar el único bypass: configuración inicial, opción Secundaria elegida y ninguna app de empleado vinculada.
+2. Vincular a una principal y confirmar que el teléfono convertido no conserva sus datos anteriores; comprobar que el respaldo manual previo sigue intacto y puede recuperarse de forma explícita.
+3. Secundaria con ventas/caja/turno pendientes: solicitar importación, desconectar y volver a conectar; verificar que el dueño ve la solicitud concreta, puede rechazarla, y que una nueva solicitud puede volver a autorizarse.
+4. Autorizar e importar con operaciones pendientes y sin ellas. No reemplazar la base mientras quede algo sin enviar; comprobar la verificación SHA-256, la confirmación de una sola vez, que la base importada aparece completa y que la Principal original no cambia.
+5. Interrumpir la transferencia entre bloques, perder el acuse o cerrar la app tras el commit local; reintentar y comprobar recuperación sin duplicar el negocio ni perder la base importada. Alterar/truncar una copia de prueba y confirmar que no se importa.
+6. Confirmar que no se copian licencia, claves, QR ni el estado de autorización; probar principal incompatible y «Empezar desde cero» en secundaria bloqueada.
+
+La ejecución del código de app, Room/KSP, las pruebas unitarias/instrumentadas y los escenarios con teléfonos quedan pendientes; los resultados locales disponibles se anotan en [docs/VERIFICACION.md](docs/VERIFICACION.md).
+
 ## Regresiones de la auditoría Android — 2026-11-13
 
 Consultar el SHA y resultados en [docs/VERIFICACION.md](docs/VERIFICACION.md), sin reutilizar resultados históricos de otra rama. La matriz de aceptación está en [docs/AUDITORIA_SHALEV_2026-11.md](docs/AUDITORIA_SHALEV_2026-11.md). El emulador de CI se activa con `workflow_dispatch` o añadiendo `[instrumentados]` al mensaje del commit publicado; no necesita ampliar permisos de Actions.
@@ -20,7 +43,7 @@ Consultar el SHA y resultados en [docs/VERIFICACION.md](docs/VERIFICACION.md), s
 - `InventarioOperativoRoomTest`: recepción/promedio/idempotencia/rollback, FEFO/anulación/devolución, merma/revisiones, deuda offline, costos completos y unidades/overflow.
 - `LocalesPermisosCobroRoomTest`: aislamiento de locales, renombrado/turno remoto, stock sin permiso de precio, referencias duplicadas locales y conflictos offline.
 - `AuditoriaDatosRoomTest`: migración de fichas/colisiones/reaparición, exportación atómica, costo vigente/conversión, respaldo/reset completo, fotos/hash/limpieza global y cancelación antes/después del commit.
-- `EsquemaTest`: abrir JSON generado y migraciones históricas hasta v18; 17→18 conserva datos y atribuye local estable al empleado.
+- `EsquemaTest`: abrir JSON generado y migraciones históricas hasta v21; 17→18 conserva datos y atribuye local estable al empleado; 20→21 conserva empleados y añade los dos campos temporales de importación.
 - Reintentos de ViewModels: mismo filtro y selección después de error, Fichas mantiene edición y puede reabrir su Flow.
 
 **Manual en teléfonos antes de publicar:** crear dos locales y dos empleados, vender/cambiar precios/recetas durante un cobro, desconectar tras enviar un comando y reconectar/reiniciar; anular/modificar una venta con lotes; importar copia con fotos en otro teléfono; actualizar con operaciones posteriores a crear la copia previa; confirmar que esta no las sobrescribe. Revisar nuevo formulario en claro/oscuro, teclado, TalkBack y pantallas pequeñas. Estas comprobaciones no se declaran hechas solo por ejecutar CI.

@@ -26,7 +26,9 @@ enum AndroidBackupCodec {
         let hasPassword = !password.isEmpty
         guard !hasPassword || password.count >= 8 else { throw BusinessError.backupPassword }
         let clear = try jsonForExport(app)
+        guard clear.count <= maximumClearBytes else { throw BusinessError.backupInvalid }
         let compressed = try GZIP.encode(clear)
+        guard compressed.count + 16 <= maximumClearBytes else { throw BusinessError.backupInvalid }
         let salt = try randomBytes(16)
         let iv = try randomBytes(12)
         let iterations = hasPassword ? defaultIterations : 10_000
@@ -47,12 +49,14 @@ enum AndroidBackupCodec {
         var result = aad
         result.append(Data(SHA256.hash(data: encrypted)))
         result.append(encrypted)
+        guard result.count <= maximumClearBytes else { throw BusinessError.backupInvalid }
         return result
     }
 
     static func decode(_ backup: Data, password: String) throws -> AppData {
         let bytes = [UInt8](backup)
-        guard bytes.count > magic.count + 1, Data(bytes.prefix(magic.count)) == magic else {
+        guard bytes.count <= maximumClearBytes,
+              bytes.count > magic.count + 1, Data(bytes.prefix(magic.count)) == magic else {
             throw BusinessError.backupInvalid
         }
         let version = Int(bytes[magic.count])

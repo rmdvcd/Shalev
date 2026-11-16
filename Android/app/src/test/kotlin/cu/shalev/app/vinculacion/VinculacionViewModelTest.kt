@@ -9,14 +9,17 @@ import cu.shalev.core.result.AppError
 import cu.shalev.core.result.AppResult
 import cu.shalev.domain.model.CodigoVinculacion
 import cu.shalev.domain.model.Empleado
+import cu.shalev.domain.model.EstadoApp
 import cu.shalev.domain.model.EstadoPrincipal
 import cu.shalev.domain.model.PermisoEmpleado
 import cu.shalev.domain.model.Perfil
 import cu.shalev.domain.model.TarjetaBancaria
 import cu.shalev.domain.model.Vinculacion
 import cu.shalev.domain.repository.PrincipalRepository
+import cu.shalev.domain.repository.EstadoAppRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -75,7 +78,14 @@ class VinculacionViewModelTest {
     private val secundaria = SecundariaRepoFake()
     private val ajustesDisp = cu.shalev.app.AjustesDispRepo(cu.shalev.domain.model.AjustesDispositivo(eligioSecundaria = true))
     private val perfil = PerfilRepo(Perfil(tarjetas = listOf(TarjetaBancaria(id = 3, numero = "9204129912345678")), pagoTarjetaId = 3))
-    private val vm by lazy { VinculacionViewModel(TipoRepo(), principal, secundaria, perfil, LicRepo(), ajustesDisp) } // después de setMain
+    private val estadoApp = object : EstadoAppRepository {
+        val valor = MutableStateFlow(EstadoApp())
+        override val estado: Flow<EstadoApp> = valor
+        override suspend fun actual(): EstadoApp = valor.value
+        override suspend fun editar(cambio: (EstadoApp) -> EstadoApp) { valor.value = cambio(valor.value) }
+        override suspend fun borrar() { valor.value = EstadoApp() }
+    }
+    private val vm by lazy { VinculacionViewModel(TipoRepo(), principal, secundaria, perfil, LicRepo(), ajustesDisp, estadoApp) } // después de setMain
 
     private fun TestScope.mensajes(): MutableList<String> {
         val l = mutableListOf<String>()
@@ -188,7 +198,7 @@ class VinculacionViewModelTest {
         val m = mensajes()
         var escaneos = 0
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.escanear.collect { escaneos++ } }
-        vm.pedirSecundaria()
+        vm.pedirSecundaria(vinculacionInicial = true)
         assertTrue(vm.state.value.confirmarSecundaria)
         vm.telefonoSecundaria("4123")
         vm.confirmarSecundaria()
@@ -207,28 +217,102 @@ class VinculacionViewModelTest {
         assertFalse(vm.state.value.trabajando)
     }
 
-    /** 0.27.0 (T9): una app principal (no eligió «Secundaria» al instalarse) nunca pasa a secundaria. */
-    @Test fun unaPrincipalNuncaPasaASecundaria() = runTest {
+    /** La elegibilidad del vínculo inicial se conserva; no bloquea el cambio de rol desde Ajustes. */
+    @Test fun unaPrincipalNuncaPasaASecundariaEnElVinculoInicialSiNoFueConfiguradaParaEso() = runTest {
         ajustesDisp.estado.value = cu.shalev.domain.model.AjustesDispositivo(eligioSecundaria = false)
         val m = mensajes()
-        vm.pedirSecundaria()
+        vm.pedirSecundaria(vinculacionInicial = true)
         assertFalse(vm.state.value.confirmarSecundaria)
-        assertEquals(VinculacionLogic.PRINCIPAL_NO_SECUNDARIA, m.last())
-        vm.qrLeido("SPVI2:qr")
-        assertNull(secundaria.telefonoVinculado)
+        assertEquals(VinculacionLogic.VINCULACION_INICIAL_NO_PERMITIDA, m.last())
         assertFalse(cu.shalev.domain.model.Vinculacion.puedeVincularseComoSecundaria(cu.shalev.domain.model.TipoApp.PRINCIPAL, eligioSecundaria = false, empleados = 0))
         assertFalse(cu.shalev.domain.model.Vinculacion.puedeVincularseComoSecundaria(cu.shalev.domain.model.TipoApp.PRINCIPAL, eligioSecundaria = true, empleados = 1))
         assertFalse(cu.shalev.domain.model.Vinculacion.puedeVincularseComoSecundaria(cu.shalev.domain.model.TipoApp.SECUNDARIA, eligioSecundaria = true, empleados = 0))
         assertTrue(cu.shalev.domain.model.Vinculacion.puedeVincularseComoSecundaria(cu.shalev.domain.model.TipoApp.PRINCIPAL, eligioSecundaria = true, empleados = 0))
     }
 
-    @Test fun secundariaSincronizaYDesvincula() = runTest {
+    @Test fun conversionDesdeAjustesAplicaRespaldoPeroNoLaReglaDelVinculoInicial() = runTest {
+        ajustesDisp.estado.value = cu.shalev.domain.model.AjustesDispositivo(eligioSecundaria = false)
+        principal.empleados.value = listOf(luis)
+        mensajes()
+        vm.pedirSecundaria()
+        assertTrue(vm.state.value.puedeCambiarATipoSecundaria)
+        assertTrue(vm.state.value.confirmarRespaldoPrevio)
+        assertFalse(vm.state.value.confirmarSecundaria)
+    }
+
+    @Test fun respaldoExportadoPermiteContinuarConLaConversion() = runTest {
+        ajustesDisp.estado.value = cu.shalev.domain.model.AjustesDispositivo(eligioSecundaria = false)
+        principal.empleados.value = listOf(luis)
+        estadoApp.valor.value = EstadoApp(ultimoRespaldo = T0)
+        mensajes()
+        vm.pedirSecundaria()
+        assertFalse(vm.state.value.confirmarRespaldoPrevio)
+        assertTrue(vm.state.value.confirmarSecundaria)
+    }
+
+    @Test fun secundariaSincronizaYOfreceConversionConImportacionPorDefecto() = runTest {
         val m = mensajes()
         vm.sincronizar()
         assertEquals(VinculacionLogic.error(AppError.SinPrincipal()), m.last())
-        vm.pedirDesvincular(); assertTrue(vm.state.value.confirmarDesvincular)
+        vm.pedirDesvincular()
+        assertTrue(vm.state.value.confirmarDesvincular)
+        assertEquals(OpcionCambioPrincipal.IMPORTAR_DE_PRINCIPAL, vm.state.value.opcionCambioPrincipal)
         vm.confirmarDesvincular()
         assertFalse(vm.state.value.confirmarDesvincular)
         assertFalse(vm.state.value.trabajando)
+    }
+
+    @Test fun accesoDesdeBloqueoEligeExplicitamenteEmpezarDesdeCero() = runTest {
+        val m = mensajes()
+        vm.pedirEmpezarDesdeCero()
+        assertTrue(vm.state.value.confirmarDesvincular)
+        assertEquals(OpcionCambioPrincipal.EMPEZAR_DESDE_CERO, vm.state.value.opcionCambioPrincipal)
+        vm.confirmarDesvincular()
+        assertEquals(VinculacionLogic.PRINCIPAL_DESDE_CERO, m.last())
+        assertFalse(vm.state.value.confirmarDesvincular)
+        assertFalse(vm.state.value.trabajando)
+    }
+
+    @Test fun cambioAPrincipalSolicitaConsultaImportaSoloConAutorizacion() = runTest {
+        val m = mensajes()
+        secundaria.resultadoSolicitudImportacion = AppResult.Ok(Unit)
+        secundaria.flow.value = cu.shalev.domain.model.EstadoSecundaria(
+            solicitudImportacionId = null,
+            estadoSolicitudImportacion = cu.shalev.domain.model.EstadoSolicitudImportacion.NINGUNA,
+        )
+        vm.pedirDesvincular(); vm.confirmarDesvincular()
+        assertEquals(1, secundaria.solicitudesImportacion)
+        assertEquals(0, secundaria.importacionesBase)
+
+        secundaria.flow.value = secundaria.flow.value.copy(
+            solicitudImportacionId = "38ea980e-f4cc-4504-9e99-10f870f28b23",
+            estadoSolicitudImportacion = cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE,
+        )
+        secundaria.resultadoSincronizar = AppResult.Ok(Unit)
+        vm.pedirDesvincular(); vm.confirmarDesvincular()
+        assertEquals(1, secundaria.sincronizaciones)
+        assertEquals(0, secundaria.importacionesBase)
+
+        secundaria.flow.value = secundaria.flow.value.copy(
+            estadoSolicitudImportacion = cu.shalev.domain.model.EstadoSolicitudImportacion.AUTORIZADA,
+        )
+        secundaria.resultadoImportacionBase = AppResult.Ok(Unit)
+        vm.pedirDesvincular(); vm.confirmarDesvincular()
+        assertEquals(1, secundaria.importacionesBase)
+        assertEquals(VinculacionLogic.BASE_IMPORTADA, m.last())
+
+        secundaria.flow.value = secundaria.flow.value.copy(
+            estadoSolicitudImportacion = cu.shalev.domain.model.EstadoSolicitudImportacion.CONSUMIDA,
+        )
+        vm.pedirDesvincular(); vm.confirmarDesvincular()
+        assertEquals(2, secundaria.importacionesBase)
+        assertEquals(VinculacionLogic.BASE_IMPORTADA, m.last())
+
+        secundaria.flow.value = secundaria.flow.value.copy(
+            estadoSolicitudImportacion = cu.shalev.domain.model.EstadoSolicitudImportacion.NO_COMPATIBLE,
+        )
+        vm.pedirDesvincular(); vm.confirmarDesvincular()
+        assertEquals(2, secundaria.importacionesBase)
+        assertEquals(VinculacionLogic.ACTUALIZAR_PRINCIPAL, m.last())
     }
 }

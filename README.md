@@ -21,9 +21,15 @@ En las ventas móviles, la acción de agregar artículos permanece en la barra i
 | Versión de trabajo | **1.0.1** (`versionCode 54`; no es una nueva publicación firmada) |
 | Paquete | `cu.shalev.app` (debug: `cu.shalev.app.debug`) |
 | minSdk / targetSdk / compileSdk | 26 / 35 / 35 |
-| Base de datos | Room **v18**, migración 17→18, cifrada con SQLCipher (contenido `RespaldoDto` v5, importa v3–v5; contenedor `.shalev` v4, lee v3/v4) |
+| Base de datos | Room **v21**, migración 20→21 para el estado temporal de solicitudes de importación, cifrada con SQLCipher (contenido `RespaldoDto` v5, importa v3–v5; contenedor `.shalev` v4, lee v3/v4) |
 | Contrato de licencias | GL v1 (`ECIES-P256-AES256GCM-v1`) |
 | Permisos | Solo `CAMERA`, `INTERNET` y `POST_NOTIFICATIONS` (aviso «Turno abierto», Android 13+), más `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_CONNECTED_DEVICE` y `CHANGE_NETWORK_STATE` (servicio de la app principal con secundarias, 0.19.2), `REQUEST_INSTALL_PACKAGES` / `REQUEST_DELETE_PACKAGES` (actualizaciones y licencia transferida, 0.25.0) y `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` (hasta Android 12) / `WRITE_EXTERNAL_STORAGE` (hasta Android 9) para el registro de la prueba (0.26.0), y `USE_BIOMETRIC` / `USE_FINGERPRINT` (acceso con clave opcional, 0.27.0; permisos normales que añade `androidx.biometric`). La captura SMS opcional requiere habilitar manualmente el Acceso especial a notificaciones; no solicita `READ_SMS`. |
+
+**Conversión de roles e importación autorizada (integración de esta rama; no publicada ni validada en dispositivos):**
+
+- Una app **Principal** puede convertirse en **Secundaria** desde Apps vinculadas si ya registró la exportación de un respaldo. Solo el primer vínculo elegido como Secundaria durante la configuración inicial puede omitir ese respaldo, y únicamente si todavía no hay apps de empleados vinculadas. Tras vincular, los datos locales de esa app se reemplazan; conserva una copia `.shalev` aparte si quiere recuperarlos.
+- Una **Secundaria** puede volver a ser Principal con una base nueva, o solicitar al dueño permiso para copiar la base completa de su Principal vinculada. La Principal aprueba o rechaza la solicitud; antes de importar se sincronizan las operaciones pendientes y se pide confirmación destructiva. La autorización es de un solo uso; la copia viaja por el canal de sesión autenticado y cifrado, y se verifica su tamaño y SHA-256.
+- La copia remota no transfiere licencias, claves de acceso ni códigos QR. El teléfono que importa pasa a ser una Principal independiente; la app Principal original no cambia de rol. La importación y la conversión solo están integradas en esta rama: builds/tests móviles y la prueba real Android↔iOS siguen pendientes por falta de toolchain local.
 
 **Documentación**
 
@@ -83,7 +89,7 @@ La Release pública es **v1.0** (`versionCode 53`, 22/10/2026). El código Andro
 
 ### Qué no hace
 
-- No tiene servidor, cuentas de usuario, sincronización en la nube, Firebase, analítica, telemetría ni anuncios.
+- No tiene servidores propios, cuentas ni almacenamiento de la base en la nube. La sincronización es directa por la red local/datos móviles por defecto. Solo una build Android que habilite el endpoint HTTPS aprobado puede usar el relé opcional (no activado por defecto): retransmite tramas cifradas, no almacena el negocio y expone al proveedor metadatos de conexión (IP, horario y volumen). iOS usa conexión directa y no este relé. Sin Firebase, analítica, telemetría ni anuncios.
 - No pide `READ_SMS` ni consulta el buzón. El SMS se puede pegar o compartir; también hay captura opcional de notificaciones nuevas mientras una venta por transferencia espera el pago (requiere habilitar manualmente el Acceso especial a notificaciones y solo usa el número e importe reconocidos, no guarda el texto completo).
 - No usa el almacenamiento compartido para tus datos: guardar y abrir archivos pasa por el selector del sistema. La única excepción (0.26.0) es el registro cifrado de la prueba en Imágenes/Shalev y Download/Documents.
 - No tiene usuarios ni contraseñas propias. Desde la 0.27.0 hay un **acceso con clave opcional** que usa la huella o el PIN/patrón **del teléfono** (Shalev no guarda ninguna clave).
@@ -103,7 +109,7 @@ Versiones principales (`Android/gradle/libs.versions.toml`): Kotlin 2.0.21, AGP 
 1. **Claves públicas de GL.** `LicenseTrust.kt` fija la ECDH `sha256:fb3a:f7fc:…:078d` y la firma `sha256:113f:a5f6:…:4b1c` del emisor vigente (GL 1.2.0, pestaña Claves del teléfono `4bc9f8f3`, 22/10/2026). También acepta las firmas de instalaciones anteriores (`sha256:58d4:3aac:…:8c4e` del bundle del 05/10/2026, `sha256:e693:6c20:…:0a6e` y `sha256:d9c4:d821:…:998e` del 15/10/2026, `sha256:8a91:…:6888` del 30/09/2026) para licencias ya emitidas. Como GL genera claves locales por instalación, verifica siempre las huellas en la pestaña Claves del GL emisor: firma nueva → añadir a `SIGN_KEYS`; ECDH distinta → fijar esa clave y publicar un build nuevo. `LicenseTrustTest` valida las huellas.
 2. **Firma de release.** El repositorio no contiene ningún keystore ni contraseña. `Android/app/build.gradle.kts` los lee de `Android/keystore.properties`, que git ignora, o de las variables `Shalev_KEYSTORE`, `Shalev_KEYSTORE_PASSWORD`, `Shalev_KEY_ALIAS` y `Shalev_KEY_PASSWORD`. Los pasos completos están en [RELEASE.md](RELEASE.md). **Firma siempre con la misma clave**, porque `ANDROID_ID` (y con él el `deviceId` de la licencia) depende de la firma del APK.
 3. **Contacto del desarrollador.** Teléfono `+5351815604` en una sola constante (`Android/core/.../contact/DeveloperContact.kt`), que usan Licencia y Soporte.
-4. **Esquema Room.** La versión de trabajo es **v18** (`Android/data/schemas/cu.shalev.data.db.ShalevDatabase/18.json`). Cada cambio requiere migración, esquema exportado y `EsquemaTest`.
+4. **Esquema Room.** La versión de trabajo de esta rama es **v21** (`Android/data/schemas/cu.shalev.data.db.ShalevDatabase/21.json`). La migración 20→21 añade el estado de solicitudes de importación. Cada cambio requiere migración, esquema exportado por Room/KSP y `EsquemaTest`; la versión 21 aún no ha sido validada con Room/KSP en este entorno.
 5. **Baseline de lint.** Se entrega vacío. La primera vez ejecuta `./gradlew :app:updateLintBaseline` y versiona `Android/app/lint-baseline.xml`; a partir de ahí, cualquier error nuevo de lint rompe `shalevCheck`.
 6. **Actualizaciones:** el build apunta por defecto a las Releases públicas de [`rmdvcd/Shalev`](https://github.com/rmdvcd/Shalev/releases) (`shalevGithubRepo` en `Android/gradle.properties`). Para compilar un fork, se puede sobrescribir con `-PshalevGithubRepo=usuario/repositorio`; vacío desactiva las consultas.
 7. **Nada más que configurar:** no hay claves de API, `google-services.json` ni variables de entorno.
@@ -227,7 +233,7 @@ Las filas de Inventario resaltan las alertas de existencias y los bordes del con
 | **Campos** | El texto de ejemplo (placeholder) va centrado |
 | **PDF y Excel** | Con su icono en todas las hojas de exportar |
 | **Textos llanos** | Sin versiones, nombres técnicos ni explicaciones de la licencia o del registro de la prueba |
-| **Principal ≠ secundaria** | Una app principal nunca puede pasar a secundaria; para cambiar el tipo hay que exportar el respaldo y borrar los datos de Shalev |
+| **Principal ≠ secundaria (regla histórica de 0.27.0)** | Esta limitación fue reemplazada en la integración de conversión descrita arriba: se permite el cambio a secundaria tras registrar un respaldo previo; el primer vínculo elegido en la configuración inicial conserva la excepción restringida |
 | **Respaldo sin contraseña (estado de 0.27.0)** | En esa versión, «Proteger con contraseña» era opcional y venía apagado; el archivo `.shalev` v4 indica si la lleva. Desde S-01 (10/2026), viene activado por defecto; ver [SECURITY.md](SECURITY.md). |
 | **Acceso con clave** | Opcional (recorrido inicial y Ajustes): huella o PIN/patrón del teléfono al abrir la app y tras 10 minutos o más en segundo plano. No va en el respaldo |
 | **Soporte** | Datos del desarrollador con icono |
@@ -283,11 +289,11 @@ Para GL: recuperación automática, lista de revocadas (`tools/licencia/probar_g
 
 ## Apps principal y secundarias
 
-Una app **principal** (dueño: base de datos general y licencia) y hasta **10 apps secundarias** según las ranuras autorizadas por la licencia (la prueba admite hasta **5**), vinculadas con un QR cifrado y sincronizadas **a mano** (el empleado toca «Sincronizar ahora»; además se sincroniza al abrir turno y al pedir el cierre) por **wifi del local, zona wifi del teléfono principal o datos móviles** (1.0.1: el QR lleva todas las direcciones de la principal —privadas primero, después las de datos móviles— y la secundaria prueba por orden; el NSD solo descubre en la misma red local). La app secundaria **mantiene la conexión abierta** mientras esté en la red, con una barra de avance por app en «Apps vinculadas» y avisos con sonido cuando una app se conecta, se desconecta o termina de sincronizar. Las **fotos** de productos y servicios viajan también a la secundaria. Ajustes → Apps vinculadas. Detalle técnico y de seguridad: [docs/VINCULACION.md](docs/VINCULACION.md).
+Una app **principal** (dueño: base de datos general y licencia) y hasta **10 apps secundarias** según las ranuras autorizadas por la licencia (la prueba admite hasta **5**), vinculadas con un QR cifrado y sincronizadas **a mano** (el empleado toca «Sincronizar ahora»; además se sincroniza al abrir turno y al pedir el cierre) por **wifi del local, zona wifi del teléfono principal o datos móviles** (1.0.1: el QR lleva todas las direcciones de la principal —privadas primero, después las de datos móviles— y la secundaria prueba por orden; el NSD solo descubre en la misma red local). Solo una build Android que configure el endpoint HTTPS aprobado puede habilitar además el relé remoto opcional (no se activa por defecto); retransmite tramas cifradas, no almacena la base y expone al proveedor metadatos de conexión (IP, horario y volumen). La app secundaria **mantiene la conexión abierta** mientras esté en la red, con una barra de avance por app en «Apps vinculadas» y avisos con sonido cuando una app se conecta, se desconecta o termina de sincronizar. Las **fotos** de productos y servicios viajan también a la secundaria. Ajustes → Apps vinculadas. Detalle técnico y de seguridad: [docs/VINCULACION.md](docs/VINCULACION.md).
 
 ## Esquema de base de datos
 
-La versión vigente es Room **v18**, cifrada con SQLCipher. Room/KSP genera el esquema versionado en [`Android/data/schemas/`](Android/data/schemas/cu.shalev.data.db.ShalevDatabase/18.json); las entidades están en [`Entities.kt`](Android/data/src/main/kotlin/cu/shalev/data/db/entity/Entities.kt) y las migraciones en [`ShalevDatabase.kt`](Android/data/src/main/kotlin/cu/shalev/data/db/ShalevDatabase.kt). Cada cambio de esquema requiere migración, esquema exportado y pruebas. Los formatos de respaldo se documentan en [FORMATOS.md](FORMATOS.md).
+El esquema de trabajo de esta rama es Room **v21**, cifrado con SQLCipher. La migración 20→21 añade a `empleado` el id y estado temporal de la solicitud de importación; estos campos no pertenecen al respaldo portable. El esquema JSON está en [`Android/data/schemas/`](Android/data/schemas/cu.shalev.data.db.ShalevDatabase/21.json), las entidades en [`Entities.kt`](Android/data/src/main/kotlin/cu/shalev/data/db/entity/Entities.kt) y las migraciones en [`ShalevDatabase.kt`](Android/data/src/main/kotlin/cu/shalev/data/db/ShalevDatabase.kt). El JSON de v21 está en el checkout, pero todavía falta validarlo/generarlo mediante Room/KSP; la comprobación SQLite estática no sustituye esa validación. Cada cambio de esquema requiere migración, esquema exportado por Room/KSP y pruebas. Los formatos de respaldo se documentan en [FORMATOS.md](FORMATOS.md).
 
 ## Manual de uso
 
@@ -329,11 +335,15 @@ En Inicio se elige el local activo; en Ajustes → Local se crean y renombran lo
 
 ### Conexión remota por Internet (piloto Android)
 
-Se incorpora un intermediario Cloudflare Workers + Durable Objects en [`relay/`](relay/README.md).
+El proyecto incluye el cliente Android y el Worker Cloudflare Workers + Durable Objects en
+[`relay/`](relay/README.md), pero el servicio no está desplegado ni habilitado por defecto.
+Solo una build Android compilada con el endpoint HTTPS aprobado mediante
+`-PshalevRelayUrl=https://…` puede usarlo; principal y secundarias deben llevar el mismo endpoint.
 La secundaria mantiene LAN como primera opción y, si no encuentra a la principal, prueba
-WebSocket seguro cuando el distribuidor compila ambas apps con `-PshalevRelayUrl=https://…`.
-La principal establece también conexiones salientes: no hay VPN, IP pública ni puertos que
-configurar en los teléfonos. Vinculación y sincronización reutilizan el cifrado existente.
-**Sin URL configurada, la app sigue funcionando únicamente por conexión directa.**
-El servidor está preparado en código, no desplegado. La principal debe estar disponible;
-esto no es una base de datos en la nube. Alcance, cuotas, privacidad y despliegue en relay/README.md.
+WebSocket seguro. La principal establece también conexiones salientes: no hay VPN, IP pública
+ni puertos que configurar en los teléfonos. Vinculación y sincronización reutilizan el cifrado
+existente. El relé retransmite tramas cifradas, no almacena la base de negocio y expone al
+proveedor metadatos de conexión (IP, horario y volumen). **Sin URL configurada, la app sigue
+funcionando únicamente por conexión directa.** La principal debe estar disponible; esto no es
+una base de datos en la nube. iOS usa conexión directa y no este relé. Alcance, cuotas, privacidad
+y despliegue en [relay/README.md](relay/README.md).

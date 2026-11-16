@@ -2628,9 +2628,11 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
   y cierre ordenado; reutiliza cifrado/autenticación del protocolo existente.
 - Principal establece canales salientes por empleado, con reconexión progresiva. Secundaria
   prueba LAN antes del relay, tanto al vincular como al abrir sesiones.
-- Endpoint HTTPS fijado mediante `-PshalevRelayUrl=…`, vacío/deshabilitado por defecto;
-  sin nuevos secretos, permisos Android ni cambios de esquema Room. Ambas apps requieren
-  una compilación con el mismo endpoint. No es almacenamiento offline en la nube.
+- Relé solo para builds Android con el endpoint HTTPS aprobado fijado mediante
+  `-PshalevRelayUrl=…`, vacío/deshabilitado por defecto; sin nuevos secretos, permisos
+  Android ni cambios de esquema Room. Ambas apps requieren una compilación con el mismo
+  endpoint. Retransmite tramas cifradas y no almacena el negocio; Cloudflare ve IP, horario,
+  volumen y metadatos de sala. IShalev no usa el relé. No es almacenamiento offline en la nube.
 - Tests Node: 7 en verde, incluida integración con workerd/Miniflare. Empaquetado
   `wrangler deploy --dry-run` correcto, `npm audit` sin vulnerabilidades detectadas.
 - Añadidos tests JVM del transporte y derivación, pendientes de ejecutar: Gradle no
@@ -2737,3 +2739,11 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
   configuración de producción aprobada, Windows con DPAPI y EXE, y extremo a extremo contra el servicio GL
   real. **No se declara listo para producción.** Riesgos del servicio (renovaciones simultáneas, reutilización
   de slots, revocación offline de perpetuas) siguen abiertos.
+
+### 2026-11-15 — Conversión Principal/Secundaria e importación autorizada (integración en `arena/a5ebc9df-shalev`)
+
+- Android e iOS incorporan la conversión Principal→Secundaria con requisito de respaldo exportado y el bypass limitado al opt-in inicial sin empleados vinculados. La Secundaria puede empezar con una base vacía o solicitar al dueño importar la base completa de la Principal vinculada.
+- El dueño autoriza/rechaza un id de solicitud concreto. Por la sesión autenticada se transfieren bloques de 48 KiB; se limita el archivo a 128 MiB y se comprueban offsets, tamaño y SHA-256. La Secundaria no reemplaza su base mientras tenga operaciones o comandos pendientes. Confirmar la importación consume el permiso de forma idempotente.
+- La Secundaria conserva un punto de recuperación local tras importar y antes del acuse, para completar el cambio de rol aunque se pierda la respuesta. La nueva Principal obtiene identidad de negocio propia; la autorización, licencia, claves de empleado y QR no se copian.
+- Room sube de v20 a v21 (`MIGRACION_20_21`) con id/estado temporal de solicitud en `empleado`. Se incluye `21.json`; requiere generación/validación Room/KSP y no debe corregirse a mano. El contenedor `.shalev` v4 y DTO v5 no cambian; los respaldos portables excluyen la autorización. El archivo interno usa el modo sin contraseña: la clave ofuscada no es confidencial frente a quien obtenga el archivo; AES-GCM protege el tránsito por sesión, no la caché.
+- Se agregan pruebas de VM Android, transmisión/autorización de bloques, exportación interna sin reiniciar el recordatorio, serialización, migración y exclusión de campos temporales en el respaldo iOS. **No se ejecutaron**: faltan Java/JDK y Android SDK, además de Swift/Xcode. Tampoco se realizó una sesión extremo a extremo Android↔Android/iOS. `docs/VERIFICACION.md` registra solo inspecciones estáticas y comprobaciones locales efectivamente ejecutadas.

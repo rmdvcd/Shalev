@@ -38,11 +38,15 @@ class TurnoPersistenciaTest {
         assertEquals(19, ShalevDatabase.MIGRACION_19_20.startVersion)
         assertEquals(20, ShalevDatabase.MIGRACION_19_20.endVersion)
         assertEquals(2, ShalevDatabase.SQL_19_20.size)
+        assertEquals(20, ShalevDatabase.MIGRACION_20_21.startVersion)
+        assertEquals(21, ShalevDatabase.MIGRACION_20_21.endVersion)
+        assertEquals(2, ShalevDatabase.SQL_20_21.size)
+        assertTrue(ShalevDatabase.SQL_20_21.all { it.startsWith("ALTER TABLE `empleado` ADD COLUMN") })
         // P29: v4 (servicios + precio de venta de insumos + clase en detalle_venta) con migración explícita 3→4.
         // P38: v5 (Principal/Secundaria: tabla empleado + uuid/empleadoId/sincronizado) con migración explícita 4→5.
         // 0.20.0: v6 (empleado: tarjetaId, telefonoId, cierreSolicitadoEn) con migración explícita 5→6.
         // 0.31.0 (mitigación 7): v12 (empleado: device) con migración 11→12.
-        assertEquals(20, ShalevDatabase.VERSION)
+        assertEquals(21, ShalevDatabase.VERSION)
         assertEquals(16, ShalevDatabase.MIGRACION_16_17.startVersion)
         assertEquals(17, ShalevDatabase.MIGRACION_16_17.endVersion)
         assertEquals(11, ShalevDatabase.MIGRACION_11_12.startVersion)

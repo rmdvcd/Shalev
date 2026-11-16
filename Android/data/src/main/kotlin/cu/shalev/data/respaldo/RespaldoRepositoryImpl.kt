@@ -139,6 +139,19 @@ class RespaldoRepositoryImpl @Inject constructor(
 
     override suspend fun exportar(
         contrasena: CharArray, destino: OutputStream, progreso: (EtapaRespaldo) -> Unit,
+    ): AppResult<ResumenRespaldo> = exportarInterno(
+        contrasena, destino, progreso, registrarExportacion = true, incluirLicencia = true,
+    )
+
+    override suspend fun exportarParaSincronizacion(destino: OutputStream): AppResult<ResumenRespaldo> =
+        exportarInterno(CharArray(0), destino, {}, registrarExportacion = false, incluirLicencia = false)
+
+    private suspend fun exportarInterno(
+        contrasena: CharArray,
+        destino: OutputStream,
+        progreso: (EtapaRespaldo) -> Unit,
+        registrarExportacion: Boolean,
+        incluirLicencia: Boolean,
     ): AppResult<ResumenRespaldo> {
         progreso(EtapaRespaldo.PREPARANDO)
         val migracion = withContext(io) { guard { migrarFichasAntiguas(context, db, clock) } }
@@ -176,7 +189,7 @@ class RespaldoRepositoryImpl @Inject constructor(
                     fichasCosto = c.fichasCosto, recepciones = c.recepciones, lotes = c.lotes,
                     consumosLotes = c.consumosLotes, revisionesMovimiento = c.revisiones,
                     fotos = exportarFotos(c),
-                    licencia = bloqueLicencia(c.perfil?.ci.orEmpty()),
+                    licencia = if (incluirLicencia) bloqueLicencia(c.perfil?.ci.orEmpty()) else null,
                 )
                 val plano = ShalevJson.encodeToString(RespaldoDto.serializer(), dto).toByteArray(Charsets.UTF_8)
                 try {
@@ -192,8 +205,8 @@ class RespaldoRepositoryImpl @Inject constructor(
                 resumen(c)
             }
         }.also { r ->
-            // 0.25.0 (§4): solo un respaldo EXPORTADO bien reinicia el recordatorio mensual.
-            if (r is AppResult.Ok) runCatching { estadoApp.editar { it.copy(ultimoRespaldo = clock.now()) } }
+            // Una copia interna por sincronización no reinicia el recordatorio de respaldo exportado.
+            if (registrarExportacion && r is AppResult.Ok) runCatching { estadoApp.editar { it.copy(ultimoRespaldo = clock.now()) } }
         }
     }
 

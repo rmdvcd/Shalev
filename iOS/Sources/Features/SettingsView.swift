@@ -1335,9 +1335,10 @@ private struct PriceAdjustmentEditor: View {
 }
 
 @MainActor
-private struct BackupSettingsView: View {
+struct BackupSettingsView: View {
     @ObservedObject var store: ShalevStore
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("shalev.backup.exportedAt") private var backupExportedAt = 0.0
 
     // Exportar
     @State private var exportStep = 1
@@ -1413,6 +1414,7 @@ private struct BackupSettingsView: View {
                       defaultFilename: exportFormat == .ios ? "respaldo-shalev-ios" : "respaldo-shalev-android") { exportResult in
             switch exportResult {
             case .success:
+                backupExportedAt = Date().timeIntervalSince1970
                 let name = exportFormat == .ios ? "respaldo-shalev-ios.shalev" : "respaldo-shalev-android.shalev"
                 exportDone = "\(name) guardado.\n\(summaryText).\n\(protect ? "Guárdalo junto con la contraseña: sin ella no se puede abrir." : "Sin contraseña, quien consiga el archivo podrá leer tus ventas y los datos de tus clientes.")"
                 exportStep = 3

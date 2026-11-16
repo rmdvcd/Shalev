@@ -109,6 +109,8 @@ fun VinculacionScreen(
     onEscanear: () -> Unit,
     qrLeido: String?,
     onQrConsumido: () -> Unit,
+    /** Abre la exportación del respaldo requerido antes de convertir una principal con datos. */
+    onIrARespaldo: () -> Unit = {},
     /** 0.21.0 (C12): abrir el diálogo «Usar como secundaria» al entrar (recorrido inicial). */
     abrirSecundaria: Boolean = false,
     viewModel: VinculacionViewModel = hiltViewModel(),
@@ -116,7 +118,7 @@ fun VinculacionScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var secundariaAbierta by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(abrirSecundaria) {
-        if (abrirSecundaria && !secundariaAbierta) { secundariaAbierta = true; viewModel.pedirSecundaria() }
+        if (abrirSecundaria && !secundariaAbierta) { secundariaAbierta = true; viewModel.pedirSecundaria(vinculacionInicial = true) }
     }
     val snackbar = rememberAvisos()
     LaunchedEffect(Unit) { viewModel.mensajes.collect { snackbar.showSnackbar(it) } }
@@ -125,7 +127,12 @@ fun VinculacionScreen(
     LaunchedEffect(qrLeido) {
         if (qrLeido != null) { onQrConsumido(); viewModel.qrLeido(qrLeido) }
     }
-    RecorridoModulo(Recorrido.VINCULACION, listo = state.form == null && state.qr == null && state.quitar == null && state.cerrarTurno == null && !state.confirmarSecundaria && !state.confirmarDesvincular) {
+    RecorridoModulo(
+        Recorrido.VINCULACION,
+        listo = state.form == null && state.qr == null && state.quitar == null && state.cerrarTurno == null &&
+            !state.confirmarSecundaria && !state.confirmarDesvincular && !state.confirmarRespaldoPrevio &&
+            state.resolucionSolicitudImportacion == null,
+    ) {
         VinculacionContent(
             s = state, onBack = onBack, snackbar = snackbar,
             onAgregar = viewModel::agregar, onEditar = viewModel::editar, onCerrarForm = viewModel::cerrarForm,
@@ -139,7 +146,15 @@ fun VinculacionScreen(
             onPedirSecundaria = viewModel::pedirSecundaria, onCancelarSecundaria = viewModel::cancelarSecundaria,
             onConfirmarSecundaria = viewModel::confirmarSecundaria, onSincronizar = viewModel::sincronizar,
             onPedirDesvincular = viewModel::pedirDesvincular,
-            onCancelarDesvincular = viewModel::cancelarDesvincular, onConfirmarDesvincular = viewModel::confirmarDesvincular,
+            onCancelarDesvincular = viewModel::cancelarDesvincular,
+            onConfirmarDesvincular = viewModel::confirmarDesvincular,
+            onOpcionCambioPrincipal = viewModel::opcionCambioPrincipal,
+            onCancelarRespaldoPrevio = viewModel::cancelarRespaldoPrevio,
+            onIrARespaldo = { viewModel.cancelarRespaldoPrevio(); onIrARespaldo() },
+            onPedirAutorizarImportacion = viewModel::pedirAutorizarImportacion,
+            onPedirRechazarImportacion = viewModel::pedirRechazarImportacion,
+            onCancelarResolucionImportacion = viewModel::cancelarResolucionImportacion,
+            onConfirmarResolucionImportacion = viewModel::confirmarResolucionImportacion,
         )
     }
 }
@@ -175,6 +190,13 @@ fun VinculacionContent(
     onPedirDesvincular: () -> Unit = {},
     onCancelarDesvincular: () -> Unit = {},
     onConfirmarDesvincular: () -> Unit = {},
+    onOpcionCambioPrincipal: (OpcionCambioPrincipal) -> Unit = {},
+    onCancelarRespaldoPrevio: () -> Unit = {},
+    onIrARespaldo: () -> Unit = {},
+    onPedirAutorizarImportacion: () -> Unit = {},
+    onPedirRechazarImportacion: () -> Unit = {},
+    onCancelarResolucionImportacion: () -> Unit = {},
+    onConfirmarResolucionImportacion: () -> Unit = {},
 ) {
     val esPrincipal = s.tipo == TipoApp.PRINCIPAL
     Scaffold(
@@ -197,7 +219,34 @@ fun VinculacionContent(
     s.form?.let { f ->
         FormDialog(
             f, s, onCerrarForm, onGuardarForm, onNombre, onPermiso, onTarjeta, onNuevoCodigo, onPedirQuitar,
-            onPedirCierre, onRechazarCierre, onAprobarCierre,
+            onPedirCierre, onRechazarCierre, onAprobarCierre, onPedirAutorizarImportacion, onPedirRechazarImportacion,
+        )
+    }
+    if (s.confirmarRespaldoPrevio) {
+        ShalevDialog(
+            title = "Antes de cambiar a secundaria",
+            text = VinculacionLogic.RESPALDO_PREVIO_REQUERIDO,
+            onDismiss = onCancelarRespaldoPrevio,
+            onConfirm = onIrARespaldo,
+            confirmDescription = VinculacionLogic.CREAR_RESPALDO,
+            confirmEtiqueta = "Crear",
+            confirmIcon = ShalevIcons.Respaldo,
+        )
+    }
+    s.resolucionSolicitudImportacion?.let { resolucion ->
+        ShalevDialog(
+            title = if (resolucion.autorizar) "¿Autorizar la importación?" else "¿Rechazar la solicitud?",
+            text = if (resolucion.autorizar) {
+                "La app de ${resolucion.empleado.nombre} recibirá una copia de la base completa de este negocio por la conexión cifrada. Sus datos locales se reemplazarán; no se transfieren claves de acceso."
+            } else {
+                "La app de ${resolucion.empleado.nombre} no podrá importar esta base. Podrá volver a solicitar autorización."
+            },
+            onDismiss = onCancelarResolucionImportacion,
+            onConfirm = onConfirmarResolucionImportacion,
+            confirmDescription = if (resolucion.autorizar) "Autorizar importación" else "Rechazar solicitud",
+            confirmEtiqueta = if (resolucion.autorizar) "Autorizar" else "Rechazar",
+            confirmIcon = if (resolucion.autorizar) ShalevIcons.Confirmar else ShalevIcons.Cancelar,
+            destructive = !resolucion.autorizar,
         )
     }
     s.qr?.let { q ->
@@ -264,7 +313,7 @@ fun VinculacionContent(
                         label = VinculacionLogic.TELEFONO_SECUNDARIA, leadingIcon = ShalevIcons.Telefono,
                         supportingText = VinculacionLogic.TELEFONO_SECUNDARIA_AYUDA,
                         isError = s.errorTelefono != null, errorText = s.errorTelefono,
-                        
+
                         modifier = Modifier.testTag(VinculacionTags.TELEFONO).coachMark(ObjetivosRecorrido.VENTANA_NUMERO),
                     )
                 }
@@ -273,15 +322,86 @@ fun VinculacionContent(
     }
     if (s.confirmarDesvincular) {
         val p = s.secundaria.pendientes
+        val importar = s.opcionCambioPrincipal == OpcionCambioPrincipal.IMPORTAR_DE_PRINCIPAL
+        val estadoSolicitud = s.secundaria.estadoSolicitudImportacion
+        val estadoTexto = when (estadoSolicitud) {
+            cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE_ENVIO -> "La solicitud aún no se ha enviado."
+            cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE -> "La app principal debe confirmar la solicitud mediante sincronización."
+            cu.shalev.domain.model.EstadoSolicitudImportacion.AUTORIZADA -> "La app principal autorizó la copia. Al continuar, los datos de este teléfono se reemplazarán por los importados."
+            cu.shalev.domain.model.EstadoSolicitudImportacion.CONSUMIDA -> "La copia ya se transfirió. Puedes terminar de cambiar el tipo de app."
+            cu.shalev.domain.model.EstadoSolicitudImportacion.RECHAZADA -> "La app principal rechazó la solicitud; puedes volver a solicitarla."
+            cu.shalev.domain.model.EstadoSolicitudImportacion.NO_COMPATIBLE -> VinculacionLogic.ACTUALIZAR_PRINCIPAL
+            else -> null
+        }
+        val etiqueta = when {
+            !importar -> VinculacionLogic.EMPEZAR_DESDE_CERO
+            estadoSolicitud == cu.shalev.domain.model.EstadoSolicitudImportacion.AUTORIZADA ||
+                estadoSolicitud == cu.shalev.domain.model.EstadoSolicitudImportacion.CONSUMIDA -> VinculacionLogic.IMPORTAR_BASE
+            estadoSolicitud == cu.shalev.domain.model.EstadoSolicitudImportacion.NO_COMPATIBLE -> "Cerrar"
+            estadoSolicitud == cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE_ENVIO -> VinculacionLogic.ENVIAR_SOLICITUD
+            estadoSolicitud == cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE -> VinculacionLogic.CONSULTAR_AUTORIZACION
+            estadoSolicitud == cu.shalev.domain.model.EstadoSolicitudImportacion.RECHAZADA -> VinculacionLogic.SOLICITAR_DE_NUEVO
+            else -> VinculacionLogic.SOLICITAR_IMPORTACION
+        }
         ShalevDialog(
-            title = "¿Desvincular esta app?",
-            text = VinculacionLogic.CONFIRMAR_DESVINCULAR +
-                if (p > 0) " Atención: ${VinculacionLogic.pendientes(p)}; se perderán. Sincroniza antes." else "",
+            title = "Cambiar a app principal",
             onDismiss = onCancelarDesvincular,
-            onConfirm = onConfirmarDesvincular,
-            confirmDescription = VinculacionLogic.DESVINCULAR,
-            confirmIcon = ShalevIcons.Desvincular,
-            destructive = true,
+            onConfirm = if (importar && estadoSolicitud == cu.shalev.domain.model.EstadoSolicitudImportacion.NO_COMPATIBLE) onCancelarDesvincular else onConfirmarDesvincular,
+            confirmDescription = etiqueta,
+            confirmEtiqueta = etiqueta,
+            confirmIcon = if (!importar) ShalevIcons.Desvincular else ShalevIcons.Sincronizar,
+            confirmLoading = s.trabajando,
+            confirmEnabled = !s.trabajando,
+            destructive = !importar,
+            content = {
+                Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+                    Text(VinculacionLogic.CONFIRMAR_CAMBIO_PRINCIPAL, style = MaterialTheme.typography.bodyMedium)
+                    Column(Modifier.selectableGroup()) {
+                        Row(
+                            Modifier.fillMaxWidth().selectable(
+                                selected = !importar,
+                                onClick = { onOpcionCambioPrincipal(OpcionCambioPrincipal.EMPEZAR_DESDE_CERO) },
+                                role = Role.RadioButton,
+                            ).padding(vertical = ShalevSpacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = !importar, onClick = null)
+                            Text(VinculacionLogic.EMPEZAR_DESDE_CERO, style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().selectable(
+                                selected = importar,
+                                onClick = { onOpcionCambioPrincipal(OpcionCambioPrincipal.IMPORTAR_DE_PRINCIPAL) },
+                                role = Role.RadioButton,
+                            ).padding(vertical = ShalevSpacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = importar, onClick = null)
+                            Text(VinculacionLogic.IMPORTAR_DE_PRINCIPAL, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    if (p > 0) {
+                        Text("Atención: ${VinculacionLogic.pendientes(p)}. Las operaciones pendientes deben sincronizarse antes de cambiar a principal.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (importar) {
+                        Text(
+                            "La app principal debe autorizar la solicitud. Si la autoriza, esta app reemplazará sus datos locales por la copia recibida.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    if (importar && estadoTexto != null) {
+                        ShalevStatusBanner(
+                            text = estadoTexto,
+                            tone = if (estadoSolicitud == cu.shalev.domain.model.EstadoSolicitudImportacion.RECHAZADA ||
+                                estadoSolicitud == cu.shalev.domain.model.EstadoSolicitudImportacion.NO_COMPATIBLE
+                            ) BannerTone.Aviso else BannerTone.Info,
+                        )
+                    }
+                    if (!importar) {
+                        Text("Se eliminarán los datos y preferencias locales de este teléfono.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
         )
     }
 }
@@ -333,11 +453,17 @@ private fun androidx.compose.foundation.lazy.LazyListScope.principal(
                     // 0.28.0: las horas y fechas («Turno abierto desde las 09:30», «Última vez: …») van en seminegrita.
                     subtitleResaltado = ShalevTextos.resaltar(
                         VinculacionLogic.subtituloEmpleado(e, conectada, ahora),
+                        VinculacionLogic.solicitudImportacion(e.estadoSolicitudImportacion).orEmpty(),
                         VinculacionLogic.turnoEmpleado(e, conectada).orEmpty(),
                         VinculacionLogic.estadoEmpleado(e, conectada, ahora),
                     ),
                     titleMaxLines = if (progreso != null) 1 else 2,
-                    subtitleMaxLines = if (progreso != null) 1 else 2,
+                    subtitleMaxLines = if (progreso != null) 1 else when (e.estadoSolicitudImportacion) {
+                        cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE,
+                        cu.shalev.domain.model.EstadoSolicitudImportacion.AUTORIZADA,
+                        cu.shalev.domain.model.EstadoSolicitudImportacion.RECHAZADA -> 3
+                        else -> 2
+                    },
                     indicatorColor = null,
                     leading = { Icon(ShalevIcons.Movil, contentDescription = null) },
                     trailing = { Icon(ShalevIcons.Abrir, contentDescription = null) },
@@ -361,9 +487,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.principal(
             }
         }
     }
-    // 0.21.0 (C5) / 0.27.0 (T9): una principal nunca pasa a secundaria; solo la app que eligió «Secundaria» al
-    // instalarse (y aún sin vincular) ve esta opción.
-    if (s.puedeSerSecundaria) item {
+    // Conversión de tipo desde Ajustes: se ofrece a toda app principal; el flujo inicial mantiene su regla aparte.
+    if (s.puedeCambiarATipoSecundaria) item {
         ShalevButtonRow(Modifier.padding(vertical = ShalevSpacing.md)) {
             ShalevTextButton(
                 text = VinculacionLogic.USAR_COMO_SECUNDARIA, icon = ShalevIcons.Escanear, etiqueta = "Secundaria", onClick = onPedirSecundaria,
@@ -405,6 +530,45 @@ private fun androidx.compose.foundation.lazy.LazyListScope.secundaria(
             actionEtiqueta = "Wifi",
             onAction = if (sinConexion) ({ AjustesRed.abrirWifi(context) }) else null,
         )
+    }
+    when (sec.estadoSolicitudImportacion) {
+        cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE_ENVIO,
+        cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE -> item {
+            ShalevStatusBanner(
+                text = if (sec.estadoSolicitudImportacion == cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE_ENVIO)
+                    "Solicitud de importación sin enviar. Sincroniza para enviarla."
+                else VinculacionLogic.ESPERANDO_AUTORIZACION,
+                tone = BannerTone.Aviso,
+                modifier = Modifier.padding(horizontal = ShalevSpacing.md),
+            )
+        }
+        cu.shalev.domain.model.EstadoSolicitudImportacion.AUTORIZADA,
+        cu.shalev.domain.model.EstadoSolicitudImportacion.CONSUMIDA -> item {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+                ShalevStatusBanner(text = VinculacionLogic.IMPORTACION_AUTORIZADA, tone = BannerTone.Info, modifier = Modifier.padding(horizontal = ShalevSpacing.md))
+                ShalevButtonRow(Modifier.padding(vertical = ShalevSpacing.xs)) {
+                    ShalevPrimaryButton(
+                        text = VinculacionLogic.IMPORTAR_BASE, icon = ShalevIcons.Respaldo, etiqueta = "Importar",
+                        onClick = onPedirDesvincular, enabled = !s.trabajando,
+                    )
+                }
+            }
+        }
+        cu.shalev.domain.model.EstadoSolicitudImportacion.RECHAZADA -> item {
+            ShalevStatusBanner(
+                text = VinculacionLogic.IMPORTACION_RECHAZADA,
+                tone = BannerTone.Aviso,
+                modifier = Modifier.padding(horizontal = ShalevSpacing.md),
+            )
+        }
+        cu.shalev.domain.model.EstadoSolicitudImportacion.NO_COMPATIBLE -> item {
+            ShalevStatusBanner(
+                text = VinculacionLogic.ACTUALIZAR_PRINCIPAL,
+                tone = BannerTone.Aviso,
+                modifier = Modifier.padding(horizontal = ShalevSpacing.md),
+            )
+        }
+        else -> Unit
     }
     item {
         ShalevButtonRow(Modifier.padding(vertical = ShalevSpacing.xs)) {
@@ -456,7 +620,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.secundaria(
     item {
         ShalevButtonRow(Modifier.padding(vertical = ShalevSpacing.md)) {
             ShalevTextButton(
-                text = VinculacionLogic.DESVINCULAR, icon = ShalevIcons.Desvincular, onClick = onPedirDesvincular,
+                text = VinculacionLogic.CAMBIAR_A_PRINCIPAL, icon = ShalevIcons.Desvincular, etiqueta = "Cambiar", onClick = onPedirDesvincular,
                 enabled = !s.trabajando, modifier = Modifier.testTag(VinculacionTags.DESVINCULAR).coachMark(ObjetivosRecorrido.VINCULACION_DESVINCULAR),
             )
         }
@@ -477,6 +641,8 @@ private fun FormDialog(
     onPedirCierre: () -> Unit,
     onRechazarCierre: () -> Unit,
     onAprobarCierre: () -> Unit,
+    onPedirAutorizarImportacion: () -> Unit,
+    onPedirRechazarImportacion: () -> Unit,
 ) {
     val nueva = f.id == 0L
     val trabajando = s.trabajando
@@ -547,6 +713,24 @@ private fun FormDialog(
                     }
                 } }
                 empleado?.conteoCierre?.let { cu.shalev.app.caja.ResumenConteo(it) }
+                if (empleado?.estadoSolicitudImportacion == cu.shalev.domain.model.EstadoSolicitudImportacion.PENDIENTE) {
+                    ShalevCard(title = "Solicitud para importar la base") {
+                        Text(
+                            "Esta app vinculada solicita una copia completa del negocio. La transferencia solo empezará si autorizas.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        ShalevButtonRow(Modifier.fillMaxWidth()) {
+                            ShalevTextButton(
+                                text = "Rechazar", etiqueta = "Rechazar", icon = ShalevIcons.Cancelar,
+                                onClick = onPedirRechazarImportacion, enabled = !trabajando,
+                            )
+                            ShalevPrimaryButton(
+                                text = "Autorizar", icon = ShalevIcons.Confirmar, etiqueta = "Autorizar",
+                                onClick = onPedirAutorizarImportacion, loading = trabajando, enabled = !trabajando,
+                            )
+                        }
+                    }
+                }
                 Text("Permisos", style = MaterialTheme.typography.titleSmall)
                 PermisoEmpleado.entries.forEachIndexed { n, p ->
                     val activo = p in f.permisos

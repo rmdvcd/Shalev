@@ -5,6 +5,7 @@ import cu.shalev.core.result.AppError
 import cu.shalev.core.time.Dates
 import cu.shalev.domain.model.Empleado
 import cu.shalev.domain.model.EstadoConexion
+import cu.shalev.domain.model.EstadoSolicitudImportacion
 import cu.shalev.domain.model.TipoApp
 import cu.shalev.domain.model.Vinculacion
 import java.time.Instant
@@ -20,7 +21,7 @@ object VinculacionLogic {
         "Agrega la app de cada empleado. Usa la misma wifi o un punto de acceso; desde lugares distintos, ambas apps necesitan Internet y una versión con conexión remota habilitada."
     const val USAR_COMO_SECUNDARIA = "Usar esta app como secundaria"
     /** 0.27.0 (T9). */
-    const val PRINCIPAL_NO_SECUNDARIA = "Esta app es la principal del negocio y no puede pasar a secundaria."
+    const val PRINCIPAL_NO_SECUNDARIA = "Este tipo de app no permite vincular una secundaria desde aquí."
     const val ABRIR_ZONA_WIFI = "Abrir ajustes de zona wifi"
     const val ABRIR_WIFI = "Abrir ajustes de wifi"
     const val CONFIRMAR_SECUNDARIA =
@@ -28,6 +29,25 @@ object VinculacionLogic {
     const val QR_DETALLE = "En el teléfono del empleado, elige «Secundaria» y escanea este código."
     const val DESVINCULAR = "Desvincular"
     const val CONFIRMAR_DESVINCULAR = "Se borran los datos de este teléfono y vuelve a ser una app principal independiente."
+    const val CAMBIAR_A_PRINCIPAL = "Cambiar a principal"
+    const val CONFIRMAR_CAMBIO_PRINCIPAL = "Elige si quieres empezar con una base nueva o pedir permiso para importar la base de la app principal vinculada."
+    const val EMPEZAR_DESDE_CERO = "Empezar con una base nueva"
+    const val IMPORTAR_DE_PRINCIPAL = "Importar la base de la app principal"
+    const val RESPALDO_PREVIO_REQUERIDO = "Antes de vincular esta app como secundaria, exporta un respaldo de los datos de este teléfono."
+    const val CREAR_RESPALDO = "Crear respaldo"
+    const val SOLICITAR_IMPORTACION = "Solicitar importación"
+    const val ENVIAR_SOLICITUD = "Enviar solicitud"
+    const val CONSULTAR_AUTORIZACION = "Consultar autorización"
+    const val SOLICITAR_DE_NUEVO = "Solicitar de nuevo"
+    const val IMPORTAR_BASE = "Importar base"
+    const val ESPERANDO_AUTORIZACION = "La solicitud está pendiente. La app principal debe confirmar la importación; sincroniza para consultar la respuesta."
+    const val SOLICITUD_IMPORTACION_ENVIADA = "Solicitud enviada. La app principal debe autorizarla antes de transferir la base."
+    const val IMPORTACION_AUTORIZADA = "Solicitud autorizada. Ya puedes importar la base de la app principal."
+    const val IMPORTACION_RECHAZADA = "Solicitud de importación rechazada."
+    const val BASE_IMPORTADA = "Base importada. Esta app ahora es principal."
+    const val PRINCIPAL_DESDE_CERO = "Se borraron los datos locales. Esta app ahora es una principal nueva."
+    const val ACTUALIZAR_PRINCIPAL = "Actualiza la app principal para solicitar o transferir la base de datos."
+    const val VINCULACION_INICIAL_NO_PERMITIDA = "La vinculación inicial como secundaria solo está disponible en una instalación nueva configurada para ese uso."
     const val SINCRONIZAR = "Sincronizar ahora"
     const val QUITAR = "Quitar esta app"
     const val CONFIRMAR_QUITAR = "Deja de sincronizar y, cuando se conecte, sus datos se borran. Las ventas que ya envió se quedan aquí."
@@ -105,7 +125,18 @@ object VinculacionLogic {
 
     /** Subtítulo de la fila: el turno (si hay) y la conexión. */
     fun subtituloEmpleado(e: Empleado, conectada: Boolean, ahora: Instant): String =
-        listOfNotNull(turnoEmpleado(e, conectada), estadoEmpleado(e, conectada, ahora)).joinToString("\n")
+        listOfNotNull(
+            solicitudImportacion(e.estadoSolicitudImportacion),
+            turnoEmpleado(e, conectada),
+            estadoEmpleado(e, conectada, ahora),
+        ).joinToString("\n")
+
+    fun solicitudImportacion(estado: EstadoSolicitudImportacion): String? = when (estado) {
+        EstadoSolicitudImportacion.PENDIENTE -> "Solicita importar la base completa · requiere tu autorización"
+        EstadoSolicitudImportacion.AUTORIZADA -> "Importación autorizada · pendiente de descargar"
+        EstadoSolicitudImportacion.RECHAZADA -> "Solicitud de importación rechazada"
+        else -> null
+    }
 
     /** 0.21.0 (C4): el máximo lo da la licencia. */
     fun tituloLista(n: Int, limite: Int) = "Secundarias ($n de $limite)"
@@ -142,7 +173,14 @@ object VinculacionLogic {
     }
 
     fun error(e: AppError): String = when (e) {
-        is AppError.Validacion -> if (e.campo == "telefono") ERROR_TELEFONO else "No se pudo completar. Inténtalo de nuevo."
+        is AppError.Validacion -> when (e.campo) {
+            "telefono" -> ERROR_TELEFONO
+            "solicitud_rechazada" -> IMPORTACION_RECHAZADA
+            "actualizarPrincipal" -> ACTUALIZAR_PRINCIPAL
+            "importacion_no_autorizada" -> "La autorización de importación ya no está disponible. Solicita otra autorización o empieza con una base nueva."
+            "pendientes_importacion" -> "Quedan operaciones locales por enviar. Sincroniza con la principal antes de reemplazar esta base."
+            else -> "No se pudo completar. Inténtalo de nuevo."
+        }
         AppError.SinPermiso -> "Ya tienes todas las apps secundarias que cubre tu licencia. Para más, solicita una licencia con más secundarias."
         AppError.LicenciaBloqueada -> "Activa la licencia para vincular apps secundarias."
         AppError.Red.SinConexion -> "Conéctate a una wifi, activa la zona wifi de este teléfono o enciende los datos móviles."

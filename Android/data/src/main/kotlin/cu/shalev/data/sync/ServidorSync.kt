@@ -77,6 +77,8 @@ class ServidorSync @Inject constructor(
     private val apk: ApkLocal,
     /** 0.32.0: fotos del catálogo que se reparten a las secundarias. */
     private val fotos: cu.shalev.data.foto.FotosLocal,
+    /** 1.0.2: copias completas disponibles solo tras autorización explícita del dueño. */
+    private val copias: CopiaBaseSync,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val relay = RelayPrincipal(db, config)
@@ -324,6 +326,19 @@ class ServidorSync @Inject constructor(
                     is Ping -> s.enviar(Pong(m.id))
                     is PedirApk -> s.enviar(withContext(Dispatchers.IO) { apk.bloque(m.id, m.sha256, m.desde) })
                     is PedirFoto -> s.enviar(fotos.bloque(m.id, m.nombre, m.desde))
+                    is PedirBaseNegocio -> s.enviar(copias.bloque(actual, m.solicitudId, m.desde, m.id))
+                    is ConfirmarBaseNegocio -> {
+                        val mismaSolicitud = actual.activo && actual.solicitudImportacionId == m.solicitudId
+                        val autorizado = mismaSolicitud && actual.estadoSolicitudImportacion == "AUTORIZADA"
+                        val yaConsumida = mismaSolicitud && actual.estadoSolicitudImportacion == "CONSUMIDA"
+                        if (autorizado) {
+                            db.syncDao().actualizarEmpleado(actual.copy(estadoSolicitudImportacion = "CONSUMIDA"))
+                            copias.descartar(actual.id, m.solicitudId)
+                        }
+                        // El recibo es idempotente: si se perdió la respuesta después de consumir el permiso,
+                        // la secundaria puede terminar de convertirse sin volver a transferir la copia.
+                        s.enviar(BaseNegocioConfirmada(m.id, autorizado || yaConsumida))
+                    }
                     else -> Unit
                 }
             }
@@ -348,6 +363,15 @@ class ServidorSync @Inject constructor(
             ?.let { db.syncDao().cambiarTelefono(e.id, it) }
         // 0.25.0: versión de la app del empleado (para saber si tiene el APK nuevo).
         if (m.versionCode != e.versionCode) db.syncDao().cambiarVersion(e.id, m.versionCode)
+        // El lote se aplica antes de registrar/contestar la petición: la copia autorizada incluirá todo lo que
+        // esta secundaria tenía pendiente de enviar al solicitarla.
+        var empleadoActual = db.syncDao().empleado(e.id) ?: return null
+        val solicitudId = m.solicitudImportacionId?.takeIf { UUID_SOLICITUD.matches(it) }
+        if (solicitudId != null && empleadoActual.solicitudImportacionId != solicitudId) {
+            empleadoActual.solicitudImportacionId?.let { copias.descartar(e.id, it) }
+            empleadoActual = empleadoActual.copy(solicitudImportacionId = solicitudId, estadoSolicitudImportacion = "PENDIENTE")
+            db.syncDao().actualizarEmpleado(empleadoActual)
+        }
         val rechazado = solicitudCierre(e, m.solicitaCierre)
         val lic = conPermiso(
             licencia.snapshot.value?.estado ?: cu.shalev.licencia.LicenseState.TrialExpired, e,
@@ -357,11 +381,14 @@ class ServidorSync @Inject constructor(
             is AppResult.Err -> return null
         }
         val hash = AlmacenSync.hash(inst)
+        val responderSolicitud = solicitudId?.takeIf { empleadoActual.solicitudImportacionId == it }
         return SincronizarOk(
             m.id, recibidos, hash, inst.takeIf { hash != m.hash }, cerrarTurno = cierrePendiente(e), cierreRechazado = rechazado,
             conteoAprobado = db.turnoDao().activoDeEmpleado(e.id)?.conteoCierreJson?.conteoDeJson()?.takeIf { it.aprobadoEn != null }?.toDto(),
             conteoTurnoUuid = db.turnoDao().activoDeEmpleado(e.id)?.uuid,
             cambiosVentas = cambios, apk = runCatching { apk.ofrecerA(m.versionCode) }.getOrNull(),
+            solicitudImportacionId = responderSolicitud,
+            estadoSolicitudImportacion = responderSolicitud?.let { empleadoActual.estadoSolicitudImportacion },
         )
     }
 
@@ -430,5 +457,6 @@ class ServidorSync @Inject constructor(
         const val LECTURA_MS = 90_000
         /** S-04: conexiones simultáneas máximas (una por secundaria real basta; el resto es ruido o abuso). */
         const val MAX_CONEXIONES = 24
+        private val UUID_SOLICITUD = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}")
     }
 }
