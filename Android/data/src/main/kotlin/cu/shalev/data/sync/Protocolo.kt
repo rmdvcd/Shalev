@@ -391,6 +391,9 @@ object CodigoQr {
     )
 
     fun codificar(c: CodigoVinculacion): String {
+        require(DireccionIPv4Sync.listaValida(c.direcciones, permitirVacia = RelaySync.habilitado)) {
+            "El QR de vinculación solo admite IPv4 candidatas (o ninguna en builds con relé)"
+        }
         val json = SyncJson.encodeToString(
             Contenido.serializer(),
             Contenido(c.negocioId, c.nombreNegocio, c.direcciones, c.puerto, c.empleadoId, c.nombreEmpleado,
@@ -407,7 +410,8 @@ object CodigoQr {
             val json = String(Base64.getUrlDecoder().decode(t.removePrefix(PREFIJO)), Charsets.UTF_8)
             val c = SyncJson.decodeFromString(Contenido.serializer(), json)
             val token = Base64.getUrlDecoder().decode(c.t)
-            require(token.size == TOKEN_BYTES && c.p in 1..65_535 && (c.h.isNotEmpty() || RelaySync.habilitado) && c.e > 0 && c.n.isNotBlank())
+            require(token.size == TOKEN_BYTES && c.p in 1..65_535 &&
+                DireccionIPv4Sync.listaValida(c.h, permitirVacia = RelaySync.habilitado) && c.e > 0 && c.n.isNotBlank())
             CodigoVinculacion(c.n, c.nn, c.h, c.p, c.e, c.en, token, Instant.ofEpochMilli(c.x))
         }.getOrNull()
     }

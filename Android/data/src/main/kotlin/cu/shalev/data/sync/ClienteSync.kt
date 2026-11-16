@@ -107,24 +107,32 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
     private val actual = AtomicReference<SesionCliente?>(null)
 
     /**
-     * 0.32.0: si se cae la conexión, se reintenta: la app del empleado debe verse «conectada» en la principal
-     * mientras esté en la red. Espera creciente de 5 s a 60 s (como el antiguo modo automático). Al desvincular,
-     * ya no hay datos de vinculación y el reintento termina.
+     * También cubre el primer intento: si al arrancar la secundaria la principal o la red aún no están disponibles,
+     * sondea con backoff hasta conectar. Se comparte un solo bucle aunque fallen un ping y una sincronización a la vez.
      */
-    private fun reconectar() {
-        scope.launch {
-            var espera = ESPERA_MIN_MS
-            while (isActive) {
-                delay(espera)
-                val d = config.secundariaActual() ?: return@launch
-                if (sesionAbierta(d) != null) {
-                    if (d.comandoPendiente != null) sincronizar()
-                    return@launch
+    private val reintentoConexion = ReintentoConexion(scope, ESPERA_MIN_MS, ESPERA_MAX_MS) {
+        val d = config.secundariaActual()
+        if (d == null) {
+            true // Se desvinculó: termina el bucle.
+        } else if (sesionAbierta(d) == null) {
+            false
+        } else {
+            val actualizado = config.secundariaActual()
+            when {
+                actualizado == null -> true // Se desvinculó durante la conexión.
+                actualizado.comandoPendiente == null && actualizado.ultimaSincronizacion != null -> actual.get()?.viva == true
+                else -> {
+                    // El primer catálogo es obligatorio: si el vínculo ya se guardó pero la red cayó, se reintenta también.
+                    val resultado = sincronizar()
+                    val final = config.secundariaActual()
+                    resultado is AppResult.Ok && actual.get()?.viva == true && final != null &&
+                        final.ultimaSincronizacion != null && final.comandoPendiente == null
                 }
-                espera = (espera * 2).coerceAtMost(ESPERA_MAX_MS)
             }
         }
     }
+
+    private fun reconectar() = reintentoConexion.iniciar()
 
     // ---------------------------------------------------------------- operaciones
 
@@ -540,6 +548,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
 
     /** Cierre intencionado (detener el modo automático, desvincular): cierra la sesión vigente, sea cual sea. */
     fun cerrarSesion() {
+        reintentoConexion.detener()
         actual.getAndSet(null)?.cerrar()
         _conexion.value = EstadoConexion.Desconectada
     }
@@ -547,7 +556,10 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
     /** Tras un error en [s]: la cierra, y solo si sigue siendo la vigente la olvida y cambia el estado (P-e). */
     private fun cerrarSesion(s: SesionCliente) {
         s.cerrar()
-        if (actual.compareAndSet(s, null)) _conexion.value = EstadoConexion.Desconectada
+        if (actual.compareAndSet(s, null)) {
+            _conexion.value = EstadoConexion.Desconectada
+            reconectar()
+        }
     }
 
     // ---------------------------------------------------------------- conexión
@@ -559,6 +571,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
         actual.set(nueva)
         _conexion.value = if (nueva != null) EstadoConexion.Conectada(clock.now())
         else EstadoConexion.SinConexion(TEXTO_SIN_CONEXION)
+        if (nueva == null) reconectar()
         nueva
     }
 
@@ -724,7 +737,7 @@ class ClienteSync @Inject constructor(    private val almacen: AlmacenSync,
         /** 0.32.0: a partir de este tamaño el avance se muestra en la barra (debajo no hay nada que ver). */
         const val FRAME_GRANDE = 1024L * 1024L
 
-        const val TEXTO_SIN_CONEXION = "No se encuentra la app principal. Comprueba su conexión y disponibilidad."
+        const val TEXTO_SIN_CONEXION = "No se encuentra la app principal. Comprueba que esté abierta y en la misma wifi o zona wifi; por datos móviles, la operadora puede bloquear la conexión."
         private const val CARPETA_COPIA_PRINCIPAL = "importacion_principal"
         private const val MAX_COPIA_BYTES = 128L * 1024 * 1024 + 256
         private val HUELLA = Regex("[0-9a-f]{64}")

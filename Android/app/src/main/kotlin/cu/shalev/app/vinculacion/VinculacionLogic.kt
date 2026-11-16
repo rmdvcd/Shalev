@@ -16,9 +16,9 @@ object VinculacionLogic {
     const val PRINCIPAL_DETALLE =
         "Esta es la app principal: guarda todos los datos y la licencia. Tus empleados se vinculan con un código QR."
     const val SIN_SECUNDARIAS = "Aún no hay apps secundarias"
-    /** 1.0.1: la vinculación y la conexión también funcionan por datos móviles, no solo por la misma wifi. */
+    /** La conexión directa entre redes móviles depende del enrutamiento de las operadoras; no se garantiza por tener Internet. */
     const val SIN_SECUNDARIAS_DETALLE =
-        "Agrega la app de cada empleado. Usa la misma wifi o un punto de acceso; desde lugares distintos, ambas apps necesitan Internet y una versión con conexión remota habilitada."
+        "Agrega la app de cada empleado. Usa la misma wifi o un punto de acceso; los datos móviles dependen de la operadora. Si la operadora bloquea la conexión directa, hace falta el relé HTTPS opcional para Android en ambos teléfonos."
     const val USAR_COMO_SECUNDARIA = "Usar esta app como secundaria"
     /** 1.0.2: salida del bloqueo por prueba vencida (se vincula a una principal con licencia activa). */
     const val SEGUIR_COMO_SECUNDARIA = "Seguir como app secundaria"
@@ -187,7 +187,7 @@ object VinculacionLogic {
         }
         AppError.SinPermiso -> "Ya tienes todas las apps secundarias que cubre tu licencia. Para más, solicita una licencia con más secundarias."
         AppError.LicenciaBloqueada -> "Activa la licencia para vincular apps secundarias."
-        AppError.Red.SinConexion -> "Conéctate a una wifi, activa la zona wifi de este teléfono o enciende los datos móviles."
+        AppError.Red.SinConexion -> "No se pudo conectar. Comprueba que ambos teléfonos comparten wifi o zona wifi; por datos móviles, las operadoras deben permitir conexiones directas."
         is AppError.SinPrincipal -> cu.shalev.app.common.TextosSync.sinPrincipal(e.pendientes)
         // El motivo viene de la otra app por la red: mensajeParaUsuario solo lo enseña si parece una frase.
         is AppError.VinculacionRechazada -> e.mensajeParaUsuario()

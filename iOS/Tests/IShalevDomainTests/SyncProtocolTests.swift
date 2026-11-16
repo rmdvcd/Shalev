@@ -30,6 +30,14 @@ final class SyncProtocolTests: XCTestCase {
         XCTAssertThrowsError(try SyncPairingCode.decode(android, now: code.expiresAt, requireCurrent: true))
     }
 
+    func testRejectsQRWithHostnameInsteadOfNumericIPAddress() throws {
+        let android = "SPVI-VINC1:eyJuIjoiYTFiMmMzZDRlNWY2YTFiMmMzZDRlNWY2Iiwibm4iOiJNYXLDrWEgUMOpcmV6IiwiaCI6WyIxOTIuMTY4LjQzLjEiLCIxMC4wLjAuNSJdLCJwIjo0NzgxMSwiZSI6MywiZW4iOiJMdWlzIiwidCI6IkFBRUNBd1FGQmdjSUNRb0xEQTBPRHciLCJ4IjoxNzkwOTUzODAwMDAwfQ"
+        let json = SyncBase64.decodeURL(String(android.dropFirst(SyncPairingCode.prefix.count)))!
+        let modified = String(decoding: json, as: UTF8.self).replacingOccurrences(of: "192.168.43.1", with: "localhost")
+        let malicious = SyncPairingCode.prefix + SyncBase64.url(Data(modified.utf8))
+        XCTAssertThrowsError(try SyncPairingCode.decode(malicious))
+    }
+
     func testPairingHMACMatchesIndependentAndroidVector() {
         let token = Data(0..<16)
         let publicKey = Data(0..<65)

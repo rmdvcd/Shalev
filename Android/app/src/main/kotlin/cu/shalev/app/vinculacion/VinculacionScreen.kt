@@ -430,9 +430,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.principal(
             val d = s.principal.direcciones
             val context = LocalContext.current
             ShalevStatusBanner(
-                // 1.0.1: la red del teléfono es su wifi, zona wifi o datos móviles (las direcciones van en el QR).
-                text = if (d.isEmpty()) "Sin red" else "Red disponible",
-                detail = if (d.isEmpty()) "Conéctate a una wifi, activa la zona wifi o usa datos móviles." else "Este teléfono: ${d.joinToString(", ")}",
+                // Se muestran las IPv4 candidatas; una IPv4 celular privada puede no ser alcanzable desde otra operadora.
+                text = if (d.isEmpty()) "Sin red" else "Direcciones detectadas",
+                detail = if (d.isEmpty()) "Conéctate a una wifi o activa la zona wifi. Los datos móviles solo funcionan si las operadoras permiten conexiones directas." else "Este teléfono: ${d.joinToString(", ")}",
                 tone = if (d.isEmpty()) BannerTone.Aviso else BannerTone.Info,
                 modifier = Modifier.padding(horizontal = ShalevSpacing.md).testTag(VinculacionTags.RED).coachMark(ObjetivosRecorrido.VINCULACION_RED),
                 // La app no puede encender la zona wifi: abre la pantalla del sistema (sin permisos).

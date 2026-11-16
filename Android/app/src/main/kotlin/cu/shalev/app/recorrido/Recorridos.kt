@@ -334,7 +334,7 @@ enum class Recorrido(val clave: String, val pasos: List<CoachMarkPaso>) {
     VINCULACION(
         "vinculacion",
         listOf(
-            paso(ObjetivosRecorrido.VINCULACION_RED, "Red", "Comprueba que los teléfonos comparten wifi, zona wifi o datos."),
+            paso(ObjetivosRecorrido.VINCULACION_RED, "Red", "Usa la misma wifi o zona wifi. Los datos móviles dependen de que las operadoras permitan conexiones directas."),
             paso(ObjetivosRecorrido.VINCULACION_EMPLEADOS, "Apps vinculadas", "Toca una app para ver su turno, sus permisos y su código."),
             paso(ObjetivosRecorrido.VINCULACION_SECUNDARIA, "Usar como empleado", "Toca para vincular este teléfono a la app del dueño."),
             paso(ObjetivosRecorrido.VINCULACION_SINCRONIZAR, "Sincronizar", "Toca Sincronizar para enviar y recibir los cambios ahora."),

@@ -1,5 +1,23 @@
 # Shalev — Verificación real
 
+## Vinculación y sincronización por Wi-Fi, zona wifi y datos móviles — revisión estática 2026-11-15
+
+**Rama:** `arena/a8462fac-shalev`, basada en `2d248616680bd808138b5c2f72b913df6b8ff4bf`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| Revisión de rutas, interfaz de red, QR, reconexión y restricciones del relé | Hecha leyendo Android/iOS y documentación; la causa de un fallo con una operadora concreta no se reprodujo ni se confirma. |
+| `git diff --check` | **Pasó** después de las ediciones. |
+| Paso de ayuda Android | 90 caracteres, dentro del límite de 110. |
+| `python3 tools/verificacion/botones.py` | **Pasó**: 0 incumplimientos, 7 textos calculados en ejecución. |
+| `tools/manual/generar_pdf.py` | **Pasó**: manual PDF regenerado, 32 páginas, 5.72 MB y 7 diagramas vectoriales. |
+| Tests JVM Android / `shalevCheck` | **No ejecutados**: no hay Java/JDK ni Android SDK (`ANDROID_HOME` sin configurar). |
+| `swift test` / `xcodebuild` | **No ejecutados**: Swift y Xcode no están disponibles en el contenedor. |
+| Capturas Roborazzi / revisión visual y TalkBack | **Pendientes**: el texto de Apps vinculadas, Ayuda y el recorrido cambió; falta Android SDK para regenerar/revisar capturas. |
+| Wi-Fi compartida, punto de acceso y datos móviles | **No probados en teléfonos reales**. La cobertura física pendiente está enumerada en `PRUEBAS_DISPOSITIVO.md`; CGNAT/filtros de operadora pueden impedir la conexión directa móvil. |
+
+**Conclusión:** se corrigió el orden de candidatos de red, la validación de IPv4/QR y la recuperación de sesiones ya vinculadas. La conexión móvil directa sigue condicionada por el enrutamiento de las operadoras; no se habilitó un relé ni permisos nuevos. No declarar compilación, tests ni teléfonos reales verificados hasta ejecutarlos.
+
 ## Conversión de roles e importación autorizada — revisión estática 2026-11-15
 
 **Rama:** `arena/a5ebc9df-shalev`, basada en `2343adb143327c773c9ea7e302e17863eaa7edce`.

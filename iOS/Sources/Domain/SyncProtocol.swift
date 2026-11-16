@@ -27,8 +27,8 @@ enum SyncError: LocalizedError, Equatable {
         case .invalidMessage: "La otra app envió un mensaje que no se pudo interpretar."
         case .frameTooLarge: "El mensaje de sincronización supera el límite del protocolo."
         case .authentication: "No se pudo autenticar la sesión cifrada."
-        case .timeout: "La principal no respondió a tiempo. Revisa que ambas apps estén en la misma red."
-        case .disconnected: "Se perdió la conexión con la otra app. Los cambios locales siguen guardados."
+        case .timeout: "La principal no respondió. Prueba con la misma wifi o zona wifi; por datos móviles, la operadora puede bloquear conexiones directas."
+        case .disconnected: "Se perdió la conexión; tus cambios siguen guardados. Revisa la red y vuelve a intentar. Por datos móviles depende de la operadora."
         case .rejected("codigo_vencido"): "El código de vinculación venció."
         case .rejected("codigo_invalido"): "El código ya fue utilizado o fue sustituido."
         case .rejected("otro_negocio"): "El código pertenece a otro negocio."
@@ -71,7 +71,9 @@ struct SyncPairingCode: Equatable {
 
     func encoded() throws -> String {
         guard !businessID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !hosts.isEmpty, (1...65_535).contains(port), employeeID > 0, token.count == 16 else {
+              !hosts.isEmpty, hosts.count <= SyncLocalAddresses.maximumHosts,
+              Set(hosts).count == hosts.count, hosts.allSatisfy({ SyncLocalAddresses.isUsableIPv4($0) }),
+              (1...65_535).contains(port), employeeID > 0, token.count == 16 else {
             throw SyncError.invalidQR
         }
         let content = Content(n: businessID, nn: businessName, h: hosts, p: port, e: employeeID,
@@ -87,7 +89,9 @@ struct SyncPairingCode: Equatable {
               let content = try? JSONDecoder().decode(Content.self, from: json),
               let token = SyncBase64.decodeURL(content.t), token.count == 16,
               !content.n.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !content.h.isEmpty, (1...65_535).contains(content.p), content.e > 0 else {
+              !content.h.isEmpty, content.h.count <= SyncLocalAddresses.maximumHosts,
+              Set(content.h).count == content.h.count, content.h.allSatisfy({ SyncLocalAddresses.isUsableIPv4($0) }),
+              (1...65_535).contains(content.p), content.e > 0 else {
             throw SyncError.invalidQR
         }
         let result = SyncPairingCode(businessID: content.n, businessName: content.nn, hosts: content.h,
