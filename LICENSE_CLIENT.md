@@ -101,7 +101,7 @@ Nunca se indica qué comprobación falló.
 - **Evaluación** (`LicenseManager.evaluate`), en este orden: reloj → licencia guardada, **re-verificada criptográficamente** → periodo de prueba. No existe un indicador «licenciado».
 - **Re-evaluación:** al arrancar, al volver a primer plano y mientras la app está abierta (`VigilarLicencia`: justo al vencer o cada ≤ 15 min).
 - **Banner de Inicio:** «Periodo de prueba restante: N días»; Mensual en días; Semestral y Anual en meses (en el último mes, en días); Perpetua sin banner.
-- **Bloqueo:** si el estado no desbloquea, `RootViewModel` muestra el panel de Licencia **directamente**, también si vence con la app abierta. Desde ahí solo se llega a *Soporte*. Atrás sale de la app.
+- **Bloqueo:** si el estado no desbloquea, `RootViewModel` muestra el panel de Licencia **directamente**, también si vence con la app abierta. Desde ahí se llega a *Soporte* y, con la **prueba vencida**, a **«Seguir como app secundaria»** (`Vinculacion.puedeSeguirComoSecundaria`): el teléfono se vincula a una principal con licencia activa (respaldando antes sus datos si no hay respaldo), pasa a `SECUNDARIA` y trabaja con la licencia de la principal. Una licencia vencida, transferida o un reloj manipulado no ofrecen esa salida. Atrás sale de la app.
 - **Precios mostrados:** Mensual 6,000 · Semestral 30,000 · Anual 50,000 · Perpetua 90,000 CUP. Perpetua no ofrece renovación; cualquier otra licencia instalada ofrece «Renovar o cambiar».
 
 ## 5. Claves de GL

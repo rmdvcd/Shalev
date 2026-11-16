@@ -572,6 +572,8 @@ Si cambiaste de teléfono, sigue estos 4 pasos en orden:
 
 Shalev incluye **7 días de prueba gratis** desde la primera instalación (con soporte hasta para 5 apps secundarias de empleados). La licencia se gestiona en el teléfono **Principal** y cubre automáticamente a las apps secundarias vinculadas.
 
+> **Si la prueba termina:** el teléfono se bloquea y solo muestra la pantalla de Licencia. Además de pedir una licencia, ahí mismo puedes tocar **Seguir como app secundaria** y vincular este teléfono a una app principal con licencia activa (necesitarás su código QR y el respaldo previo que la app te pide si ya hay datos). Al vincularse, este teléfono deja de usar su propia licencia, sus datos locales se reemplazan por los del negocio y sigue vendiendo como una secundaria más.
+
 ![Cómo solicitar, activar y renovar tu licencia](docs/manual/diagramas/07_ciclo_licencia.svg)
 
 ### 14.1 Tarifas oficiales de la licencia (en CUP)

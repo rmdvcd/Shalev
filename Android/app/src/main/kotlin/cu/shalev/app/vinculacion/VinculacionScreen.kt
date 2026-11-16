@@ -113,12 +113,20 @@ fun VinculacionScreen(
     onIrARespaldo: () -> Unit = {},
     /** 0.21.0 (C12): abrir el diálogo «Usar como secundaria» al entrar (recorrido inicial). */
     abrirSecundaria: Boolean = false,
+    /**
+     * 1.0.2: abrir el diálogo al entrar desde el bloqueo por prueba vencida: es una **conversión** (con respaldo previo
+     * obligatorio si aún no hay uno), no el vínculo inicial de una instalación nueva.
+     */
+    abrirSecundariaEnBloqueo: Boolean = false,
     viewModel: VinculacionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var secundariaAbierta by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(abrirSecundaria) {
-        if (abrirSecundaria && !secundariaAbierta) { secundariaAbierta = true; viewModel.pedirSecundaria(vinculacionInicial = true) }
+    LaunchedEffect(abrirSecundaria, abrirSecundariaEnBloqueo) {
+        if ((abrirSecundaria || abrirSecundariaEnBloqueo) && !secundariaAbierta) {
+            secundariaAbierta = true
+            viewModel.pedirSecundaria(vinculacionInicial = abrirSecundaria)
+        }
     }
     val snackbar = rememberAvisos()
     LaunchedEffect(Unit) { viewModel.mensajes.collect { snackbar.showSnackbar(it) } }

@@ -33,7 +33,7 @@ fun ShalevRoot(viewModel: RootViewModel) {
         when (s) {
             RootState.Loading -> ShalevLoading()
             // 0.25.0 (§3.4): teléfono antiguo de una recuperación: datos borrados, pedir desinstalar.
-            is RootState.Bloqueo -> if (s.snapshot.estado == cu.shalev.licencia.LicenseState.Revoked) cu.shalev.app.licencia.LicenciaTransferida() else BloqueoGate()
+            is RootState.Bloqueo -> if (s.snapshot.estado == cu.shalev.licencia.LicenseState.Revoked) cu.shalev.app.licencia.LicenciaTransferida() else BloqueoGate(s.snapshot.estado)
             // El asistente marca el onboarding como visto; RootViewModel pasa a Main solo.
             RootState.Onboarding -> OnboardingScreen(modo = ModoWizard.PRIMERA_VEZ, onTerminar = {})
             is RootState.Main -> MainScaffold(s.snapshot)

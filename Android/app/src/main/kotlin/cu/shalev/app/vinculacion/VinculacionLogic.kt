@@ -20,6 +20,10 @@ object VinculacionLogic {
     const val SIN_SECUNDARIAS_DETALLE =
         "Agrega la app de cada empleado. Usa la misma wifi o un punto de acceso; desde lugares distintos, ambas apps necesitan Internet y una versión con conexión remota habilitada."
     const val USAR_COMO_SECUNDARIA = "Usar esta app como secundaria"
+    /** 1.0.2: salida del bloqueo por prueba vencida (se vincula a una principal con licencia activa). */
+    const val SEGUIR_COMO_SECUNDARIA = "Seguir como app secundaria"
+    const val SEGUIR_COMO_SECUNDARIA_DETALLE =
+        "Si tienes otra app principal con licencia activa, vincula este teléfono como su secundaria y sigue vendiendo con los datos de ese negocio. Los datos de este teléfono se reemplazan por los de la principal."
     /** 0.27.0 (T9). */
     const val PRINCIPAL_NO_SECUNDARIA = "Este tipo de app no permite vincular una secundaria desde aquí."
     const val ABRIR_ZONA_WIFI = "Abrir ajustes de zona wifi"

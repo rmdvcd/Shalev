@@ -16,4 +16,10 @@ class PantallaBloqueoTest {
     @Test fun licenciaEsLaPrimeraPantalla() {
         assertEquals(PantallaBloqueo.LICENCIA, PantallaBloqueo.entries.first())
     }
+
+    /** 1.0.2: vincularse como secundaria (y crear el respaldo previo) se cancela volviendo a la licencia. */
+    @Test fun secundariaYRespaldoVuelvenALaLicencia() {
+        assertEquals(PantallaBloqueo.LICENCIA, PantallaBloqueo.SECUNDARIA.atras())
+        assertEquals(PantallaBloqueo.LICENCIA, PantallaBloqueo.RESPALDO.atras())
+    }
 }
