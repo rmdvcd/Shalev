@@ -39,11 +39,50 @@ import cu.shalev.designsystem.token.ShalevElevation
 import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.domain.model.Insumo
+import cu.shalev.domain.model.ModoOrden
 
 /**
  * Piezas repetidas de las listas con selección (Inventario, Servicios y Registros) y de la receta
  * de Productos y Servicios. Compartidas para que las tres listas se comporten igual.
  */
+
+/**
+ * Botón solo con icono para ordenar listas (Inventario y Servicios):
+ * Cambia de icono y estado según el modo actual al pulsarse:
+ * Cronológico -> Alfabético -> Importe (mayor a menor) -> Importe (menor a mayor).
+ */
+@Composable
+fun BotonOrden(
+    modo: ModoOrden,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val descripcion = when (modo) {
+        ModoOrden.ALFABETICO -> "Ordenar alfabéticamente"
+        ModoOrden.CRONOLOGICO -> "Ordenar cronológicamente"
+        ModoOrden.IMPORTE_DESC -> "Ordenar por importe mayor a menor"
+        ModoOrden.IMPORTE_ASC -> "Ordenar por importe menor a mayor"
+    }
+    when (modo) {
+        ModoOrden.ALFABETICO -> ShalevIconAction(
+            ShalevIcons.OrdenarAlfabetico, descripcion, mostrarTexto = false,
+            onClick = onClick, selected = true, enabled = enabled, modifier = modifier,
+        )
+        ModoOrden.CRONOLOGICO -> ShalevIconAction(
+            ShalevIcons.OrdenarCronologico, descripcion, mostrarTexto = false,
+            onClick = onClick, selected = false, enabled = enabled, modifier = modifier,
+        )
+        ModoOrden.IMPORTE_DESC -> ShalevIconAction(
+            ShalevIcons.OrdenarImporteDesc, descripcion, mostrarTexto = false,
+            onClick = onClick, selected = true, enabled = enabled, modifier = modifier,
+        )
+        ModoOrden.IMPORTE_ASC -> ShalevIconAction(
+            ShalevIcons.OrdenarImporteAsc, descripcion, mostrarTexto = false,
+            onClick = onClick, selected = true, enabled = enabled, modifier = modifier,
+        )
+    }
+}
 
 /** Icono de filtros con la insignia de cuántos hay activos. */
 @Composable

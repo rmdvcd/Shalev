@@ -17,7 +17,7 @@ data class Perfil(
     /** Logo o foto del negocio, copiado al almacenamiento privado de la app. */
     val logoUri: String? = null,
 ) {
-    val vacio: Boolean get() = nombre.isBlank() && apellidos.isBlank() && ci.isBlank()
+    val vacio: Boolean get() = nombre.isBlank() && apellidos.isBlank() && ci.isBlank() && nombreNegocio.isBlank() && telefonos.isEmpty() && tarjetas.isEmpty()
     val tarjetaPago: TarjetaBancaria? get() = tarjetas.firstOrNull { it.id == pagoTarjetaId }
     val telefonoPago: Telefono? get() = telefonos.firstOrNull { it.id == pagoTelefonoId }
 

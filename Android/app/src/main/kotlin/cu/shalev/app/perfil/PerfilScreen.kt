@@ -42,9 +42,18 @@ import cu.shalev.designsystem.component.ShalevDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
 import android.os.PersistableBundle
+import android.text.TextPaint
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -53,14 +62,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import kotlinx.coroutines.launch
+import cu.shalev.designsystem.component.ShalevAvisosState
+import cu.shalev.designsystem.component.ShalevBottomSheet
 import cu.shalev.designsystem.component.ShalevSnackbarHost
+import cu.shalev.designsystem.component.ShalevTextButton
 import cu.shalev.designsystem.component.ShalevTextField
 import cu.shalev.designsystem.component.ShalevTopBar
 import cu.shalev.designsystem.component.shalevContentWidth
 import cu.shalev.designsystem.icon.ShalevIcons
+import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.designsystem.token.ShalevSpacing
-import cu.shalev.designsystem.component.ShalevAvisosState
 import cu.shalev.designsystem.component.rememberAvisos
+import java.io.File
 
 object PerfilTags {
     const val MODULOS = "perfil.modulos"
@@ -75,6 +88,9 @@ object PerfilTags {
     const val ID_DIALOGO = "perfil.id_licencia.dialogo"
     const val ID_TEXTO = "perfil.id_licencia.texto"
     const val ID_COPIAR = "perfil.id_licencia.copiar"
+    const val ID_EXPORTAR = "perfil.id_licencia.exportar"
+    const val ID_EXPORTAR_IMAGEN = "perfil.id_licencia.exportar_imagen"
+    const val ID_EXPORTAR_TEXTO = "perfil.id_licencia.exportar_texto"
 }
 
 class AccionesPerfil(
@@ -150,6 +166,7 @@ fun PerfilContent(
     if (verId && idLicencia != null) {
         DialogoIdLicencia(
             id = idLicencia.id,
+            nombreNegocio = state.form.nombreNegocio.ifBlank { state.perfil.nombreNegocio },
             onCerrar = { verId = false },
             onCopiar = { id ->
                 copiarIdLicencia(contexto, id)
@@ -175,11 +192,19 @@ private fun TarjetaIdLicencia(onMostrar: () -> Unit) {
 }
 
 /**
- * Ventana con el ID de la licencia (seleccionable, en monoespaciada para leerlo sin confundir caracteres) y el botón
- * Copiar. Sin licencia activada solo explica cuándo aparece. La pantalla tiene FLAG_SECURE (sin capturas).
+ * Ventana con el ID de la licencia (seleccionable, en monoespaciada para leerlo sin confundir caracteres), el botón
+ * Copiar y la opción de exportar como imagen o texto. Sin licencia activada solo explica cuándo aparece.
  */
 @Composable
-internal fun DialogoIdLicencia(id: String?, onCerrar: () -> Unit, onCopiar: (String) -> Unit) {
+internal fun DialogoIdLicencia(
+    id: String?,
+    nombreNegocio: String = "",
+    onCerrar: () -> Unit,
+    onCopiar: (String) -> Unit,
+) {
+    val contexto = LocalContext.current
+    var mostrarExportar by rememberSaveable { mutableStateOf(false) }
+
     ShalevDialog(
         title = TextosIdLicencia.DIALOGO,
         onDismiss = onCerrar,
@@ -188,6 +213,17 @@ internal fun DialogoIdLicencia(id: String?, onCerrar: () -> Unit, onCopiar: (Str
         confirmEtiqueta = TextosIdLicencia.COPIAR,
         confirmIcon = ShalevIcons.Copiar,
         confirmTag = PerfilTags.ID_COPIAR,
+        secundarias = id?.let {
+            {
+                ShalevTextButton(
+                    text = TextosIdLicencia.EXPORTAR,
+                    etiqueta = TextosIdLicencia.EXPORTAR,
+                    icon = ShalevIcons.Compartir,
+                    onClick = { mostrarExportar = true },
+                    modifier = Modifier.testTag(PerfilTags.ID_EXPORTAR),
+                )
+            }
+        },
         modifier = Modifier.testTag(PerfilTags.ID_DIALOGO),
     ) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.sm), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -207,6 +243,141 @@ internal fun DialogoIdLicencia(id: String?, onCerrar: () -> Unit, onCopiar: (Str
             }
         }
     }
+
+    if (mostrarExportar && id != null) {
+        ShalevBottomSheet(
+            title = TextosIdLicencia.TITULO,
+            onDismiss = { mostrarExportar = false },
+        ) {
+            ShalevListItem(
+                title = TextosIdLicencia.EXPORTAR_IMAGEN,
+                subtitle = TextosIdLicencia.EXPORTAR_IMAGEN_DETALLE,
+                indicatorColor = null,
+                leading = { Icon(ShalevIcons.Imagen, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                onClick = {
+                    mostrarExportar = false
+                    exportarIdImagen(contexto, id, nombreNegocio)
+                },
+                modifier = Modifier.testTag(PerfilTags.ID_EXPORTAR_IMAGEN),
+            )
+            ShalevListItem(
+                title = TextosIdLicencia.EXPORTAR_TEXTO,
+                subtitle = TextosIdLicencia.EXPORTAR_TEXTO_DETALLE,
+                indicatorColor = null,
+                leading = { Icon(ShalevIcons.Lista, contentDescription = null, modifier = Modifier.size(ShalevSize.icon)) },
+                onClick = {
+                    mostrarExportar = false
+                    exportarIdTexto(contexto, id, nombreNegocio)
+                },
+                modifier = Modifier.testTag(PerfilTags.ID_EXPORTAR_TEXTO),
+            )
+        }
+    }
+}
+
+/**
+ * Exporta el ID de la licencia como texto plano compartido con la app que elija el usuario.
+ */
+internal fun exportarIdTexto(contexto: Context, id: String, nombreNegocio: String) {
+    val negocio = nombreNegocio.trim().ifBlank { "Shalev" }
+    val texto = "$negocio\nID de la licencia: $id\nConserva este ID para transferir tu licencia a otro dispositivo."
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "ID de la licencia - $negocio")
+        putExtra(Intent.EXTRA_TEXT, texto)
+    }
+    contexto.startActivity(Intent.createChooser(intent, "Exportar ID de la licencia").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
+
+/**
+ * Exporta el ID de la licencia como imagen PNG con encabezado del negocio centrado.
+ */
+internal fun exportarIdImagen(contexto: Context, id: String, nombreNegocio: String) {
+    val ancho = 1080
+    val alto = 640
+    val bmp = Bitmap.createBitmap(ancho, alto, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bmp)
+    canvas.drawColor(android.graphics.Color.WHITE)
+
+    val marcaColor = android.graphics.Color.parseColor("#1F5F70")
+    val textoColor = android.graphics.Color.parseColor("#1B1B1B")
+    val secundarioColor = android.graphics.Color.parseColor("#5F6368")
+    val fondoCaja = android.graphics.Color.parseColor("#F5F7F8")
+    val bordeCaja = android.graphics.Color.parseColor("#BDC1C6")
+
+    val m = 54f
+    val negocio = nombreNegocio.trim().ifBlank { "Shalev" }
+
+    // Encabezado inicial centrado: Nombre del Negocio
+    val pNegocio = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = marcaColor
+        textSize = 48f
+        typeface = Typeface.DEFAULT_BOLD
+        textAlign = Paint.Align.CENTER
+    }
+    canvas.drawText(negocio, ancho / 2f, m + 44f, pNegocio)
+
+    // Título
+    val pTitulo = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = textoColor
+        textSize = 34f
+        typeface = Typeface.DEFAULT_BOLD
+        textAlign = Paint.Align.CENTER
+    }
+    canvas.drawText("ID de la licencia", ancho / 2f, m + 110f, pTitulo)
+
+    // Tarjeta del ID
+    val cajaRect = RectF(m, m + 140f, ancho - m, m + 320f)
+    val pFondoCaja = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = fondoCaja }
+    val pBordeCaja = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = bordeCaja
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+    }
+    canvas.drawRoundRect(cajaRect, 24f, 24f, pFondoCaja)
+    canvas.drawRoundRect(cajaRect, 24f, 24f, pBordeCaja)
+
+    // Texto ID
+    val pId = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = textoColor
+        textSize = 34f
+        typeface = Typeface.MONOSPACE
+        textAlign = Paint.Align.CENTER
+    }
+    val yId = cajaRect.centerY() - (pId.descent() + pId.ascent()) / 2f
+    canvas.drawText(id, ancho / 2f, yId, pId)
+
+    // Explicación
+    val pDetalle = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = secundarioColor
+        textSize = 26f
+        textAlign = Paint.Align.CENTER
+    }
+    canvas.drawText("Conserva este ID para transferir tu licencia a otro dispositivo.", ancho / 2f, m + 380f, pDetalle)
+
+    // Pie
+    val pPie = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = marcaColor
+        textSize = 28f
+        typeface = Typeface.DEFAULT_BOLD
+        textAlign = Paint.Align.CENTER
+    }
+    canvas.drawText("Shalev", ancho / 2f, alto - m, pPie)
+
+    val dir = File(contexto.cacheDir, "compartir").apply { mkdirs() }
+    val f = File(dir, "Licencia_${id.take(8)}.png")
+    f.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    bmp.recycle()
+
+    val uri = androidx.core.content.FileProvider.getUriForFile(contexto, "${contexto.packageName}.archivos", f)
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "image/png"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        putExtra(Intent.EXTRA_SUBJECT, "ID de la licencia - $negocio")
+        clipData = ClipData.newUri(contexto.contentResolver, "ID de la licencia", uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    contexto.startActivity(Intent.createChooser(intent, "Exportar ID de la licencia").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
 /**

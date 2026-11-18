@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import cu.shalev.designsystem.component.shalevIndicadorDesplazamiento
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
@@ -154,11 +156,15 @@ fun PreciosContent(
     ) { padding ->
         when {
             !state.cargado -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { ShalevLoading() }
-            else -> LazyColumn(
-                Modifier.fillMaxSize().padding(padding).imePadding(), // el teclado no tapa los campos del ajuste
-                contentPadding = PaddingValues(top = ShalevSpacing.md, bottom = ShalevSize.fabClearance),
-                verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
-            ) {
+            else -> {
+                val desplazamiento = rememberLazyListState()
+                LazyColumn(
+                    Modifier.fillMaxSize().padding(padding).imePadding()
+                        .shalevIndicadorDesplazamiento(hayContenidoArriba = { desplazamiento.canScrollBackward }, hayContenidoAbajo = { desplazamiento.canScrollForward }),
+                    state = desplazamiento,
+                    contentPadding = PaddingValues(top = ShalevSpacing.md, bottom = ShalevSize.fabClearance),
+                    verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+                ) {
                 item {
                     ShalevCard(tone = CardTone.Tonal, modifier = Modifier.padding(horizontal = ShalevSpacing.md).coachMark(ObjetivosRecorrido.PRECIOS_EXPLICACION)) {
                         Text(TextosPrecios.EXPLICACION, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())

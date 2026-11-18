@@ -28,7 +28,8 @@ class PerfilTest {
     private val lic = cu.shalev.app.LicRepo()
     private val tipo = cu.shalev.app.TipoRepo()
     private val fotos = cu.shalev.app.FakeFotos()
-    private fun vm() = PerfilViewModel(repo, GuardarPerfil(repo), cu.shalev.app.PrefRepo(), tipo, lic, fotos)
+    private val conf = cu.shalev.app.ConfRepo()
+    private fun vm() = PerfilViewModel(repo, GuardarPerfil(repo), cu.shalev.app.PrefRepo(), tipo, lic, fotos, conf)
 
     private val uuid = "3f2b8c1e-5a7d-4e9f-b0c2-9d8e7f6a5b4c"
     private fun instalada(id: String) = cu.shalev.domain.model.LicenciaInstalada(
@@ -123,6 +124,7 @@ class PerfilTest {
         assertEquals(2, repo.state.value.telefonos.size)
         assertFalse(vm.state.value.sinGuardar)
         assertEquals(listOf(TextosPerfil.GUARDADO), msgs)
+        assertTrue(cu.shalev.domain.model.PasoConfiguracion.DATOS in conf.estado.value.confirmados)
     }
 
     @Test fun datosInvalidosMuestranErroresYNoGuardan() = runTest {

@@ -10,6 +10,7 @@ import cu.shalev.core.time.Clock
 import cu.shalev.domain.model.FiltroServicios
 import cu.shalev.domain.model.Insumo
 import cu.shalev.domain.model.LineaServicio
+import cu.shalev.domain.model.ModoOrden
 import cu.shalev.domain.model.Receta
 import cu.shalev.domain.model.RecetaLinea
 import cu.shalev.domain.model.Servicio
@@ -57,7 +58,13 @@ object ServiciosFiltro {
             }
             .map { disponible(it, recetas[it.id].orEmpty(), insumos) }
             .toList()
-        return VistaServicios(items, activos.size, tipos(activos), Identificacion.serviciosPorDiferenciar(activos))
+        val ordenados = when (f.orden) {
+            ModoOrden.CRONOLOGICO -> items.sortedByDescending { it.servicio.creadoEn }
+            ModoOrden.ALFABETICO -> items.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.servicio.nombre })
+            ModoOrden.IMPORTE_DESC -> items.sortedByDescending { it.servicio.importe }
+            ModoOrden.IMPORTE_ASC -> items.sortedBy { it.servicio.importe }
+        }
+        return VistaServicios(ordenados, activos.size, tipos(activos), Identificacion.serviciosPorDiferenciar(activos))
     }
 
     fun tipos(servicios: List<Servicio>): List<String> =

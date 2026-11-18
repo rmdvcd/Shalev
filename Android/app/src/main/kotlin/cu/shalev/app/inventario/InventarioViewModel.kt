@@ -221,6 +221,7 @@ class InventarioViewModel @Inject constructor(
     }
 
     fun buscar(texto: String) = filtro.update { it.copy(texto = texto.take(80)) }
+    fun cambiarOrden() = filtro.update { it.copy(orden = it.orden.siguiente()) }
     fun aplicarFiltro(f: FiltroInventario) { filtro.update { f.copy(texto = it.texto) }; cerrarHoja(); persistirFiltro() }
     fun quitarFiltros() { filtro.update { FiltroInventario() }; persistirFiltro() }
     fun reintentar() = intento.update { it + 1 }

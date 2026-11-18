@@ -77,6 +77,12 @@ object TextosIdLicencia {
     const val COPIAR = "Copiar"
     const val COPIAR_DESCRIPCION = "Copiar el ID al portapapeles"
     const val COPIADO = "ID copiado al portapapeles"
+    const val EXPORTAR = "Exportar"
+    const val EXPORTAR_DESCRIPCION = "Exportar el ID como imagen o texto"
+    const val EXPORTAR_IMAGEN = "Exportar como imagen"
+    const val EXPORTAR_IMAGEN_DETALLE = "Guardar o compartir como imagen PNG"
+    const val EXPORTAR_TEXTO = "Exportar como texto"
+    const val EXPORTAR_TEXTO_DETALLE = "Compartir como texto plano"
 }
 
 /**

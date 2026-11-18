@@ -24,8 +24,12 @@ object XlsxWriter {
         val usados = mutableSetOf<String>()
         tablas.forEach { t ->
             val ws = wb.newWorksheet(nombreHoja(t.titulo, usados))
-            t.columnas.forEachIndexed { c, v -> ws.value(0, c, v) }
-            ws.range(0, 0, 0, maxOf(0, t.columnas.lastIndex)).style().bold().fillColor("DDE3F0").set()
+            val negocio = t.nombreNegocio?.takeIf { it.isNotBlank() } ?: "Shalev"
+            val ultCol = maxOf(0, t.columnas.lastIndex)
+            ws.value(0, 0, negocio)
+            ws.range(0, 0, 0, ultCol).merge().style().bold().horizontalAlignment("center").fontSize(13).set()
+            t.columnas.forEachIndexed { c, v -> ws.value(1, c, v) }
+            ws.range(1, 0, 1, ultCol).style().bold().fillColor("DDE3F0").set()
             // 0.26.0 (§5): importes, fechas y el valor de las tablas Dato/Valor en negrita (Excel no tiene seminegrita).
             val destacadas = BooleanArray(t.columnas.size) { DisenoPdf.destacada(t, it) }
             val anchos = anchosColumnas(t, destacadas)
@@ -34,9 +38,9 @@ object XlsxWriter {
                     val cup = if (v.endsWith("CUP")) Money.parse(v) else null
                     val negrita = destacadas.getOrElse(c) { false }
                     val ajustar = anchos.getOrNull(c)?.let { it >= MAX_ANCHO && medir(v, negrita) + RELLENO > MAX_ANCHO } ?: false
-                    if (cup != null) ws.value(r + 1, c, cup.toBigDecimal()) else ws.value(r + 1, c, v)
+                    if (cup != null) ws.value(r + 2, c, cup.toBigDecimal()) else ws.value(r + 2, c, v)
                     if (cup != null || negrita || ajustar) {
-                        var st = ws.style(r + 1, c)
+                        var st = ws.style(r + 2, c)
                         if (cup != null) st = st.format(FORMATO_CUP)
                         if (negrita) st = st.bold()
                         if (ajustar) st = st.wrapText(true)
@@ -45,9 +49,9 @@ object XlsxWriter {
                 }
             }
             // Pie (totales) en negrita: es dato importante.
-            t.pie.forEachIndexed { i, v -> ws.value(t.filas.size + 2 + i, 0, v); ws.style(t.filas.size + 2 + i, 0).bold().set() }
+            t.pie.forEachIndexed { i, v -> ws.value(t.filas.size + 3 + i, 0, v); ws.style(t.filas.size + 3 + i, 0).bold().set() }
             anchos.forEachIndexed { c, a -> ws.width(c, a) }
-            ws.freezePane(0, 1)
+            ws.freezePane(0, 2)
         }
         wb.finish()
     }

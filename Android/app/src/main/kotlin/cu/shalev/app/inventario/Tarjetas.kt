@@ -17,9 +17,11 @@ import cu.shalev.app.common.ArchivosApp
 import cu.shalev.core.money.Money
 import cu.shalev.domain.di.IoDispatcher
 import cu.shalev.domain.model.Producto
+import cu.shalev.domain.repository.PerfilRepository
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 /**
@@ -46,6 +48,7 @@ object DisenoTarjetas {
 open class TarjetasAndroid @Inject constructor(
     private val archivos: ArchivosApp,
     @IoDispatcher private val io: CoroutineDispatcher,
+    private val perfilRepo: PerfilRepository? = null,
 ) {
 
     private val fondo = Color.parseColor("#F8F9FA")
@@ -57,24 +60,41 @@ open class TarjetasAndroid @Inject constructor(
     open suspend fun renderizar(productos: List<Producto>): List<File> = renderizar(productos, "")
 
     open suspend fun renderizar(productos: List<Producto>, comentario: String): List<File> = withContext(io) {
+        val perfil = perfilRepo?.perfil?.first()
+        val negocio = perfil?.nombreNegocio?.takeIf { it.isNotBlank() }
+            ?: perfil?.let { "${it.nombre} ${it.apellidos}".trim() }?.takeIf { it.isNotBlank() }
+            ?: "Shalev"
         DisenoTarjetas.grupos(productos).mapIndexed { i, grupo ->
-            val alto = DisenoTarjetas.alto(grupo.size)
             val encabezado = comentario.trim().take(160)
             val pincel = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = marca; textSize = 42f; typeface = Typeface.DEFAULT_BOLD }
             val cabecera = encabezado.takeIf { it.isNotEmpty() }?.let {
                 StaticLayout.Builder.obtain(it, 0, it.length, pincel, DisenoTarjetas.ANCHO - 96).build()
             }
-            val espacio = cabecera?.let { it.height + 80 } ?: 0
+            val altoNegocio = 60
+            val espacio = (cabecera?.let { it.height + 60 } ?: 0) + altoNegocio
+            val alto = DisenoTarjetas.alto(grupo.size)
             val bmp = Bitmap.createBitmap(DisenoTarjetas.ANCHO, alto + espacio, Bitmap.Config.ARGB_8888)
             val c = Canvas(bmp)
             c.drawColor(fondo)
+
+            val negocioPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = marca
+                textSize = 44f
+                typeface = Typeface.DEFAULT_BOLD
+                textAlign = Paint.Align.CENTER
+            }
+            c.drawText(negocio, DisenoTarjetas.ANCHO / 2f, 48f, negocioPaint)
+
+            var desplazamientoY = altoNegocio.toFloat()
             cabecera?.let {
                 c.save()
-                c.translate(48f, 40f)
+                c.translate(48f, desplazamientoY)
                 it.draw(c)
                 c.restore()
-                c.translate(0f, espacio.toFloat())
+                desplazamientoY += it.height + 40f
             }
+            c.save()
+            c.translate(0f, desplazamientoY)
             if (grupo.size == 1) {
                 tarjeta(c, grupo[0], RectF(48f, 48f, DisenoTarjetas.ANCHO - 48f, alto - 48f), grande = true)
             } else {
@@ -87,6 +107,7 @@ open class TarjetasAndroid @Inject constructor(
                     tarjeta(c, p, RectF(x, y, x + w, y + DisenoTarjetas.ALTO_CELDA), grande = false)
                 }
             }
+            c.restore()
             val f = archivos.temporal("Shalev_productos_${i + 1}.png")
             f.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
             bmp.recycle()

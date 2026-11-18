@@ -61,7 +61,7 @@ class OnboardingViewModelTest {
     private fun vm(saved: SavedStateHandle = SavedStateHandle()) = OnboardingViewModel(
         saved,
         ObservarResumenConfiguracion(perfiles, lic, conf), perfiles, prefs, lic,
-        GuardarDatosIniciales(perfiles, GuardarPerfil(perfiles)),
+        GuardarDatosIniciales(perfiles, GuardarPerfil(perfiles), conf),
         GuardarAlertasIniciales(GuardarNiveles(prefs), conf), conf,
         ajustesDisp, cu.shalev.app.acceso.GuardarAccesoClave(cu.shalev.app.acceso.GuardiaAcceso(), ajustesDisp),
     )

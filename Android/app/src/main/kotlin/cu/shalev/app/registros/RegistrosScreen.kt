@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import cu.shalev.designsystem.component.shalevIndicadorDesplazamiento
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.MaterialTheme
@@ -394,8 +396,11 @@ private fun Buscador(state: RegistrosUiState, tipo: TipoRegistro, acciones: Acci
 
 @Composable
 private fun Lista(datos: VistaRegistro, state: RegistrosUiState, acciones: AccionesRegistros, zona: ZoneId) {
+    val desplazamiento = rememberLazyListState()
     LazyColumn(
-        Modifier.fillMaxSize().testTag(RegistrosTags.LISTA).coachMark(ObjetivosRecorrido.REGISTROS_LISTA),
+        Modifier.fillMaxSize().testTag(RegistrosTags.LISTA).coachMark(ObjetivosRecorrido.REGISTROS_LISTA)
+            .shalevIndicadorDesplazamiento(hayContenidoArriba = { desplazamiento.canScrollBackward }, hayContenidoAbajo = { desplazamiento.canScrollForward }),
+        state = desplazamiento,
         contentPadding = PaddingValues(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
     ) {

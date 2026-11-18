@@ -63,6 +63,7 @@ import coil3.compose.AsyncImage
 import cu.shalev.app.common.BarraContinuarVenta
 import cu.shalev.app.common.BarraSeleccion
 import cu.shalev.app.common.BotonFiltro
+import cu.shalev.app.common.BotonOrden
 import cu.shalev.app.common.Compartir
 import cu.shalev.app.inicio.EstadoCarga
 import cu.shalev.app.navigation.Route
@@ -130,6 +131,7 @@ class AccionesInventario(
     val onExportar: (FormatoSalida) -> Unit = {},
     val onGuardar: (FormatoSalida) -> Unit = {},
     val onCompartirFicha: (FormatoSalida) -> Unit = {},
+    val onCambiarOrden: () -> Unit = {},
     /** Modo venta (Prompt 13). */
     val onContinuarVenta: () -> Unit = {},
     val onAtras: () -> Unit = {},
@@ -188,6 +190,7 @@ fun InventarioScreen(
                 onEliminarSeleccion = viewModel::pedirEliminarSeleccion, onConfirmarEliminar = viewModel::confirmarEliminar,
                 onCancelarEliminar = viewModel::cancelarEliminar, onComentarioPromocion = viewModel::comentarioPromocion, onExportar = viewModel::exportar, onGuardar = viewModel::pedirGuardar,
                 onCompartirFicha = viewModel::compartirFicha,
+                onCambiarOrden = viewModel::cambiarOrden,
                 onContinuarVenta = viewModel::confirmarSeleccionVenta, onAtras = onBack,
             ),
         )
@@ -207,6 +210,7 @@ fun InventarioContent(
         topBar = {
             if (venta != null) {
                 ShalevTopBar(title = SeleccionVenta.titulo(venta), onBack = acciones.onAtras, actions = {
+                    BotonOrden(state.filtro.orden, onClick = acciones.onCambiarOrden, modifier = Modifier.testTag(InventarioTags.ORDENAR))
                     BotonFiltro(state.filtro.activos, TextosInventario.FILTRAR, onClick = { acciones.onHoja(HojaInventario.FILTRO) }, modifier = Modifier.testTag(InventarioTags.FILTRO))
                 })
             } else ShalevTopBar(
@@ -214,6 +218,7 @@ fun InventarioContent(
                 onAyuda = { ayudaPestana.value = true },
                 ayudaDescripcion = "Ayuda de Inventario",
                 actions = {
+                    BotonOrden(state.filtro.orden, onClick = acciones.onCambiarOrden, modifier = Modifier.testTag(InventarioTags.ORDENAR))
                     BotonFiltro(state.filtro.activos, TextosInventario.FILTRAR, onClick = { acciones.onHoja(HojaInventario.FILTRO) }, modifier = Modifier.testTag(InventarioTags.FILTRO).coachMark(ObjetivosRecorrido.INVENTARIO_FILTRO))
                     if (LocalPermisosApp.current.exportar) ShalevIconAction(
                         ShalevIcons.Compartir, TextosInventario.EXPORTAR, onClick = { acciones.onHoja(HojaInventario.EXPORTAR) },
@@ -368,7 +373,7 @@ private fun Tabla(state: InventarioUiState, acciones: AccionesInventario) {
     val desplazamiento = rememberLazyListState()
     LazyColumn(
         Modifier.fillMaxSize().testTag(InventarioTags.LISTA).coachMark(ObjetivosRecorrido.INVENTARIO_LISTA)
-            .shalevIndicadorDesplazamiento(MaterialTheme.colorScheme.background, { desplazamiento.canScrollBackward }, { desplazamiento.canScrollForward }),
+            .shalevIndicadorDesplazamiento(hayContenidoArriba = { desplazamiento.canScrollBackward }, hayContenidoAbajo = { desplazamiento.canScrollForward }),
         state = desplazamiento,
         contentPadding = PaddingValues(start = ShalevSpacing.md, end = ShalevSpacing.md, top = ShalevSpacing.xs, bottom = ShalevSize.fabClearance),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),

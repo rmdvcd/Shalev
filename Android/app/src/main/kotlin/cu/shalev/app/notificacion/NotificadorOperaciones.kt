@@ -99,10 +99,7 @@ class NotificadorOperaciones @Inject constructor(
             return b.build()
         }
 
-        private fun iconoOperacion(op: Operacion): Int = when (op) {
-            Operacion.ACTUALIZACION -> R.drawable.ic_stat_actualizacion
-            Operacion.RESPALDO -> R.drawable.ic_stat_respaldo
-        }
+        private fun iconoOperacion(op: Operacion): Int = R.drawable.ic_stat_shalev
 
         private fun intentAccion(context: Context, op: Operacion, a: AccionOperacion): PendingIntent = when (a) {
             AccionOperacion.ABRIR -> abrirApp(context)

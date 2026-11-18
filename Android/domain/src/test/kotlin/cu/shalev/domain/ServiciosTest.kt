@@ -65,6 +65,25 @@ class ServiciosTest {
         assertEquals(1, ServiciosFiltro.aplicar(ss, emptyMap(), emptyMap(), FiltroServicios(tipo = "peluquería")).items.size)
     }
 
+    @Test fun ordenacionDeServicios() {
+        val s1 = servicio(1, "Zumo", importe = 300, creado = T0)
+        val s2 = servicio(2, "Agua", importe = 100, creado = T0.plusSeconds(10))
+        val s3 = servicio(3, "Café", importe = 200, creado = T0.plusSeconds(20))
+        val ss = listOf(s1, s2, s3)
+
+        val crono = ServiciosFiltro.aplicar(ss, emptyMap(), emptyMap(), FiltroServicios(orden = cu.shalev.domain.model.ModoOrden.CRONOLOGICO))
+        assertEquals(listOf("Café", "Agua", "Zumo"), crono.items.map { it.servicio.nombre })
+
+        val alfa = ServiciosFiltro.aplicar(ss, emptyMap(), emptyMap(), FiltroServicios(orden = cu.shalev.domain.model.ModoOrden.ALFABETICO))
+        assertEquals(listOf("Agua", "Café", "Zumo"), alfa.items.map { it.servicio.nombre })
+
+        val desc = ServiciosFiltro.aplicar(ss, emptyMap(), emptyMap(), FiltroServicios(orden = cu.shalev.domain.model.ModoOrden.IMPORTE_DESC))
+        assertEquals(listOf("Zumo", "Café", "Agua"), desc.items.map { it.servicio.nombre })
+
+        val asc = ServiciosFiltro.aplicar(ss, emptyMap(), emptyMap(), FiltroServicios(orden = cu.shalev.domain.model.ModoOrden.IMPORTE_ASC))
+        assertEquals(listOf("Agua", "Café", "Zumo"), asc.items.map { it.servicio.nombre })
+    }
+
     @Test fun validacionDelServicio() {
         assertTrue(Validadores.servicio(servicio(1), emptyList()).isEmpty())
         val malo = servicio(1, nombre = " ", tipo = "", importe = 0)

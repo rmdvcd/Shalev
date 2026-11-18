@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import cu.shalev.designsystem.component.shalevIndicadorDesplazamiento
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +55,7 @@ import coil3.compose.AsyncImage
 import cu.shalev.app.common.BarraContinuarVenta
 import cu.shalev.app.common.BarraSeleccion
 import cu.shalev.app.common.BotonFiltro
+import cu.shalev.app.common.BotonOrden
 import cu.shalev.app.common.Compartir
 import cu.shalev.app.inicio.EstadoCarga
 import cu.shalev.app.inventario.FormatoSalida
@@ -111,6 +114,7 @@ class AccionesServicios(
     val onComentarioPromocion: (String) -> Unit = {},
     val onExportar: (FormatoSalida) -> Unit = {},
     val onGuardar: (FormatoSalida) -> Unit = {},
+    val onCambiarOrden: () -> Unit = {},
     val onContinuarVenta: () -> Unit = {},
     val onAtras: () -> Unit = {},
     val onAyuda: (() -> Unit)? = null,
@@ -163,6 +167,7 @@ fun ServiciosScreen(
                 onCerrarHoja = viewModel::cerrarHoja, onAgregar = viewModel::agregar, onEliminarFicha = viewModel::pedirEliminarFicha,
                 onEliminarSeleccion = viewModel::pedirEliminarSeleccion, onConfirmarEliminar = viewModel::confirmarEliminar,
                 onCancelarEliminar = viewModel::cancelarEliminar, onComentarioPromocion = viewModel::comentarioPromocion, onExportar = viewModel::exportar, onGuardar = viewModel::pedirGuardar,
+                onCambiarOrden = viewModel::cambiarOrden,
                 onContinuarVenta = viewModel::confirmarSeleccionVenta, onAtras = onBack,
             ),
         )
@@ -182,6 +187,7 @@ fun ServiciosContent(
         topBar = {
             if (venta) {
                 ShalevTopBar(title = TextosServicios.ELIGE, onBack = acciones.onAtras, actions = {
+                    BotonOrden(state.filtro.orden, onClick = acciones.onCambiarOrden, modifier = Modifier.testTag(ServiciosTags.ORDENAR))
                     BotonFiltro(state.filtro.activos, TextosServicios.FILTRAR, onClick = { acciones.onHoja(HojaServicios.FILTRO) }, modifier = Modifier.testTag(ServiciosTags.FILTRO), enabled = state.tipos.isNotEmpty() || state.filtro.activos > 0)
                 })
             } else ShalevTopBar(
@@ -189,6 +195,7 @@ fun ServiciosContent(
                 onAyuda = { ayudaPestana.value = true },
                 ayudaDescripcion = "Ayuda de Servicios",
                 actions = {
+                    BotonOrden(state.filtro.orden, onClick = acciones.onCambiarOrden, modifier = Modifier.testTag(ServiciosTags.ORDENAR))
                     BotonFiltro(state.filtro.activos, TextosServicios.FILTRAR, onClick = { acciones.onHoja(HojaServicios.FILTRO) }, modifier = Modifier.testTag(ServiciosTags.FILTRO).coachMark(ObjetivosRecorrido.SERVICIOS_FILTRO), enabled = state.tipos.isNotEmpty() || state.filtro.activos > 0)
                     if (LocalPermisosApp.current.exportar) ShalevIconAction(
                         ShalevIcons.Compartir, TextosServicios.EXPORTAR, onClick = { acciones.onHoja(HojaServicios.EXPORTAR) },
@@ -335,8 +342,11 @@ private fun ElementosFijados(state: ServiciosUiState, acciones: AccionesServicio
 @Composable
 private fun Lista(state: ServiciosUiState, acciones: AccionesServicios) {
     val visibles = state.items.filterNot { it.servicio.id in state.seleccion }
+    val desplazamiento = rememberLazyListState()
     LazyColumn(
-        Modifier.fillMaxSize().testTag(ServiciosTags.LISTA).coachMark(ObjetivosRecorrido.SERVICIOS_LISTA),
+        Modifier.fillMaxSize().testTag(ServiciosTags.LISTA).coachMark(ObjetivosRecorrido.SERVICIOS_LISTA)
+            .shalevIndicadorDesplazamiento(hayContenidoArriba = { desplazamiento.canScrollBackward }, hayContenidoAbajo = { desplazamiento.canScrollForward }),
+        state = desplazamiento,
         contentPadding = PaddingValues(start = ShalevSpacing.md, end = ShalevSpacing.md, top = ShalevSpacing.xs, bottom = ShalevSize.fabClearance),
         verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
     ) {

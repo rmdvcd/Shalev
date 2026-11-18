@@ -54,6 +54,7 @@ object ServiciosTags {
     const val GESTION_INVENTARIO = "serv_gestion_inventario"
     const val LISTA = "serv_lista"
     const val BUSCAR = "serv_buscar"
+    const val ORDENAR = "serv_ordenar"
     const val FILTRO = "serv_filtro"
     const val EXPORTAR = "serv_exportar"
     const val AGREGAR = "serv_agregar"

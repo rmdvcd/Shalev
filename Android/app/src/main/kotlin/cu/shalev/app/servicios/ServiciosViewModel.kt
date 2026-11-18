@@ -166,6 +166,7 @@ class ServiciosViewModel @Inject constructor(
     // ---------------- Buscador y filtro ----------------
 
     fun buscar(texto: String) = filtro.update { it.copy(texto = texto.take(80)) }
+    fun cambiarOrden() = filtro.update { it.copy(orden = it.orden.siguiente()) }
     fun aplicarFiltro(f: FiltroServicios) { filtro.update { f.copy(texto = it.texto) }; cerrarHoja(); persistirFiltro() }
     fun quitarFiltros() { filtro.update { FiltroServicios() }; persistirFiltro() }
     fun reintentar() = intento.update { it + 1 }

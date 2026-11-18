@@ -28,6 +28,7 @@ data class TablaExport(
     val columnas: List<String>,
     val filas: List<List<String>>,
     val pie: List<String> = emptyList(),
+    val nombreNegocio: String? = null,
 ) {
     init { require(filas.all { it.size == columnas.size }) { "fila con número de columnas distinto" } }
 }
