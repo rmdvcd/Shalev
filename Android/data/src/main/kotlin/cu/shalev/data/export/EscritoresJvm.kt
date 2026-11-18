@@ -27,7 +27,10 @@ object XlsxWriter {
             val negocio = t.nombreNegocio?.takeIf { it.isNotBlank() } ?: "Shalev"
             val ultCol = maxOf(0, t.columnas.lastIndex)
             ws.value(0, 0, negocio)
-            ws.range(0, 0, 0, ultCol).merge().style().bold().horizontalAlignment("center").fontSize(13).set()
+            // fastexcel 0.18.x: Range.merge() devuelve void, así que se fusiona y luego se aplica el estilo al rango.
+            val cabecera = ws.range(0, 0, 0, ultCol)
+            cabecera.merge()
+            cabecera.style().bold().horizontalAlignment("center").fontSize(13).set()
             t.columnas.forEachIndexed { c, v -> ws.value(1, c, v) }
             ws.range(1, 0, 1, ultCol).style().bold().fillColor("DDE3F0").set()
             // 0.26.0 (§5): importes, fechas y el valor de las tablas Dato/Valor en negrita (Excel no tiene seminegrita).

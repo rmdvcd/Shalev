@@ -215,6 +215,7 @@ fun PreciosContent(
             destructive = true,
         )
     }
+    }
 }
 
 @Composable
