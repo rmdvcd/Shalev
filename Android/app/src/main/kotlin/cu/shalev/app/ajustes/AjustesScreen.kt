@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -191,7 +192,7 @@ fun AjustesContent(
         val principal = !state.permisos.esSecundaria
         // 1.1: columna desplazable (no perezosa) para que el recorrido alcance también las últimas filas; son pocas.
         // Las filas van en grupos, y cada grupo es un paso del recorrido de Ajustes.
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState())) {
             if (principal) {
                 val pendientes = state.resumen?.pendientes?.size ?: 0
                 Entry(

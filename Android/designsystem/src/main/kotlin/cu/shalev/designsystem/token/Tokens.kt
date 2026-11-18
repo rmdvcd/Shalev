@@ -37,6 +37,8 @@ object ShalevRadius {
     val xl = 24.dp   // Sheets y diálogos
     /** Esquinas de la miniatura del billete CUP (arqueo de caja). */
     val billeteCup = 6.dp
+    /** Esquinas de la miniatura de la tarjeta bancaria (pago electrónico). */
+    val tarjetaBancaria = 6.dp
 }
 
 /** Solo afecta a sombras en modo claro; en oscuro la elevación es tonal (superficies más claras). */

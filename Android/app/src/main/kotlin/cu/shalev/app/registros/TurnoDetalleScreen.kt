@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -157,7 +158,7 @@ fun TurnoDetalleContent(
         },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
             if (exportacion.exportando) {
                 ShalevLinearProgress(Modifier.testTag(TurnoDetalleTags.EXPORTANDO).semantics { contentDescription = TextosRegistros.EXPORTANDO })
             }

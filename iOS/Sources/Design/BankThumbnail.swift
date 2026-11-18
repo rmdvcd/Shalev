@@ -24,6 +24,7 @@ struct ShalevBankThumbnail: View {
                 Image(name)
                     .resizable()
                     .scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             } else {
                 Image(systemName: "creditcard.fill")
                     .font(.shalevIcono(17, weight: .semibold))

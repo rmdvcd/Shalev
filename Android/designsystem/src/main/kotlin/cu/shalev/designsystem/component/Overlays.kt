@@ -234,8 +234,14 @@ private fun ShalevVentana(
     }
     Dialog(onDismissRequest = cerrar, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         // El velo lo dibuja la propia ventana (con fundido); se quita el oscurecido fijo del sistema.
+        // SOFT_INPUT_ADJUST_RESIZE asegura que el teclado encoja la ventana del diálogo sin tapar campos ni botones.
         val vista = LocalView.current
-        SideEffect { (vista.parent as? DialogWindowProvider)?.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND) }
+        SideEffect {
+            (vista.parent as? DialogWindowProvider)?.window?.let { window ->
+                window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            }
+        }
         val alto = LocalConfiguration.current.screenHeightDp.dp
         val cs = MaterialTheme.colorScheme
         AnimatedVisibility(

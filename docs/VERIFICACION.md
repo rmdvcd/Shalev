@@ -1,5 +1,20 @@
 # Shalev — Verificación real
 
+## Miniaturas de tarjetas redondeadas y visibilidad con teclado (1.0.8) — revisión estática 2026-11-18
+
+**Rama:** `arena/cb2f89c4-shalev`, basada en `94df0bae8dc9a46d63d97f63ca757c83605ba5fb`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| Revisión de diseño (`ShalevRadius.tarjetaBancaria = 6.dp`), miniaturas (`IconoTarjeta` con `aspectRatio` y `clip`, `ShalevBankThumbnail` en iOS), visibilidad con teclado (`ShalevSnackbarHost`, `ShalevIslaAvisos`, `Overlays.kt` con `SOFT_INPUT_ADJUST_RESIZE`, `TextFields.kt` con `bringIntoView` en escritura/imeBottom y contenedores de pantallas con `imePadding`) | Hecha leyendo y editando el código; no equivale a ejecución. |
+| `python3 tools/verificacion/botones.py` | **Pasó**: 0 incumplimientos, 7 textos calculados en ejecución. |
+| `git diff --check` | **Pasó** tras las ediciones. |
+| Balance de llaves/paréntesis y ausencia de tabulaciones/espacios al final en los ficheros modificados | **Pasó** (script estático). |
+| Tests JVM (`PagoLogicTest`) | **No ejecutados**: no hay Java/JDK ni Android SDK en el contenedor y la red solo permite GitHub/npm/PyPI. Tests agregados al árbol fuente. |
+| iOS | `ShalevBankThumbnail.swift` actualizado con esquinas continuas redondeadas (radio 6). |
+
+**Conclusión:** revisión estática solamente; no declarar el código compilado ni probado hasta que el CI ejecute `shalevTests`, `shalevCheck`, los instrumentados y las capturas.
+
 ## Contador sin texto, ganancia por local y selector de red (1.0.7) — revisión estática 2026-11-18
 
 **Rama:** `arena/6aa104bf-shalev`, basada en `445693865dce94270ffe7ae8eb226b5f60f3511a`.

@@ -60,7 +60,8 @@ orientativo»**. En iOS la misma regla vive en `bancoCubano(_:)` dentro de `Sett
 ## Presentación
 
 - El logo se pinta con `Image(painterResource(miniaturaBanco(banco)), ContentScale.Fit)` dentro de un cuadro de
-  `ShalevSize.miniatura` (40 dp), sin fondo ni borde propios. Los PNG no se modificaron.
+  `ShalevSize.miniatura` (40 dp), centrado y con sus esquinas redondeadas (`ShalevRadius.tarjetaBancaria = 6.dp`),
+  respetando la relación de aspecto de cada banco para emular la tarjeta bancaria. Los PNG no se modificaron.
 - BANDEC (rojo a sangre) y BANMET (fondo verde) llenan casi todo el cuadro; BPA es transparente y muy alargado, así
   que se ve más pequeño. Si se quiere igualar el peso visual, el cambio va en el recurso, no en la tabla de bancos.
 - La lista de «Tarjetas y cuentas» muestra la sigla del banco como subtítulo cuando el código coincide.

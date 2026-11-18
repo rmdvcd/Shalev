@@ -370,7 +370,7 @@ En **Pago electrónico** administras la lista de teléfonos y tarjetas o cuentas
 1. Toca el botón **+** (abajo a la derecha) para desplegar las dos opciones: **Otro teléfono** o **Otra tarjeta o cuenta** (admite entre 12 y 20 dígitos, con un alias opcional para reconocerla rápido).
 2. Marca con su casilla **un teléfono** (el que recibirá el SMS de confirmación) y **una tarjeta o cuenta** (la que recibirá el dinero).
    - Solo puede haber uno de cada tipo marcado a la vez: marcar otro sustituye automáticamente al anterior, y tocar el que ya está marcado lo desmarca.
-   - En las listas, los números de tarjeta aparecen siempre protegidos (`•••• 6454`). Shalev muestra de forma orientativa las siglas o el logo del banco (**BPA**, **BANDEC** o **BANMET**) según los primeros 4 dígitos conocidos, aunque recuerda verificar siempre tus dígitos al guardarla.
+   - En las listas, los números de tarjeta aparecen siempre protegidos (`•••• 6454`). Shalev muestra de forma orientativa las siglas o la miniatura con esquinas redondeadas del banco (**BPA**, **BANDEC** o **BANMET**), recordando verificar siempre tus dígitos al guardarla.
 
 ### 9.2 Ajustes automáticos de Precios (descuentos y recargos)
 

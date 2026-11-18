@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -142,7 +143,7 @@ fun ShalevSnackbarHost(
         state.registrar(token, prioridad)
         onDispose { state.retirar(token) }
     }
-    if (state.anfitrionActivo === token) ShalevIslaAvisos(state, modifier)
+    if (state.anfitrionActivo === token) ShalevIslaAvisos(state, modifier.imePadding())
 }
 
 /**
@@ -186,6 +187,7 @@ fun ShalevIslaAvisos(state: ShalevAvisosState, modifier: Modifier = Modifier) {
     Box(
         modifier
             .fillMaxWidth()
+            .imePadding()
             .semantics { liveRegion = if (urgente) LiveRegionMode.Assertive else LiveRegionMode.Polite },
         contentAlignment = Alignment.BottomCenter,
     ) {

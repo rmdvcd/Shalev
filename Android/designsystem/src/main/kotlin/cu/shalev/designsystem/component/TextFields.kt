@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -29,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -113,12 +115,13 @@ fun ShalevTextField(
     val teclado = if (keyboardOptions == KeyboardOptions.Default) filtro.teclado else keyboardOptions
     BloquearGestos(conFoco) // 0.27.0 (T5): escribiendo no se cambia de sección deslizando
     // Traer el campo a la vista: al ganar el foco lo hace el propio campo, pero con el borde a borde el teclado aún
-    // no ocupa su hueco en ese instante y el campo puede quedar tras él. Se repite cuando el teclado ya es visible
-    // (y al pasar de un campo a otro con el teclado abierto).
+    // no ocupa su hueco en ese instante y el campo puede quedar tras él. Se repite cuando el teclado ya es visible,
+    // cuando el teclado termina de abrirse y cada vez que el usuario escribe en él (para que nunca quede oculto).
     val traerALaVista = remember { BringIntoViewRequester() }
     val tecladoVisible = WindowInsets.isImeVisible
-    LaunchedEffect(conFoco, tecladoVisible) {
-        if (conFoco && tecladoVisible) traerALaVista.bringIntoView()
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(conFoco, tecladoVisible, imeBottom, value) {
+        if (conFoco && (tecladoVisible || imeBottom > 0)) traerALaVista.bringIntoView()
     }
 
     OutlinedTextField(

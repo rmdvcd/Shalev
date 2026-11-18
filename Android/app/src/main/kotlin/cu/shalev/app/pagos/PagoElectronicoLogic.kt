@@ -17,7 +17,14 @@ enum class TipoCuentaPago { TELEFONO, TARJETA }
 enum class BancoCubano(val nombre: String, val sigla: String, val codigo: String) {
     BPA("Banco Popular de Ahorro", "BPA", "1299"),
     BANDEC("Banco de Crédito y Comercio", "BANDEC", "0699"),
-    BANMET("Banco Metropolitano", "BANMET", "9598"),
+    BANMET("Banco Metropolitano", "BANMET", "9598");
+
+    /** Relación de aspecto del recurso (ancho / alto) para encajar la miniatura sin deformar. */
+    val relacionAspecto: Float get() = when (this) {
+        BPA -> 540f / 305f
+        BANDEC -> 630f / 350f
+        BANMET -> 1f
+    }
 }
 
 /**
