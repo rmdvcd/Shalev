@@ -329,20 +329,22 @@ enum class TipoTop(val titulo: String) {
     /** Empleados con mayor importe vendido y clientes por transferencia con mayor importe comprado. */
     EMPLEADO("Empleado"),
     CLIENTE("Cliente"),
+    /** 1.0.6: ranking completo de los locales que más ventas generan, de mayor a menor (va el último). */
+    LOCAL("Ventas por local"),
 }
 
 fun valorTop(tipo: TipoTop, item: TopItem): String = when (tipo) {
     TipoTop.MAS_VENDIDO, TipoTop.LENTO -> if (item.unidades == 1L) "1 unidad" else "${NumberPresentation.groupedInteger(item.unidades)} unidades"
     TipoTop.RENTABILIDAD -> Money.format(item.ganancia)
     TipoTop.SERVICIO_TOP, TipoTop.SERVICIO_MENOS -> if (item.unidades == 1L) "1 vez" else "${NumberPresentation.groupedInteger(item.unidades)} veces"
-    TipoTop.EMPLEADO, TipoTop.CLIENTE -> Money.format(item.ingresos)
+    TipoTop.EMPLEADO, TipoTop.CLIENTE, TipoTop.LOCAL -> Money.format(item.ingresos)
 }
 
 fun subtituloTop(tipo: TipoTop, item: TopItem): String? = when (tipo) {
     TipoTop.MAS_VENDIDO, TipoTop.SERVICIO_TOP -> Money.format(item.ingresos)
     TipoTop.LENTO, TipoTop.SERVICIO_MENOS -> null
     TipoTop.RENTABILIDAD -> if (item.unidades == 1L) "1 unidad vendida" else "${NumberPresentation.groupedInteger(item.unidades)} unidades vendidas"
-    TipoTop.EMPLEADO -> if (item.unidades == 1L) "1 venta" else "${NumberPresentation.groupedInteger(item.unidades)} ventas"
+    TipoTop.EMPLEADO, TipoTop.LOCAL -> if (item.unidades == 1L) "1 venta" else "${NumberPresentation.groupedInteger(item.unidades)} ventas"
     TipoTop.CLIENTE -> if (item.unidades == 1L) "1 compra" else "${NumberPresentation.groupedInteger(item.unidades)} compras"
 }
 

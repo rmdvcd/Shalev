@@ -241,6 +241,8 @@ class VentaRepo : VentaRepository {
         if (fallar) error("disco")
         return ventas.filter { it.fecha >= desde && it.fecha < hasta }
     }
+    /** 1.0.6: en memoria no hay filtro por local; equivale a `entre` (los tests ponen el local en cada venta). */
+    override suspend fun entreTodosLosLocales(desde: Instant, hasta: Instant): List<Venta> = entre(desde, hasta)
     override suspend fun deTurno(turnoId: Long): List<Venta> {
         if (fallar) error("disco")
         return ventas.filter { it.turnoId == turnoId }
@@ -355,13 +357,14 @@ class EstadoAppRepo(inicial: cu.shalev.domain.model.EstadoApp = cu.shalev.domain
     override suspend fun borrar() { flujo.value = cu.shalev.domain.model.EstadoApp() }
 }
 
-/** 0.27.0: ajustes de este teléfono (acceso con clave, tipo elegido en el recorrido). */
+/** 0.27.0: ajustes de este teléfono (acceso con clave, tipo elegido en el recorrido, modo de red). */
 class AjustesDispRepo(inicial: cu.shalev.domain.model.AjustesDispositivo = cu.shalev.domain.model.AjustesDispositivo()) :
     cu.shalev.domain.repository.AjustesDispositivoRepository {
     val estado = kotlinx.coroutines.flow.MutableStateFlow(inicial)
     override val ajustes: kotlinx.coroutines.flow.Flow<cu.shalev.domain.model.AjustesDispositivo> = estado
     override suspend fun guardarAccesoConClave(activo: Boolean) { estado.value = estado.value.copy(accesoConClave = activo) }
     override suspend fun guardarEligioSecundaria(valor: Boolean) { estado.value = estado.value.copy(eligioSecundaria = valor) }
+    override suspend fun guardarModoRed(modo: cu.shalev.domain.model.ModoRed) { estado.value = estado.value.copy(modoRed = modo) }
 }
 
 /** 0.27.0 (N2): clientes fijos en memoria. */

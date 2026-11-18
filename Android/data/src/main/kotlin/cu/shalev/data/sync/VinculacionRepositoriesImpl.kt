@@ -28,6 +28,7 @@ import cu.shalev.domain.repository.PrincipalRepository
 import cu.shalev.domain.repository.PuertaTurno
 import cu.shalev.domain.repository.SecundariaRepository
 import cu.shalev.domain.repository.TipoAppRepository
+import cu.shalev.domain.repository.AjustesDispositivoRepository
 import cu.shalev.domain.usecase.UsuarioActual
 import cu.shalev.licencia.LicenseState
 import java.time.Instant
@@ -102,6 +103,8 @@ class PrincipalRepositoryImpl @Inject constructor(
     private val licencia: LicenciaRepository,
     private val perfil: PerfilRepository,
     private val clock: Clock,
+    /** 1.0.7: modo de red elegido en Ajustes → Apps vinculadas (qué direcciones lleva el QR). */
+    private val ajustesDispositivo: AjustesDispositivoRepository,
 ) : PrincipalRepository {
     private val sync get() = db.syncDao()
 
@@ -156,7 +159,8 @@ class PrincipalRepositoryImpl @Inject constructor(
         servidor.iniciar()
         val est = withTimeoutOrNull(3_000) { servidor.estado.first { it.escuchando } }
             ?: return AppResult.Err(AppError.Red.SinConexion)
-        val direcciones = red.direcciones().ifEmpty { est.direcciones }
+        // 1.0.7: el QR solo lleva las direcciones del modo de red elegido (LAN por defecto).
+        val direcciones = red.direcciones(ajustesDispositivo.ajustes.first().modoRed).ifEmpty { est.direcciones }
         if (direcciones.isEmpty() && !RelaySync.habilitado) return AppResult.Err(AppError.Red.SinConexion)
         val token = CriptoSync.aleatorio(CodigoQr.TOKEN_BYTES)
         val vence = clock.now().plus(Vinculacion.VALIDEZ_CODIGO)

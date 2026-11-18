@@ -254,6 +254,22 @@ class InicioViewModelTest {
         assertEquals(setOf("Bebidas", "Panadería"), r.categorias.map { it.etiqueta }.toSet())
     }
 
+    /** 1.0.6: «Ventas por local» (la última lista de Inicio): de mayor a menor, con el nº de ventas de cada local. */
+    @Test fun resumenIncluyeElRankingDeLocales() = runTest {
+        productos.items.value = listOf(prod(1, "Refresco", cantidad = 20))
+        turnos.abrir(T0.minusSeconds(3600), "Ana")
+        ventas.registrar(venta(1, 100, 40).copy(local = "Dulcería"))
+        ventas.registrar(venta(1, 300, 60).copy(local = "Cafetería"))
+        ventas.registrar(venta(1, 200, 60).copy(local = "Cafetería"))
+        val vm = vm(); conUi(vm)
+        val r = (vm.state.value.resumen as EstadoCarga.Exito<ResumenGeneral>).datos
+        assertEquals(listOf("Cafetería", "Dulcería"), r.locales.map { it.nombre })
+        assertEquals(listOf(Cup.ofPesos(500), Cup.ofPesos(100)), r.locales.map { it.importe })
+        assertEquals(listOf(2, 1), r.locales.map { it.operaciones })
+        // 1.0.7: al lado de las ventas va la ganancia bruta del local.
+        assertEquals(listOf(Cup.ofPesos(380), Cup.ofPesos(60)), r.locales.map { it.ganancia })
+    }
+
     /** Decisión del usuario (2026-11-15): Métodos de pago y los Top 3 siguen al selector de período. */
     @Test fun metodosDePagoYTop3SiguenAlPeriodo() = runTest {
         productos.items.value = listOf(prod(1, "Refresco", cantidad = 20), prod(2, "Pan", cantidad = 20, categoria = "Panadería"))

@@ -13,20 +13,20 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TopsInicioTest {
-    private fun detalle(totalPesos: Long) = DetalleVenta(
+    private fun detalle(totalPesos: Long, costoPesos: Long = 0) = DetalleVenta(
         productoId = 1, nombre = "P1", categoria = "X", cantidad = 1,
         precioBase = Cup.ofPesos(totalPesos), precioUnitario = Cup.ofPesos(totalPesos),
-        costoUnitario = Cup.ofPesos(0),
+        costoUnitario = Cup.ofPesos(costoPesos),
     )
 
-    private fun venta(id: Long, vendedor: String, totalPesos: Long, cliente: DatosCliente? = null): Venta {
+    private fun venta(id: Long, vendedor: String, totalPesos: Long, cliente: DatosCliente? = null, costoPesos: Long = 0): Venta {
         val tx = cliente?.let {
             Transaccion(fecha = T0, importe = Cup.ofPesos(totalPesos), numero = "TX$id", cliente = it)
         }
         return Venta(
             id, 1, T0,
             if (cliente == null) MetodoPago.EFECTIVO else MetodoPago.TRANSFERENCIA,
-            listOf(detalle(totalPesos)), transaccion = tx, vendedor = vendedor,
+            listOf(detalle(totalPesos, costoPesos)), transaccion = tx, vendedor = vendedor,
         )
     }
 
@@ -70,5 +70,33 @@ class TopsInicioTest {
         val a2 = DatosCliente("Ana Pérez", "91111112345", "57654321")
         val vs = listOf(venta(1, "María", 300, a1), venta(2, "María", 200, a2))
         assertEquals(2, Estadisticas.topClientes(vs).size)
+    }
+
+    /** 1.0.6: «Ventas por local» de Inicio. 1.0.7: cada fila lleva también la ganancia bruta del local. */
+    @Test fun `top locales de mayor a menor, ranking completo con desempate alfabetico y ganancia`() {
+        val vs = listOf(
+            venta(1, "Jorge", 500, costoPesos = 300).copy(local = "Cafetería"),
+            venta(2, "María", 900, costoPesos = 500).copy(local = "Dulcería"),
+            venta(3, "Jorge", 200, costoPesos = 100).copy(local = "Cafetería"),
+            venta(4, "Ana", 900, costoPesos = 400).copy(local = "Bar"),
+            venta(5, "Luis", 100, costoPesos = 10).copy(local = "Tienda"),
+        )
+        // Sin take(3): la lista es el ranking completo; a igual importe manda el alfabeto.
+        assertEquals(
+            listOf(
+                TopPersona("Bar", Cup.ofPesos(900), 1, ganancia = Cup.ofPesos(500)),
+                TopPersona("Dulcería", Cup.ofPesos(900), 1, ganancia = Cup.ofPesos(400)),
+                TopPersona("Cafetería", Cup.ofPesos(700), 2, ganancia = Cup.ofPesos(300)),
+                TopPersona("Tienda", Cup.ofPesos(100), 1, ganancia = Cup.ofPesos(90)),
+            ),
+            Estadisticas.topLocales(vs),
+        )
+    }
+
+    @Test fun `top locales ignora anuladas y ventas sin local`() {
+        assertTrue(Estadisticas.topLocales(emptyList()).isEmpty())
+        val sinLocal = venta(1, "Jorge", 500) // local = "" (anterior a los locales)
+        val anulada = venta(2, "María", 900).copy(local = "Bar", anulacion = cu.shalev.domain.model.Anulacion(T0, "Cliente desistió", "María"))
+        assertTrue(Estadisticas.topLocales(listOf(sinLocal, anulada)).isEmpty())
     }
 }

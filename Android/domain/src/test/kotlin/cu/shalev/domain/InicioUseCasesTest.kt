@@ -9,6 +9,7 @@ import cu.shalev.domain.model.MetodoPago
 import cu.shalev.domain.model.OpcionPeriodo
 import cu.shalev.domain.model.Periodo
 import cu.shalev.domain.model.PreajustePrecios
+import cu.shalev.domain.model.TopPersona
 import cu.shalev.domain.model.Venta
 import cu.shalev.domain.usecase.ActivarPreajuste
 import cu.shalev.domain.usecase.ObtenerGraficosPeriodo
@@ -37,9 +38,9 @@ class InicioUseCasesTest {
     private val graficos = ObtenerGraficosPeriodo(ventas, turnos, clock, Dispatchers.Unconfined)
     private val resumen = ObtenerResumenGeneral(ventas, productos, FakeInsumos(), FakeServicios(), clock, Dispatchers.Unconfined)
 
-    private fun venta(turno: Long, fecha: Instant, pid: Long, cant: Long, precio: Long, costo: Long, metodo: MetodoPago = MetodoPago.EFECTIVO) =
+    private fun venta(turno: Long, fecha: Instant, pid: Long, cant: Long, precio: Long, costo: Long, metodo: MetodoPago = MetodoPago.EFECTIVO, local: String = "") =
         Venta(
-            id = ventas.ventas.size + 1L, turnoId = turno, fecha = fecha, metodoPago = metodo,
+            id = ventas.ventas.size + 1L, turnoId = turno, fecha = fecha, metodoPago = metodo, local = local,
             detalles = listOf(DetalleVenta(productoId = pid, nombre = "P$pid", categoria = "X", cantidad = cant, precioBase = Cup.ofPesos(precio), precioUnitario = Cup.ofPesos(precio), costoUnitario = Cup.ofPesos(costo))),
         ).also { ventas.ventas += it }
 
@@ -139,6 +140,39 @@ class InicioUseCasesTest {
         val r = resumen(resolver(OpcionPeriodo.TURNO, zone), zone)
         assertEquals(listOf("Transferencia"), r.metodosPago.map { it.etiqueta })
         assertEquals(listOf(1L), r.top3.masVendidos.map { it.productoId })
+    }
+
+    /** 1.0.6: «Ventas por local» es la excepción: cruza TODOS los locales del período, no solo el activo. */
+    @Test fun `ranking de locales sigue al periodo y cruza los locales`() = runBlocking<Unit> {
+        productos.put(producto(1))
+        venta(1, T0.minusSeconds(86_400L * 3), 1, 1, 1000, 50, local = "Cafetería") // hace 3 días: entra en 7 días, no en Hoy
+        venta(1, T0.minusSeconds(3600), 1, 2, 200, 50, MetodoPago.TRANSFERENCIA, local = "Dulcería")
+        venta(1, T0.minusSeconds(1800), 1, 1, 50, 10, local = "Cafetería")
+        venta(1, T0.plusSeconds(3600), 1, 9, 100, 10, local = "Dulcería") // futura: nunca cuenta
+        val hoy = resumen(resolver(OpcionPeriodo.HOY, zone), zone)
+        assertEquals(
+            listOf(
+                TopPersona("Dulcería", Cup.ofPesos(400), 1, ganancia = Cup.ofPesos(300)),
+                TopPersona("Cafetería", Cup.ofPesos(50), 1, ganancia = Cup.ofPesos(40)),
+            ),
+            hoy.locales,
+        )
+        val semana = resumen(resolver(OpcionPeriodo.SEMANA, zone), zone)
+        assertEquals(
+            listOf(
+                TopPersona("Cafetería", Cup.ofPesos(1050), 2, ganancia = Cup.ofPesos(990)),
+                TopPersona("Dulcería", Cup.ofPesos(400), 1, ganancia = Cup.ofPesos(300)),
+            ),
+            semana.locales,
+        )
+    }
+
+    @Test fun `con Turno el ranking de locales es solo el local del turno`() = runBlocking<Unit> {
+        productos.put(producto(1))
+        turnos.abrir(T0.minusSeconds(7200), "Ana"); venta(1, T0.minusSeconds(5000), 1, 4, 100, 10, local = "Cafetería"); turnos.cerrar(T0.minusSeconds(4000), "Ana")
+        turnos.abrir(T0.minusSeconds(3000), "Ana"); venta(2, T0.minusSeconds(60), 1, 1, 200, 60, MetodoPago.TRANSFERENCIA, local = "Dulcería")
+        val r = resumen(resolver(OpcionPeriodo.TURNO, zone), zone)
+        assertEquals(listOf(TopPersona("Dulcería", Cup.ofPesos(200), 1, ganancia = Cup.ofPesos(140))), r.locales)
     }
 
     @Test fun `resumen sin ventas oculta el Top 3`() = runBlocking<Unit> {

@@ -2,6 +2,7 @@ package cu.shalev.data.repository
 
 import cu.shalev.data.local.SecureDataStore
 import cu.shalev.domain.model.AjustesDispositivo
+import cu.shalev.domain.model.ModoRed
 import cu.shalev.domain.repository.AjustesDispositivoRepository
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,14 +18,23 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 class AjustesDispositivoRepositoryImpl @Inject constructor(private val ds: SecureDataStore) : AjustesDispositivoRepository {
 
     override val ajustes: Flow<AjustesDispositivo> =
-        combine(ds.observe(K_CLAVE), ds.observe(K_SECUNDARIA)) { c, s -> AjustesDispositivo(accesoConClave = c == "1", eligioSecundaria = s == "1") }
+        combine(ds.observe(K_CLAVE), ds.observe(K_SECUNDARIA), ds.observe(K_MODO_RED)) { c, s, m ->
+            AjustesDispositivo(
+                accesoConClave = c == "1",
+                eligioSecundaria = s == "1",
+                // 1.0.7: valor ilegible o ausente → LAN (la de siempre).
+                modoRed = m?.let { runCatching { ModoRed.valueOf(it) }.getOrNull() } ?: ModoRed.LAN,
+            )
+        }
             .distinctUntilChanged()
 
     override suspend fun guardarAccesoConClave(activo: Boolean) = ds.put(K_CLAVE, if (activo) "1" else "0")
     override suspend fun guardarEligioSecundaria(valor: Boolean) = ds.put(K_SECUNDARIA, if (valor) "1" else "0")
+    override suspend fun guardarModoRed(modo: ModoRed) = ds.put(K_MODO_RED, modo.name)
 
     private companion object {
         const val K_CLAVE = "disp.acceso_clave"
         const val K_SECUNDARIA = "disp.eligio_secundaria"
+        const val K_MODO_RED = "disp.modo_red"
     }
 }

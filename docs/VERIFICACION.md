@@ -1,5 +1,37 @@
 # Shalev — Verificación real
 
+## Contador sin texto, ganancia por local y selector de red (1.0.7) — revisión estática 2026-11-18
+
+**Rama:** `arena/6aa104bf-shalev`, basada en `445693865dce94270ffe7ae8eb226b5f60f3511a`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| Revisión de dominio (`TopPersona.ganancia`, `AjustesDispositivo.modoRed`), datos (`AjustesDispositivoRepositoryImpl`, `RedLocal.esDelModo`, `ServidorSync`, `VinculacionRepositoriesImpl`), UI (`InicioScreen` con ganancia, `VinculacionScreen` con la tarjeta de red al inicio) y tests | Hecha leyendo y editando el código; no equivale a ejecución. |
+| Texto del coach-mark del conteo (`Recorridos.kt`) | 78 caracteres, dentro del límite de 110. |
+| `git diff --check` | **Pasó** tras las ediciones. |
+| Balance de llaves/paréntesis y ausencia de tabulaciones/espacios al final en los 21 ficheros Kotlin tocados | **Pasó** (script estático). |
+| Tests JVM (`TopsInicioTest`, `InicioUseCasesTest`, `InicioViewModelTest`, `InicioUiTest`, `VinculacionViewModelTest`, `RedLocalTest`) | **No ejecutados**: no hay Java/JDK ni Android SDK en el contenedor y la red solo permite GitHub/npm/PyPI. Los tests están añadidos al árbol fuente. |
+| Capturas Roborazzi | **Pendientes de regrabar** (`01a*` de Inicio con la ganancia y `VinculacionCapturas` con la tarjeta de red) con `recordRoborazziDebug`. |
+| iOS | **Sin cambios**: IShalev no tiene el ranking de locales ni el selector de red (paridad pendiente en su propio ciclo). |
+
+**Conclusión:** revisión estática solamente; no declarar el código compilado ni probado hasta que el CI (o un equipo con JDK + Android SDK) ejecute `shalevTests`, `shalevCheck`, los instrumentados y las capturas.
+
+## «Ventas por local»: ranking de locales en Inicio (1.0.6) — revisión estática 2026-11-18
+
+**Rama:** `arena/6aa104bf-shalev`, basada en `445693865dce94270ffe7ae8eb226b5f60f3511a`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| Revisión de dominio, datos (DAO, mappers, repositorio), casos de uso, UI (acordeón y medallas), ayuda, fixtures de captura y tests | Hecha leyendo y editando el código Android; no equivale a ejecución. |
+| Esquema Room | **Sin cambios**: la columna `venta.local` existe desde la v16 (migración 15→16 ya aplicada y rellenada); el ranking solo añade una consulta de lectura. No hay `22.json` nuevo que generar. |
+| Paso de ayuda Android | 100 caracteres, dentro del límite de 110 (revisado a mano). |
+| `git diff --check` | **Pasó** tras las ediciones. |
+| Tests JVM Android / `shalevTests` / `shalevCheck` | **No ejecutados**: no hay Java/JDK ni Android SDK en el contenedor y la red solo permite GitHub/npm/PyPI, así que `tools/verificacion/verificar.sh` no puede descargar el toolchain (~1,5 GB). Los tests nuevos (`TopsInicioTest`, `InicioUseCasesTest`, `InicioViewModelTest`) solo están añadidos al árbol fuente. |
+| Capturas Roborazzi | **Pendientes de regrabar** (`01a`, `01a2`, `01j`, `01k` y el resto de Inicio) con `recordRoborazziDebug`: el fixture de `InicioCapturas` ya incluye la lista «Ventas por local». |
+| iOS | **Sin cambios**: IShalev no tiene el ranking de locales (paridad pendiente en su propio ciclo). |
+
+**Conclusión:** revisión estática solamente; no declarar el código compilado ni probado hasta que el CI (o un equipo con JDK + Android SDK) ejecute `shalevTests`, `shalevCheck`, los instrumentados y las capturas.
+
 ## Vinculación y sincronización por Wi-Fi, zona wifi y datos móviles — revisión estática 2026-11-15
 
 **Rama:** `arena/a8462fac-shalev`, basada en `2d248616680bd808138b5c2f72b913df6b8ff4bf`.

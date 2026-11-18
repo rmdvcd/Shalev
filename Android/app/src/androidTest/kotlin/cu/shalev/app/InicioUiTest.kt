@@ -33,6 +33,7 @@ import cu.shalev.domain.model.ResumenGeneral
 import cu.shalev.domain.model.TipoAlerta
 import cu.shalev.domain.model.Top3
 import cu.shalev.domain.model.TopItem
+import cu.shalev.domain.model.TopPersona
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -86,6 +87,24 @@ class InicioUiTest {
         rule.onNode(hasTestTag(InicioTags.LISTA)).performScrollToNode(hasTestTag(InicioTags.top(TipoTop.MAS_VENDIDO)))
         rule.onNodeWithTag(InicioTags.top(TipoTop.MAS_VENDIDO)).assertIsDisplayed()
         rule.onNodeWithTag(InicioTags.top(TipoTop.LENTO)).assertDoesNotExist()
+    }
+
+    /** 1.0.6: «Ventas por local» solo aparece con ventas en el período (con datos va la última de las listas). */
+    @Test fun localesVisiblesConVentas() {
+        val r = ResumenGeneral(
+            listOf(Porcion("Bebidas", 10, 1.0)), emptyList(), Top3.VACIO,
+            locales = listOf(
+                TopPersona("Cafetería", Cup.ofPesos(900), 3, ganancia = Cup.ofPesos(320)),
+                TopPersona("Dulcería", Cup.ofPesos(200), 1, ganancia = Cup.ofPesos(80)),
+            ),
+        )
+        mostrar(InicioUiState(resumen = EstadoCarga.Exito(r)))
+        rule.onNode(hasTestTag(InicioTags.LISTA)).performScrollToNode(hasTestTag(InicioTags.top(TipoTop.LOCAL)))
+        rule.onNodeWithTag(InicioTags.top(TipoTop.LOCAL)).assertIsDisplayed()
+        // 1.0.7: al abrir, cada local muestra junto a sus ventas la ganancia bruta.
+        rule.onNode(hasText(TipoTop.LOCAL.titulo) and hasClickAction()).performClick()
+        rule.onNodeWithText("Cafetería").assertIsDisplayed()
+        rule.onNode(hasText("Ganancia", substring = true)).assertIsDisplayed()
     }
 
     @Test fun losAcordeonesEmpiezanCerradosYSeAbrenAlTocar() {

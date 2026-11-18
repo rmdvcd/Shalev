@@ -188,6 +188,7 @@ fun VentaCompleta.toDomain() = Venta(
     detalles = detalles.sortedBy { it.id }.map { it.toDomain() }, transaccion = transaccion?.toDomain(),
     anulacion = venta.anuladaEn?.let { Anulacion(it.instant(), venta.motivoAnulacion.orEmpty(), venta.anuladaPor.orEmpty()) },
     corrigeVentaId = venta.corrigeVentaId,
+    local = venta.local, // 1.0.6: lo usa el ranking «Ventas por local» de Inicio
 )
 
 /** Totales desnormalizados calculados desde los detalles (fuente de verdad). */
@@ -196,6 +197,8 @@ fun Venta.toEntity() = VentaEntity(
     totalCent = total.centavos, costoCent = costoTotal.centavos, unidades = unidades,
     anuladaEn = anulacion?.en?.ms(), motivoAnulacion = anulacion?.motivo, anuladaPor = anulacion?.por,
     corrigeVentaId = corrigeVentaId,
+    // 1.0.6: registrar, respaldo y sincronización lo fijan con `copy` (el del turno o el activo); aquí va el del dominio.
+    local = local,
 )
 
 // ---------- Movimiento ----------

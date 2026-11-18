@@ -194,6 +194,8 @@ class FakeVentas(private val productos: FakeProductos, private val turnos: FakeT
     }
     override suspend fun obtener(id: Long) = ventas.firstOrNull { it.id == id }
     override suspend fun entre(desde: Instant, hasta: Instant) = ventas.filter { it.fecha >= desde && it.fecha < hasta }
+    /** 1.0.6: en memoria no hay filtro por local; equivale a `entre` (los tests ponen el local en cada venta). */
+    override suspend fun entreTodosLosLocales(desde: Instant, hasta: Instant) = entre(desde, hasta)
     override suspend fun deTurno(turnoId: Long) = ventas.filter { it.turnoId == turnoId }
 
     /** 0.25.0: imita la anulación de :data (turno abierto, marca y devolución de existencias). */

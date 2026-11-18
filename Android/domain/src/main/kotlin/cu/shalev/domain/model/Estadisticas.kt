@@ -61,7 +61,13 @@ data class Porcion(val etiqueta: String, val valor: Long, val fraccion: Double)
 data class TopItem(val productoId: Long, val nombre: String, val unidades: Long, val ingresos: Cup, val ganancia: Cup)
 
 /** Una fila de los tops de personas de Inicio (empleados y clientes): nombre, importe total y nº de operaciones. */
-data class TopPersona(val nombre: String, val importe: Cup, val operaciones: Int)
+data class TopPersona(
+    val nombre: String,
+    val importe: Cup,
+    val operaciones: Int,
+    /** 1.0.7: ganancia bruta asociada (solo la calcula el ranking «Ventas por local»; en empleados/clientes es null). */
+    val ganancia: Cup? = null,
+)
 
 data class Top3(val masVendidos: List<TopItem>, val lentoMovimiento: List<TopItem>, val rentabilidad: List<TopItem>) {
     val vacio: Boolean get() = masVendidos.isEmpty() && lentoMovimiento.isEmpty() && rentabilidad.isEmpty()
@@ -106,9 +112,14 @@ data class ResumenGeneral(
     /** Empleados con mayor importe vendido y clientes por transferencia con mayor importe comprado. */
     val empleados: List<TopPersona> = emptyList(),
     val clientes: List<TopPersona> = emptyList(),
+    /**
+     * 1.0.6: locales que más ventas generan en el período, de mayor a menor (ranking completo, no Top 3).
+     * A diferencia del resto del resumen, cruza TODOS los locales, no solo el activo.
+     */
+    val locales: List<TopPersona> = emptyList(),
 ) {
     val vacio: Boolean get() = categorias.isEmpty() && metodosPago.isEmpty() && top3.vacio && servicios.vacio &&
-        empleados.isEmpty() && clientes.isEmpty()
+        empleados.isEmpty() && clientes.isEmpty() && locales.isEmpty()
 }
 
 /** P29: Top ventas y Menos vendidos de los servicios ([TopItem.productoId] = id del servicio; unidades = veces). */
