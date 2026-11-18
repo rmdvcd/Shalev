@@ -33,7 +33,13 @@ object PdfWriter {
     }
 
     private class Pintor(private val doc: PdfDocument) {
-        private val titulo = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f; typeface = Typeface.DEFAULT_BOLD; color = Color.BLACK }
+        private val encabezadoNegocio = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            color = Color.BLACK
+            textAlign = Paint.Align.CENTER
+        }
+        private val titulo = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13f; typeface = Typeface.DEFAULT_BOLD; color = 0xFF202124.toInt() }
         private val cabecera = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 9f; typeface = Typeface.DEFAULT_BOLD; color = Color.BLACK }
         private val texto = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 9f; color = 0xFF202124.toInt() }
         /** 0.26.0 (§5): importes, fechas y valores en seminegrita (600; en Android 8 no hay pesos: negrita). */
@@ -80,8 +86,11 @@ object PdfWriter {
             val cambia = orientacion(DisenoPdf.horizontal(t))
             if (pagina == null || cambia || y > H - M - FILA * 4) nueva() else y += FILA
             val c = pagina!!.canvas
-            c.drawText(t.titulo, M, y + 14f, titulo)
-            y += 26f
+            val negocio = t.nombreNegocio?.takeIf { it.isNotBlank() } ?: "Shalev"
+            c.drawText(negocio, W / 2f, y + 14f, encabezadoNegocio)
+            y += 24f
+            c.drawText(t.titulo, M, y + 12f, titulo)
+            y += 22f
             val anchos = DisenoPdf.anchos(t, W - 2 * M) { s, negrita -> (if (negrita) cabecera else texto).measureText(s) }
             val derecha = BooleanArray(t.columnas.size) { DisenoPdf.derecha(t, it) }
             val pinceles = Array(t.columnas.size) { if (DisenoPdf.destacada(t, it)) dato else texto }

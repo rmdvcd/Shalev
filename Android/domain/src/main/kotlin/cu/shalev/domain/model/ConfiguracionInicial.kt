@@ -57,7 +57,7 @@ object PlanConfiguracion {
     }
 
     fun hecho(paso: PasoConfiguracion, perfil: Perfil, licencia: Licencia?, conf: ConfiguracionInicial): Boolean = when (paso) {
-        PasoConfiguracion.DATOS -> !perfil.vacio
+        PasoConfiguracion.DATOS -> !perfil.vacio || PasoConfiguracion.DATOS in conf.confirmados
         PasoConfiguracion.ALERTAS, PasoConfiguracion.PRUEBA -> paso in conf.confirmados
     }
 

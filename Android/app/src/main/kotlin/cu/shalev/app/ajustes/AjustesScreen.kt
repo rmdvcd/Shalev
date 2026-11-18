@@ -1,13 +1,20 @@
 package cu.shalev.app.ajustes
 
+import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.core.content.ContextCompat
+import cu.shalev.app.root.ChecklistPermisosIniciales
+import cu.shalev.app.root.PermisosIniciales
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.designsystem.component.coachMark
 import androidx.compose.material3.Icon
@@ -121,10 +128,19 @@ fun AjustesScreen(
     val localVm: cu.shalev.app.ubicacion.LocalViewModel = hiltViewModel()
     var mostrarLocales by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     if (mostrarLocales) cu.shalev.app.ubicacion.LocalesAjustes(localVm) { mostrarLocales = false }
+    var verPermisos by rememberSaveable { mutableStateOf(false) }
+    if (verPermisos) {
+        ChecklistPermisosIniciales(
+            items = androidx.compose.runtime.remember { PermisosIniciales.lista() },
+            yaConcedido = { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED },
+            onTerminar = { verPermisos = false },
+            onOmitir = { verPermisos = false },
+        )
+    }
     // 1.1: recorrido de Ajustes (sin ventanas abiertas encima).
     cu.shalev.app.recorrido.RecorridoModulo(
         cu.shalev.app.recorrido.Recorrido.AJUSTES,
-        listo = !mostrarLocales && actualizacion.proceso == null,
+        listo = !mostrarLocales && actualizacion.proceso == null && !verPermisos,
     ) {
     AjustesContent(
         onLocales = { mostrarLocales = true },
@@ -133,7 +149,7 @@ fun AjustesScreen(
         state = state,
         onNavigate = onNavigate,
         onBack = onBack,
-        onPermisos = { abrirAjustesDeLaApp(context) },
+        onPermisos = { verPermisos = true },
         actualizacion = actualizacion,
         onBuscarAhora = actVm::buscarAhora,
         onActualizarAhora = actVm::actualizarAhora,
@@ -191,7 +207,7 @@ fun AjustesContent(
         val principal = !state.permisos.esSecundaria
         // 1.1: columna desplazable (no perezosa) para que el recorrido alcance también las últimas filas; son pocas.
         // Las filas van en grupos, y cada grupo es un paso del recorrido de Ajustes.
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState())) {
             if (principal) {
                 val pendientes = state.resumen?.pendientes?.size ?: 0
                 Entry(

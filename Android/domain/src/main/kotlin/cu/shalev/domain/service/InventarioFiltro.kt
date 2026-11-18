@@ -7,12 +7,14 @@ import cu.shalev.domain.model.Insumo
 import cu.shalev.domain.model.EstadoCaducidad
 import cu.shalev.domain.model.FiltroInventario
 import cu.shalev.domain.model.ItemInventario
+import cu.shalev.domain.model.ModoOrden
 import cu.shalev.domain.model.NivelStock
 import cu.shalev.domain.model.NivelesMinimos
 import cu.shalev.domain.model.Producto
 import cu.shalev.domain.model.TipoAlerta
 import cu.shalev.domain.model.TipoArticulo
 import cu.shalev.domain.model.VistaInventario
+import cu.shalev.domain.model.nombreCompleto
 import java.text.Normalizer
 import java.time.LocalDate
 
@@ -51,8 +53,14 @@ object InventarioFiltro {
             .filter { q.isEmpty() || coincide(it.producto, q) }
             .filter { f.alerta == null || cumpleAlerta(it, f.alerta) }
             .toList()
+        val ordenados = when (f.orden) {
+            ModoOrden.CRONOLOGICO -> items.sortedByDescending { it.producto.creadoEn }
+            ModoOrden.ALFABETICO -> items.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.producto.nombreCompleto })
+            ModoOrden.IMPORTE_DESC -> items.sortedByDescending { it.producto.precioVenta }
+            ModoOrden.IMPORTE_ASC -> items.sortedBy { it.producto.precioVenta }
+        }
         val categorias = activos.map { it.categoria.trim() }.distinctBy { it.lowercase() }.sortedBy { plano(it) }
-        return VistaInventario(items, activos.size, categorias, elementosCompletos)
+        return VistaInventario(ordenados, activos.size, categorias, elementosCompletos)
     }
 
     fun caducidad(p: Producto, hoy: LocalDate, diasAviso: Int): EstadoCaducidad {

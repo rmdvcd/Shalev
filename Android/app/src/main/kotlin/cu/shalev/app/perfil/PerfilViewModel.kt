@@ -52,6 +52,7 @@ class PerfilViewModel @Inject constructor(
     private val tipoAppRepo: cu.shalev.domain.repository.TipoAppRepository,
     private val licenciaRepo: cu.shalev.domain.repository.LicenciaRepository,
     private val fotos: FotoRepository,
+    private val confRepo: cu.shalev.domain.repository.ConfiguracionInicialRepository,
 ) : ViewModel() {
 
     /** null = sin borrador: el formulario refleja el Perfil guardado. */
@@ -119,7 +120,11 @@ class PerfilViewModel @Inject constructor(
             // Se relee el Perfil: las listas pueden haber cambiado mientras se editaban los datos.
             val actual = perfilRepo.perfil.first()
             when (val r = guardarPerfil(form.aplicarA(actual))) {
-                is AppResult.Ok -> { borrador.value = null; _mensajes.send(TextosPerfil.GUARDADO) }
+                is AppResult.Ok -> {
+                    confRepo.confirmar(cu.shalev.domain.model.PasoConfiguracion.DATOS)
+                    borrador.value = null
+                    _mensajes.send(TextosPerfil.GUARDADO)
+                }
                 is AppResult.Err -> _mensajes.send(mensajePerfil(r.error))
             }
             guardando.value = false

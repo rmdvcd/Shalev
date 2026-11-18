@@ -1,3 +1,29 @@
+## Miniaturas de tarjetas bancarias redondeadas y visibilidad con teclado (2026-11-18, versión de trabajo 1.0.8)
+
+- **Petición del dueño:** (1) redondear las esquinas de las miniaturas de las tarjetas bancarias, y (2) verificar que las alertas, notificaciones y campos de texto donde se está escribiendo no queden ocultos por el teclado.
+
+### Miniaturas de tarjetas bancarias con esquinas redondeadas
+- **Antes:** en `PagoElectronicoScreen.kt`, `IconoTarjeta` pintaba el recurso directamente con `ContentScale.Fit` dentro de un cuadro de 40 dp (`ShalevSize.miniatura`) sin recorte. Las miniaturas de BANDEC y BANMET, al ser rectángulos a sangre sin canal alfa, mostraban esquinas en punta de 90°. En iOS (`ShalevBankThumbnail.swift`), la imagen tampoco tenía recorte de esquinas.
+- **Ahora:**
+  - Se añade el token `ShalevRadius.tarjetaBancaria = 6.dp` en `Tokens.kt`.
+  - `BancoCubano` (`PagoElectronicoLogic.kt`) expone la propiedad `relacionAspecto: Float` correspondiente a cada recurso (1.77 para BPA, 1.8 para BANDEC, 1.0 para BANMET).
+  - En `PagoElectronicoScreen.kt`, `IconoTarjeta` encaja la imagen con su `aspectRatio` y aplica `.clip(RoundedCornerShape(ShalevRadius.tarjetaBancaria))` centrada en el cuadro de 40 dp. Así las esquinas de cada tarjeta quedan suavemente redondeadas, simulando una tarjeta real.
+  - En iOS (`BankThumbnail.swift`), `ShalevBankThumbnail` incorpora `.clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))`.
+  - Pruebas: `PagoLogicTest.cadaBancoUsaLaMiniaturaConSuLogo` verifica la relación de aspecto de cada banco.
+
+### Visibilidad de alertas, notificaciones y campos de texto frente al teclado
+- **Antes:**
+  - `ShalevSnackbarHost` (la isla de avisos y notificaciones en todas las pantallas individuales) no aplicaba `.imePadding()` de forma predeterminada, de modo que al escribir en un campo mientras salía un aviso o notificación, este quedaba oculto bajo el teclado. Solo `MainScaffold` lo tenía forzado para los avisos de respaldo.
+  - En `ShalevVentana` (`Overlays.kt`), los diálogos emergentes (`Dialog`) no configuraban explícitamente `window.setSoftInputMode(SOFT_INPUT_ADJUST_RESIZE)`.
+  - En `ShalevTextField` (`TextFields.kt`), `BringIntoViewRequester` solo se ejecutaba al cambiar `conFoco` o la visibilidad inicial del teclado, no mientras el usuario continuaba escribiendo (`value`) ni cuando el teclado completaba su desplazamiento de apertura (`imeBottom`).
+  - Pantallas como `InicioScreen`, `AjustesScreen` y `TurnoDetalleScreen` no aplicaban `imePadding()` a sus contenedores raíz.
+- **Ahora:**
+  - `ShalevSnackbarHost` y `ShalevIslaAvisos` aplican `.imePadding()` directamente: las notificaciones, avisos y confirmaciones siempre flotan por encima del teclado.
+  - `ShalevVentana` establece `SOFT_INPUT_ADJUST_RESIZE` en la ventana del diálogo para asegurar que el teclado reduzca el área disponible de forma limpia.
+  - `ShalevTextField` observa `conFoco`, `tecladoVisible`, `imeBottom` y `value`, garantizando que el campo donde el usuario está escribiendo permanezca visible y centrado en la vista durante la escritura.
+  - Se agrega `.imePadding()` a los contenedores principales de `InicioScreen`, `AjustesScreen` y `TurnoDetalleScreen`.
+- **No ejecutados en este contenedor** (sin JDK ni Android SDK; la red solo permite GitHub/npm/PyPI): `shalevTests`, `shalevCheck`, instrumentados y capturas. Detalle en `docs/VERIFICACION.md`.
+
 ## Contador de billetes sin texto, ganancia por local y selector de red para vincular (2026-11-18, versión de trabajo 1.0.7)
 
 - **Petición del dueño:** (1) quitar el texto de los botones −/+ del contador de billetes del cierre, (2) que en el ranking de locales de Inicio cada local muestre su ganancia al lado de las ventas, y (3) poner al inicio de Ajustes → Apps vinculadas un selector de 3 opciones (LAN, Punto de acceso, Datos móviles) con una sola opción posible, LAN por defecto.

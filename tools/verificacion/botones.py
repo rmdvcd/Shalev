@@ -35,6 +35,7 @@ ICONOS_EXCEPCION = {
     "Disminuir", "Aumentar",  # cantidad −/+ (el «slider» de cantidades y pasos)
     "Atras", "Siguiente", "Adelante", "Anterior",  # adelante / atrás
     "Filtrar",  # filtro
+    "Ordenar", "OrdenarAlfabetico", "OrdenarCronologico", "OrdenarImporteDesc", "OrdenarImporteAsc",  # ordenar lista
     "Exportar", "Compartir",  # exportar / compartir
 }
 

@@ -8,10 +8,12 @@ import android.graphics.Typeface
 import android.text.TextPaint
 import android.text.TextUtils
 import cu.shalev.domain.di.IoDispatcher
+import cu.shalev.domain.repository.PerfilRepository
 import cu.shalev.domain.service.TablaExport
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 /**
@@ -58,6 +60,7 @@ object DisenoTabla {
 open class ImagenTablaAndroid @Inject constructor(
     private val archivos: ArchivosApp,
     @IoDispatcher private val io: CoroutineDispatcher,
+    private val perfilRepo: PerfilRepository? = null,
 ) {
 
     private val fondo = Color.WHITE
@@ -69,6 +72,11 @@ open class ImagenTablaAndroid @Inject constructor(
 
     /** [nombreBase] sin extensión: "Shalev_precios" → Shalev_precios_1.png, Shalev_precios_2.png… */
     open suspend fun renderizar(tabla: TablaExport, nombreBase: String): List<File> = withContext(io) {
+        val perfil = perfilRepo?.perfil?.first()
+        val negocio = tabla.nombreNegocio?.takeIf { it.isNotBlank() }
+            ?: perfil?.nombreNegocio?.takeIf { it.isNotBlank() }
+            ?: perfil?.let { "${it.nombre} ${it.apellidos}".trim() }?.takeIf { it.isNotBlank() }
+            ?: "Shalev"
         val paginas = DisenoTabla.paginas(tabla.filas)
         val anchos = DisenoTabla.anchos(tabla.columnas, tabla.filas)
         val derecha = tabla.columnas.indices.map { DisenoTabla.alDerecha(tabla.filas, it) }
@@ -78,8 +86,21 @@ open class ImagenTablaAndroid @Inject constructor(
             val c = Canvas(bmp)
             c.drawColor(fondo)
             val m = DisenoTabla.MARGEN.toFloat()
-            val tituloPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = marca; textSize = 52f; typeface = Typeface.DEFAULT_BOLD }
-            c.drawText(recortar(DisenoTabla.titulo(tabla.titulo, i + 1, paginas.size), tituloPaint, DisenoTabla.ANCHO - 2 * m), m, m + 64f, tituloPaint)
+            val negocioPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = marca
+                textSize = 46f
+                typeface = Typeface.DEFAULT_BOLD
+                textAlign = Paint.Align.CENTER
+            }
+            c.drawText(negocio, DisenoTabla.ANCHO / 2f, m + 44f, negocioPaint)
+
+            val subtituloPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = texto
+                textSize = 34f
+                typeface = Typeface.DEFAULT_BOLD
+                textAlign = Paint.Align.CENTER
+            }
+            c.drawText(DisenoTabla.titulo(tabla.titulo, i + 1, paginas.size), DisenoTabla.ANCHO / 2f, m + 96f, subtituloPaint)
 
             var y = m + DisenoTabla.TITULO
             c.drawRect(m, y, DisenoTabla.ANCHO - m, y + DisenoTabla.CABECERA, Paint().apply { color = cabeceraFondo })

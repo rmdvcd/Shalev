@@ -44,15 +44,25 @@ class ObservarResumenConfiguracion @Inject constructor(
 class GuardarDatosIniciales @Inject constructor(
     private val perfil: PerfilRepository,
     private val guardarPerfil: GuardarPerfil,
+    private val conf: ConfiguracionInicialRepository,
 ) {
     suspend operator fun invoke(d: DatosIniciales): AppResult<Unit> {
         validar(d)?.let { return AppResult.Err(it) }
         val actual = perfil.perfil.first()
-        if (d.vacios && actual.vacio) return AppResult.Ok(Unit)
+        if (d.vacios && actual.vacio) {
+            conf.confirmar(PasoConfiguracion.DATOS)
+            return AppResult.Ok(Unit)
+        }
         val tel = d.telefono.takeIf { it.isNotBlank() }?.let(Phone::normalize)
         val telefonos = if (tel == null || actual.telefonos.any { it.numero == tel }) actual.telefonos
         else listOf(Telefono(numero = tel)) + actual.telefonos
-        return guardarPerfil(actual.copy(nombre = d.nombre, apellidos = d.apellidos, ci = d.ci, telefonos = telefonos))
+        return when (val r = guardarPerfil(actual.copy(nombre = d.nombre, apellidos = d.apellidos, ci = d.ci, telefonos = telefonos))) {
+            is AppResult.Ok -> {
+                conf.confirmar(PasoConfiguracion.DATOS)
+                r
+            }
+            is AppResult.Err -> r
+        }
     }
 
     companion object {

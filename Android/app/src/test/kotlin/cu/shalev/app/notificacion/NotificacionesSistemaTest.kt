@@ -51,7 +51,7 @@ class NotificacionesSistemaTest {
         val notif = publicada(40)!!
         assertEquals("Actualización de Shalev", notif.titulo())
         assertEquals("Descargando la actualización… · 42 %", notif.texto())
-        assertEquals(R.drawable.ic_stat_actualizacion, notif.smallIcon.resId)
+        assertEquals(R.drawable.ic_stat_shalev, notif.smallIcon.resId)
         assertEquals(100, notif.maximo())
         assertEquals(42, notif.progreso())
         assertFalse(notif.indeterminada())
@@ -69,7 +69,7 @@ class NotificacionesSistemaTest {
         val n = NotificadorOperaciones(app, OperacionesEnCurso(), VisibilidadApp())
         n.aplicar(Operacion.RESPALDO, EstadoOperacion(TipoAviso.CARGA, "Comprobando el respaldo", "Etapa 1 de 1 · Comprobando el archivo…"), visible = true)
         val notif = publicada(41)!!
-        assertEquals(R.drawable.ic_stat_respaldo, notif.smallIcon.resId)
+        assertEquals(R.drawable.ic_stat_shalev, notif.smallIcon.resId)
         assertTrue(notif.indeterminada())
         assertTrue(notif.fija())
         assertTrue(notif.actions.isNullOrEmpty())
@@ -123,7 +123,7 @@ class NotificacionesSistemaTest {
     @Test fun barraDeSincronizacionYResultado() {
         val barra = NotificacionesSync.progreso(app, ProgresoSync(30, 120, FaseSync.RECIBIENDO), apps = 2)
         assertEquals("Sincronizando 2 apps", barra.titulo())
-        assertEquals(R.drawable.ic_stat_sync, barra.smallIcon.resId)
+        assertEquals(R.drawable.ic_stat_shalev, barra.smallIcon.resId)
         assertEquals(120, barra.maximo())
         assertEquals(30, barra.progreso())
         assertEquals("25 %", barra.texto())

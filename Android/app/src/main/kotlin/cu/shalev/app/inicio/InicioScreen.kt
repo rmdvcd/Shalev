@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -313,7 +314,8 @@ fun InicioContent(
     ) { padding ->
         // Capa propia en vez del hueco del Scaffold: con una fila a todo el ancho dentro del hueco,
         // el Scaffold la medía más ancha que la pantalla y los botones quedaban medio fuera.
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        // imePadding asegura que nada quede oculto si el teclado está desplegado.
+        Box(Modifier.fillMaxSize().padding(padding).imePadding()) {
             Column(Modifier.fillMaxSize()) {
                 // 0.31.0 (P1): el turno, el selector de período, el banner de licencia y, cuando el turno está
                 // abierto, los botones Venta y Caja NO se desplazan: se quedan fijos arriba, uno debajo de otro,

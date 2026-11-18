@@ -60,6 +60,9 @@ class PagoLogicTest {
         assertEquals(R.drawable.bpa_miniatura, miniaturaBanco(BancoCubano.BPA))
         assertEquals(R.drawable.bandec_miniatura, miniaturaBanco(BancoCubano.BANDEC))
         assertEquals(R.drawable.banmet_miniatura, miniaturaBanco(BancoCubano.BANMET))
+        assertTrue(BancoCubano.BPA.relacionAspecto > 1f)
+        assertTrue(BancoCubano.BANDEC.relacionAspecto > 1f)
+        assertEquals(1f, BancoCubano.BANMET.relacionAspecto)
     }
 
     @Test fun enEdicionElNumeroEsObligatorio() {

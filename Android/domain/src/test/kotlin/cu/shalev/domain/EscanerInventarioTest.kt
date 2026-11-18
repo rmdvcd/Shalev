@@ -77,6 +77,25 @@ class EscanerInventarioTest {
         assertEquals(2, FiltroInventario(categoria = "x", alerta = TipoAlerta.STOCK_BAJO, texto = "y").activos)
     }
 
+    @Test fun ordenacionDeInventario() {
+        val p1 = producto(1, "Zumo", venta = 300, creado = java.time.Instant.ofEpochSecond(1000))
+        val p2 = producto(2, "Agua", venta = 100, creado = java.time.Instant.ofEpochSecond(2000))
+        val p3 = producto(3, "Café", venta = 200, creado = java.time.Instant.ofEpochSecond(3000))
+        val lista = listOf(p1, p2, p3)
+
+        val crono = InventarioFiltro.aplicar(lista, FiltroInventario(orden = cu.shalev.domain.model.ModoOrden.CRONOLOGICO), n, hoy, 7)
+        assertEquals(listOf(3L, 2L, 1L), crono.items.map { it.producto.id })
+
+        val alfa = InventarioFiltro.aplicar(lista, FiltroInventario(orden = cu.shalev.domain.model.ModoOrden.ALFABETICO), n, hoy, 7)
+        assertEquals(listOf(2L, 3L, 1L), alfa.items.map { it.producto.id })
+
+        val desc = InventarioFiltro.aplicar(lista, FiltroInventario(orden = cu.shalev.domain.model.ModoOrden.IMPORTE_DESC), n, hoy, 7)
+        assertEquals(listOf(1L, 3L, 2L), desc.items.map { it.producto.id })
+
+        val asc = InventarioFiltro.aplicar(lista, FiltroInventario(orden = cu.shalev.domain.model.ModoOrden.IMPORTE_ASC), n, hoy, 7)
+        assertEquals(listOf(2L, 3L, 1L), asc.items.map { it.producto.id })
+    }
+
     // ---------------- Ficha, guardado y borrado ----------------
 
     @Test fun fichaParaClientesNoLlevaCostoNiExistencias() {

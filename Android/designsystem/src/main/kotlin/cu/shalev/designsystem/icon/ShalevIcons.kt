@@ -125,6 +125,12 @@ object ShalevIcons {
     val AvisoAdvertencia: ImageVector get() = MaterialSolido.Warning
     val AvisoError: ImageVector get() = MaterialSolido.ErrorCirculo
 
+    // Ordenación (Inventario y Servicios)
+    val OrdenarAlfabetico: ImageVector get() = MaterialSolido.SortByAlpha
+    val OrdenarCronologico: ImageVector get() = MaterialSolido.Schedule
+    val OrdenarImporteDesc: ImageVector get() = MaterialSolido.ArrowDownward
+    val OrdenarImporteAsc: ImageVector get() = MaterialSolido.ArrowUpward
+
     /**
      * Glifo de WhatsApp (24×24). Los flags de arco van con separadores explícitos (`0 0 1`):
      * la forma compacta `01-5.031` no la interpretan bien todos los parsers. Validado renderizando el path.
@@ -233,6 +239,9 @@ internal object MaterialSolido {
     val Logout: ImageVector by lazy { icono("Logout", "m 17 7 -1.41 1.41 L 18.17 11 H 8 v 2 h 10.17 l -2.58 2.58 L 17 17 l 5 -5 z M 4 5 h 8 V 3 H 4 c -1.1 0 -2 .9 -2 2 v 14 c 0 1.1 .9 2 2 2 h 8 v -2 H 4 V 5 z", espejo = true) }
     val UploadFile: ImageVector by lazy { icono("UploadFile", "M 14 2 H 6 c -1.1 0 -1.99 .9 -1.99 2 L 4 20 c 0 1.1 .89 2 1.99 2 H 18 c 1.1 0 2 -.9 2 -2 V 8 l -6 -6 z m 4 18 H 6 V 4 h 7 v 5 h 5 v 11 z M 8 15.01 l 1.41 1.41 L 11 14.84 V 19 h 2 v -4.16 l 1.59 1.59 L 16 15.01 12.01 11 z") }
     val PhoneAndroid: ImageVector by lazy { icono("PhoneAndroid", "M 16 1 H 8 C 6.34 1 5 2.34 5 4 v 16 c 0 1.66 1.34 3 3 3 h 8 c 1.66 0 3 -1.34 3 -3 V 4 c 0 -1.66 -1.34 -3 -3 -3 z m -2 20 h -4 v -1 h 4 v 1 z m 3.25 -3 H 6.75 V 4 h 10.5 v 14 z") }
+    val SortByAlpha: ImageVector by lazy { icono("SortByAlpha", "M 14.94 4.66 h -4.72 l 2.36 -2.36 z M 14.94 19.34 l -2.36 2.36 -2.36 -2.36 z M 3 13 h 2 v -2 H 3 v 2 z M 3 7 h 6 v 2 H 3 V 7 z M 3 17 h 8 v 2 H 3 v -2 z") }
+    val ArrowUpward: ImageVector by lazy { icono("ArrowUpward", "M 4 12 l 1.41 1.41 L 11 7.83 V 20 h 2 V 7.83 l 5.58 5.59 L 20 12 l -8 -8 -8 8 z") }
+    val ArrowDownward: ImageVector by lazy { icono("ArrowDownward", "M 20 12 l -1.41 -1.41 L 13 16.17 V 4 h -2 v 12.17 l -5.58 -5.59 L 4 12 l 8 8 8 -8 z") }
 
     // P37 (Material Icons, Apache 2.0)
     val Devices: ImageVector by lazy { icono("Devices", "M4 6h18V4H4c-1.1 0-2 .9-2 2v11H0v3h14v-3H4V6zm19 2h-6c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V9c0-.55-.45-1-1-1zm-1 9h-4v-7h4v7z") }

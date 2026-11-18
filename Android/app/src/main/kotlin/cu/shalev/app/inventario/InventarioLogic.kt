@@ -54,6 +54,7 @@ object InventarioTags {
     const val CONTINUAR_VENTA = "inventario_continuar_venta"
     const val LISTA = "inventario_lista"
     const val BUSCAR = "inventario_buscar"
+    const val ORDENAR = "inventario_ordenar"
     const val FILTRO = "inventario_filtro"
     const val EXPORTAR = "inventario_exportar"
     const val AGREGAR = "inventario_agregar"

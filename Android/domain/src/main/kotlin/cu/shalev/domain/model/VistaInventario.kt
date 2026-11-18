@@ -16,6 +16,7 @@ data class FiltroInventario(
     val categoria: String? = null,
     val alerta: TipoAlerta? = null,
     val tipo: TipoArticulo = TipoArticulo.TODOS,
+    val orden: ModoOrden = ModoOrden.CRONOLOGICO,
 ) {
     /** Filtros del botón (el texto del buscador no cuenta): para el distintivo del icono. */
     val activos: Int get() = listOf(categoria != null, alerta != null, tipo != TipoArticulo.TODOS).count { it }

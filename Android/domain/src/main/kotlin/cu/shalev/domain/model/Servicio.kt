@@ -48,7 +48,11 @@ data class ServicioDisponible(val servicio: Servicio, val lineas: List<LineaServ
 }
 
 /** Buscador + filtro por tipo de la lista de Servicios. */
-data class FiltroServicios(val texto: String = "", val tipo: String? = null) {
+data class FiltroServicios(
+    val texto: String = "",
+    val tipo: String? = null,
+    val orden: ModoOrden = ModoOrden.CRONOLOGICO,
+) {
     val activos: Int get() = if (tipo != null) 1 else 0
     val vacio: Boolean get() = activos == 0 && texto.isBlank()
 }

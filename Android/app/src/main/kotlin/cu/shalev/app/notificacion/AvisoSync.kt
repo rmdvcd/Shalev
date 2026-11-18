@@ -268,7 +268,7 @@ internal object NotificacionesSync {
 
     private fun base(context: Context, canal: String, tipo: TipoAviso, titulo: String, texto: String) =
         NotificationCompat.Builder(context, canal)
-            .setSmallIcon(R.drawable.ic_stat_sync)
+            .setSmallIcon(R.drawable.ic_stat_shalev)
             .setColor(ReglasNotificacion.color(context, tipo))
             .setContentTitle(titulo)
             .setContentText(texto)
@@ -313,7 +313,7 @@ internal object NotificacionesSync {
             .setStyle(NotificationCompat.BigTextStyle().bigText(CORTADA_DETALLE))
             .setAutoCancel(true)
             .addAction(
-                R.drawable.ic_stat_sync, REINTENTAR,
+                R.drawable.ic_stat_shalev, REINTENTAR,
                 AccionNotificacionReceiver.intent(context, AccionNotificacionReceiver.REINTENTAR_SYNC),
             )
             .build()

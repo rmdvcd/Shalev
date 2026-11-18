@@ -186,7 +186,7 @@ class AvisoTurno @Inject constructor(
         val hora = p.turnoDesde?.let { DateFormat.getTimeFormat(context).format(Date.from(it)) }
         val detalle = PlanAviso.detalle(p)
         return NotificationCompat.Builder(context, CANAL)
-            .setSmallIcon(R.drawable.ic_stat_turno)
+            .setSmallIcon(R.drawable.ic_stat_shalev)
             .setColor(ReglasNotificacion.color(context, cu.shalev.designsystem.component.TipoAviso.INFO))
             .setContentTitle(if (p.turnoDesde != null) "Turno abierto" else "Apps vinculadas")
             .setContentText(PlanAviso.texto(p, hora))
