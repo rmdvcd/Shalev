@@ -318,10 +318,10 @@ fun InicioContent(
                 // 0.31.0 (P1): el turno, el selector de período, el banner de licencia y, cuando el turno está
                 // abierto, los botones Venta y Caja NO se desplazan: se quedan fijos arriba, uno debajo de otro,
                 // mientras el resto de Inicio hace scroll.
-                
+
                 // Selección compartida; los nombres se administran en Ajustes.
                 localViewModel?.let { LocalInicioSelector(it, Modifier.coachMark(ObjetivosRecorrido.CAJA_LOCAL)) }
-                
+
                 BloqueFijo(state, acciones, permisos, zona)
                 val estadoLista = remember { LazyListState() }
                 // 0.31.0 (P1): Inicio se abre siempre por arriba: la lista no guarda su posición (Android la
@@ -864,7 +864,7 @@ private fun GananciaCard(g: GraficosPeriodo, zona: ZoneId, ac: AcordeonesInicio)
     }
 }
 
-// ---------------- Resumen general (Inventario actual; Métodos de pago y Top 3 del período) ----------------
+// ---------------- Resumen general (Inventario actual; Métodos de pago, Top 3 y ranking de locales del período) ----------------
 
 private fun LazyListScope.resumenGeneral(estado: EstadoCarga<ResumenGeneral>, periodo: String, onReintentar: () -> Unit, ac: AcordeonesInicio) {
     when (estado) {
@@ -908,6 +908,8 @@ private fun LazyListScope.resumenCon(r: ResumenGeneral, periodo: String, ac: Aco
     top(TipoTop.SERVICIO_MENOS, r.servicios.menosVendidos, periodo, ac)
     topPersonas(TipoTop.EMPLEADO, r.empleados, periodo, "venta", "ventas", ac)
     topPersonas(TipoTop.CLIENTE, r.clientes, periodo, "compra", "compras", ac)
+    // 1.0.6: la última lista de Inicio: los locales que más ventas generan, de mayor a menor (todos los locales).
+    topPersonas(TipoTop.LOCAL, r.locales, periodo, "venta", "ventas", ac)
 }
 
 /** Top 3: oculto si no hay datos (Shalev.txt). */
@@ -934,7 +936,7 @@ private fun LazyListScope.top(tipo: TipoTop, items: List<TopItem>, periodo: Stri
     }
 }
 
-/** Top 3 de personas (empleados y clientes): oculto si no hay datos. */
+/** Top 3 de personas (empleados y clientes) y ranking de locales: oculto si no hay datos. */
 private fun LazyListScope.topPersonas(tipo: TipoTop, items: List<TopPersona>, periodo: String, singular: String, plural: String, ac: AcordeonesInicio) {
     if (items.isEmpty()) return
     item(key = "top_${tipo.name}") {
@@ -945,9 +947,13 @@ private fun LazyListScope.topPersonas(tipo: TipoTop, items: List<TopPersona>, pe
         ) {
             Subtitulo(periodo)
             items.forEachIndexed { i, it ->
+                // 1.0.7: en el ranking de locales, junto al nº de ventas va la ganancia bruta del local.
+                val ganancia = it.ganancia?.let { g -> " · Ganancia ${Money.format(g)}" }.orEmpty()
+                val subtitulo = (if (it.operaciones == 1) "1 $singular" else "${it.operaciones} $plural") + ganancia
                 ShalevListItem(
                     title = it.nombre,
-                    subtitle = if (it.operaciones == 1) "1 $singular" else "${it.operaciones} $plural",
+                    subtitleResaltado = ShalevTextos.resaltar(subtitulo, it.ganancia?.let { g -> Money.format(g) }.orEmpty()),
+                    subtitleMaxLines = if (it.ganancia != null) 2 else 1,
                     value = Money.format(it.importe),
                     indicatorColor = null,
                     leading = { puestoTop(i)?.let { n -> MedallaPuesto(n) } },

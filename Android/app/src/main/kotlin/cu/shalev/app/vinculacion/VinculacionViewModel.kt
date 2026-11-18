@@ -79,6 +79,8 @@ data class VinculacionUi(
     val errorTelefono: String? = null,
     /** 0.27.0 (T9): en el recorrido inicial se eligió «Secundaria» (si no, esta app es principal para siempre). */
     val eligioSecundaria: Boolean = false,
+    /** 1.0.7: por qué red se anuncia la principal (LAN por defecto); se elige al inicio de esta pantalla. */
+    val modoRed: cu.shalev.domain.model.ModoRed = cu.shalev.domain.model.ModoRed.LAN,
 ) {
     /** Regla exclusiva del vínculo inicial desde el recorrido de configuración. */
     val puedeSerSecundaria: Boolean get() = cu.shalev.domain.model.Vinculacion.puedeVincularseComoSecundaria(tipo, eligioSecundaria, empleados.size)
@@ -114,7 +116,7 @@ class VinculacionViewModel @Inject constructor(
     private val secundaria: SecundariaRepository,
     perfilRepo: PerfilRepository,
     private val licencia: cu.shalev.domain.repository.LicenciaRepository,
-    ajustesDispositivo: cu.shalev.domain.repository.AjustesDispositivoRepository,
+    private val ajustesDispositivo: cu.shalev.domain.repository.AjustesDispositivoRepository,
     private val estadoApp: cu.shalev.domain.repository.EstadoAppRepository,
 ) : ViewModel() {
     private val local = MutableStateFlow(Local())
@@ -128,7 +130,7 @@ class VinculacionViewModel @Inject constructor(
     private val baseSinRespaldo = combine(
         tipoRepo.tipo, principal.observarEmpleados(), principal.estado, secundaria.estado, ajustesDispositivo.ajustes,
     ) { t, e, p, s, a ->
-        VinculacionUi(t, e, p, s, eligioSecundaria = a.eligioSecundaria)
+        VinculacionUi(t, e, p, s, eligioSecundaria = a.eligioSecundaria, modoRed = a.modoRed)
     }
     private val base = combine(baseSinRespaldo, estadoApp.estado) { b, app ->
         b.copy(ultimoRespaldo = app.ultimoRespaldo)
@@ -148,6 +150,9 @@ class VinculacionViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VinculacionUi())
 
     // ---------------------------------------------------------------- principal
+
+    /** 1.0.7: una sola opción (LAN por defecto); se guarda en el teléfono y manda en el anuncio y el QR. */
+    fun modoRed(m: cu.shalev.domain.model.ModoRed) = viewModelScope.launch { ajustesDispositivo.guardarModoRed(m) }
 
     fun agregar() = local.update { it.copy(form = FormEmpleado()) }
     fun editar(e: Empleado) = local.update { it.copy(form = FormEmpleado(e.id, e.nombre, e.permisos, tarjetaId = e.tarjetaId, telefonoId = e.telefonoId)) }

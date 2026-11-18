@@ -13,6 +13,7 @@ import cu.shalev.domain.model.EstadoPrincipal
 import cu.shalev.domain.model.FaseSync
 import cu.shalev.domain.model.LicenciaPrincipal
 import cu.shalev.domain.model.ProgresoSync
+import cu.shalev.domain.repository.AjustesDispositivoRepository
 import cu.shalev.domain.repository.LicenciaRepository
 import cu.shalev.domain.repository.PerfilRepository
 import cu.shalev.domain.usecase.UsuarioActual
@@ -79,6 +80,8 @@ class ServidorSync @Inject constructor(
     private val fotos: cu.shalev.data.foto.FotosLocal,
     /** 1.0.2: copias completas disponibles solo tras autorización explícita del dueño. */
     private val copias: CopiaBaseSync,
+    /** 1.0.7: modo de red elegido en Ajustes → Apps vinculadas (qué interfaces se anuncian). */
+    private val ajustesDispositivo: AjustesDispositivoRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val relay = RelayPrincipal(db, config)
@@ -127,7 +130,7 @@ class ServidorSync @Inject constructor(
             socket = ss
             db.invalidationTracker.addObserver(observador)
             red.anunciar(config.negocioId(), ss.localPort)
-            _estado.update { it.copy(escuchando = true, puerto = ss.localPort, direcciones = red.direcciones()) }
+            _estado.update { it.copy(escuchando = true, puerto = ss.localPort, direcciones = red.direcciones(modoRed())) }
             launch { refrescarDirecciones() }
             launch {
                 relay.ejecutar(this) { remoto ->
@@ -215,10 +218,14 @@ class ServidorSync @Inject constructor(
     private suspend fun refrescarDirecciones() {
         while (true) {
             delay(10_000)
-            val d = red.direcciones()
+            // 1.0.7: se relee el modo en cada pasada: al cambiarlo en Ajustes el anuncio se corrige solo.
+            val d = red.direcciones(modoRed())
             if (d != _estado.value.direcciones) _estado.update { it.copy(direcciones = d) }
         }
     }
+
+    /** 1.0.7: modo de red vigente (LAN por defecto) para anunciar solo las direcciones de esa red. */
+    private suspend fun modoRed() = ajustesDispositivo.ajustes.first().modoRed
 
     private suspend fun repartirAvisos() {
         for (u in avisos) {

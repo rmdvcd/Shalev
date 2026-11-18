@@ -242,6 +242,10 @@ class VentaRepositoryImpl @Inject constructor(private val db: ShalevDatabase) : 
     override suspend fun entre(desde: Instant, hasta: Instant): List<Venta> =
         ventas.entre(desde.toEpochMilli(), hasta.toEpochMilli()).map { it.toDomain() }.conVendedoresDb()
 
+    /** 1.0.6: sin el filtro del local activo (ranking «Ventas por local» de Inicio). */
+    override suspend fun entreTodosLosLocales(desde: Instant, hasta: Instant): List<Venta> =
+        ventas.entreTodosLosLocales(desde.toEpochMilli(), hasta.toEpochMilli()).map { it.toDomain() }.conVendedoresDb()
+
     override suspend fun deTurno(turnoId: Long): List<Venta> = ventas.deTurno(turnoId).map { it.toDomain() }.conVendedoresDb()
 
     /** Lee el mapa venta→vendedor en una sola consulta (lista vacía = sin consulta). */

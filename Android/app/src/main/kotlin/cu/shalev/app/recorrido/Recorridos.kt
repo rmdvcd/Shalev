@@ -420,7 +420,7 @@ enum class Recorrido(val clave: String, val pasos: List<CoachMarkPaso>) {
         "ventana_conteo",
         listOf(
             paso(ObjetivosRecorrido.CONTEO_ESPERADO, "Esperado", "Lee cuánto efectivo debería haber en la caja."),
-            paso(ObjetivosRecorrido.CONTEO_CONTADO, "Contar", "Usa −1 y +1 o escribe cuántos billetes hay de cada valor."),
+            paso(ObjetivosRecorrido.CONTEO_CONTADO, "Contar", "Toca los botones de menos y más, o escribe cuántos billetes hay de cada valor."),
             paso(ObjetivosRecorrido.CONTEO_CUADRA, "Cuadra", "Toca Cuadra si contaste justo lo esperado."),
             paso(ObjetivosRecorrido.CONTEO_MODO, "Total o billetes", "Toca Omitir para escribir solo el total, o Billetes para contarlos."),
             confirmar("Confirmar", "Toca para guardar el conteo y seguir."),

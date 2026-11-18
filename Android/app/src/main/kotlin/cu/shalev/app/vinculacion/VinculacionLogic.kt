@@ -13,6 +13,8 @@ import java.time.Instant
 /** P37: textos y reglas puras de «Apps vinculadas» (testeadas en VinculacionLogicTest). */
 object VinculacionLogic {
     const val TITULO = "Apps vinculadas"
+    /** 1.0.7: tarjeta al inicio de la vista principal para elegir por qué red se anuncia a las secundarias. */
+    const val MODO_RED_TITULO = "Red para anunciar este teléfono"
     const val PRINCIPAL_DETALLE =
         "Esta es la app principal: guarda todos los datos y la licencia. Tus empleados se vinculan con un código QR."
     const val SIN_SECUNDARIAS = "Aún no hay apps secundarias"

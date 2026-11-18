@@ -86,6 +86,8 @@ object VinculacionTags {
     const val QR = "vinculacion.qr"
     const val RED = "vinculacion.red"
     const val PEDIR_CIERRE = "vinculacion.pedir_cierre"
+    /** 1.0.7: tarjeta con las 3 opciones de red (LAN por defecto) al inicio de la vista principal. */
+    const val MODO_RED = "vinculacion.modo_red"
     const val COBRO_TARJETA = "vinculacion.cobro_tarjeta"
     const val COBRO_TELEFONO = "vinculacion.cobro_telefono"
     const val TELEFONO = "vinculacion.telefono"
@@ -163,6 +165,7 @@ fun VinculacionScreen(
             onPedirRechazarImportacion = viewModel::pedirRechazarImportacion,
             onCancelarResolucionImportacion = viewModel::cancelarResolucionImportacion,
             onConfirmarResolucionImportacion = viewModel::confirmarResolucionImportacion,
+            onModoRed = viewModel::modoRed,
         )
     }
 }
@@ -205,6 +208,8 @@ fun VinculacionContent(
     onPedirRechazarImportacion: () -> Unit = {},
     onCancelarResolucionImportacion: () -> Unit = {},
     onConfirmarResolucionImportacion: () -> Unit = {},
+    /** 1.0.7: modo de red por el que la principal se anuncia (una sola opción, LAN por defecto). */
+    onModoRed: (cu.shalev.domain.model.ModoRed) -> Unit = {},
 ) {
     val esPrincipal = s.tipo == TipoApp.PRINCIPAL
     Scaffold(
@@ -220,7 +225,7 @@ fun VinculacionContent(
             Modifier.fillMaxSize().padding(padding).imePadding(), // el teclado no tapa el campo del teléfono ni las acciones
             verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
         ) {
-            if (esPrincipal) principal(s, onEditar, onPedirSecundaria) else secundaria(s, onSincronizar, onPedirDesvincular)
+            if (esPrincipal) principal(s, onEditar, onPedirSecundaria, onModoRed) else secundaria(s, onSincronizar, onPedirDesvincular)
         }
     }
 
@@ -418,7 +423,31 @@ private fun androidx.compose.foundation.lazy.LazyListScope.principal(
     s: VinculacionUi,
     onEditar: (Empleado) -> Unit,
     onPedirSecundaria: () -> Unit,
+    onModoRed: (cu.shalev.domain.model.ModoRed) -> Unit,
 ) {
+    // 1.0.7: al inicio, la red por la que esta principal se anuncia a las secundarias (una sola opción, LAN por defecto).
+    item {
+        ShalevCard(Modifier.padding(horizontal = ShalevSpacing.md).testTag(VinculacionTags.MODO_RED), title = VinculacionLogic.MODO_RED_TITULO) {
+            Column(Modifier.selectableGroup()) {
+                cu.shalev.domain.model.ModoRed.entries.forEach { modo ->
+                    Row(
+                        Modifier.fillMaxWidth().selectable(
+                            selected = s.modoRed == modo,
+                            onClick = { onModoRed(modo) },
+                            role = Role.RadioButton,
+                        ).padding(vertical = ShalevSpacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = s.modoRed == modo, onClick = null)
+                        Column {
+                            Text(modo.etiqueta, style = MaterialTheme.typography.bodyMedium)
+                            Text(modo.detalle, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        }
+    }
     item {
         Text(
             VinculacionLogic.PRINCIPAL_DETALLE, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center,

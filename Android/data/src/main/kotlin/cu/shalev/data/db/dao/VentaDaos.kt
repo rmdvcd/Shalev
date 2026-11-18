@@ -43,6 +43,11 @@ interface VentaDao {
     @Query("SELECT * FROM venta WHERE fecha >= :desde AND fecha < :hasta AND local = COALESCE((SELECT nombre FROM almacen_local WHERE inventario = 1 LIMIT 1), local) ORDER BY fecha, id")
     suspend fun entre(desde: Long, hasta: Long): List<VentaCompleta>
 
+    /** 1.0.6: ventas de TODOS los locales en [desde, hasta) (ranking «Ventas por local» de Inicio; las demás consultas se limitan al activo). */
+    @Transaction
+    @Query("SELECT * FROM venta WHERE fecha >= :desde AND fecha < :hasta ORDER BY fecha, id")
+    suspend fun entreTodosLosLocales(desde: Long, hasta: Long): List<VentaCompleta>
+
     @Transaction
     @Query("SELECT * FROM venta WHERE turnoId = :turnoId ORDER BY fecha, id")
     suspend fun deTurno(turnoId: Long): List<VentaCompleta>

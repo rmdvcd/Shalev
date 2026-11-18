@@ -121,6 +121,7 @@ class ObtenerGraficosPeriodo @Inject constructor(
 /**
  * Inventario por categorías (existencias actuales, no depende del período) y, del [Periodo] elegido en Inicio, Métodos
  * de pago y todos los Top 3. Mismas ventas que los gráficos: las del turno, o las del rango hasta «ahora».
+ * 1.0.6: excepción — «Ventas por local» usa las ventas de TODOS los locales del período, no solo las del activo.
  */
 class ObtenerResumenGeneral @Inject constructor(
     private val ventas: VentaRepository,
@@ -145,6 +146,12 @@ class ObtenerResumenGeneral @Inject constructor(
             // El nanosegundo incluye una venta registrada en el instante del reloj; lo futuro queda fuera (como en los gráficos).
             is Periodo.Rango -> ventas.entre(periodo.desde, minOf(periodo.hasta, clock.now().plusNanos(1)))
         }.validas()
+        // 1.0.6: el ranking de locales cruza TODOS los locales (el resto del resumen es del local activo).
+        // Un turno pertenece a un solo local y deTurno no filtra por local: sus ventas ya son el ranking.
+        val ventasDeTodos = when (periodo) {
+            is Periodo.DeTurno -> lista
+            is Periodo.Rango -> ventas.entreTodosLosLocales(periodo.desde, minOf(periodo.hasta, clock.now().plusNanos(1)))
+        }
         val inventario = productos.observarTodos().first()
         // 1.0.1: los insumos con precio de venta cuentan como productos en el Top 3.
         val ins = insumos.observarTodos().first()
@@ -155,6 +162,7 @@ class ObtenerResumenGeneral @Inject constructor(
             servicios = Estadisticas.topServicios(lista, servicios.observarTodos().first()),
             empleados = Estadisticas.topEmpleados(lista),
             clientes = Estadisticas.topClientes(lista),
+            locales = Estadisticas.topLocales(ventasDeTodos),
         )
     }
 }

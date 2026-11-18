@@ -317,8 +317,8 @@ fun DialogoContado(
                                 cantidades = cantidades.toMutableList().also { it[i] = if (sig == 0L) "" else sig.toString() }
                             },
                             enabled = actual > 0L,
-                            style = IconActionStyle.Tonal, repetible = true,
-                            etiqueta = "−1",
+                            // 1.0.7: solo el icono, sin el texto «−1» (como los selectores de cantidad de la venta).
+                            style = IconActionStyle.Tonal, repetible = true, mostrarTexto = false,
                             modifier = Modifier.testTag("billetes_menos_$denominacion"),
                         )
                         ShalevTextField(
@@ -344,8 +344,7 @@ fun DialogoContado(
                                 cantidades = cantidades.toMutableList().also { it[i] = sig.toString() }
                             },
                             enabled = actual < 999_999L, repetible = true,
-                            style = IconActionStyle.Tonal,
-                            etiqueta = "+1",
+                            style = IconActionStyle.Tonal, mostrarTexto = false, // 1.0.7: sin el texto «+1»
                             modifier = Modifier.testTag("billetes_mas_$denominacion"),
                         )
                     }

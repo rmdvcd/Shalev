@@ -33,7 +33,7 @@ object AyudaContenido {
         pasos = listOf(
             "Usa la barra inferior para cambiar de sección o desliza entre pantallas principales",
             "Activa el interruptor del turno cuando empieces a trabajar",
-            "Elige el período: cambia los gráficos, los métodos de pago y los Top 3",
+            "Elige el período: cambia los gráficos, los métodos de pago y los rankings (Top 3 y Ventas por local)",
             "Toca una barra de Ventas para ver su importe; vuelve a tocarla para ocultarlo",
             "Ganancia bruta no descuenta otros gastos; el inventario se distribuye por valor al costo en CUP"
         ),

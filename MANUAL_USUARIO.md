@@ -191,6 +191,7 @@ Debajo del banner fijo de licencia, con el turno abierto, aparecen los iconos de
   - **Inventario:** gráfico circular de distribución de tus existencias por categoría.
   - **Métodos de pago:** proporción cobrada en efectivo frente a transferencia en el **período elegido**.
   - **Rankings Top 3 con medallas de oro, plata y bronce:** productos más vendidos, artículos de lento movimiento, mayor rentabilidad, servicios más y menos vendidos, los **3 mejores vendedores (empleados)** y los **3 mejores clientes por transferencia**. Todos se calculan con las ventas del **período elegido** en **Período** (Turno, Hoy, 7 días, Este mes o Este año), igual que Métodos de pago; el período aparece debajo del título de cada uno. El gráfico **Inventario** muestra siempre las existencias actuales. Los **insumos con precio de venta** cuentan como productos en estos rankings (los de solo receta no).
+  - **Ventas por local:** la última lista. Ordena los locales del negocio **de mayor a menor** según lo vendido en el período elegido, con el importe, el número de ventas y la **ganancia bruta** de cada uno (medallas para los tres primeros). Es el único indicador que reúne las ventas de **todos los locales**; los demás rankings y gráficos muestran solo el local seleccionado. Si solo has vendido en un local durante el período, verás una sola fila.
 
 | <img src="promocion/capturas/shot_inicio_claro.png" alt="Pantalla de Inicio con barra inferior" width="240"/> | <img src="Android/app/capturas/claro/01j_inicio_acordeones_cerrados.png" alt="Inicio con turno abierto y alertas" width="240"/> |
 |:---:|:---:|
@@ -229,7 +230,7 @@ Al finalizar la jornada, desactiva el interruptor de **Turno abierto** en **Inic
 
 1. **Paso 1 — Conteo de efectivo por billetes:**
    - Shalev muestra el **Efectivo esperado** calculado automáticamente (`Fondo + Ventas en efectivo + Entradas − Salidas`).
-   - Escribe cuántos billetes tienes de cada denominación, ordenadas de mayor a menor (**20000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 3 y 1 CUP**) y añade aparte las **Monedas / otro efectivo**. Los campos vacíos valen cero.
+   - Escribe cuántos billetes tienes de cada denominación, ordenadas de mayor a menor (**20000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 3 y 1 CUP**) y añade aparte las **Monedas / otro efectivo**. Los campos vacíos valen cero. Toca los botones de menos y más para ajustar cada denominación, o escribe la cantidad directamente.
    - ¿Prefieres no contar billete por billete? Pulsa el icono de **Omitir el conteo de billetes**, en el pie del cuadro, a la izquierda del ✓ de confirmar, para escribir directamente el total en efectivo o pulsar el botón rápido **Cuadra** (junto al campo) cuando el efectivo contado coincide exactamente con el esperado.
 2. **Paso 2 — Conteo parcial de inventario:**
    - Para ahorrarte tiempo, Shalev **solo te pide contar los productos e insumos que se movieron durante ese turno**, todos juntos en una misma lista. Lo que no se tocó se da por bueno.
@@ -465,6 +466,8 @@ Si trabajas con dependientes, cajeros o barberos, cada empleado puede instalar S
 Para una conexión local y predecible, conecta ambos teléfonos al **mismo router Wi-Fi del local**, o activa la **Zona Wi-Fi (punto de acceso portátil)** en el teléfono principal del dueño y conecta a ella los teléfonos de los empleados (no hace falta encender los datos móviles).
 
 También se puede intentar con ambos teléfonos en **datos móviles**, pero el QR solo puede ofrecer las direcciones disponibles: la conexión depende de que las operadoras enruten tráfico entrante entre esos teléfonos. Muchas usan CGNAT o bloquean esas conexiones; que ambos tengan datos o Internet no garantiza que puedan vincularse o sincronizar. Si falla, usa la misma wifi o la zona wifi.
+
+**Elige por qué red se anuncia la principal.** Al inicio de **Ajustes → Apps vinculadas** hay una tarjeta, **«Red para anunciar este teléfono»**, con tres opciones y solo una seleccionada: **LAN** (la wifi o el cable del local, es la que viene marcada), **Punto de acceso** (la zona wifi de este teléfono, para un local sin router) y **Datos móviles** (la red celular, si la operadora permite conexiones directas). La app solo anuncia las direcciones de esa red, y el código QR que genera lleva únicamente las de esa red; al cambiarla no hace falta nada más.
 
 ### 12.2 Cómo vincular el teléfono de un empleado por primera vez
 

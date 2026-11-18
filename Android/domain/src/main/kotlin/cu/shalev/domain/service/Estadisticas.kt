@@ -240,4 +240,23 @@ object Estadisticas {
             TopPersona(ts.last().cliente.nombreApellidos, ts.fold(Cup.ZERO) { a, t -> a + t.importe }, ts.size)
         }.sortedWith(compareByDescending<TopPersona> { it.importe }.thenBy { it.nombre }).take(3)
     }
+
+    /**
+     * 1.0.6: locales que más ventas generan en el período: importe total vendido ↓; empate → alfabético.
+     * A diferencia de los Top 3 NO se recorta: la lista es el ranking completo, de mayor a menor.
+     * Solo ventas válidas con local (las anteriores a la v16 no lo tenían); vacío si no hay ventas.
+     * 1.0.7: cada fila lleva además la ganancia bruta del local en el período (total − costo de lo vendido).
+     */
+    fun topLocales(ventas: List<Venta>): List<TopPersona> {
+        val validas = ventas.validas().filter { it.local.isNotBlank() }
+        if (validas.isEmpty()) return emptyList()
+        return validas.groupBy { it.local }.map { (nombre, vs) ->
+            TopPersona(
+                nombre,
+                vs.fold(Cup.ZERO) { a, v -> a + v.total },
+                vs.size,
+                ganancia = vs.fold(Cup.ZERO) { a, v -> a + v.ganancia },
+            )
+        }.sortedWith(compareByDescending<TopPersona> { it.importe }.thenBy { it.nombre })
+    }
 }

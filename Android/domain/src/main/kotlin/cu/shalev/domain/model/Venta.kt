@@ -47,6 +47,12 @@ data class Venta(
     val anulacion: Anulacion? = null,
     /** 0.25.0: «Modificar» = anular + esta venta corregida; id de la venta original a la que sustituye. */
     val corrigeVentaId: Long? = null,
+    /**
+     * 1.0.6: local de la venta (congelado: se copia del turno al registrarla; renombrar el local la arrastra).
+     * Vacío solo en datos anteriores a los locales (v16). Las consultas de la BD ya se limitan al local activo;
+     * el ranking de locales de Inicio las pide de todos (`VentaRepository.entreTodosLosLocales`).
+     */
+    val local: String = "",
 ) {
     val anulada: Boolean get() = anulacion != null
     val total: Cup get() = detalles.sumOfCup { it.subtotal }

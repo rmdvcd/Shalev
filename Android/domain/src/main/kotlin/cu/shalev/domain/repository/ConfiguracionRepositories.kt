@@ -63,6 +63,8 @@ interface AjustesDispositivoRepository {
     val ajustes: kotlinx.coroutines.flow.Flow<cu.shalev.domain.model.AjustesDispositivo>
     suspend fun guardarAccesoConClave(activo: Boolean)
     suspend fun guardarEligioSecundaria(valor: Boolean)
+    /** 1.0.7: por qué red se anuncia la principal a las apps secundarias (ver [cu.shalev.domain.model.ModoRed]). */
+    suspend fun guardarModoRed(modo: cu.shalev.domain.model.ModoRed)
 }
 
 /** Progreso del asistente de primera ejecución (DataStore cifrado, propio de este dispositivo). */

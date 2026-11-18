@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import dagger.hilt.android.qualifiers.ApplicationContext
+import cu.shalev.domain.model.ModoRed
+import cu.shalev.domain.repository.AjustesDispositivoRepository
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.util.Locale
@@ -24,15 +26,18 @@ class RedLocal @Inject constructor(@ApplicationContext private val context: Cont
      * IPv4 candidatas, priorizando primero Wi-Fi/Zona Wi-Fi y otras redes privadas; las interfaces celulares van al
      * final porque sus IP privadas/CGNAT normalmente no admiten conexiones entrantes. Se conservan como último recurso
      * cuando el operador sí permite tráfico entre sus abonados.
+     * 1.0.7: [modo] (Ajustes → Apps vinculadas) filtra las interfaces ANTES de ordenar: solo la red del local (LAN),
+     * solo la zona wifi de este teléfono (PUNTO_DE_ACCESO) o solo la celular (DATOS_MOVILES).
      */
-    fun direcciones(): List<String> = runCatching {
+    fun direcciones(modo: ModoRed = ModoRed.LAN): List<String> = runCatching {
         candidatas(
             NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
                 .filter { it.isUp && !it.isLoopback }
                 .flatMap { interfaz ->
                     interfaz.inetAddresses.toList().filterIsInstance<Inet4Address>()
                         .map { CandidataIPv4(interfaz.name, it) }
-                },
+                }
+                .filter { esDelModo(it.interfaz, modo) },
         )
     }.getOrDefault(emptyList())
 
@@ -104,6 +109,25 @@ class RedLocal @Inject constructor(@ApplicationContext private val context: Cont
     companion object {
         const val TIPO = "_shalev._tcp."
         fun nombreServicio(negocioId: String) = "Shalev-" + negocioId.take(12)
+
+        /** 1.0.7: interfaces de la zona wifi que crea ESTE teléfono (hotspot): `ap0`, `softap0`, … */
+        private val PREFIJOS_PUNTO_ACCESO = listOf("ap", "softap")
+
+        /** 1.0.7: interfaces celulares (datos móviles): `rmnet_data0`, `ccmni0`, … */
+        private val PREFIJOS_CELULAR = listOf("rmnet", "ccmni", "ccemni", "cc2mni", "pdp", "wwan", "cell")
+
+        /** 1.0.7: interfaces de la red del local (wifi del router o cable): `wlan0`, `swlan0`, `eth0`, … */
+        private val PREFIJOS_LAN = listOf("wlan", "wifi", "swlan", "p2p", "eth", "en")
+
+        /** 1.0.7: true si la interfaz (por su nombre) pertenece al [modo] elegido en Ajustes → Apps vinculadas. */
+        fun esDelModo(interfaz: String, modo: ModoRed): Boolean {
+            val i = interfaz.lowercase(Locale.ROOT)
+            return when (modo) {
+                ModoRed.LAN -> PREFIJOS_LAN.any(i::startsWith) && PREFIJOS_PUNTO_ACCESO.none(i::startsWith)
+                ModoRed.PUNTO_DE_ACCESO -> PREFIJOS_PUNTO_ACCESO.any(i::startsWith)
+                ModoRed.DATOS_MOVILES -> PREFIJOS_CELULAR.any(i::startsWith)
+            }
+        }
 
         /** Compatibilidad para tests/llamadores que solo tienen direcciones, sin la interfaz que las publicó. */
         fun utiles(direcciones: List<Inet4Address>): List<String> = candidatas(

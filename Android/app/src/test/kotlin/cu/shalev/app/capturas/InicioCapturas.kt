@@ -70,6 +70,13 @@ class InicioCapturas {
             TopPersona("Juan Ruiz", Cup.ofPesos(8300), 3),
             TopPersona("Ana Pérez", Cup.ofPesos(5100), 2),
         ),
+        // 1.0.6: «Ventas por local», la última lista de Inicio (ranking completo, de mayor a menor).
+        // 1.0.7: cada local muestra también su ganancia bruta junto al nº de ventas.
+        locales = listOf(
+            TopPersona("Cafetería", Cup.ofPesos(18700), 12, ganancia = Cup.ofPesos(7200)),
+            TopPersona("Dulcería", Cup.ofPesos(9800), 6, ganancia = Cup.ofPesos(3100)),
+            TopPersona("Reparto", Cup.ofPesos(2100), 3, ganancia = Cup.ofPesos(640)),
+        ),
     )
     private val completo = InicioUiState(
         banner = "Periodo de prueba restante: 5 días", bannerTono = BannerTone.Info,

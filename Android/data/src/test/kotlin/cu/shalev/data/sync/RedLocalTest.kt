@@ -2,6 +2,7 @@ package cu.shalev.data.sync
 
 import java.net.Inet4Address
 import java.net.InetAddress
+import cu.shalev.domain.model.ModoRed
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -57,5 +58,22 @@ class RedLocalTest {
     @Test fun `vacio si no hay ninguna util`() {
         assertEquals(emptyList<String>(), RedLocal.utiles(emptyList()))
         assertEquals(emptyList<String>(), RedLocal.utiles(listOf(a("127.0.0.1"), a("169.254.0.1"))))
+    }
+
+    /** 1.0.7: las interfaces se filtran por el modo de red elegido en Ajustes → Apps vinculadas. */
+    @Test fun `esDelModo elige solo las interfaces de esa red`() {
+        // LAN: wifi del router o cable; ni la zona wifi propia ni la celular.
+        assertEquals(true, RedLocal.esDelModo("wlan0", ModoRed.LAN))
+        assertEquals(true, RedLocal.esDelModo("eth0", ModoRed.LAN))
+        assertEquals(false, RedLocal.esDelModo("ap0", ModoRed.LAN))
+        assertEquals(false, RedLocal.esDelModo("rmnet_data0", ModoRed.LAN))
+        // Punto de acceso: solo la zona wifi que crea este teléfono.
+        assertEquals(true, RedLocal.esDelModo("ap0", ModoRed.PUNTO_DE_ACCESO))
+        assertEquals(true, RedLocal.esDelModo("softap0", ModoRed.PUNTO_DE_ACCESO))
+        assertEquals(false, RedLocal.esDelModo("wlan0", ModoRed.PUNTO_DE_ACCESO))
+        // Datos móviles: solo la celular.
+        assertEquals(true, RedLocal.esDelModo("rmnet_data0", ModoRed.DATOS_MOVILES))
+        assertEquals(true, RedLocal.esDelModo("ccmni0", ModoRed.DATOS_MOVILES))
+        assertEquals(false, RedLocal.esDelModo("wlan0", ModoRed.DATOS_MOVILES))
     }
 }

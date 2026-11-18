@@ -35,6 +35,11 @@ interface VentaRepository {
     suspend fun obtener(id: Long): Venta?
     /** Ventas con detalle en [desde, hasta). */
     suspend fun entre(desde: Instant, hasta: Instant): List<Venta>
+    /**
+     * 1.0.6: ventas con detalle en [desde, hasta) de TODOS los locales (las demás consultas se limitan al activo).
+     * La usa el ranking «Ventas por local» de Inicio.
+     */
+    suspend fun entreTodosLosLocales(desde: Instant, hasta: Instant): List<Venta>
     suspend fun deTurno(turnoId: Long): List<Venta>
 
     /**
