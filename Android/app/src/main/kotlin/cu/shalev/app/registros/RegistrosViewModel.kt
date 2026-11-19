@@ -219,6 +219,7 @@ class RegistrosViewModel @Inject constructor(
     fun limpiarSeleccion() = local.update { it.copy(seleccion = emptySet()) }
 
     fun buscar(texto: String) = editarFiltro { it.copy(texto = texto.take(80)) }
+    fun cambiarOrden() = editarFiltro { it.copy(orden = it.orden.siguiente()) }
 
     fun abrirFiltro() { if (local.value.tipo != null) local.update { it.copy(hojaFiltro = true) } }
     fun cerrarFiltro() = local.update { it.copy(hojaFiltro = false) }

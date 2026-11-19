@@ -32,6 +32,8 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
+import cu.shalev.domain.model.TipoDispositivo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -166,6 +168,7 @@ fun VinculacionScreen(
             onCancelarResolucionImportacion = viewModel::cancelarResolucionImportacion,
             onConfirmarResolucionImportacion = viewModel::confirmarResolucionImportacion,
             onModoRed = viewModel::modoRed,
+            onAlternarSincronizacionAutomatica = viewModel::alternarSincronizacionAutomatica,
         )
     }
 }
@@ -210,6 +213,7 @@ fun VinculacionContent(
     onConfirmarResolucionImportacion: () -> Unit = {},
     /** 1.0.7: modo de red por el que la principal se anuncia (una sola opción, LAN por defecto). */
     onModoRed: (cu.shalev.domain.model.ModoRed) -> Unit = {},
+    onAlternarSincronizacionAutomatica: (Boolean) -> Unit = {},
 ) {
     val esPrincipal = s.tipo == TipoApp.PRINCIPAL
     Scaffold(
@@ -225,7 +229,7 @@ fun VinculacionContent(
             Modifier.fillMaxSize().padding(padding).imePadding(), // el teclado no tapa el campo del teléfono ni las acciones
             verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
         ) {
-            if (esPrincipal) principal(s, onEditar, onPedirSecundaria, onModoRed) else secundaria(s, onSincronizar, onPedirDesvincular)
+            if (esPrincipal) principal(s, onEditar, onPedirSecundaria, onModoRed) else secundaria(s, onSincronizar, onPedirDesvincular, onAlternarSincronizacionAutomatica)
         }
     }
 
@@ -233,6 +237,7 @@ fun VinculacionContent(
         FormDialog(
             f, s, onCerrarForm, onGuardarForm, onNombre, onPermiso, onTarjeta, onNuevoCodigo, onPedirQuitar,
             onPedirCierre, onRechazarCierre, onAprobarCierre, onPedirAutorizarImportacion, onPedirRechazarImportacion,
+            onAlternarSincronizacionAutomatica, onSincronizar,
         )
     }
     if (s.confirmarRespaldoPrevio) {
@@ -502,7 +507,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.principal(
                         else -> 2
                     },
                     indicatorColor = null,
-                    leading = { Icon(ShalevIcons.Movil, contentDescription = null) },
+                    leading = {
+                        Icon(
+                            if (e.tipoDispositivo == TipoDispositivo.PC) ShalevIcons.Pc else ShalevIcons.Movil,
+                            contentDescription = e.tipoDispositivo.etiqueta,
+                        )
+                    },
                     trailing = { Icon(ShalevIcons.Abrir, contentDescription = null) },
                     onClick = { onEditar(e) },
                     modifier = Modifier.testTag(VinculacionTags.empleado(e.id))
@@ -539,11 +549,24 @@ private fun androidx.compose.foundation.lazy.LazyListScope.secundaria(
     s: VinculacionUi,
     onSincronizar: () -> Unit,
     onPedirDesvincular: () -> Unit,
+    onAlternarSincronizacionAutomatica: (Boolean) -> Unit = {},
 ) {
     val sec = s.secundaria
+    val tipoPrincipal = TipoDispositivo.deTexto(sec.nombreNegocio)
     item {
         ShalevCard(Modifier.padding(horizontal = ShalevSpacing.md), title = "Secundaria de ${sec.nombreNegocio.ifBlank { "la app principal" }}") {
-            Text("Empleado: ${sec.nombreEmpleado}", style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    if (tipoPrincipal == TipoDispositivo.PC) ShalevIcons.Pc else ShalevIcons.Movil,
+                    contentDescription = tipoPrincipal.etiqueta,
+                    modifier = Modifier.padding(end = ShalevSpacing.xs),
+                )
+                Text("Empleado: ${sec.nombreEmpleado}", style = MaterialTheme.typography.bodyLarge)
+            }
             val ultima = sec.ultimaSincronizacion
             val textoSinc = VinculacionLogic.pendientes(sec.pendientes) +
                 (ultima?.let { " · Última vez: ${Dates.dayTime(it)}" } ?: "")
@@ -611,7 +634,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.secundaria(
         ShalevButtonRow(Modifier.padding(vertical = ShalevSpacing.xs)) {
             ShalevPrimaryButton(
                 text = VinculacionLogic.SINCRONIZAR, icon = ShalevIcons.Sincronizar, etiqueta = "Sincronizar", onClick = onSincronizar,
-                loading = s.trabajando, enabled = !s.trabajando, modifier = Modifier.testTag(VinculacionTags.SINCRONIZAR).coachMark(ObjetivosRecorrido.VINCULACION_SINCRONIZAR),
+                loading = s.trabajando, enabled = !s.sincronizacionAutomatica && !s.trabajando, modifier = Modifier.testTag(VinculacionTags.SINCRONIZAR).coachMark(ObjetivosRecorrido.VINCULACION_SINCRONIZAR),
             )
         }
     }
@@ -646,12 +669,43 @@ private fun androidx.compose.foundation.lazy.LazyListScope.secundaria(
         }
     }
     item {
-        ShalevCard(Modifier.padding(horizontal = ShalevSpacing.md), title = "Lo que puedes hacer") {
+        ShalevCard(Modifier.padding(horizontal = ShalevSpacing.md), title = "Permisos") {
             val p = sec.permisos
-            Text(
-                if (p.isEmpty()) "Solo consultar" else PermisoEmpleado.entries.filter { it in p }.joinToString("\n") { "• " + it.etiqueta },
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            PermisoEmpleado.entries.forEach { perm ->
+                val activo = perm in p
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = ShalevSpacing.xxs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+                ) {
+                    ShalevCheckbox(checked = activo, onCheckedChange = null, enabled = false)
+                    Column {
+                        Text(perm.etiqueta, style = MaterialTheme.typography.bodyMedium)
+                        Text(perm.detalle, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Sincronización automática", style = MaterialTheme.typography.bodyMedium)
+                    Text("Sincronizar cambios en segundo plano", style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(
+                    checked = s.sincronizacionAutomatica,
+                    onCheckedChange = onAlternarSincronizacionAutomatica,
+                    modifier = Modifier.testTag("vinculacion_secundaria_switch_sinc_auto"),
+                )
+            }
+            ShalevButtonRow(Modifier.padding(top = ShalevSpacing.xs)) {
+                ShalevPrimaryButton(
+                    text = VinculacionLogic.SINCRONIZAR, icon = ShalevIcons.Sincronizar, etiqueta = "Sincronizar", onClick = onSincronizar,
+                    loading = s.trabajando, enabled = !s.sincronizacionAutomatica && !s.trabajando, modifier = Modifier.testTag(VinculacionTags.SINCRONIZAR).coachMark(ObjetivosRecorrido.VINCULACION_SINCRONIZAR),
+                )
+            }
         }
     }
     item {
@@ -680,6 +734,8 @@ private fun FormDialog(
     onAprobarCierre: () -> Unit,
     onPedirAutorizarImportacion: () -> Unit,
     onPedirRechazarImportacion: () -> Unit,
+    onAlternarSincronizacionAutomatica: (Boolean) -> Unit = {},
+    onSincronizar: () -> Unit = {},
 ) {
     val nueva = f.id == 0L
     val trabajando = s.trabajando
@@ -783,6 +839,30 @@ private fun FormDialog(
                             Text(p.detalle, style = MaterialTheme.typography.bodySmall)
                         }
                     }
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Sincronización automática", style = MaterialTheme.typography.bodyMedium)
+                        Text("Sincronizar cambios en segundo plano", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(
+                        checked = s.sincronizacionAutomatica,
+                        onCheckedChange = onAlternarSincronizacionAutomatica,
+                        modifier = Modifier.testTag("vinculacion_form_switch_sinc_auto"),
+                    )
+                }
+                ShalevButtonRow(Modifier.fillMaxWidth().padding(top = ShalevSpacing.xs)) {
+                    ShalevPrimaryButton(
+                        text = VinculacionLogic.SINCRONIZAR, icon = ShalevIcons.Sincronizar, etiqueta = "Sincronizar",
+                        onClick = onSincronizar,
+                        loading = trabajando,
+                        enabled = !s.sincronizacionAutomatica && !trabajando,
+                        modifier = Modifier.testTag("vinculacion.form.sincronizar"),
+                    )
                 }
                 // 0.20.0 (H4): con qué tarjeta cobra este empleado (solo si hay más de una). 0.21.0 (C2): el teléfono es
                 // el que escribió el empleado; aquí solo se muestra.

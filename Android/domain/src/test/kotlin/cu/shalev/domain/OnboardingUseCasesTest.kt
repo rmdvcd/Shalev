@@ -70,31 +70,31 @@ class OnboardingUseCasesTest {
 
     @Test fun datosVaciosNoSonError() = runBlocking<Unit> {
         val perfil = FakePerfil()
-        val conf = FakeConfiguracionInicialRepository()
+        val conf = FakeConfiguracionInicial()
         assertTrue(GuardarDatosIniciales(perfil, GuardarPerfil(perfil), conf)(DatosIniciales()) is AppResult.Ok)
         assertTrue(perfil.state.value.vacio)
-        assertTrue(PasoConfiguracion.DATOS in conf.estado.value.confirmados)
+        assertTrue(PasoConfiguracion.DATOS in conf.state.value.confirmados)
     }
 
     @Test fun datosParcialesSeGuardanYElTelefonoSeAntepone() = runBlocking<Unit> {
         val perfil = FakePerfil(Perfil(telefonos = listOf(Telefono(1, "+5353334444"))))
-        val conf = FakeConfiguracionInicialRepository()
+        val conf = FakeConfiguracionInicial()
         val r = GuardarDatosIniciales(perfil, GuardarPerfil(perfil), conf)(DatosIniciales(nombre = " Ana ", telefono = "5234 5678"))
         assertTrue(r is AppResult.Ok)
         val p = perfil.state.value
         assertEquals("Ana", p.nombre)
         assertEquals(2, p.telefonos.size)
         assertEquals(p.telefonos.first().numero, cu.shalev.core.validation.Phone.normalize("52345678"))
-        assertTrue(PasoConfiguracion.DATOS in conf.estado.value.confirmados)
+        assertTrue(PasoConfiguracion.DATOS in conf.state.value.confirmados)
     }
 
     @Test fun campoEscritoConFormatoInvalidoSeRechaza() = runBlocking<Unit> {
         val perfil = FakePerfil()
-        val conf = FakeConfiguracionInicialRepository()
+        val conf = FakeConfiguracionInicial()
         val r = GuardarDatosIniciales(perfil, GuardarPerfil(perfil), conf)(DatosIniciales(nombre = "Ana", telefono = "12"))
         assertEquals("telefono", ((r as AppResult.Err).error as AppError.Validacion).campo)
         assertTrue(perfil.state.value.vacio)
-        assertFalse(PasoConfiguracion.DATOS in conf.estado.value.confirmados)
+        assertFalse(PasoConfiguracion.DATOS in conf.state.value.confirmados)
     }
 
     // ---------- Alertas ----------

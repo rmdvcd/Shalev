@@ -21,6 +21,7 @@ import javax.inject.Inject
 import cu.shalev.core.time.Clock
 import cu.shalev.domain.model.FiltroRegistros
 import cu.shalev.domain.model.ItemMovimiento
+import cu.shalev.domain.model.ModoOrden
 import cu.shalev.domain.model.TipoEntidad
 import cu.shalev.domain.model.VistaRegistro
 import cu.shalev.domain.service.RegistrosFiltro
@@ -57,20 +58,46 @@ class ObservarRegistro @Inject constructor(
         return when (tipo) {
             // P29: las ventas de servicios van en su propia pestaña.
             TipoRegistro.VENTAS -> registros.ventas(consulta).map { l ->
-                VistaRegistro.Ventas(l.filter { !it.esServicio && RegistrosFiltro.deVendedor(it.vendedor, filtro) && RegistrosFiltro.coincide(it, filtro.texto) })
+                val filtradas = l.filter { !it.esServicio && RegistrosFiltro.deVendedor(it.vendedor, filtro) && RegistrosFiltro.coincide(it, filtro.texto) }
+                val ordenadas = when (filtro.orden) {
+                    ModoOrden.CRONOLOGICO -> filtradas.sortedByDescending { it.fecha }
+                    ModoOrden.ALFABETICO -> filtradas.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.detalles.firstOrNull()?.nombre ?: it.id.toString() })
+                    ModoOrden.IMPORTE_DESC -> filtradas.sortedByDescending { it.total }
+                    ModoOrden.IMPORTE_ASC -> filtradas.sortedBy { it.total }
+                }
+                VistaRegistro.Ventas(ordenadas)
             }
             TipoRegistro.SERVICIOS -> registros.ventas(consulta).map { l ->
-                VistaRegistro.Ventas(l.filter { it.esServicio && RegistrosFiltro.deVendedor(it.vendedor, filtro) && RegistrosFiltro.coincide(it, filtro.texto) })
+                val filtradas = l.filter { it.esServicio && RegistrosFiltro.deVendedor(it.vendedor, filtro) && RegistrosFiltro.coincide(it, filtro.texto) }
+                val ordenadas = when (filtro.orden) {
+                    ModoOrden.CRONOLOGICO -> filtradas.sortedByDescending { it.fecha }
+                    ModoOrden.ALFABETICO -> filtradas.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.detalles.firstOrNull()?.nombre ?: it.id.toString() })
+                    ModoOrden.IMPORTE_DESC -> filtradas.sortedByDescending { it.total }
+                    ModoOrden.IMPORTE_ASC -> filtradas.sortedBy { it.total }
+                }
+                VistaRegistro.Ventas(ordenadas)
             }
             TipoRegistro.TRANSACCIONES -> registros.transacciones(consulta).map { l ->
-                VistaRegistro.Transferencias(l.filter { RegistrosFiltro.deVendedor(it.vendedor, filtro) && RegistrosFiltro.coincide(it, filtro.texto) })
+                val filtradas = l.filter { RegistrosFiltro.deVendedor(it.vendedor, filtro) && RegistrosFiltro.coincide(it, filtro.texto) }
+                val ordenadas = when (filtro.orden) {
+                    ModoOrden.CRONOLOGICO -> filtradas.sortedByDescending { it.fecha }
+                    ModoOrden.ALFABETICO -> filtradas.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.cliente.nombreApellidos.ifBlank { it.numero } })
+                    ModoOrden.IMPORTE_DESC -> filtradas.sortedByDescending { it.importe }
+                    ModoOrden.IMPORTE_ASC -> filtradas.sortedBy { it.importe }
+                }
+                VistaRegistro.Transferencias(ordenadas)
             }
             TipoRegistro.MOVIMIENTOS -> combine(registros.movimientos(consulta), insumos.observarTodos()) { ms, xs ->
                 val simbolos = xs.associate { it.id to it.unidad.simbolo }
-                VistaRegistro.Movimientos(
-                    ms.map { m -> ItemMovimiento(m, if (m.entidad == TipoEntidad.INSUMO) simbolos[m.entidadId].orEmpty() else "") }
-                        .filter { RegistrosFiltro.coincide(it, filtro.texto) },
-                )
+                val filtradas = ms.map { m -> ItemMovimiento(m, if (m.entidad == TipoEntidad.INSUMO) simbolos[m.entidadId].orEmpty() else "") }
+                    .filter { RegistrosFiltro.coincide(it, filtro.texto) }
+                val ordenadas = when (filtro.orden) {
+                    ModoOrden.CRONOLOGICO -> filtradas.sortedByDescending { it.movimiento.fecha }
+                    ModoOrden.ALFABETICO -> filtradas.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.movimiento.nombre })
+                    ModoOrden.IMPORTE_DESC -> filtradas.sortedByDescending { kotlin.math.abs(it.movimiento.delta) }
+                    ModoOrden.IMPORTE_ASC -> filtradas.sortedBy { kotlin.math.abs(it.movimiento.delta) }
+                }
+                VistaRegistro.Movimientos(ordenadas)
             }
         }.flowOn(io)
     }

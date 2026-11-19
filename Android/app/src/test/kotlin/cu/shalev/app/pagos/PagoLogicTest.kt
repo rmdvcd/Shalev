@@ -4,6 +4,7 @@ import cu.shalev.app.R
 import cu.shalev.core.result.AppError
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PagoLogicTest {

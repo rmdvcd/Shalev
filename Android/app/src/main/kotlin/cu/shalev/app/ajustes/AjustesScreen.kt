@@ -1,6 +1,8 @@
 package cu.shalev.app.ajustes
 
 import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,13 +10,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.core.content.ContextCompat
-import cu.shalev.app.root.ChecklistPermisosIniciales
 import cu.shalev.app.root.PermisosIniciales
+import cu.shalev.app.root.TipoPermisoInicial
+import cu.shalev.designsystem.component.ShalevTextButton
+import cu.shalev.designsystem.theme.ShalevTheme
+import cu.shalev.designsystem.token.ShalevSize
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.designsystem.component.coachMark
 import androidx.compose.material3.Icon
@@ -130,12 +137,7 @@ fun AjustesScreen(
     if (mostrarLocales) cu.shalev.app.ubicacion.LocalesAjustes(localVm) { mostrarLocales = false }
     var verPermisos by rememberSaveable { mutableStateOf(false) }
     if (verPermisos) {
-        ChecklistPermisosIniciales(
-            items = androidx.compose.runtime.remember { PermisosIniciales.lista() },
-            yaConcedido = { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED },
-            onTerminar = { verPermisos = false },
-            onOmitir = { verPermisos = false },
-        )
+        DialogoPermisosAjustes(onDismiss = { verPermisos = false })
     }
     // 1.1: recorrido de Ajustes (sin ventanas abiertas encima).
     cu.shalev.app.recorrido.RecorridoModulo(
@@ -222,7 +224,7 @@ fun AjustesContent(
                 // P37: Sistema, debajo de Licencia.
                 Entry(
                     VinculacionLogic.TITULO, VinculacionLogic.subtituloAjustes(state.permisos.tipo, state.secundarias, state.nombreNegocio),
-                    ShalevIcons.Movil, modifier = Modifier.testTag(AjustesTags.VINCULACION),
+                    ShalevIcons.Dispositivos, modifier = Modifier.testTag(AjustesTags.VINCULACION),
                 ) { onNavigate(Route.Vinculacion) }
             }
             Column(Modifier.coachMark(ObjetivosRecorrido.AJUSTES_VENTAS)) {
@@ -374,4 +376,107 @@ private fun Entry(
         modifier = modifier,
     )
 }
+
+@Composable
+private fun DialogoPermisosAjustes(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val items = remember { PermisosIniciales.lista() }
+    var permisosEstado by remember {
+        mutableStateOf(
+            items.associate { it.permiso to (ContextCompat.checkSelfPermission(context, it.permiso) == PackageManager.PERMISSION_GRANTED) },
+        )
+    }
+
+    val actualizarEstados = {
+        permisosEstado = items.associate {
+            it.permiso to (ContextCompat.checkSelfPermission(context, it.permiso) == PackageManager.PERMISSION_GRANTED)
+        }
+    }
+
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        actualizarEstados()
+        onPauseOrDispose { }
+    }
+
+    val lanzador = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        actualizarEstados()
+    }
+
+    val todosConcedidos = items.all { permisosEstado[it.permiso] == true }
+    val falta = items.firstOrNull { permisosEstado[it.permiso] == false }
+
+    ShalevDialog(
+        title = "Permisos de la app",
+        onDismiss = onDismiss,
+        onConfirm = {
+            if (falta != null) {
+                lanzador.launch(falta.permiso)
+            } else {
+                onDismiss()
+            }
+        },
+        confirmDescription = if (falta != null) "Conceder permiso" else "Listo",
+        confirmEtiqueta = if (falta != null) "Conceder" else "Listo",
+        confirmIcon = if (falta != null) ShalevIcons.Siguiente else ShalevIcons.Confirmar,
+        secundarias = {
+            ShalevTextButton(
+                text = "Ajustes de Android",
+                etiqueta = "Ajustes",
+                onClick = { abrirAjustesDeLaApp(context) },
+                icon = ShalevIcons.Ajustes,
+                mostrarTexto = true,
+            )
+        },
+        content = {
+            Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
+                Text(
+                    if (todosConcedidos) "Todos los permisos necesarios están concedidos."
+                    else "Revisa los permisos de Shalev. Si negaste alguno permanentemente, actívalo en Ajustes de Android.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                items.forEach { p ->
+                    val concedido = permisosEstado[p.permiso] == true
+                    ShalevListItem(
+                        title = p.tipo.titulo,
+                        subtitle = p.tipo.detalle,
+                        subtitleMaxLines = 3,
+                        indicatorColor = null,
+                        leading = {
+                            Icon(
+                                when (p.tipo) {
+                                    TipoPermisoInicial.CAMARA -> ShalevIcons.Camara
+                                    TipoPermisoInicial.NOTIFICACIONES -> ShalevIcons.Turno
+                                    TipoPermisoInicial.FOTOS -> ShalevIcons.Imagen
+                                },
+                                contentDescription = null,
+                            )
+                        },
+                        trailing = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(ShalevSpacing.xs),
+                            ) {
+                                Icon(
+                                    if (concedido) ShalevIcons.AvisoExito else ShalevIcons.AvisoAdvertencia,
+                                    contentDescription = null,
+                                    tint = if (concedido) ShalevTheme.colors.success else MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(ShalevSize.icon),
+                                )
+                                Text(
+                                    if (concedido) "Permitido" else "No concedido",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (concedido) ShalevTheme.colors.success else MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        },
+                        onClick = if (!concedido) { { lanzador.launch(p.permiso) } } else null,
+                    )
+                }
+            }
+        },
+    )
+}
+
 

@@ -53,6 +53,7 @@ import cu.shalev.designsystem.icon.ShalevIcons
 import cu.shalev.designsystem.ilustracion.ShalevIlustracion
 import cu.shalev.designsystem.token.ShalevSpacing
 import cu.shalev.domain.model.ClienteFijo
+import cu.shalev.domain.model.ModoOrden
 import cu.shalev.domain.repository.ClienteFijoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.ZoneId
@@ -75,6 +76,7 @@ import kotlinx.coroutines.launch
 data class ClientesUiState(
     val cargando: Boolean = true,
     val clientes: List<ClienteFijo> = emptyList(),
+    val orden: ModoOrden = ModoOrden.ALFABETICO,
     val fichaCi: String? = null,
     val confirmarQuitar: Boolean = false,
     /** 0.31.0: datos en corrección (nombre, carné y teléfono); null = sin ventana de corrección. */
@@ -95,11 +97,24 @@ private data class LocalClientes(
 @HiltViewModel
 class ClientesFijosViewModel @Inject constructor(private val repo: ClienteFijoRepository) : ViewModel() {
     private val local = MutableStateFlow(LocalClientes())
+    val orden = MutableStateFlow(ModoOrden.ALFABETICO)
+
+    fun cambiarOrden() = orden.update { it.siguiente() }
 
     val state: StateFlow<ClientesUiState> =
-        combine(repo.observar().map<List<ClienteFijo>, List<ClienteFijo>?> { it }.catch { emit(emptyList()) }, local) { cs, l ->
+        combine(
+            repo.observar().map<List<ClienteFijo>, List<ClienteFijo>?> { it }.catch { emit(emptyList()) },
+            local,
+            orden,
+        ) { cs, l, ord ->
+            val ordenados = if (cs == null) emptyList() else when (ord) {
+                ModoOrden.ALFABETICO -> cs.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.nombreApellidos })
+                ModoOrden.CRONOLOGICO -> cs.sortedByDescending { it.actualizadoEn }
+                ModoOrden.IMPORTE_DESC -> cs.sortedByDescending { it.total }
+                ModoOrden.IMPORTE_ASC -> cs.sortedBy { it.total }
+            }
             ClientesUiState(
-                cargando = cs == null, clientes = cs.orEmpty(), fichaCi = l.fichaCi, confirmarQuitar = l.confirmarQuitar,
+                cargando = cs == null, clientes = ordenados, orden = ord, fichaCi = l.fichaCi, confirmarQuitar = l.confirmarQuitar,
                 edicion = l.edicion, errorEdicion = l.errorEdicion,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ClientesUiState())
@@ -196,6 +211,8 @@ class AccionesClientes(
     val onPedirQuitar: () -> Unit = {},
     val onCancelarQuitar: () -> Unit = {},
     val onQuitar: () -> Unit = {},
+    val onCambiarOrden: () -> Unit = {},
+    val modoOrden: ModoOrden = ModoOrden.ALFABETICO,
 )
 
 @Composable

@@ -318,11 +318,22 @@ class VinculacionViewModelTest {
 
     /** 1.0.7: el modo de red (LAN por defecto) se guarda en el teléfono y llega al estado de la pantalla. */
     @Test fun modoRedPorDefectoEsLanYSePuedeCambiar() = runTest {
+        mensajes()
         assertEquals(cu.shalev.domain.model.ModoRed.LAN, vm.state.value.modoRed)
         vm.modoRed(cu.shalev.domain.model.ModoRed.PUNTO_DE_ACCESO)
         assertEquals(cu.shalev.domain.model.ModoRed.PUNTO_DE_ACCESO, ajustesDisp.estado.value.modoRed)
         assertEquals(cu.shalev.domain.model.ModoRed.PUNTO_DE_ACCESO, vm.state.value.modoRed)
         vm.modoRed(cu.shalev.domain.model.ModoRed.DATOS_MOVILES)
         assertEquals(cu.shalev.domain.model.ModoRed.DATOS_MOVILES, vm.state.value.modoRed)
+    }
+
+    @Test fun sincronizacionAutomaticaPorDefectoEsTrueYSePuedeAlternar() = runTest {
+        mensajes()
+        assertTrue(vm.state.value.sincronizacionAutomatica)
+        vm.alternarSincronizacionAutomatica(false)
+        assertFalse(ajustesDisp.estado.value.sincronizacionAutomatica)
+        assertFalse(vm.state.value.sincronizacionAutomatica)
+        vm.alternarSincronizacionAutomatica(true)
+        assertTrue(vm.state.value.sincronizacionAutomatica)
     }
 }

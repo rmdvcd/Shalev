@@ -18,12 +18,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 class AjustesDispositivoRepositoryImpl @Inject constructor(private val ds: SecureDataStore) : AjustesDispositivoRepository {
 
     override val ajustes: Flow<AjustesDispositivo> =
-        combine(ds.observe(K_CLAVE), ds.observe(K_SECUNDARIA), ds.observe(K_MODO_RED)) { c, s, m ->
+        combine(ds.observe(K_CLAVE), ds.observe(K_SECUNDARIA), ds.observe(K_MODO_RED), ds.observe(K_SINC_AUTO)) { c, s, m, sa ->
             AjustesDispositivo(
                 accesoConClave = c == "1",
                 eligioSecundaria = s == "1",
                 // 1.0.7: valor ilegible o ausente → LAN (la de siempre).
                 modoRed = m?.let { runCatching { ModoRed.valueOf(it) }.getOrNull() } ?: ModoRed.LAN,
+                sincronizacionAutomatica = sa != "0",
             )
         }
             .distinctUntilChanged()
@@ -31,10 +32,12 @@ class AjustesDispositivoRepositoryImpl @Inject constructor(private val ds: Secur
     override suspend fun guardarAccesoConClave(activo: Boolean) = ds.put(K_CLAVE, if (activo) "1" else "0")
     override suspend fun guardarEligioSecundaria(valor: Boolean) = ds.put(K_SECUNDARIA, if (valor) "1" else "0")
     override suspend fun guardarModoRed(modo: ModoRed) = ds.put(K_MODO_RED, modo.name)
+    override suspend fun guardarSincronizacionAutomatica(activa: Boolean) = ds.put(K_SINC_AUTO, if (activa) "1" else "0")
 
     private companion object {
         const val K_CLAVE = "disp.acceso_clave"
         const val K_SECUNDARIA = "disp.eligio_secundaria"
         const val K_MODO_RED = "disp.modo_red"
+        const val K_SINC_AUTO = "disp.sinc_automatica"
     }
 }
