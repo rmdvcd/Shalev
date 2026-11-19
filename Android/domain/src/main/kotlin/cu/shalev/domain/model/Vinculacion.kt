@@ -121,6 +121,7 @@ data class Empleado(
     val estadoSolicitudImportacion: EstadoSolicitudImportacion = EstadoSolicitudImportacion.NINGUNA,
 ) {
     val vinculado: Boolean get() = vinculadoEn != null
+    val tipoDispositivo: TipoDispositivo get() = TipoDispositivo.deTexto(nombre)
     val cierrePedido: Boolean get() = cierreSolicitadoEn != null && turnoAbiertoDesde != null
     /** 0.21.0 (C6): solicitud del empleado pendiente de Aprobar/Rechazar (solo con su turno abierto). */
     val solicitaCierre: Boolean get() = cierrePedidoPorEmpleadoEn != null && cierreSolicitadoEn == null && turnoAbiertoDesde != null

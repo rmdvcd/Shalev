@@ -26,4 +26,5 @@ data class AjustesDispositivo(
     val accesoConClave: Boolean = false,
     val eligioSecundaria: Boolean = false,
     val modoRed: ModoRed = ModoRed.LAN,
+    val sincronizacionAutomatica: Boolean = true,
 )

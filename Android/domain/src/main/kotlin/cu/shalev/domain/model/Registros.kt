@@ -24,6 +24,7 @@ data class FiltroRegistros(
     val importeMax: Cup? = null,
     /** 0.20.0 (H1): solo las ventas, servicios y transferencias de este vendedor (null = todos). */
     val vendedor: String? = null,
+    val orden: ModoOrden = ModoOrden.CRONOLOGICO,
 ) {
     val porFecha: Boolean get() = periodo != PeriodoRegistro.TODO && !(periodo == PeriodoRegistro.PERSONALIZADO && desde == null && hasta == null)
     val porImporte: Boolean get() = importeMin != null || importeMax != null

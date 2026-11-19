@@ -81,6 +81,7 @@ data class VinculacionUi(
     val eligioSecundaria: Boolean = false,
     /** 1.0.7: por qué red se anuncia la principal (LAN por defecto); se elige al inicio de esta pantalla. */
     val modoRed: cu.shalev.domain.model.ModoRed = cu.shalev.domain.model.ModoRed.LAN,
+    val sincronizacionAutomatica: Boolean = true,
 ) {
     /** Regla exclusiva del vínculo inicial desde el recorrido de configuración. */
     val puedeSerSecundaria: Boolean get() = cu.shalev.domain.model.Vinculacion.puedeVincularseComoSecundaria(tipo, eligioSecundaria, empleados.size)
@@ -130,7 +131,7 @@ class VinculacionViewModel @Inject constructor(
     private val baseSinRespaldo = combine(
         tipoRepo.tipo, principal.observarEmpleados(), principal.estado, secundaria.estado, ajustesDispositivo.ajustes,
     ) { t, e, p, s, a ->
-        VinculacionUi(t, e, p, s, eligioSecundaria = a.eligioSecundaria, modoRed = a.modoRed)
+        VinculacionUi(t, e, p, s, eligioSecundaria = a.eligioSecundaria, modoRed = a.modoRed, sincronizacionAutomatica = a.sincronizacionAutomatica)
     }
     private val base = combine(baseSinRespaldo, estadoApp.estado) { b, app ->
         b.copy(ultimoRespaldo = app.ultimoRespaldo)
@@ -153,6 +154,10 @@ class VinculacionViewModel @Inject constructor(
 
     /** 1.0.7: una sola opción (LAN por defecto); se guarda en el teléfono y manda en el anuncio y el QR. */
     fun modoRed(m: cu.shalev.domain.model.ModoRed) = viewModelScope.launch { ajustesDispositivo.guardarModoRed(m) }
+
+    fun alternarSincronizacionAutomatica(activa: Boolean) = viewModelScope.launch {
+        ajustesDispositivo.guardarSincronizacionAutomatica(activa)
+    }
 
     fun agregar() = local.update { it.copy(form = FormEmpleado()) }
     fun editar(e: Empleado) = local.update { it.copy(form = FormEmpleado(e.id, e.nombre, e.permisos, tarjetaId = e.tarjetaId, telefonoId = e.telefonoId)) }

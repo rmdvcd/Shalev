@@ -4,6 +4,8 @@ import cu.shalev.app.recorrido.recorridoVentana
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.app.recorrido.Recorrido
 import cu.shalev.app.recorrido.RecorridoModulo
+import cu.shalev.app.common.BotonOrden
+import cu.shalev.domain.model.ModoOrden
 import cu.shalev.designsystem.component.coachMark
 import androidx.compose.foundation.layout.size
 import cu.shalev.designsystem.component.ShalevCheckbox
@@ -112,6 +114,9 @@ class AccionesRegistros(
     /** true = también vacía el buscador. */
     val onQuitarFiltros: (Boolean) -> Unit = {},
     val onReintentar: () -> Unit = {},
+    val onCambiarOrden: () -> Unit = {},
+    val onCambiarOrdenTurnos: () -> Unit = {},
+    val modoOrdenTurnos: ModoOrden = ModoOrden.CRONOLOGICO,
     val onAbrirExportar: () -> Unit = {},
     val onCerrarExportar: () -> Unit = {},
     val onEnviar: (FormatoExport) -> Unit = {},
@@ -168,6 +173,7 @@ fun RegistrosScreen(
     }
     // 0.28.0: sin swipe entre pestañas: el gesto pasa a la sección vecina como en las demás.
     val orden = pestanasVisibles(LocalPermisosApp.current)
+    val ordenTurnos by turnosViewModel.orden.collectAsStateWithLifecycle()
     // 0.21.0 (C12): si la pestaña elegida es de un módulo desactivado, se pasa a la primera visible.
     LaunchedEffect(orden, state.pestana) { if (state.pestana !in orden) viewModel.pestana(orden.first()) }
     // Recorrido de la primera visita: sin fichas ni hojas abiertas (Clientes tiene sus propias ventanas de edición).
@@ -183,12 +189,15 @@ fun RegistrosScreen(
                 onCancelarQuitar = clientesViewModel::cancelarQuitar, onQuitar = clientesViewModel::quitar,
                 onEditar = clientesViewModel::editar, onCampoEdicion = clientesViewModel::campoEdicion,
                 onCancelarEdicion = clientesViewModel::cancelarEdicion, onGuardarEdicion = clientesViewModel::guardarEdicion,
+                onCambiarOrden = clientesViewModel::cambiarOrden, modoOrden = clientes.orden,
             ),
             acciones = AccionesRegistros(
                 onAyuda = { onNavigate(Route.Ayuda) },
                 onPestana = viewModel::pestana, onBuscar = viewModel::buscar, onAbrirFiltro = viewModel::abrirFiltro,
                 onCerrarFiltro = viewModel::cerrarFiltro, onAplicarFiltro = viewModel::aplicarFiltro, onQuitarFiltros = viewModel::quitarFiltros,
-                onReintentar = viewModel::reintentar, onAbrirVenta = viewModel::abrirVenta,
+                onReintentar = viewModel::reintentar, onCambiarOrden = viewModel::cambiarOrden,
+                onCambiarOrdenTurnos = turnosViewModel::cambiarOrden, modoOrdenTurnos = ordenTurnos,
+                onAbrirVenta = viewModel::abrirVenta,
                 onAbrirExportar = viewModel::abrirExportar, onCerrarExportar = viewModel::cerrarExportar,
                 onEnviar = viewModel::enviar, onGuardar = viewModel::pedirGuardar,
                 onAbrirTransferencia = viewModel::abrirTransferencia, onAbrirMovimiento = viewModel::abrirMovimiento,
@@ -240,23 +249,44 @@ fun RegistrosContent(
                 onAyuda = { ayudaPestana.value = true },
                 ayudaDescripcion = "Ayuda de Registros",
                 actions = {
-                    if (tipo != null) {
-                        val n = state.filtro.activos
-                        val textoFiltro = if (tipo == TipoRegistro.MOVIMIENTOS) TextosRegistros.FILTRAR_FECHA else TextosRegistros.FILTRAR
-                        BadgedBox(badge = {
-                            if (n > 0) ShalevBadge(n, Modifier.clearAndSetSemantics { })
-                        }) {
-                            ShalevIconAction(
-                                ShalevIcons.Filtrar, descripcionFiltro(textoFiltro, n),
-                                onClick = acciones.onAbrirFiltro, selected = n > 0, modifier = Modifier.testTag(RegistrosTags.FILTRO).coachMark(ObjetivosRecorrido.REGISTROS_FILTRO),
-                                mostrarTexto = false, // excepción de la regla de botones: filtro
+                    when {
+                        tipo != null -> {
+                            BotonOrden(
+                                modo = state.filtro.orden,
+                                onClick = acciones.onCambiarOrden,
+                                modifier = Modifier.testTag(RegistrosTags.ORDENAR),
+                            )
+                            val n = state.filtro.activos
+                            val textoFiltro = if (tipo == TipoRegistro.MOVIMIENTOS) TextosRegistros.FILTRAR_FECHA else TextosRegistros.FILTRAR
+                            BadgedBox(badge = {
+                                if (n > 0) ShalevBadge(n, Modifier.clearAndSetSemantics { })
+                            }) {
+                                ShalevIconAction(
+                                    ShalevIcons.Filtrar, descripcionFiltro(textoFiltro, n),
+                                    onClick = acciones.onAbrirFiltro, selected = n > 0, modifier = Modifier.testTag(RegistrosTags.FILTRO).coachMark(ObjetivosRecorrido.REGISTROS_FILTRO),
+                                    mostrarTexto = false, // excepción de la regla de botones: filtro
+                                )
+                            }
+                            val exportar = LocalPermisosApp.current.exportar
+                            if (exportar) ShalevIconAction(
+                                ShalevIcons.Compartir, TextosRegistros.EXPORTAR, mostrarTexto = false, onClick = acciones.onAbrirExportar,
+                                enabled = state.puedeCompartir && !state.exportando, modifier = Modifier.testTag(RegistrosTags.EXPORTAR).coachMark(ObjetivosRecorrido.REGISTROS_EXPORTAR),
                             )
                         }
-                        val exportar = LocalPermisosApp.current.exportar
-                        if (exportar) ShalevIconAction(
-                            ShalevIcons.Compartir, TextosRegistros.EXPORTAR, mostrarTexto = false, onClick = acciones.onAbrirExportar,
-                            enabled = state.puedeCompartir && !state.exportando, modifier = Modifier.testTag(RegistrosTags.EXPORTAR).coachMark(ObjetivosRecorrido.REGISTROS_EXPORTAR),
-                        )
+                        state.pestana == PestanaRegistros.TURNOS -> {
+                            BotonOrden(
+                                modo = acciones.modoOrdenTurnos,
+                                onClick = acciones.onCambiarOrdenTurnos,
+                                modifier = Modifier.testTag(RegistrosTags.ORDENAR),
+                            )
+                        }
+                        state.pestana == PestanaRegistros.CLIENTES -> {
+                            BotonOrden(
+                                modo = accionesClientes.modoOrden,
+                                onClick = accionesClientes.onCambiarOrden,
+                                modifier = Modifier.testTag(RegistrosTags.ORDENAR),
+                            )
+                        }
                     }
                 }
             )

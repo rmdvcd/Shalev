@@ -125,11 +125,15 @@ object ShalevIcons {
     val AvisoAdvertencia: ImageVector get() = MaterialSolido.Warning
     val AvisoError: ImageVector get() = MaterialSolido.ErrorCirculo
 
-    // Ordenación (Inventario y Servicios)
+    // Ordenación (Inventario, Servicios y Registros)
     val OrdenarAlfabetico: ImageVector get() = MaterialSolido.SortByAlpha
-    val OrdenarCronologico: ImageVector get() = MaterialSolido.Schedule
-    val OrdenarImporteDesc: ImageVector get() = MaterialSolido.ArrowDownward
-    val OrdenarImporteAsc: ImageVector get() = MaterialSolido.ArrowUpward
+    val OrdenarCronologico: ImageVector get() = MaterialSolido.SortByCronologico
+    val OrdenarImporteDesc: ImageVector get() = MaterialSolido.SortByImporteDesc
+    val OrdenarImporteAsc: ImageVector get() = MaterialSolido.SortByImporteAsc
+
+    // Dispositivos
+    val Pc: ImageVector get() = MaterialSolido.DesktopWindows
+    val Dispositivos: ImageVector get() = MaterialSolido.Devices
 
     /**
      * Glifo de WhatsApp (24×24). Los flags de arco van con separadores explícitos (`0 0 1`):
@@ -239,7 +243,40 @@ internal object MaterialSolido {
     val Logout: ImageVector by lazy { icono("Logout", "m 17 7 -1.41 1.41 L 18.17 11 H 8 v 2 h 10.17 l -2.58 2.58 L 17 17 l 5 -5 z M 4 5 h 8 V 3 H 4 c -1.1 0 -2 .9 -2 2 v 14 c 0 1.1 .9 2 2 2 h 8 v -2 H 4 V 5 z", espejo = true) }
     val UploadFile: ImageVector by lazy { icono("UploadFile", "M 14 2 H 6 c -1.1 0 -1.99 .9 -1.99 2 L 4 20 c 0 1.1 .89 2 1.99 2 H 18 c 1.1 0 2 -.9 2 -2 V 8 l -6 -6 z m 4 18 H 6 V 4 h 7 v 5 h 5 v 11 z M 8 15.01 l 1.41 1.41 L 11 14.84 V 19 h 2 v -4.16 l 1.59 1.59 L 16 15.01 12.01 11 z") }
     val PhoneAndroid: ImageVector by lazy { icono("PhoneAndroid", "M 16 1 H 8 C 6.34 1 5 2.34 5 4 v 16 c 0 1.66 1.34 3 3 3 h 8 c 1.66 0 3 -1.34 3 -3 V 4 c 0 -1.66 -1.34 -3 -3 -3 z m -2 20 h -4 v -1 h 4 v 1 z m 3.25 -3 H 6.75 V 4 h 10.5 v 14 z") }
-    val SortByAlpha: ImageVector by lazy { icono("SortByAlpha", "M 14.94 4.66 h -4.72 l 2.36 -2.36 z M 14.94 19.34 l -2.36 2.36 -2.36 -2.36 z M 3 13 h 2 v -2 H 3 v 2 z M 3 7 h 6 v 2 H 3 V 7 z M 3 17 h 8 v 2 H 3 v -2 z") }
+    val DesktopWindows: ImageVector by lazy { icono("DesktopWindows", "M 21 2 H 3 c -1.1 0 -2 .9 -2 2 v 12 c 0 1.1 .9 2 2 2 h 7 v 2 H 8 v 2 h 8 v -2 h -2 v -2 h 7 c 1.1 0 2 -.9 2 -2 V 4 c 0 -1.1 -.9 -2 -2 -2 z m 0 14 H 3 V 4 h 18 v 12 z") }
+    /** Letra «A» con flecha descendente (orden alfabético). */
+    val SortByAlpha: ImageVector by lazy {
+        icono(
+            "SortByAlpha",
+            "M 8 6 L 3 18 h 2.4 l 1.1 -2.8 h 5 l 1.1 2.8 h 2.4 L 10 6 H 8 z m 1 3.2 l 1.7 4.2 H 7.3 L 9 9.2 z",
+            "M 19 20 l -4 -4 1.41 -1.41 L 18 16.17 V 4 h 2 v 12.17 l 1.59 -1.58 L 23 16 z",
+        )
+    }
+    /** Reloj con flecha descendente (orden cronológico). */
+    val SortByCronologico: ImageVector by lazy {
+        icono(
+            "SortByCronologico",
+            "M 7.5 6.5 c -3.04 0 -5.5 2.46 -5.5 5.5 s 2.46 5.5 5.5 5.5 5.5 -2.46 5.5 -5.5 -2.46 -5.5 -5.5 -5.5 z m 0 9.2 c -2.04 0 -3.7 -1.66 -3.7 -3.7 s 1.66 -3.7 3.7 -3.7 3.7 1.66 3.7 3.7 -1.66 3.7 -3.7 3.7 z",
+            "M 7 9 h 1.2 v 3.2 l 2.4 1.4 -0.6 1 -3 -1.8 z",
+            "M 19 20 l -4 -4 1.41 -1.41 L 18 16.17 V 4 h 2 v 12.17 l 1.59 -1.58 L 23 16 z",
+        )
+    }
+    /** Signo «$» con flecha descendente (importe mayor a menor). */
+    val SortByImporteDesc: ImageVector by lazy {
+        icono(
+            "SortByImporteDesc",
+            "M 7.8 10.9 c -2.27 -.59 -3 -1.2 -3 -2.15 0 -1.09 1.01 -1.85 2.7 -1.85 1.78 0 2.44 .85 2.5 2.1 h 2.21 c -.07 -1.72 -1.12 -3.3 -3.21 -3.81 V 3 h -3 v 2.16 c -1.94 .42 -3.5 1.68 -3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5 .6 3 1.48 3 2.41 0 .69 -.49 1.79 -2.7 1.79 -2.06 0 -2.87 -.92 -2.98 -2.1 h -2.2 c .12 2.19 1.76 3.42 3.68 3.83 V 21 h 3 v -2.15 c 1.95 -.37 3.5 -1.5 3.5 -3.55 0 -2.84 -2.43 -3.81 -4.7 -4.4 z",
+            "M 19 20 l -4 -4 1.41 -1.41 L 18 16.17 V 4 h 2 v 12.17 l 1.59 -1.58 L 23 16 z",
+        )
+    }
+    /** Signo «$» con flecha ascendente (importe menor a mayor). */
+    val SortByImporteAsc: ImageVector by lazy {
+        icono(
+            "SortByImporteAsc",
+            "M 7.8 10.9 c -2.27 -.59 -3 -1.2 -3 -2.15 0 -1.09 1.01 -1.85 2.7 -1.85 1.78 0 2.44 .85 2.5 2.1 h 2.21 c -.07 -1.72 -1.12 -3.3 -3.21 -3.81 V 3 h -3 v 2.16 c -1.94 .42 -3.5 1.68 -3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5 .6 3 1.48 3 2.41 0 .69 -.49 1.79 -2.7 1.79 -2.06 0 -2.87 -.92 -2.98 -2.1 h -2.2 c .12 2.19 1.76 3.42 3.68 3.83 V 21 h 3 v -2.15 c 1.95 -.37 3.5 -1.5 3.5 -3.55 0 -2.84 -2.43 -3.81 -4.7 -4.4 z",
+            "M 19 4 l 4 4 -1.41 1.41 L 20 7.83 V 20 h -2 V 7.83 l -1.59 1.58 L 15 8 z",
+        )
+    }
     val ArrowUpward: ImageVector by lazy { icono("ArrowUpward", "M 4 12 l 1.41 1.41 L 11 7.83 V 20 h 2 V 7.83 l 5.58 5.59 L 20 12 l -8 -8 -8 8 z") }
     val ArrowDownward: ImageVector by lazy { icono("ArrowDownward", "M 20 12 l -1.41 -1.41 L 13 16.17 V 4 h -2 v 12.17 l -5.58 -5.59 L 4 12 l 8 8 8 -8 z") }
 

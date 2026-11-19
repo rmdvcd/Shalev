@@ -365,6 +365,7 @@ class AjustesDispRepo(inicial: cu.shalev.domain.model.AjustesDispositivo = cu.sh
     override suspend fun guardarAccesoConClave(activo: Boolean) { estado.value = estado.value.copy(accesoConClave = activo) }
     override suspend fun guardarEligioSecundaria(valor: Boolean) { estado.value = estado.value.copy(eligioSecundaria = valor) }
     override suspend fun guardarModoRed(modo: cu.shalev.domain.model.ModoRed) { estado.value = estado.value.copy(modoRed = modo) }
+    override suspend fun guardarSincronizacionAutomatica(activa: Boolean) { estado.value = estado.value.copy(sincronizacionAutomatica = activa) }
 }
 
 /** 0.27.0 (N2): clientes fijos en memoria. */

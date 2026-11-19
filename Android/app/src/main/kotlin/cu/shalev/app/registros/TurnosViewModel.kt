@@ -36,6 +36,9 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+import kotlinx.coroutines.flow.combine
+import cu.shalev.domain.model.ModoOrden
+
 /**
  * Registros → Turnos. La lista sale de la BD cifrada (SQLCipher) y se actualiza sola al abrir/cerrar.
  * Estados: Cargando → Éxito / Vacío / Error (genérico, con Reintentar).
@@ -45,13 +48,27 @@ import kotlinx.coroutines.launch
 class TurnosViewModel @Inject constructor(observarHistorial: ObservarHistorialTurnos) : ViewModel() {
 
     private val intento = MutableStateFlow(0)
+    val orden = MutableStateFlow(ModoOrden.CRONOLOGICO)
+    fun cambiarOrden() { orden.update { it.siguiente() } }
 
-    val state: StateFlow<EstadoCarga<List<Turno>>> = intento.flatMapLatest {
-        observarHistorial()
-            .map<List<Turno>, EstadoCarga<List<Turno>>> { if (it.isEmpty()) EstadoCarga.Vacio(it) else EstadoCarga.Exito(it) }
-            .onStart { emit(EstadoCarga.Cargando) }
-            .catch { e -> if (e is CancellationException) throw e else emit(EstadoCarga.Error(TextosTurno.ERROR_CARGA)) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EstadoCarga.Idle)
+    val state: StateFlow<EstadoCarga<List<Turno>>> = combine(
+        intento.flatMapLatest { observarHistorial() },
+        orden,
+    ) { lista, ord ->
+        if (lista.isEmpty()) EstadoCarga.Vacio(lista)
+        else {
+            val ordenados = when (ord) {
+                ModoOrden.CRONOLOGICO -> lista.sortedByDescending { it.abiertoEn }
+                ModoOrden.ALFABETICO -> lista.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.usuario })
+                ModoOrden.IMPORTE_DESC -> lista.sortedByDescending { it.saldoFinal ?: it.saldoInicial }
+                ModoOrden.IMPORTE_ASC -> lista.sortedBy { it.saldoFinal ?: it.saldoInicial }
+            }
+            EstadoCarga.Exito(ordenados)
+        }
+    }
+        .onStart { emit(EstadoCarga.Cargando) }
+        .catch { e -> if (e is CancellationException) throw e else emit(EstadoCarga.Error(TextosTurno.ERROR_CARGA)) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EstadoCarga.Idle)
 
     fun reintentar() { intento.value++ }
 }

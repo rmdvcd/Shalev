@@ -138,6 +138,7 @@ object RegistrosTags {
     const val LISTA = "registros_lista"
     const val REINTENTAR = "registros_reintentar"
     const val BUSCAR = "registros_buscar"
+    const val ORDENAR = "registros_ordenar"
     const val FILTRO = "registros_filtro"
     const val COMPARTIR = "registros_compartir"
     const val EXPORTAR = "registros_exportar"
