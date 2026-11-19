@@ -61,8 +61,8 @@ class TurnosViewModel @Inject constructor(observarHistorial: ObservarHistorialTu
             val ordenados = when (ord) {
                 ModoOrden.CRONOLOGICO -> lista.sortedByDescending { it.abiertoEn }
                 ModoOrden.ALFABETICO -> lista.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.abiertoPor })
-                ModoOrden.IMPORTE_DESC -> lista.sortedByDescending { it.resumen?.totalVentas ?: it.contado ?: it.fondo ?: Cup.ZERO }
-                ModoOrden.IMPORTE_ASC -> lista.sortedBy { it.resumen?.totalVentas ?: it.contado ?: it.fondo ?: Cup.ZERO }
+                ModoOrden.IMPORTE_DESC -> lista.sortedByDescending { it.resumen?.total ?: it.contado ?: it.fondo ?: Cup.ZERO }
+                ModoOrden.IMPORTE_ASC -> lista.sortedBy { it.resumen?.total ?: it.contado ?: it.fondo ?: Cup.ZERO }
             }
             EstadoCarga.Exito(ordenados)
         }

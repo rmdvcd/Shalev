@@ -108,9 +108,10 @@ class ClientesFijosViewModel @Inject constructor(private val repo: ClienteFijoRe
             orden,
         ) { cs, l, ord ->
             val ordenados = if (cs == null) emptyList() else when (ord) {
-                ModoOrden.ALFABETICO -> cs.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.nombre })
-                ModoOrden.CRONOLOGICO -> cs.sortedByDescending { it.ci }
-                ModoOrden.IMPORTE_DESC, ModoOrden.IMPORTE_ASC -> cs.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.nombre })
+                ModoOrden.ALFABETICO -> cs.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.nombreApellidos })
+                ModoOrden.CRONOLOGICO -> cs.sortedByDescending { it.actualizadoEn }
+                ModoOrden.IMPORTE_DESC -> cs.sortedByDescending { it.total }
+                ModoOrden.IMPORTE_ASC -> cs.sortedBy { it.total }
             }
             ClientesUiState(
                 cargando = cs == null, clientes = ordenados, orden = ord, fichaCi = l.fichaCi, confirmarQuitar = l.confirmarQuitar,
