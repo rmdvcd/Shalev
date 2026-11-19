@@ -81,9 +81,9 @@ class ObservarRegistro @Inject constructor(
                 val filtradas = l.filter { RegistrosFiltro.deVendedor(it.vendedor, filtro) && RegistrosFiltro.coincide(it, filtro.texto) }
                 val ordenadas = when (filtro.orden) {
                     ModoOrden.CRONOLOGICO -> filtradas.sortedByDescending { it.fecha }
-                    ModoOrden.ALFABETICO -> filtradas.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.concepto.ifBlank { it.titular } })
-                    ModoOrden.IMPORTE_DESC -> filtradas.sortedByDescending { it.monto }
-                    ModoOrden.IMPORTE_ASC -> filtradas.sortedBy { it.monto }
+                    ModoOrden.ALFABETICO -> filtradas.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.cliente.nombreApellidos.ifBlank { it.numero } })
+                    ModoOrden.IMPORTE_DESC -> filtradas.sortedByDescending { it.importe }
+                    ModoOrden.IMPORTE_ASC -> filtradas.sortedBy { it.importe }
                 }
                 VistaRegistro.Transferencias(ordenadas)
             }
@@ -94,8 +94,8 @@ class ObservarRegistro @Inject constructor(
                 val ordenadas = when (filtro.orden) {
                     ModoOrden.CRONOLOGICO -> filtradas.sortedByDescending { it.movimiento.fecha }
                     ModoOrden.ALFABETICO -> filtradas.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.movimiento.nombre })
-                    ModoOrden.IMPORTE_DESC -> filtradas.sortedByDescending { it.movimiento.cantidad.valor }
-                    ModoOrden.IMPORTE_ASC -> filtradas.sortedBy { it.movimiento.cantidad.valor }
+                    ModoOrden.IMPORTE_DESC -> filtradas.sortedByDescending { kotlin.math.abs(it.movimiento.delta) }
+                    ModoOrden.IMPORTE_ASC -> filtradas.sortedBy { kotlin.math.abs(it.movimiento.delta) }
                 }
                 VistaRegistro.Movimientos(ordenadas)
             }

@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
 
 import kotlinx.coroutines.flow.combine
 import cu.shalev.domain.model.ModoOrden
+import cu.shalev.core.money.Cup
 
 /**
  * Registros → Turnos. La lista sale de la BD cifrada (SQLCipher) y se actualiza sola al abrir/cerrar.
@@ -59,9 +60,9 @@ class TurnosViewModel @Inject constructor(observarHistorial: ObservarHistorialTu
         else {
             val ordenados = when (ord) {
                 ModoOrden.CRONOLOGICO -> lista.sortedByDescending { it.abiertoEn }
-                ModoOrden.ALFABETICO -> lista.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.usuario })
-                ModoOrden.IMPORTE_DESC -> lista.sortedByDescending { it.saldoFinal ?: it.saldoInicial }
-                ModoOrden.IMPORTE_ASC -> lista.sortedBy { it.saldoFinal ?: it.saldoInicial }
+                ModoOrden.ALFABETICO -> lista.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.abiertoPor })
+                ModoOrden.IMPORTE_DESC -> lista.sortedByDescending { it.resumen?.totalVentas ?: it.contado ?: it.fondo ?: Cup.ZERO }
+                ModoOrden.IMPORTE_ASC -> lista.sortedBy { it.resumen?.totalVentas ?: it.contado ?: it.fondo ?: Cup.ZERO }
             }
             EstadoCarga.Exito(ordenados)
         }
