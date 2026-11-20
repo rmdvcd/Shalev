@@ -115,7 +115,7 @@ fun <T> ShalevComboBox(
                     Text(label, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, textAlign = if (centrado) TextAlign.Center else null)
                     Text(etiqueta(seleccion), style = MaterialTheme.typography.titleMedium, color = cs.onSurface, textAlign = if (centrado) TextAlign.Center else null)
                 }
-                Icon(ShalevIcons.Desplegar, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.rotate(giro))
+                Icon(ShalevIcons.Desplegar, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(ShalevSize.iconSmall).rotate(giro))
             }
         }
         ExposedDropdownMenu(

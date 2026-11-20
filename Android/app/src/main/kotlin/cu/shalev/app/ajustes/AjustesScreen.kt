@@ -462,7 +462,7 @@ private fun DialogoPermisosAjustes(onDismiss: () -> Unit) {
                                     if (concedido) ShalevIcons.AvisoExito else ShalevIcons.AvisoAdvertencia,
                                     contentDescription = null,
                                     tint = if (concedido) ShalevTheme.colors.success else MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(ShalevSize.icon),
+                                    modifier = Modifier.size(ShalevSize.iconSmall),
                                 )
                                 Text(
                                     if (concedido) "Permitido" else "No concedido",

@@ -36,17 +36,42 @@ class AndroidDeviceKey @Inject constructor(
     private val ks: KeyStore = KeyStore.getInstance(ANDROID_KS).apply { load(null) }
     private val softFile = File(context.noBackupFilesDir, "spvi_device_key.bin")
 
-    private val impl: DeviceKey by lazy {
-        when {
-            softFile.exists() -> loadSoftware() ?: createSoftware()
-            ks.containsAlias(EC_ALIAS) -> KeystoreEc()
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> { createKeystoreEc(); KeystoreEc() }
-            else -> createSoftware()
+    private var _impl: DeviceKey? = null
+    private val impl: DeviceKey
+        get() {
+            if (_impl == null) {
+                _impl = when {
+                    softFile.exists() -> loadSoftware() ?: createSoftware()
+                    ks.containsAlias(EC_ALIAS) -> KeystoreEc()
+                    else -> createSoftware()
+                }
+            }
+            return _impl!!
         }
-    }
 
     override fun publicSpki(): ByteArray = impl.publicSpki()
     override fun agree(peer: PublicKey): ByteArray = impl.agree(peer)
+
+    override fun exportarClaves(): Pair<ByteArray, ByteArray>? = runCatching {
+        if (!softFile.exists()) {
+            impl
+        }
+        if (softFile.exists()) {
+            val buf = ByteBuffer.wrap(softFile.readBytes())
+            val pub = ByteArray(buf.int).also { buf.get(it) }
+            val enc = ByteArray(buf.remaining()).also { buf.get(it) }
+            val privBytes = aead.decrypt(enc, aad = pub)
+            pub to privBytes
+        } else null
+    }.getOrNull()
+
+    override fun restaurarClaves(pub: ByteArray, privPkcs8: ByteArray) {
+        val enc = aead.encrypt(privPkcs8, aad = pub)
+        softFile.writeBytes(ByteBuffer.allocate(4 + pub.size + enc.size).putInt(pub.size).put(pub).put(enc).array())
+        val priv = KeyFactory.getInstance("EC").generatePrivate(PKCS8EncodedKeySpec(privPkcs8))
+        _impl = Software(pub, priv)
+        runCatching { if (ks.containsAlias(EC_ALIAS)) ks.deleteEntry(EC_ALIAS) }
+    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun createKeystoreEc() {

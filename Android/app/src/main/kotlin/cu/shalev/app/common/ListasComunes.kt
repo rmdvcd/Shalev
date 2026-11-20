@@ -134,7 +134,7 @@ fun BarraSeleccion(
             onClick = onMarcarTodo, selected = todosMarcados, modifier = Modifier.tag(tagMarcarTodo),
         )
         if (onExportar != null && permisos.exportar) {
-            ShalevIconAction(ShalevIcons.Exportar, "Exportar selección", mostrarTexto = false, onClick = onExportar, modifier = Modifier.tag(tagExportar))
+            ShalevIconAction(ShalevIcons.Exportar, "Exportar selección", etiqueta = "Exportar", onClick = onExportar, modifier = Modifier.tag(tagExportar))
         }
         if (onEliminar != null && permisos.editarInventario) {
             ShalevIconAction(ShalevIcons.Eliminar, "Eliminar selección", etiqueta = "Eliminar", onClick = onEliminar, modifier = Modifier.tag(tagEliminar))

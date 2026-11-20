@@ -85,6 +85,9 @@ class RespaldoRepositoryImpl @Inject constructor(
     /** 0.25.0: recordatorio mensual (último respaldo exportado) y licencia recuperable tras importar. */
     private val estadoApp: EstadoAppRepository,
     @ApplicationContext private val context: Context,
+    private val licenseStore: cu.shalev.licencia.LicenseStore? = null,
+    private val deviceKey: cu.shalev.licencia.crypto.DeviceKey? = null,
+    private val deviceIds: cu.shalev.data.licencia.DeviceIdProvider? = null,
 ) : RespaldoRepository {
 
     private val cipher = BackupCipher()
@@ -210,9 +213,25 @@ class RespaldoRepositoryImpl @Inject constructor(
         }
     }
 
-    /** 0.25.0: datos públicos de la licencia instalada (null si no hay licencia auténtica: prueba). */
-    private fun bloqueLicencia(ci: String): LicenciaRespaldoDto? = licencias.snapshot.value?.instalada?.let { l ->
-        LicenciaRespaldoDto(id = l.id, tipo = l.tipo.name, secundarias = l.secundarias, venceEn = l.venceEn?.toEpochMilli(), ci = ci)
+    /** 0.25.0: datos de la licencia instalada y su par de claves ECDH para restaurar en este dispositivo. */
+    private suspend fun bloqueLicencia(ci: String): LicenciaRespaldoDto? = licencias.snapshot.value?.instalada?.let { l ->
+        val stored = licenseStore?.license()
+        val claves = deviceKey?.exportarClaves()
+        val devId = stored?.deviceId?.ifBlank { null } ?: deviceIds?.deviceId.orEmpty()
+        val pubB64 = claves?.first?.let { java.util.Base64.getEncoder().encodeToString(it) }.orEmpty()
+        val privB64 = claves?.second?.let { java.util.Base64.getEncoder().encodeToString(it) }.orEmpty()
+        LicenciaRespaldoDto(
+            id = l.id,
+            tipo = l.tipo.name,
+            secundarias = l.secundarias,
+            venceEn = l.venceEn?.toEpochMilli(),
+            ci = ci,
+            deviceId = devId,
+            envelopeJson = stored?.envelopeJson.orEmpty(),
+            emitidaEn = stored?.emitidaEn.orEmpty(),
+            clavePublicaSpki = pubB64,
+            clavePrivadaPkcs8 = privB64,
+        )
     }
 
     override suspend fun inspeccionar(origen: InputStream): AppResult<InfoRespaldo> = withContext(io) {
@@ -544,11 +563,33 @@ class RespaldoRepositoryImpl @Inject constructor(
     }
 
     /**
-     * 0.25.0 (§3): si este teléfono no tiene una licencia válida y el respaldo traía una, se guarda para ofrecer
-     * «Recuperar licencia» con el ID y el carné ya escritos. Con licencia válida no se toca nada.
+     * Si este teléfono coincide con el del respaldo (`deviceId`), se restablece directamente la licencia y su clave ECDH.
+     * Si no coincide (o falla), se guarda para ofrecer «Recuperar licencia» con el ID y el carné ya escritos.
      */
     private suspend fun recordarLicencia(l: LicenciaRespaldoDto?) {
         if (l == null) return
+        val actualDeviceId = deviceIds?.deviceId
+        val esMismoDispositivo = !actualDeviceId.isNullOrBlank() && l.deviceId.isNotBlank() && l.deviceId == actualDeviceId
+        if (esMismoDispositivo && l.envelopeJson.isNotBlank() && l.clavePrivadaPkcs8.isNotBlank() && deviceKey != null && licenseStore != null) {
+            val restaurada = runCatching {
+                val pub = java.util.Base64.getDecoder().decode(l.clavePublicaSpki)
+                val priv = java.util.Base64.getDecoder().decode(l.clavePrivadaPkcs8)
+                deviceKey.restaurarClaves(pub, priv)
+                val tipo = cu.shalev.licencia.contract.TipoLicencia.entries.firstOrNull { it.name == l.tipo }
+                val stored = cu.shalev.licencia.StoredLicense(
+                    envelopeJson = l.envelopeJson,
+                    licenseId = l.id,
+                    emitidaEn = l.emitidaEn,
+                    tipo = tipo,
+                    venceEn = l.venceEn?.toString(),
+                    deviceId = l.deviceId,
+                )
+                licenseStore.saveLicense(stored)
+                licenseStore.clearRevoked()
+                licencias.refrescar()
+            }.isSuccess
+            if (restaurada) return
+        }
         val estado = licencias.snapshot.value?.estado
         if (estado is LicenseState.Active || estado is LicenseState.Perpetual) return
         val r = LicenciaRecuperable(l.id, l.tipo, l.secundarias, l.venceEn?.let(Instant::ofEpochMilli), l.ci)

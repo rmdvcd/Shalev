@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.flow
 class SolicitarLicencia @Inject constructor(
     private val licencia: LicenciaRepository,
     private val perfil: PerfilRepository,
+    private val conf: cu.shalev.domain.repository.ConfiguracionInicialRepository? = null,
 ) {
     suspend operator fun invoke(input: SolicitudInput): AppResult<cu.shalev.licencia.SolicitudGenerada> =
         licencia.construirSolicitud(input).onOk {
@@ -39,6 +40,7 @@ class SolicitarLicencia @Inject constructor(
                     else listOf(Telefono(numero = tel)) + actual.telefonos,
                 ),
             )
+            conf?.confirmar(cu.shalev.domain.model.PasoConfiguracion.DATOS)
         }
 }
 

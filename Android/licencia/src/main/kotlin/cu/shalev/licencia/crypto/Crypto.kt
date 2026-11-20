@@ -199,4 +199,6 @@ object AesGcm {
 interface DeviceKey {
     fun publicSpki(): ByteArray
     fun agree(peer: PublicKey): ByteArray
+    fun exportarClaves(): Pair<ByteArray, ByteArray>? = null
+    fun restaurarClaves(pub: ByteArray, privPkcs8: ByteArray) {}
 }

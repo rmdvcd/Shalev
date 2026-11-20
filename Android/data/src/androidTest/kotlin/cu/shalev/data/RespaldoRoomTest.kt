@@ -18,8 +18,13 @@ import cu.shalev.domain.model.NivelesMinimos
 import cu.shalev.domain.model.Preferencias
 import cu.shalev.domain.model.Producto
 import cu.shalev.domain.model.Venta
+import cu.shalev.domain.model.Licencia
+import cu.shalev.domain.model.LicenciaInstalada
 import cu.shalev.domain.repository.EtapaRespaldo
 import cu.shalev.domain.repository.PreferenciasRepository
+import cu.shalev.licencia.LicenseState
+import cu.shalev.licencia.StoredLicense
+import cu.shalev.licencia.contract.TipoLicencia
 import java.io.ByteArrayOutputStream
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
@@ -178,6 +183,126 @@ class RespaldoRoomTest {
         assertEquals(AppError.ContrasenaIncorrecta, err(respaldo.importar(archivo.inputStream(), "otra-clave".toCharArray())))
         assertEquals(listOf("Galletas", "Refresco"), nombres())
         assertEquals(3L, prefs.preferencias.first().niveles.productoBajo)
+    }
+
+    @Test fun mismoDispositivoRestauraLicenciaYClavesEcdh() = runBlocking {
+        val devId = "SPVI:1122334455667788"
+        val devIds = object : cu.shalev.data.licencia.DeviceIdProvider(contexto) {
+            override val deviceId: String = devId
+        }
+        val devKey = object : cu.shalev.licencia.crypto.DeviceKey {
+            var pub = byteArrayOf(1, 2, 3)
+            var priv = byteArrayOf(4, 5, 6)
+            override fun publicSpki() = pub
+            override fun agree(peer: java.security.PublicKey) = byteArrayOf(9)
+            override fun exportarClaves() = pub to priv
+            override fun restaurarClaves(pub: ByteArray, privPkcs8: ByteArray) {
+                this.pub = pub
+                this.priv = privPkcs8
+            }
+        }
+        val licInstalada = LicenciaInstalada("lic-abc", TipoLicencia.MENSUAL, ahora, ahora.plusSeconds(30 * 86400L))
+        val licRepo = LicenciaFija(Licencia(LicenseState.Active(TipoLicencia.MENSUAL, ahora.plusSeconds(30 * 86400L), "lic-abc"), devId, true, null, licInstalada))
+        val store = object : cu.shalev.licencia.LicenseStore {
+            var guardada: StoredLicense? = StoredLicense("SPVI2:envelope_cifrado", "lic-abc", "2026-09-30T12:00:00Z", TipoLicencia.MENSUAL, null, devId)
+            override suspend fun license() = guardada
+            override suspend fun saveLicense(license: StoredLicense) { guardada = license }
+            override suspend fun trialStart() = null
+            override suspend fun setTrialStart(instant: Instant) {}
+            override suspend fun lastSeen() = null
+            override suspend fun setLastSeen(instant: Instant) {}
+            override suspend fun migratedAt() = null
+            override suspend fun markMigrated(at: Instant) { guardada = null }
+            override suspend fun revokedAt() = null
+            override suspend fun markRevoked(at: Instant) { guardada = null }
+            override suspend fun clearRevoked() {}
+        }
+        val repo = RespaldoRepositoryImpl(db, prefs, clock, Dispatchers.IO, licRepo, estadoApp, contexto, store, devKey, devIds)
+
+        val out = ByteArrayOutputStream()
+        ok(repo.exportar(clave(), out) {})
+
+        devKey.pub = byteArrayOf(99)
+        devKey.priv = byteArrayOf(88)
+        store.guardada = null
+        licRepo.refrescado = false
+
+        ok(repo.importar(out.toByteArray().inputStream(), clave()))
+
+        assertEquals(byteArrayOf(1, 2, 3).toList(), devKey.pub.toList())
+        assertEquals(byteArrayOf(4, 5, 6).toList(), devKey.priv.toList())
+        assertEquals("lic-abc", store.guardada?.licenseId)
+        assertEquals("SPVI2:envelope_cifrado", store.guardada?.envelopeJson)
+        assertEquals(devId, store.guardada?.deviceId)
+        assertTrue(licRepo.refrescado)
+        assertEquals(null, estadoApp.flujo.value.licenciaRecuperable)
+    }
+
+    @Test fun distintoDispositivoNoRestauraClavesNiLicenciaYLaMarcaComoRecuperable() = runBlocking {
+        val devIdOrigen = "SPVI:1122334455667788"
+        val devIdDestino = "SPVI:9988776655443322"
+        val devIdsOrigen = object : cu.shalev.data.licencia.DeviceIdProvider(contexto) { override val deviceId: String = devIdOrigen }
+        val devIdsDestino = object : cu.shalev.data.licencia.DeviceIdProvider(contexto) { override val deviceId: String = devIdDestino }
+
+        val devKeyOrigen = object : cu.shalev.licencia.crypto.DeviceKey {
+            override fun publicSpki() = byteArrayOf(1, 2, 3)
+            override fun agree(peer: java.security.PublicKey) = byteArrayOf(9)
+            override fun exportarClaves() = byteArrayOf(1, 2, 3) to byteArrayOf(4, 5, 6)
+        }
+        val devKeyDestino = object : cu.shalev.licencia.crypto.DeviceKey {
+            var pub = byteArrayOf(77)
+            var priv = byteArrayOf(66)
+            override fun publicSpki() = pub
+            override fun agree(peer: java.security.PublicKey) = byteArrayOf(9)
+            override fun exportarClaves() = pub to priv
+            override fun restaurarClaves(pub: ByteArray, privPkcs8: ByteArray) { this.pub = pub; this.priv = privPkcs8 }
+        }
+
+        val licInstalada = LicenciaInstalada("lic-abc", TipoLicencia.MENSUAL, ahora, ahora.plusSeconds(30 * 86400L))
+        val licRepoOrigen = LicenciaFija(Licencia(LicenseState.Active(TipoLicencia.MENSUAL, ahora.plusSeconds(30 * 86400L), "lic-abc"), devIdOrigen, true, null, licInstalada))
+        val licRepoDestino = LicenciaFija(Licencia(LicenseState.Trial(7), devIdDestino, true, null))
+
+        val storeOrigen = object : cu.shalev.licencia.LicenseStore {
+            val guardada = StoredLicense("SPVI2:envelope_cifrado", "lic-abc", "2026-09-30T12:00:00Z", TipoLicencia.MENSUAL, null, devIdOrigen)
+            override suspend fun license() = guardada
+            override suspend fun saveLicense(license: StoredLicense) {}
+            override suspend fun trialStart() = null
+            override suspend fun setTrialStart(instant: Instant) {}
+            override suspend fun lastSeen() = null
+            override suspend fun setLastSeen(instant: Instant) {}
+            override suspend fun migratedAt() = null
+            override suspend fun markMigrated(at: Instant) {}
+            override suspend fun revokedAt() = null
+            override suspend fun markRevoked(at: Instant) {}
+            override suspend fun clearRevoked() {}
+        }
+        val storeDestino = object : cu.shalev.licencia.LicenseStore {
+            var guardada: StoredLicense? = null
+            override suspend fun license() = guardada
+            override suspend fun saveLicense(license: StoredLicense) { guardada = license }
+            override suspend fun trialStart() = null
+            override suspend fun setTrialStart(instant: Instant) {}
+            override suspend fun lastSeen() = null
+            override suspend fun setLastSeen(instant: Instant) {}
+            override suspend fun migratedAt() = null
+            override suspend fun markMigrated(at: Instant) { guardada = null }
+            override suspend fun revokedAt() = null
+            override suspend fun markRevoked(at: Instant) { guardada = null }
+            override suspend fun clearRevoked() {}
+        }
+
+        val repoOrigen = RespaldoRepositoryImpl(db, prefs, clock, Dispatchers.IO, licRepoOrigen, estadoApp, contexto, storeOrigen, devKeyOrigen, devIdsOrigen)
+        val repoDestino = RespaldoRepositoryImpl(db, prefs, clock, Dispatchers.IO, licRepoDestino, estadoApp, contexto, storeDestino, devKeyDestino, devIdsDestino)
+
+        val out = ByteArrayOutputStream()
+        ok(repoOrigen.exportar(clave(), out) {})
+
+        ok(repoDestino.importar(out.toByteArray().inputStream(), clave()))
+
+        assertEquals(byteArrayOf(77).toList(), devKeyDestino.pub.toList())
+        assertEquals(byteArrayOf(66).toList(), devKeyDestino.priv.toList())
+        assertEquals(null, storeDestino.guardada)
+        assertEquals("lic-abc", estadoApp.flujo.value.licenciaRecuperable?.id)
     }
 
     /** Preferencias en memoria (la app usa DataStore cifrado, fuera del alcance de este test). */

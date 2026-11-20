@@ -40,8 +40,8 @@ class LicenciaViewModelTest {
     private val completo = Perfil(nombre = "María", apellidos = "Pérez González", ci = "85010112345", telefonos = listOf(Telefono(1, "+5352345678")))
     private val eventos = mutableListOf<LicenciaEvento>()
 
-    private fun TestScope.vm(lic: LicRepo, perfil: PerfilRepo): LicenciaViewModel {
-        val vm = LicenciaViewModel(lic, perfil, SolicitarLicencia(lic, perfil), ActivarLicencia(lic), cu.shalev.app.PrefRepo())
+    private fun TestScope.vm(lic: LicRepo, perfil: PerfilRepo, conf: cu.shalev.app.ConfRepo = cu.shalev.app.ConfRepo()): LicenciaViewModel {
+        val vm = LicenciaViewModel(lic, perfil, SolicitarLicencia(lic, perfil, conf), ActivarLicencia(lic), cu.shalev.app.PrefRepo(), conf)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.events.collect { eventos += it } }
         return vm
     }
@@ -188,5 +188,32 @@ class LicenciaViewModelTest {
         assertTrue(TextosActivacion.INSTRUCCION.contains("mensaje de activación"))
         assertFalse(TextosActivacion.INSTRUCCION.contains("SPVI2:"))
         assertFalse(TextosActivacion.INSTRUCCION.contains("QR"))
+    }
+
+    @Test fun cerrarEdicionConDatosValidosGuardaEnPerfilYConfirmaDatos() = runTest {
+        val conf = cu.shalev.app.ConfRepo()
+        val perfil = PerfilRepo()
+        val vm = vm(LicRepo(), perfil, conf)
+        vm.editar { it.copy(nombre = "Carlos", apellidos = "Pérez", ci = "85010112345", telefono = "52345678") }
+        vm.cerrarEdicion()
+        val p = perfil.perfil.first()
+        assertEquals("Carlos", p.nombre)
+        assertEquals("Pérez", p.apellidos)
+        assertEquals("85010112345", p.ci)
+        assertTrue(cu.shalev.domain.model.PasoConfiguracion.DATOS in conf.state.value.confirmados)
+    }
+
+    @Test fun activarLicenciaConDatosValidosGuardaEnPerfilYConfirmaDatos() = runTest {
+        val conf = cu.shalev.app.ConfRepo()
+        val perfil = PerfilRepo()
+        val lic = LicRepo(LicenseState.TrialExpired)
+        val vm = vm(lic, perfil, conf)
+        val activa = LicenseState.Active(TipoLicencia.MENSUAL, t0.plusSeconds(30L * 86_400), "lic-1", 2)
+        lic.respuestaActivar = ActivationResult.Accepted(activa)
+        vm.editar { it.copy(nombre = "Carlos", apellidos = "Pérez", ci = "85010112345", telefono = "52345678", mensajeLicencia = "SPVI2:abc") }
+        vm.activarLicencia()
+        val p = perfil.perfil.first()
+        assertEquals("Carlos", p.nombre)
+        assertTrue(cu.shalev.domain.model.PasoConfiguracion.DATOS in conf.state.value.confirmados)
     }
 }

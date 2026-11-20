@@ -66,9 +66,23 @@ data class MovimientoCajaDto(
     val hechoPor: String = "", val uuid: String? = null, val sincronizado: Boolean = false,
 )
 
-/** 0.25.0: [venceEn] epoch ms (null = perpetua). */
+/**
+ * 0.25.0: [venceEn] epoch ms (null = perpetua).
+ * Al restaurar en el mismo dispositivo (`deviceId`), se restablece la licencia activa y su par ECDH.
+ */
 @Serializable
-data class LicenciaRespaldoDto(val id: String, val tipo: String, val secundarias: Int, val venceEn: Long? = null, val ci: String = "")
+data class LicenciaRespaldoDto(
+    val id: String,
+    val tipo: String,
+    val secundarias: Int,
+    val venceEn: Long? = null,
+    val ci: String = "",
+    val deviceId: String = "",
+    val envelopeJson: String = "",
+    val emitidaEn: String = "",
+    val clavePublicaSpki: String = "",
+    val clavePrivadaPkcs8: String = "",
+)
 
 @Serializable
 data class ProductoDto(
