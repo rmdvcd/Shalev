@@ -245,12 +245,13 @@ summary{
   justify-content:center;
   z-index:9999;
   transition:opacity var(--motion-press) ease,visibility var(--motion-press) ease;
-  pointer-events:none
+  cursor:pointer
 }
 
 .splash-screen.loaded{
   opacity:0;
-  visibility:hidden
+  visibility:hidden;
+  display:none
 }
 
 .splash-card{
