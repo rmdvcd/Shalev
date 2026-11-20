@@ -1,12 +1,30 @@
 @echo off
-REM Inicia MIPVentaX Web-Desktop con los datos de depuración pre-sembrados en Windows
-echo Iniciando MIPVentaX Web-Desktop (Modo Debug)...
-echo Datos: %~dp0DShalevData
-echo Usuario administrador: admin
-echo Contrasena: Administrador123*
-echo Accede en tu navegador a: http://127.0.0.1:47812
-
+REM Inicia MIPVentaX Web-Desktop con los datos de depuracion pre-sembrados en Windows
+chcp 65001 > nul
 cd /d "%~dp0"
-set PYTHONPATH=%~dp0..\..\Web-Desktop;%PYTHONPATH%
-python -c "import os; from pathlib import Path; import uvicorn; from dshalev.config import load_config; from dshalev.app import create_app; config = load_config(Path(r'%~dp0')); app = create_app(config); uvicorn.run(app, host='127.0.0.1', port=47812, access_log=True)"
+
+echo =======================================================
+echo   Iniciando MIPVentaX Web-Desktop (Modo Debug)...
+echo =======================================================
+echo.
+
+python ejecutar_debug.py
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo Probando con el comando 'py'...
+    py ejecutar_debug.py
+)
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo Probando con 'python3'...
+    python3 ejecutar_debug.py
+)
+
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo [ERROR] No se pudo iniciar el servidor.
+    echo Si falta instalar dependencias, ejecuta en tu terminal:
+    echo   pip install -r ..\..\Web-Desktop\requirements.txt
+    echo.
+)
 pause
