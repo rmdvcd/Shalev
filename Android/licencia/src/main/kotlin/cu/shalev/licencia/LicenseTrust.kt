@@ -31,16 +31,20 @@ object LicenseTrust {
 
     data class PinnedKey(val spkiB64: String, val sha256: String)
 
-    // ECDH vigente del emisor (GL 1.2.0 en el teléfono 4bc9f8f3, leída el 2026-10-22).
+    // ECDH vigente del emisor GL (sustituida con la instalación actual).
     // Es la única con la que se cifran las solicitudes: si GL cambia de par, hay que sustituirla.
     val ECDH_KEY = PinnedKey(
-        spkiB64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4UHhdTzS3X/2pk5wmEAibv760EBcnxDjERo8km4OCdIhVDc5D+N0yPQlq6UpiXV1exXVmMfD6vqezlNsYFEIYg==",
-        sha256 = "sha256:fb3a:f7fc:e8a2:e86d:4e83:5351:d677:6aec:a9b6:5071:21d7:a417:9cd7:4b1b:0a53:078d",
+        spkiB64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELQaSJKdqp6b/uqGc+0juRctWGdb9mHQZj2CZRHsrKNsux9UhBbTHirLhF7q6KupNGc9PwwiqNAVcpAT7MR2EvA==",
+        sha256 = "sha256:0289:7025:2266:8423:1613:2ccd:18a7:3ecd:e0ec:878f:767f:e9a4:916b:d356:6771:a2e0",
     )
 
     // SPKI de firma GL: el del emisor vigente primero y después cada rotación conocida,
     // para verificar también las licencias emitidas con las anteriores.
     val SIGN_KEYS: List<PinnedKey> = listOf(
+        PinnedKey(
+            spkiB64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAED3b2+vZldNNAkjW9X6hKZebUnQ4ycS7lqCK1Z6IMdRHlhhXq1/h7eBRj/4VYAzIjdSFKRknFaATttWM4NTlEQg==",
+            sha256 = "sha256:d252:9bd9:0aa3:e8bb:d120:06e6:b4d0:7a23:9092:9a9e:7501:1a05:a80c:d994:aacb:64be",
+        ),
         PinnedKey(
             spkiB64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE8TwMudgF0ioPFGp+VOQDU+xBDEQQQRHErwPyKQupkBGS8WL/dQVAFN4t3PIddOBl3Kg60ucThoOicZFctdtjIQ==",
             sha256 = "sha256:113f:a5f6:af7f:f43e:a87e:5f16:c578:36bb:58d1:d73a:c7a8:bb65:568a:b0bf:6d1a:4b1c",
