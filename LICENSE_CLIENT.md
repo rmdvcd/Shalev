@@ -108,8 +108,8 @@ Nunca se indica qué comprobación falló.
 
 | Clave | Política |
 |---|---|
-| Firma (`kid = gl-sign-v1`) | **Solo fijada en el build**, como lista (`LicenseTrust.SIGN_KEYS`). La primera es la del **emisor vigente** (GL 1.2.0 del teléfono `4bc9f8f3`, pestaña Claves leída el 22/10/2026): `sha256:113f:a5f6:…:4b1c`. Después se conservan las rotaciones anteriores para verificar licencias ya emitidas: `sha256:58d4:3aac:…:8c4e` (bundle `gl-public-keys.txt`, 05/10/2026), `sha256:e693:6c20:…:0a6e` y `sha256:d9c4:d821:…:998e` (GL el 15/10/2026) y `sha256:8a91:bcfb:…:6888` (30/09/2026) |
-| ECDH | **Solo fijada en el build** (`LicenseTrust.ECDH_KEY`) a la del **emisor vigente** (misma lectura del 22/10/2026): `sha256:fb3a:f7fc:…:078d`. La solicitud solo puede abrirse con la privada correspondiente en la instalación GL emisora. |
+| Firma (`kid = gl-sign-v1`) | **Solo fijada en el build**, como lista (`LicenseTrust.SIGN_KEYS`). La primera es la del **emisor vigente**: `sha256:d252:9bd9:…:64be`. Después se conservan las rotaciones anteriores para verificar licencias ya emitidas: `sha256:113f:a5f6:…:4b1c` (22/10/2026), `sha256:58d4:3aac:…:8c4e` (bundle `gl-public-keys.txt`, 05/10/2026), `sha256:e693:6c20:…:0a6e` y `sha256:d9c4:d821:…:998e` (GL el 15/10/2026) y `sha256:8a91:bcfb:…:6888` (30/09/2026) |
+| ECDH | **Solo fijada en el build** (`LicenseTrust.ECDH_KEY`) a la del **emisor vigente**: `sha256:0289:7025:…:a2e0`. La solicitud solo puede abrirse con la privada correspondiente en la instalación GL emisora. |
 
 **Importante:** GL genera sus pares localmente en el Keystore; el archivo versionado de GL es un snapshot, no una garantía sobre todas las instalaciones. Si el GL emisor tiene otras claves, hay que comparar con su pestaña **Claves**: agregar su firma a `SIGN_KEYS` y fijar su ECDH requiere un build nuevo. Tras cambiar ECDH, las solicitudes pendientes cifradas para la clave anterior deben generarse de nuevo. Las licencias ya instaladas se re-verifican con las firmas históricas conservadas.
 

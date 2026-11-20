@@ -11,8 +11,9 @@ import org.junit.Test
 /** Claves ancladas: el emisor GL vigente y las firmas históricas conocidas. */
 class LicenseTrustTest {
 
-    private val huellaEcdhGl = "sha256:fb3a:f7fc:e8a2:e86d:4e83:5351:d677:6aec:a9b6:5071:21d7:a417:9cd7:4b1b:0a53:078d"
-    private val huellaFirmaGl = "sha256:113f:a5f6:af7f:f43e:a87e:5f16:c578:36bb:58d1:d73a:c7a8:bb65:568a:b0bf:6d1a:4b1c"
+    private val huellaEcdhGl = "sha256:0289:7025:2266:8423:1613:2ccd:18a7:3ecd:e0ec:878f:767f:e9a4:916b:d356:6771:a2e0"
+    private val huellaFirmaGl = "sha256:d252:9bd9:0aa3:e8bb:d120:06e6:b4d0:7a23:9092:9a9e:7501:1a05:a80c:d994:aacb:64be"
+    private val huellaFirma1022 = "sha256:113f:a5f6:af7f:f43e:a87e:5f16:c578:36bb:58d1:d73a:c7a8:bb65:568a:b0bf:6d1a:4b1c"
     private val huellaFirma1005 = "sha256:58d4:3aac:6f1b:099a:e86c:4375:b7c7:ffb5:8631:2399:246c:1f26:f861:e302:9c83:8c4e"
     private val huellaFirma1015b = "sha256:e693:6c20:2461:57af:0f91:2313:94a4:80a5:0d8c:d150:34a1:091b:08af:b121:2828:0a6e"
     private val huellaFirma1015a = "sha256:d9c4:d821:1880:bc79:dda6:f92a:0c0d:f6a4:dc0d:a00a:191f:9c05:229d:4c1f:3be7:998e"
@@ -29,7 +30,7 @@ class LicenseTrustTest {
         assertEquals(LicenseTrust.SIGN_KEYS.size, LicenseTrust.signSpkis().size)
         assertTrue(LicenseTrust.canValidate)
         assertEquals(
-            listOf(huellaFirmaGl, huellaFirma1005, huellaFirma1015b, huellaFirma1015a, huellaFirma0930)
+            listOf(huellaFirmaGl, huellaFirma1022, huellaFirma1005, huellaFirma1015b, huellaFirma1015a, huellaFirma0930)
                 .map(LicenseTrust::normalizarHuella),
             LicenseTrust.signSpkis().map(EcP256::fingerprint),
         )
@@ -40,9 +41,9 @@ class LicenseTrustTest {
     }
 
     @Test fun huellaEnFormatoGlOHexPlano() {
-        val hex = "fb3af7fce8a2e86d4e835351d6776aeca9b6507121d7a4179cd74b1b0a53078d"
+        val hex = "028970252266842316132ccd18a73ecde0ec878f767fe9a4916bd3566771a2e0"
         assertEquals(hex, LicenseTrust.normalizarHuella(huellaEcdhGl))
-        assertEquals(hex, LicenseTrust.normalizarHuella(" SHA256:FB3A:F7FC:E8A2:E86D:4E83:5351:D677:6AEC:A9B6:5071:21D7:A417:9CD7:4B1B:0A53:078D "))
+        assertEquals(hex, LicenseTrust.normalizarHuella(" SHA256:0289:7025:2266:8423:1613:2CCD:18A7:3ECD:E0EC:878F:767F:E9A4:916B:D356:6771:A2E0 "))
         assertEquals(hex, LicenseTrust.normalizarHuella(hex))
     }
 
