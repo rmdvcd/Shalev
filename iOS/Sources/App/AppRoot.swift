@@ -143,10 +143,7 @@ struct ShalevRootView: View {
         let _ = ShalevDynamicType.shared.actualizar(dynamicTypeSize)
         Group {
             if !sync.isSecondary && licenseManager.state == .loading {
-                ProgressView("Comprobando licencia…")
-                    .tint(Color.shalevPrimary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.shalevBackground.ignoresSafeArea())
+                SplashAnimatedLogoView()
             } else if !effectiveLicenseState.unlocked {
                 if sync.isSecondary {
                     NavigationStack { SyncView(sync: sync, lockedMode: true) }

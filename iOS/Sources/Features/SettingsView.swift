@@ -2091,7 +2091,7 @@ private struct AboutView: View {
             VStack(spacing: 13) {
                 Image("ShalevLogo").resizable().scaledToFit().frame(width: 112, height: 112)
                     .accessibilityLabel("Logo de Shalev")
-                ShalevScreenTitle(title: "Shalev para iOS", subtitle: "Punto de venta e inventario nativo")
+                ShalevScreenTitle(title: "MIPVentaX para iOS", subtitle: "Punto de venta e inventario nativo")
                 ShalevCard {
                     VStack(alignment: .leading, spacing: 8) {
                         info("Versión", "1.0 · iOS")

@@ -143,7 +143,7 @@ struct OnboardingView: View {
     private var subtitle: String {
         switch step {
         case 1: "Indica si este teléfono será el principal o el de un empleado."
-        case 2: "Elige qué harás con Shalev. Lo que no marques no aparecerá en la app."
+        case 2: "Elige qué harás con MIPVentaX. Lo que no marques no aparecerá en la app."
         case 3: "Se guardan solo en este teléfono, cifrados. Puedes cambiarlos después en Ajustes → Perfil."
         case 4: "Elige cuándo quieres recibir avisos de existencias bajas o críticas. Puedes ajustarlos luego en Ajustes."
         case 5: "Conoce qué incluye tu prueba o licencia y qué pasa al terminar."
@@ -161,10 +161,13 @@ struct OnboardingView: View {
                 .frame(width: 88, height: 88)
                 .background(Color.shalevPrimary, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .padding(.top, 30)
-            Text("Bienvenido a Shalev")
-                .font(.shalev(26, weight: .bold))
-                .foregroundStyle(Color.shalevText)
-                .multilineTextAlignment(.center)
+            HStack(spacing: 0) {
+                Text("Bienvenido a ")
+                    .font(.shalev(26, weight: .bold))
+                    .foregroundStyle(Color.shalevText)
+                MIPVentaXTitulo(size: 26, isBrandFont: false)
+            }
+            .multilineTextAlignment(.center)
             Text("Punto de venta e inventario que funciona sin conexión y guarda todo en este teléfono.")
                 .font(.shalev(14))
                 .foregroundStyle(Color.shalevSecondaryText)

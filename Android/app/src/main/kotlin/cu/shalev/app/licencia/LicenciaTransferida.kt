@@ -28,7 +28,7 @@ object TextosTransferida {
 @Composable
 fun LicenciaTransferida() {
     val context = LocalContext.current
-    Scaffold(topBar = { ShalevTopBar(title = "Shalev", marca = true) }) { padding ->
+    Scaffold(topBar = { ShalevTopBar(title = "MIPVentaX", marca = true) }) { padding ->
         ShalevEmptyState(
             title = TextosTransferida.TITULO,
             detail = TextosTransferida.DETALLE,

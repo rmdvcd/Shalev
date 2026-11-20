@@ -27,6 +27,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -110,9 +114,49 @@ fun ShalevBotonAyuda(
 const val TEXTO_AYUDA = "Ayuda"
 
 /**
+ * Genera el texto enriquecido para el título "MIPVentaX", resaltando "IPV" en color y grosor de fuente.
+ */
+@Composable
+fun construirTituloMIPVentaX(
+    marca: Boolean = false,
+    colorBase: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onBackground,
+    colorDestacado: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.secondary,
+): androidx.compose.ui.text.AnnotatedString {
+    return buildAnnotatedString {
+        withStyle(
+            SpanStyle(
+                color = colorBase,
+                fontFamily = if (marca) ShalevMarca.fuente else null,
+                fontWeight = FontWeight.Bold,
+            )
+        ) {
+            append("M")
+        }
+        withStyle(
+            SpanStyle(
+                color = colorDestacado,
+                fontFamily = ShalevMarca.fuente,
+                fontWeight = FontWeight.ExtraBold,
+            )
+        ) {
+            append("IPV")
+        }
+        withStyle(
+            SpanStyle(
+                color = colorBase,
+                fontFamily = if (marca) ShalevMarca.fuente else null,
+                fontWeight = FontWeight.Bold,
+            )
+        ) {
+            append("entaX")
+        }
+    }
+}
+
+/**
  * Barra superior estándar, centrada (0.27.0, T1): título en el centro y sin logo; Atrás a la izquierda y las acciones
  * (ShalevIconAction) a la derecha. Un título largo pasa a 2 líneas como mucho y nunca tapa las acciones.
- * [marca] = true dibuja el título con la tipografía de marca (solo cuando el título es el nombre de la app, «Shalev»).
+ * [marca] = true dibuja el título con la tipografía de marca (resaltando "IPV" con fuente y color en "MIPVentaX").
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,15 +173,40 @@ fun ShalevTopBar(
     CenterAlignedTopAppBar(
         modifier = modifier,
         title = {
-            Text(
-                title,
-                style = if (marca) MaterialTheme.typography.titleLarge.copy(fontFamily = ShalevMarca.fuente, letterSpacing = 2.sp)
-                else MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.semantics { heading() },
-            )
+            if (marca || title == "Shalev" || title == "MIPVentaX") {
+                Text(
+                    text = construirTituloMIPVentaX(marca = true),
+                    style = MaterialTheme.typography.titleLarge.copy(letterSpacing = 2.sp),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { heading() },
+                )
+            } else if (title.contains("MIPVentaX")) {
+                val partes = title.split("MIPVentaX")
+                val annotated = buildAnnotatedString {
+                    append(partes.getOrElse(0) { "" })
+                    append(construirTituloMIPVentaX(marca = false))
+                    if (partes.size > 1) append(partes[1])
+                }
+                Text(
+                    text = annotated,
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { heading() },
+                )
+            } else {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { heading() },
+                )
+            }
         },
         navigationIcon = {
             Row(verticalAlignment = Alignment.CenterVertically) {

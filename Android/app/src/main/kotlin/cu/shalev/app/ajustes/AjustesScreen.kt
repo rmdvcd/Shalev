@@ -431,7 +431,7 @@ private fun DialogoPermisosAjustes(onDismiss: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xs)) {
                 Text(
                     if (todosConcedidos) "Todos los permisos necesarios están concedidos."
-                    else "Revisa los permisos de Shalev. Si negaste alguno permanentemente, actívalo en Ajustes de Android.",
+                    else "Revisa los permisos de MIPVentaX. Si negaste alguno permanentemente, actívalo en Ajustes de Android.",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),

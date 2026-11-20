@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>es</string>
     <key>CFBundleDisplayName</key>
-    <string>Shalev</string>
+    <string>MIPVentaX</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
+    <string>MIPVentaX</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -25,15 +25,15 @@
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSFaceIDUsageDescription</key>
-    <string>Shalev usa Face ID para desbloquear el acceso local a los datos del negocio.</string>
+    <string>MIPVentaX usa Face ID para desbloquear el acceso local a los datos del negocio.</string>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>Shalev necesita la red local para vincular y sincronizar las apps principal y secundaria del negocio.</string>
+    <string>MIPVentaX necesita la red local para vincular y sincronizar las apps principal y secundaria del negocio.</string>
     <key>NSBonjourServices</key>
     <array>
         <string>_shalev._tcp</string>
     </array>
     <key>NSCameraUsageDescription</key>
-    <string>Shalev usa la cámara para escanear códigos QR de vinculación, apuntes manuscritos y fotos de inventario, servicios o ventas.</string>
+    <string>MIPVentaX usa la cámara para escanear códigos QR de vinculación, apuntes manuscritos y fotos de inventario, servicios o ventas.</string>
     <key>UIAppFonts</key>
     <array>
         <string>Orbitron-Bold.ttf</string>
