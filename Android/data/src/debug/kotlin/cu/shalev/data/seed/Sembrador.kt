@@ -187,7 +187,7 @@ class Sembrador(
     )
 
     private val nombresEmpleados = listOf(
-        "Ana", "Luis", "Dayana", "Carlos", "Marta", "Yoel", "Yanelis", "Ernesto",
+        "Ana", "Luis", "Carlos (PC)", "Dayana", "Marta", "Yoel", "Caja Kiosco (PC)", "Ernesto",
     )
 
     /** Carné del dueño: 11 dígitos con fecha de nacimiento válida (AAMMDD + siglo). */
@@ -617,6 +617,7 @@ class Sembrador(
                     nivelBajo = 10, nivelCritico = 4,
                     creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false,
                     local = nombre,
+                    costoAdicionalCent = if (p.elaborado) 500L else 0L,
                 ),
             )
             if (!p.elaborado) {
@@ -636,6 +637,7 @@ class Sembrador(
                     nombre = s.nombre, tipo = s.tipo, importeCent = s.importeCent,
                     descripcion = null, fotoUri = foto("serv", i),
                     creadoEn = creadoEn, actualizadoEn = creadoEn, eliminado = false, local = nombre,
+                    costoAdicionalCent = if (s.nombre.contains("Entrega")) 2000L else 0L,
                 ),
             )
             consumoServicio[i]?.let { lineas ->
@@ -759,10 +761,15 @@ class Sembrador(
             nombresEmpleados.forEachIndexed { i, nombre ->
                 val local = locales.firstOrNull { i in it.empleados } ?: locales.first()
                 val vinculado = ahora.minusSeconds((7L + i * 9) * 86_400L).toEpochMilli()
+                val permisos = when (i) {
+                    2, 6 -> "VENDER_PRODUCTOS,VENDER_SERVICIOS,CAMBIAR_PRECIOS,EXPORTAR" // Cajas / TPV (PC)
+                    3 -> "VENDER_PRODUCTOS,VENDER_SERVICIOS,EDITAR_INVENTARIO,CAMBIAR_PRECIOS,EXPORTAR" // Encargada/Administradora
+                    else -> "VENDER_PRODUCTOS,VENDER_SERVICIOS,EXPORTAR" // Predeterminados del sistema
+                }
                 idsEmpleado[i] = db.syncDao().insertarEmpleado(
                     EmpleadoEntity(
                         nombre = nombre,
-                        permisos = "VENDER_PRODUCTOS,VENDER_SERVICIOS",
+                        permisos = permisos,
                         creadoEn = vinculado,
                         vinculadoEn = vinculado,
                         ultimaSincronizacion = ahora.minusSeconds((60L + i * 240L)).toEpochMilli(),
@@ -972,7 +979,9 @@ class Sembrador(
             appendLine("Preajustes: efectivo 5 % · volumen desde 5 unidades 8 % · empresas 12 % (servicios)")
             appendLine("Perfil: negocio con nombre comercial${if (logoNegocio() != null) " y logo" else " (sin logo)"} · " +
                 "${tarjetasDemo.size} tarjetas de 16 dígitos con Luhn válido")
-            appendLine("Apps secundarias: ${nombresEmpleados.size} (cada una con su local)")
+            val nPc = nombresEmpleados.count { cu.shalev.domain.model.TipoDispositivo.deTexto(it) == cu.shalev.domain.model.TipoDispositivo.PC }
+            val nCel = nombresEmpleados.size - nPc
+            appendLine("Apps secundarias: ${nombresEmpleados.size} ($nCel celulares, $nPc terminales PC, cada una con su local)")
             appendLine("Desde: ${desde} · hasta: ${ahora.atZone(zona).toLocalDate()}")
         }
     }
