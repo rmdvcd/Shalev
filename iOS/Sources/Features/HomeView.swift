@@ -179,7 +179,7 @@ struct HomeView: View {
 
     private var fixedHeader: some View {
         VStack(spacing: 12) {
-            ShalevScreenTitle(title: "Shalev", isBrand: true)
+            ShalevScreenTitle(title: "MIPVentaX", isBrand: true)
                 .padding(.top, 10)
             if store.locations.count > 1 {
                 Menu {

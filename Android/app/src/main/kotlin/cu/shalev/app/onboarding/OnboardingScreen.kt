@@ -85,6 +85,7 @@ import cu.shalev.domain.model.DatosIniciales
 import cu.shalev.domain.model.PasoConfiguracion
 import cu.shalev.licencia.LicenseState
 import cu.shalev.licencia.contract.TipoLicencia
+import cu.shalev.designsystem.component.construirTituloMIPVentaX
 import cu.shalev.designsystem.component.ShalevAvisosState
 import cu.shalev.designsystem.component.rememberAvisos
 
@@ -313,8 +314,16 @@ private fun Explicacion(texto: String) = ShalevSecondaryText(texto, textAlign = 
 @Composable
 private fun PasoBienvenida() {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ShalevSpacing.md)) {
-        ShalevLogo(size = ShalevSize.logoLarge, contentDescription = "Shalev")
-        Text("Bienvenido a Shalev", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
+        ShalevLogo(size = ShalevSize.logoLarge, contentDescription = "MIPVentaX")
+        Text(
+            androidx.compose.ui.text.buildAnnotatedString {
+                append("Bienvenido a ")
+                append(construirTituloMIPVentaX(marca = false))
+            },
+            style = MaterialTheme.typography.headlineSmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.semantics { heading() }
+        )
         Text(
             "Tu punto de venta e inventario. Funciona sin internet.",
             style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,

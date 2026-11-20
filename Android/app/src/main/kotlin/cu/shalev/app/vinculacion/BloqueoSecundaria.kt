@@ -34,7 +34,7 @@ fun BloqueoSecundaria(viewModel: VinculacionViewModel = hiltViewModel()) {
     val snackbar = rememberAvisos()
     LaunchedEffect(Unit) { viewModel.mensajes.collect { snackbar.showSnackbar(it) } }
     Scaffold(
-        topBar = { ShalevTopBar(title = "Shalev", marca = true) },
+        topBar = { ShalevTopBar(title = "MIPVentaX", marca = true) },
         snackbarHost = { ShalevSnackbarHost(snackbar) },
     ) { padding ->
         Column(

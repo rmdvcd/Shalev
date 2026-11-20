@@ -306,7 +306,7 @@ fun InicioContent(
     Scaffold(
         topBar = {
             ShalevTopBar(
-                title = "Shalev", marca = true,
+                title = "MIPVentaX", marca = true,
                 onAyuda = { ayudaPestana = true }, ayudaDescripcion = "Ayuda de Inicio",
             )
         },

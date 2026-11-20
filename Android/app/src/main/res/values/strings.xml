@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Shalev</string>
-    <string name="compartir_sms">Shalev: nº de transacción</string>
+    <string name="app_name">MIPVentaX</string>
+    <string name="compartir_sms">MIPVentaX: nº de transacción</string>
     <string name="captura_sms_pago">Captura opcional de SMS de PAGOxMOVIL</string>
 </resources>
