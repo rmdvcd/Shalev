@@ -2,6 +2,7 @@ package cu.shalev.data
 
 import cu.shalev.core.money.Cup
 import cu.shalev.core.quantity.Cantidad
+import cu.shalev.data.dto.LicenciaRespaldoDto
 import cu.shalev.data.dto.PreajusteDto
 import cu.shalev.data.dto.PreferenciasDto
 import cu.shalev.data.dto.RespaldoDto
@@ -149,5 +150,33 @@ class DtoRoundTripTest {
         assertEquals(null, viejo.uuid); assertEquals(false, viejo.sincronizado)
         val vieja = ShalevJson.decodeFromString(VentaDto.serializer(), ShalevJson.encodeToString(VentaDto.serializer(), VENTA.toDto()))
         assertEquals(null, vieja.uuid); assertEquals(null, vieja.empleadoId)
+    }
+
+    @Test fun `licencia respaldo con claves y envelope se serializa y deserializa correctamente`() {
+        val licDto = LicenciaRespaldoDto(
+            id = "lic-123",
+            tipo = "MENSUAL",
+            secundarias = 2,
+            venceEn = 1727700000000L,
+            ci = "85010112345",
+            deviceId = "SPVI:9774d56d682e549c",
+            envelopeJson = "SPVI2:abc",
+            emitidaEn = "2026-09-30T12:00:00Z",
+            clavePublicaSpki = "cHVibGljS2V5",
+            clavePrivadaPkcs8 = "cHJpdmF0ZUtleQ==",
+        )
+        val dto = RespaldoDto(creadoEn = T.toEpochMilli(), licencia = licDto)
+        val back = json(dto, RespaldoDto.serializer())
+        assertEquals(licDto, back.licencia)
+    }
+
+    @Test fun `licencia respaldo antigua sin claves rellena campos vacios`() {
+        val raw = """{"id":"lic-old","tipo":"MENSUAL","secundarias":1}"""
+        val leido = ShalevJson.decodeFromString(LicenciaRespaldoDto.serializer(), raw)
+        assertEquals("lic-old", leido.id)
+        assertEquals("", leido.deviceId)
+        assertEquals("", leido.envelopeJson)
+        assertEquals("", leido.clavePublicaSpki)
+        assertEquals("", leido.clavePrivadaPkcs8)
     }
 }

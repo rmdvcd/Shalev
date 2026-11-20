@@ -134,9 +134,15 @@ fun InMemoryStore.instalarLarga(iss: FakeGl.Issued) {
 }
 
 class InMemoryDeviceKey : DeviceKey {
-    private val kp = EcP256.generate()
+    private var kp = EcP256.generate()
     override fun publicSpki(): ByteArray = kp.public.encoded
     override fun agree(peer: PublicKey): ByteArray = EcP256.ecdh(kp.private, peer)
+    override fun exportarClaves(): Pair<ByteArray, ByteArray>? = kp.public.encoded to kp.private.encoded
+    override fun restaurarClaves(pub: ByteArray, privPkcs8: ByteArray) {
+        val pubKey = java.security.KeyFactory.getInstance("EC").generatePublic(java.security.spec.X509EncodedKeySpec(pub))
+        val privKey = java.security.KeyFactory.getInstance("EC").generatePrivate(java.security.spec.PKCS8EncodedKeySpec(privPkcs8))
+        kp = java.security.KeyPair(pubKey, privKey)
+    }
 }
 
 class InMemoryStore : LicenseStore {

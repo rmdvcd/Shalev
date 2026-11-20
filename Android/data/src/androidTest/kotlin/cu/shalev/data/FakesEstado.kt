@@ -19,8 +19,12 @@ class EstadoAppEnMemoria(inicial: EstadoApp = EstadoApp()) : EstadoAppRepository
 
 /** 0.25.0: licencia fija para los tests de respaldo ([snapshot] null = sin licencia instalada). */
 class LicenciaFija(inicial: Licencia? = null) : LicenciaRepository {
+    var refrescado: Boolean = false
     override val snapshot: StateFlow<Licencia?> = MutableStateFlow(inicial)
-    override suspend fun refrescar(): Licencia = snapshot.value ?: error("sin licencia")
+    override suspend fun refrescar(): Licencia {
+        refrescado = true
+        return snapshot.value ?: error("sin licencia")
+    }
     override suspend fun construirSolicitud(input: cu.shalev.licencia.SolicitudInput) = error("no usado")
     override suspend fun activar(mensaje: String) = error("no usado")
 }

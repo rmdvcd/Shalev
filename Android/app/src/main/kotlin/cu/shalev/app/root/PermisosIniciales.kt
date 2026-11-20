@@ -298,14 +298,14 @@ private fun MarcaPermiso(permiso: String, estado: EstadoPermiso) {
         modifier = Modifier.testTag(PermisosTags.estado(permiso)).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
     ) {
         when (estado) {
-            EstadoPermiso.PIDIENDO -> CircularProgressIndicator(Modifier.size(ShalevSize.icon), color = color)
+            EstadoPermiso.PIDIENDO -> CircularProgressIndicator(Modifier.size(ShalevSize.iconSmall), color = color)
             else -> Icon(
                 when (estado) {
                     EstadoPermiso.CONCEDIDO -> ShalevIcons.AvisoExito
                     EstadoPermiso.DENEGADO -> ShalevIcons.AvisoError
                     else -> ShalevIcons.Reloj
                 },
-                contentDescription = null, tint = color, modifier = Modifier.size(ShalevSize.icon),
+                contentDescription = null, tint = color, modifier = Modifier.size(ShalevSize.iconSmall),
             )
         }
         Text(estado.etiqueta, style = MaterialTheme.typography.labelMedium, color = color)

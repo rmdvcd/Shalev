@@ -1,5 +1,9 @@
 package cu.shalev.app.licencia
 
+import cu.shalev.core.validation.Phone
+import cu.shalev.domain.model.PasoConfiguracion
+import cu.shalev.domain.model.Telefono
+import cu.shalev.domain.repository.ConfiguracionInicialRepository
 import cu.shalev.domain.repository.LicenciaRepository
 import cu.shalev.domain.repository.PerfilRepository
 import androidx.lifecycle.ViewModel
@@ -18,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -46,6 +51,7 @@ class LicenciaViewModel @Inject constructor(
     private val solicitar: SolicitarLicencia,
     private val activar: ActivarLicencia,
     private val preferenciasRepo: cu.shalev.domain.repository.PreferenciasRepository,
+    private val configuracionRepo: ConfiguracionInicialRepository? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LicenciaUiState())
@@ -111,12 +117,18 @@ class LicenciaViewModel @Inject constructor(
 
     private var perfilCargado = false
 
-    /** Primera carga: siempre. Después: solo si no se está editando (no se pisan datos a medio escribir). */
-    private fun LicenciaUiState.conPerfil(p: Perfil): LicenciaUiState = copy(
-        form = if (!perfilCargado || !form.editando) form.desdePerfil(p).also { perfilCargado = true } else form,
-        telefonosPerfil = p.telefonos.map { it.numero },
-        perfilVacio = p.vacio,
-    )
+    /** Primera carga: siempre. Después: si el formulario está intacto o no se está editando. */
+    private fun LicenciaUiState.conPerfil(p: Perfil): LicenciaUiState {
+        val formularioSinTocar = form.nombre.isBlank() && form.apellidos.isBlank() && form.ci.isBlank() && form.telefono.isBlank()
+        val nuevoForm = if (!perfilCargado || formularioSinTocar || !form.editando) {
+            form.desdePerfil(p).also { perfilCargado = true }
+        } else form
+        return copy(
+            form = nuevoForm,
+            telefonosPerfil = p.telefonos.map { it.numero },
+            perfilVacio = p.vacio,
+        )
+    }
 
     fun editar(transform: (LicenciaForm) -> LicenciaForm) {
         _state.update { s ->
@@ -128,7 +140,29 @@ class LicenciaViewModel @Inject constructor(
     }
 
     fun abrirEdicion() = editar { it.copy(editando = true) }
-    fun cerrarEdicion() = editar { it.cerrarEdicion() }
+    fun cerrarEdicion() {
+        val f = _state.value.form
+        if (f.valido) guardarDatosPerfil(f)
+        editar { it.cerrarEdicion() }
+    }
+
+    private fun guardarDatosPerfil(f: LicenciaForm) {
+        viewModelScope.launch {
+            val actual = perfilRepo.perfil.first()
+            val tel = Phone.normalize(f.telefono)
+            val telefonos = if (tel == null || actual.telefonos.any { it.numero == tel }) actual.telefonos
+            else listOf(Telefono(numero = tel)) + actual.telefonos
+            perfilRepo.guardar(
+                actual.copy(
+                    nombre = f.nombre.trim(),
+                    apellidos = f.apellidos.trim(),
+                    ci = f.ci.trim().uppercase(),
+                    telefonos = telefonos,
+                ),
+            )
+            configuracionRepo?.confirmar(PasoConfiguracion.DATOS)
+        }
+    }
 
     /** Los datos introducidos se guardan en el Perfil al solicitar (Licencia → Perfil, en SolicitarLicencia). */
     fun solicitarLicencia() {
@@ -158,6 +192,8 @@ class LicenciaViewModel @Inject constructor(
         if (_state.value.ocupado) return // activación en curso: no se procesa el mensaje dos veces
         val texto = _state.value.form.mensajeLicencia
         if (texto.isBlank()) return
+        val f = _state.value.form
+        if (f.valido) guardarDatosPerfil(f)
         _state.update { it.copy(ocupado = true) } // síncrono: bloquea el botón antes de lanzar el trabajo
         viewModelScope.launch {
             val r = activar(texto)

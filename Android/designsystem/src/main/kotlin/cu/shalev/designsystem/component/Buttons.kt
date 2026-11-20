@@ -201,7 +201,7 @@ private fun ContenidoIcono(icon: ImageVector, loading: Boolean) {
     if (loading) {
         // El botón ya anuncia su etiqueta; el indicador no la repite (si la repitiera, TalkBack la diría dos veces).
         CircularProgressIndicator(
-            Modifier.size(ShalevSize.iconSmall),
+            Modifier.size(ShalevSize.icon),
             strokeWidth = 2.dp, color = LocalContentColor.current,
         )
     } else {

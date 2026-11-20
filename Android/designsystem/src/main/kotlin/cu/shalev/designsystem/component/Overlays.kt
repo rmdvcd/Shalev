@@ -376,7 +376,7 @@ fun ShalevFab(
                 Modifier.heightIn(min = ShalevSize.touchTarget).padding(horizontal = ShalevSpacing.md, vertical = ShalevSpacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.icon))
+                Icon(icon, contentDescription = null, modifier = Modifier.size(ShalevSize.iconSmall))
                 Spacer(Modifier.size(ShalevSpacing.xs))
                 Text(etiqueta ?: contentDescription, style = MaterialTheme.typography.labelLarge, maxLines = 1)
             }

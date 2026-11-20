@@ -13,9 +13,9 @@ import javax.inject.Singleton
  * no requiere permisos y no identifica al usuario entre apps.
  */
 @Singleton
-class DeviceIdProvider @Inject constructor(@ApplicationContext private val context: Context) {
+open class DeviceIdProvider @Inject constructor(@ApplicationContext private val context: Context) {
     @get:SuppressLint("HardwareIds")
-    val deviceId: String by lazy {
+    open val deviceId: String by lazy {
         deDispositivo(Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID))
     }
 
