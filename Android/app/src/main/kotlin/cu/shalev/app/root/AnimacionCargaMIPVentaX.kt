@@ -110,7 +110,7 @@ fun AnimacionCargaMIPVentaX(
                     contentAlignment = Alignment.Center,
                 ) {
                     ShalevLogo(
-                        size = ShalevSize.logoMedium,
+                        size = ShalevSize.logoLarge,
                         contentDescription = "Logo MIPVentaX",
                     )
                 }
