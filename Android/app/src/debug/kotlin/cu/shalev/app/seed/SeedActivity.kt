@@ -7,8 +7,12 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import cu.shalev.data.seed.SembradorDebug
+import cu.shalev.domain.model.ModoRed
+import cu.shalev.domain.model.Modulo
 import cu.shalev.domain.model.PasoConfiguracion
+import cu.shalev.domain.repository.AjustesDispositivoRepository
 import cu.shalev.domain.repository.ConfiguracionInicialRepository
+import cu.shalev.domain.repository.EstadoAppRepository
 import cu.shalev.domain.repository.LicenciaRepository
 import cu.shalev.domain.repository.PreferenciasRepository
 import cu.shalev.licencia.contract.CodigoLicencia
@@ -16,6 +20,7 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -83,12 +88,19 @@ class SeedActivity : ComponentActivity() {
         }
     }
 
-    /** Da por hechos los pasos del asistente: la app abre en Inicio, no en el recorrido inicial. */
+    /** Da por hechos los pasos del asistente: la app abre en Inicio, no en el recorrido inicial ni pidiendo permisos. */
     private suspend fun cerrarAsistente(acceso: AccesoSeed): String {
         acceso.preferencias().completarOnboarding()
+        acceso.preferencias().guardarModulos(Modulo.TODOS)
+        acceso.preferencias().guardarEmpleadosPrevistos(8)
         acceso.configuracionInicial().confirmar(PasoConfiguracion.DATOS)
         acceso.configuracionInicial().confirmar(PasoConfiguracion.ALERTAS)
         acceso.configuracionInicial().confirmar(PasoConfiguracion.PRUEBA)
+        acceso.configuracionInicial().marcarPermisosInicialesPedidos()
+        acceso.ajustesDispositivo().guardarModoRed(ModoRed.LAN)
+        acceso.ajustesDispositivo().guardarSincronizacionAutomatica(true)
+        acceso.ajustesDispositivo().guardarEligioSecundaria(false)
+        acceso.estadoApp().editar { it.copy(ultimoRespaldo = Instant.now()) }
         return "Asistente de primera ejecución: completado"
     }
 }
@@ -100,4 +112,6 @@ interface AccesoSeed {
     fun licencia(): LicenciaRepository
     fun preferencias(): PreferenciasRepository
     fun configuracionInicial(): ConfiguracionInicialRepository
+    fun ajustesDispositivo(): AjustesDispositivoRepository
+    fun estadoApp(): EstadoAppRepository
 }
