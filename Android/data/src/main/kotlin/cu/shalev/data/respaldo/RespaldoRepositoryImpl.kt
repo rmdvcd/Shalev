@@ -570,6 +570,9 @@ class RespaldoRepositoryImpl @Inject constructor(
         if (l == null) return
         val actualDeviceId = deviceIds?.deviceId
         val esMismoDispositivo = !actualDeviceId.isNullOrBlank() && l.deviceId.isNotBlank() && l.deviceId == actualDeviceId
+        // Locales: el smart cast de una propiedad nullable no se conserva dentro del lambda de runCatching.
+        val deviceKey = this.deviceKey
+        val licenseStore = this.licenseStore
         if (esMismoDispositivo && l.envelopeJson.isNotBlank() && l.clavePrivadaPkcs8.isNotBlank() && deviceKey != null && licenseStore != null) {
             val restaurada = runCatching {
                 val pub = java.util.Base64.getDecoder().decode(l.clavePublicaSpki)
