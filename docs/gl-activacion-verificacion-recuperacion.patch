@@ -1,0 +1,1138 @@
+From 2a68fcd45d5cb01c0afb8bd7ac50a4d59c05994a Mon Sep 17 00:00:00 2001
+From: rmdvcd <339187365+rmdvcd@users.noreply.github.com>
+Date: Fri, 20 Nov 2026 02:31:00 +0000
+Subject: [PATCH] =?UTF-8?q?feat(spvi):=20soportar=20activaci=C3=B3n,=20ver?=
+ =?UTF-8?q?ificaci=C3=B3n=20y=20recuperaci=C3=B3n=20de=20licencias?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../main/java/dev/gl/license/core/AppError.kt |   2 +
+ .../main/java/dev/gl/license/data/local/Db.kt |   2 +-
+ .../gl/license/domain/model/PrecioTabla.kt    |  16 ++
+ .../dev/gl/license/domain/model/SpviV2.kt     |   2 +
+ .../domain/usecase/EmitirSpvi2UseCase.kt      | 158 ++++++++++++++++-
+ .../EvaluarSolicitudHistorialUseCase.kt       |  86 ++++++++++
+ .../presentation/generator/GeneratorScreen.kt | 160 ++++++++++--------
+ .../generator/GeneratorViewModel.kt           |  66 ++++++--
+ .../java/dev/gl/license/security/Spvi23.kt    |  58 ++++++-
+ app/src/main/res/values/strings.xml           |   2 +
+ .../dev/gl/license/GeneratorViewModelTest.kt  |  70 +++++++-
+ .../java/dev/gl/license/PrecioTablaTest.kt    |  14 ++
+ .../java/dev/gl/license/RenovacionSpviTest.kt | 101 +++++++++++
+ .../dev/gl/license/Spvi23SolicitudTest.kt     |  28 +++
+ .../java/dev/gl/license/Spvi23VectorTest.kt   |  41 +++++
+ 15 files changed, 711 insertions(+), 95 deletions(-)
+
+diff --git a/app/src/main/java/dev/gl/license/core/AppError.kt b/app/src/main/java/dev/gl/license/core/AppError.kt
+index cd200a1..c55a93d 100644
+--- a/app/src/main/java/dev/gl/license/core/AppError.kt
++++ b/app/src/main/java/dev/gl/license/core/AppError.kt
+@@ -14,6 +14,8 @@ sealed class AppError(val userMessage: String) : Exception(userMessage) {
+     data object DevicePubRequired : AppError("La solicitud debe incluir la clave pública del dispositivo (devicePub).")
+     data object RequestExpired : AppError("La solicitud está fuera del margen permitido (72 horas de antigüedad y 2 horas de desfase futuro como máximo).")
+     data object ClockFailure : AppError("No se pudo comprobar la hora actual para validar la solicitud.")
++    data object AmpliacionInvalida : AppError("La ampliación requiere una licencia vigente del mismo dispositivo y tipo en el registro, con más secundarias (máx. 10).")
++    data object RecuperacionInvalida : AppError("La recuperación requiere una licencia previa válida, vigente y del mismo carné de identidad en el registro.")
+     data object Generic : AppError("No se pudo completar la operación.")
+ }
+ 
+diff --git a/app/src/main/java/dev/gl/license/data/local/Db.kt b/app/src/main/java/dev/gl/license/data/local/Db.kt
+index ecd9005..bcf1b7d 100644
+--- a/app/src/main/java/dev/gl/license/data/local/Db.kt
++++ b/app/src/main/java/dev/gl/license/data/local/Db.kt
+@@ -41,7 +41,7 @@ interface LicenseDao {
+     @Query("SELECT * FROM licenses ORDER BY issuedAtIso DESC")
+     suspend fun all(): List<LicenseEntity>
+ 
+-    @Query("SELECT * FROM licenses WHERE id = :id LIMIT 1")
++    @Query("SELECT * FROM licenses WHERE id = :id COLLATE NOCASE LIMIT 1")
+     suspend fun byId(id: String): LicenseEntity?
+ 
+     @Query("SELECT COUNT(*) FROM licenses WHERE txNumber IS NOT NULL AND txNumber != '' AND txNumber COLLATE NOCASE = :txNumber COLLATE NOCASE")
+diff --git a/app/src/main/java/dev/gl/license/domain/model/PrecioTabla.kt b/app/src/main/java/dev/gl/license/domain/model/PrecioTabla.kt
+index 321069e..ced9d0d 100644
+--- a/app/src/main/java/dev/gl/license/domain/model/PrecioTabla.kt
++++ b/app/src/main/java/dev/gl/license/domain/model/PrecioTabla.kt
+@@ -17,6 +17,22 @@ object PrecioTabla {
+     fun total(tipo: TipoLicencia, secundarias: Int): Int =
+         base.getValue(tipo) + extraPorSecundaria.getValue(tipo) * secundarias
+ 
++    fun porSecundaria(tipo: TipoLicencia): Int =
++        extraPorSecundaria.getValue(tipo)
++
++    fun ampliacion(tipo: TipoLicencia, adicionales: Int): Int =
++        extraPorSecundaria.getValue(tipo) * adicionales.coerceAtLeast(0)
++
++    fun desgloseAmpliacion(tipo: TipoLicencia, previas: Int, totales: Int): String {
++        val adicionales = (totales - previas).coerceAtLeast(0)
++        val nombre = tipo.name.lowercase().replaceFirstChar { it.uppercase() }
++        return "Ampliación $nombre: +$adicionales secundarias ($previas → $totales) × " +
++            "${miles(porSecundaria(tipo))} = ${miles(ampliacion(tipo, adicionales))} CUP"
++    }
++
++    fun desgloseRecuperacion(prevId: String): String =
++        "Recuperación: gratuita (sustituye y revoca licencia anterior: $prevId)"
++
+     fun desglose(tipo: TipoLicencia, secundarias: Int?): String {
+         val valor = secundarias ?: return "Secundarias: no indicado (app anterior) · ${miles(total(tipo, 0))} CUP"
+         val nombre = tipo.name.lowercase().replaceFirstChar { it.uppercase() }
+diff --git a/app/src/main/java/dev/gl/license/domain/model/SpviV2.kt b/app/src/main/java/dev/gl/license/domain/model/SpviV2.kt
+index e0ba1ec..b17bec0 100644
+--- a/app/src/main/java/dev/gl/license/domain/model/SpviV2.kt
++++ b/app/src/main/java/dev/gl/license/domain/model/SpviV2.kt
+@@ -19,4 +19,6 @@ data class SolicitudSpviV2(
+     @SerialName("devicePub") val devicePub: String,
+     @SerialName("secundarias") val secundarias: Int,
+     @SerialName("renueva") val renueva: String? = null,
++    @SerialName("amplia") val amplia: String? = null,
++    @SerialName("recupera") val recupera: String? = null,
+ )
+diff --git a/app/src/main/java/dev/gl/license/domain/usecase/EmitirSpvi2UseCase.kt b/app/src/main/java/dev/gl/license/domain/usecase/EmitirSpvi2UseCase.kt
+index 7b23b83..232f526 100644
+--- a/app/src/main/java/dev/gl/license/domain/usecase/EmitirSpvi2UseCase.kt
++++ b/app/src/main/java/dev/gl/license/domain/usecase/EmitirSpvi2UseCase.kt
+@@ -24,8 +24,10 @@ data class SpviEmitida(
+ )
+ 
+ /**
+- * Emite una licencia corta SPVI2. `renueva` solo se aplica si la licencia
+- * previa existe, es del mismo deviceId y no está revocada ni es perpetua.
++ * Emite una licencia corta SPVI2.
++ * - `recupera`: gratuita, transfiere a nuevo deviceId, conserva tipo/vencimiento/secundarias y revoca la anterior.
++ * - `amplia`: conserva vencimiento, amplía secundarias sobre licencia activa y cobra solo adicionales.
++ * - `renueva`: extiende la duración sumando sobre el vencimiento vigente si existe y no está revocada ni es perpetua.
+  */
+ @Singleton
+ class EmitirSpvi2UseCase @Inject constructor(
+@@ -39,7 +41,7 @@ class EmitirSpvi2UseCase @Inject constructor(
+         txNumber: String? = null,
+         idFactory: () -> String = { UUID.randomUUID().toString() },
+     ): Outcome<SpviEmitida> {
+-        if (!pagoConfirmado) return Outcome.Err(AppError.InvalidPayload)
++        if (sol.recupera == null && !pagoConfirmado) return Outcome.Err(AppError.InvalidPayload)
+         when (val valid = Spvi23.validarSolicitud(sol)) {
+             is Outcome.Err -> return valid
+             is Outcome.Ok -> Unit
+@@ -72,8 +74,156 @@ class EmitirSpvi2UseCase @Inject constructor(
+             if (used) return Outcome.Err(AppError.TransactionAlreadyUsed(cleanTx))
+         }
+         val ahoraSec = ahora.epochSecond
++
++        // 1. Recuperación de licencia
++        if (sol.recupera != null) {
++            val prevRecupera = try {
++                licencias.getById(sol.recupera.trim())
++                    ?: licencias.all().firstOrNull { it.id.equals(sol.recupera.trim(), ignoreCase = true) }
++            } catch (cancelled: kotlinx.coroutines.CancellationException) {
++                throw cancelled
++            } catch (_: Exception) {
++                return Outcome.Err(AppError.RegistryFailure)
++            } ?: return Outcome.Err(AppError.RecuperacionInvalida)
++
++            if (prevRecupera.status == EstadoLicencia.REVOCADA || prevRecupera.status == EstadoLicencia.VENCIDA) {
++                return Outcome.Err(AppError.RecuperacionInvalida)
++            }
++            val esPerpetua = prevRecupera.type == dev.gl.license.domain.model.TipoLicencia.PERPETUA ||
++                prevRecupera.status == EstadoLicencia.PERPETUA
++            val prevVenceSec = try {
++                prevRecupera.expiresAtIso?.let { Instant.parse(it).epochSecond }
++            } catch (_: Exception) {
++                null
++            }
++            if (!esPerpetua && (prevVenceSec == null || prevVenceSec <= ahoraSec)) {
++                return Outcome.Err(AppError.RecuperacionInvalida)
++            }
++            if (!prevRecupera.nationalId.trim().equals(sol.ci.trim(), ignoreCase = true)) {
++                return Outcome.Err(AppError.RecuperacionInvalida)
++            }
++
++            // Revoca la licencia anterior en el registro
++            when (val rev = licencias.upsert(prevRecupera.copy(status = EstadoLicencia.REVOCADA))) {
++                is Outcome.Err -> return rev
++                is Outcome.Ok -> Unit
++            }
++
++            val id = idFactory()
++            val lic = Licencia(
++                version = 2,
++                id = id,
++                firstName = sol.nombre,
++                lastName = sol.apellidos,
++                nationalId = sol.ci,
++                channel = sol.via,
++                phone = sol.telefono,
++                deviceId = sol.deviceId,
++                appName = "SPVI",
++                type = prevRecupera.type,
++                requestedAtIso = sol.solicitadaEn,
++                issuedAtIso = Instant.ofEpochSecond(ahoraSec).toString(),
++                expiresAtIso = if (esPerpetua) null else prevRecupera.expiresAtIso,
++                status = if (esPerpetua) EstadoLicencia.PERPETUA else EstadoLicencia.ACTIVA,
++                secundarias = prevRecupera.secundarias ?: sol.secundarias,
++                precioCobrado = 0,
++                codigoCorto = null,
++                nonce = CryptoEngine.b64(CryptoEngine.randomBytes(16)),
++                txNumber = cleanTx,
++            )
++            val devicePub33 = try {
++                Spvi23.b64urlD(sol.devicePub)
++            } catch (_: Exception) {
++                return Outcome.Err(AppError.InvalidPayload)
++            }
++            return when (val c = puerta.emitirCodigo(lic, devicePub33)) {
++                is Outcome.Err -> c
++                is Outcome.Ok -> {
++                    val conCodigo = lic.copy(codigoCorto = c.value)
++                    val venceSec = if (esPerpetua) null else prevVenceSec
++                    val mensaje = SpviResponseMessage.build(
++                        prevRecupera.type, lic.secundarias ?: 0, ahoraSec, venceSec, id, c.value,
++                    )
++                    Outcome.Ok(SpviEmitida(conCodigo, mensaje, renuevaIgnorada = false))
++                }
++            }
++        }
++
++        // 2. Ampliación de secundarias
++        if (sol.amplia != null) {
++            val prevAmplia = try {
++                licencias.getById(sol.amplia.trim())
++                    ?: licencias.all().firstOrNull { it.id.equals(sol.amplia.trim(), ignoreCase = true) }
++            } catch (cancelled: kotlinx.coroutines.CancellationException) {
++                throw cancelled
++            } catch (_: Exception) {
++                return Outcome.Err(AppError.RegistryFailure)
++            } ?: return Outcome.Err(AppError.AmpliacionInvalida)
++
++            val prevSec = (prevAmplia.secundarias ?: 0).coerceAtLeast(0)
++            val prevVenceSec = try {
++                prevAmplia.expiresAtIso?.let { Instant.parse(it).epochSecond }
++            } catch (_: Exception) {
++                return Outcome.Err(AppError.AmpliacionInvalida)
++            }
++            val esPerpetua = prevAmplia.type == dev.gl.license.domain.model.TipoLicencia.PERPETUA ||
++                prevAmplia.status == EstadoLicencia.PERPETUA
++            val vigente = prevAmplia.status != EstadoLicencia.REVOCADA &&
++                prevAmplia.status != EstadoLicencia.VENCIDA &&
++                (esPerpetua || (prevVenceSec != null && prevVenceSec > ahoraSec))
++            if (!vigente ||
++                prevAmplia.deviceId != sol.deviceId ||
++                prevAmplia.type != sol.tipo ||
++                sol.secundarias !in (prevSec + 1)..10
++            ) {
++                return Outcome.Err(AppError.AmpliacionInvalida)
++            }
++            val adicionales = sol.secundarias - prevSec
++            val venceAmpliaSec = if (esPerpetua) null else prevVenceSec
++            val id = idFactory()
++            val lic = Licencia(
++                version = 2,
++                id = id,
++                firstName = sol.nombre,
++                lastName = sol.apellidos,
++                nationalId = sol.ci,
++                channel = sol.via,
++                phone = sol.telefono,
++                deviceId = sol.deviceId,
++                appName = "SPVI",
++                type = prevAmplia.type,
++                requestedAtIso = sol.solicitadaEn,
++                issuedAtIso = Instant.ofEpochSecond(ahoraSec).toString(),
++                expiresAtIso = venceAmpliaSec?.let { Instant.ofEpochSecond(it).toString() },
++                status = if (esPerpetua) EstadoLicencia.PERPETUA else EstadoLicencia.ACTIVA,
++                secundarias = sol.secundarias,
++                precioCobrado = PrecioTabla.ampliacion(prevAmplia.type, adicionales),
++                codigoCorto = null,
++                nonce = CryptoEngine.b64(CryptoEngine.randomBytes(16)),
++                txNumber = cleanTx,
++            )
++            val devicePub33 = try {
++                Spvi23.b64urlD(sol.devicePub)
++            } catch (_: Exception) {
++                return Outcome.Err(AppError.InvalidPayload)
++            }
++            return when (val c = puerta.emitirCodigo(lic, devicePub33)) {
++                is Outcome.Err -> c
++                is Outcome.Ok -> {
++                    val conCodigo = lic.copy(codigoCorto = c.value)
++                    val mensaje = SpviResponseMessage.build(
++                        prevAmplia.type, sol.secundarias, ahoraSec, venceAmpliaSec, id, c.value,
++                    )
++                    Outcome.Ok(SpviEmitida(conCodigo, mensaje, renuevaIgnorada = false))
++                }
++            }
++        }
++
++        // 3. Renovación o nueva emisión
+         val dias = sol.tipo.days()
+-        val prev = sol.renueva?.let { licencias.getById(it) }
++        val prev = sol.renueva?.let { idRen ->
++            licencias.getById(idRen.trim()) ?: licencias.all().firstOrNull { it.id.equals(idRen.trim(), ignoreCase = true) }
++        }
+         val aplicaRenueva = prev != null &&
+             prev.deviceId == sol.deviceId &&
+             prev.status != EstadoLicencia.REVOCADA &&
+diff --git a/app/src/main/java/dev/gl/license/domain/usecase/EvaluarSolicitudHistorialUseCase.kt b/app/src/main/java/dev/gl/license/domain/usecase/EvaluarSolicitudHistorialUseCase.kt
+index 3e2c0ee..a47619b 100644
+--- a/app/src/main/java/dev/gl/license/domain/usecase/EvaluarSolicitudHistorialUseCase.kt
++++ b/app/src/main/java/dev/gl/license/domain/usecase/EvaluarSolicitudHistorialUseCase.kt
+@@ -1,8 +1,12 @@
+ package dev.gl.license.domain.usecase
+ 
++import dev.gl.license.core.AppError
++import dev.gl.license.core.Outcome
+ import dev.gl.license.domain.model.EstadoLicencia
+ import dev.gl.license.domain.model.Licencia
++import dev.gl.license.domain.model.PrecioTabla
+ import dev.gl.license.domain.model.SolicitudLicencia
++import dev.gl.license.domain.model.SolicitudSpviV2
+ import dev.gl.license.domain.model.TipoLicencia
+ import dev.gl.license.domain.repository.LicenciaRepository
+ import dev.gl.license.domain.repository.SecureClock
+@@ -226,4 +230,86 @@ class EvaluarSolicitudHistorialUseCase @Inject constructor(
+ 
+         return EvaluacionHistorial.NuevaSolicitud
+     }
++
++    /**
++     * Valida en seco una solicitud SPVI2 de ampliación de apps secundarias (`amplia != null`)
++     * y devuelve el desglose exacto a cobrar, o `null` si no es ampliación.
++     */
++    suspend fun evaluarAmpliacionSpvi(sol: SolicitudSpviV2): Outcome<String?> {
++        val idAmplia = sol.amplia ?: return Outcome.Ok(null)
++        val ahoraSec = try {
++            Instant.parse(clock.nowIso()).epochSecond
++        } catch (_: Exception) {
++            return Outcome.Err(AppError.ClockFailure)
++        }
++        val prev = try {
++            licencias.getById(idAmplia.trim())
++                ?: licencias.all().firstOrNull { it.id.equals(idAmplia.trim(), ignoreCase = true) }
++        } catch (cancelled: kotlinx.coroutines.CancellationException) {
++            throw cancelled
++        } catch (_: Exception) {
++            return Outcome.Err(AppError.RegistryFailure)
++        } ?: return Outcome.Err(AppError.AmpliacionInvalida)
++
++        val prevSec = (prev.secundarias ?: 0).coerceAtLeast(0)
++        val prevVenceSec = try {
++            prev.expiresAtIso?.let { Instant.parse(it).epochSecond }
++        } catch (_: Exception) {
++            return Outcome.Err(AppError.AmpliacionInvalida)
++        }
++        val esPerpetua = prev.type == TipoLicencia.PERPETUA || prev.status == EstadoLicencia.PERPETUA
++        val vigente = prev.status != EstadoLicencia.REVOCADA &&
++            prev.status != EstadoLicencia.VENCIDA &&
++            (esPerpetua || (prevVenceSec != null && prevVenceSec > ahoraSec))
++        if (!vigente ||
++            prev.deviceId != sol.deviceId ||
++            prev.type != sol.tipo ||
++            sol.secundarias !in (prevSec + 1)..10
++        ) {
++            return Outcome.Err(AppError.AmpliacionInvalida)
++        }
++        return Outcome.Ok(PrecioTabla.desgloseAmpliacion(prev.type, prevSec, sol.secundarias))
++    }
++
++    /**
++     * Valida en seco una solicitud SPVI2 de recuperación de licencia (`recupera != null`)
++     * y devuelve el mensaje descriptivo, o `null` si no es recuperación.
++     * Verifica que la licencia previa exista, no esté revocada ni vencida, y pertenezca al mismo carné de identidad.
++     */
++    suspend fun evaluarRecuperacionSpvi(sol: SolicitudSpviV2): Outcome<String?> {
++        val idRecupera = sol.recupera ?: return Outcome.Ok(null)
++        val ahoraSec = try {
++            Instant.parse(clock.nowIso()).epochSecond
++        } catch (_: Exception) {
++            return Outcome.Err(AppError.ClockFailure)
++        }
++        val prev = try {
++            licencias.getById(idRecupera.trim())
++                ?: licencias.all().firstOrNull { it.id.equals(idRecupera.trim(), ignoreCase = true) }
++        } catch (cancelled: kotlinx.coroutines.CancellationException) {
++            throw cancelled
++        } catch (_: Exception) {
++            return Outcome.Err(AppError.RegistryFailure)
++        } ?: return Outcome.Err(AppError.RecuperacionInvalida)
++
++        if (prev.status == EstadoLicencia.REVOCADA || prev.status == EstadoLicencia.VENCIDA) {
++            return Outcome.Err(AppError.RecuperacionInvalida)
++        }
++        val esPerpetua = prev.type == TipoLicencia.PERPETUA || prev.status == EstadoLicencia.PERPETUA
++        val prevVenceSec = try {
++            prev.expiresAtIso?.let { Instant.parse(it).epochSecond }
++        } catch (_: Exception) {
++            null
++        }
++        if (!esPerpetua && (prevVenceSec == null || prevVenceSec <= ahoraSec)) {
++            return Outcome.Err(AppError.RecuperacionInvalida)
++        }
++        if (!prev.nationalId.trim().equals(sol.ci.trim(), ignoreCase = true)) {
++            return Outcome.Err(AppError.RecuperacionInvalida)
++        }
++
++        val tipoNombre = prev.type.name.lowercase().replaceFirstChar { it.uppercase() }
++        val aviso = "Recuperación de licencia ($tipoNombre): transfiere a este dispositivo y revoca la licencia previa (${prev.id}). Gratuita."
++        return Outcome.Ok(aviso)
++    }
+ }
+diff --git a/app/src/main/java/dev/gl/license/presentation/generator/GeneratorScreen.kt b/app/src/main/java/dev/gl/license/presentation/generator/GeneratorScreen.kt
+index 657ffbd..6a23ee2 100644
+--- a/app/src/main/java/dev/gl/license/presentation/generator/GeneratorScreen.kt
++++ b/app/src/main/java/dev/gl/license/presentation/generator/GeneratorScreen.kt
+@@ -234,7 +234,7 @@ fun GeneratorScreen(
+                         type = request.tipo.name,
+                         requestedAt = request.solicitadaEn,
+                         secundarias = request.secundarias,
+-                        priceBreakdown = PrecioTabla.desglose(request.tipo, request.secundarias),
++                        priceBreakdown = ui.spviPrecioDesglose ?: PrecioTabla.desglose(request.tipo, request.secundarias),
+                         renewalNotice = ui.renuevaAviso,
+                     )
+                     Spacer(Modifier.height(GlDimens.gap))
+@@ -244,6 +244,7 @@ fun GeneratorScreen(
+                         txCliente = ui.txCliente,
+                         txSms = ui.txSms,
+                         txMatch = ui.txMatch,
++                        isRecovery = ui.spvi?.recupera != null,
+                         onTxClienteChange = vm::onTxClienteChange,
+                         onTxSmsChange = vm::onTxSmsChange,
+                         hasEncryptedLicense = ui.encryptedLicense != null,
+@@ -403,89 +404,104 @@ private fun PaymentAndActions(
+     onPaidChange: (Boolean) -> Unit,
+     onGenerate: () -> Unit,
+     onRegister: () -> Unit,
++    isRecovery: Boolean = false,
+ ) {
+-    GlCard(contentAlignment = Alignment.CenterHorizontally) {
+-        SectionLabel(stringResource(R.string.generator_payment_step))
+-        Text(
+-            text = stringResource(R.string.generator_payment_supporting),
+-            style = MaterialTheme.typography.bodyMedium,
+-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+-            textAlign = TextAlign.Center,
+-            modifier = Modifier.fillMaxWidth(),
+-        )
+-        Spacer(Modifier.height(12.dp))
+-
+-        // Input 1 (arriba): No. transacción enviado por el cliente
+-        OutlinedTextField(
+-            value = txCliente,
+-            onValueChange = onTxClienteChange,
+-            label = { Text(stringResource(R.string.tx_cliente_label)) },
+-            placeholder = { Text(stringResource(R.string.tx_cliente_hint)) },
+-            singleLine = true,
+-            modifier = Modifier.fillMaxWidth(),
+-        )
+-        Spacer(Modifier.height(8.dp))
+-
+-        // Input 2 (abajo): No. transacción extraído de los SMS
+-        OutlinedTextField(
+-            value = txSms,
+-            onValueChange = onTxSmsChange,
+-            label = { Text(stringResource(R.string.tx_sms_label)) },
+-            placeholder = { Text(stringResource(R.string.tx_sms_hint)) },
+-            singleLine = true,
+-            modifier = Modifier.fillMaxWidth(),
+-        )
+-        Spacer(Modifier.height(8.dp))
+-
+-        val txStatusText = when {
+-            txCliente.isBlank() || txSms.isBlank() -> stringResource(R.string.tx_pending_hint)
+-            txMatch -> stringResource(R.string.tx_match_success)
+-            else -> stringResource(R.string.tx_mismatch_error)
+-        }
+-        val txStatusColor = when {
+-            txCliente.isBlank() || txSms.isBlank() -> MaterialTheme.colorScheme.onSurfaceVariant
+-            txMatch -> MaterialTheme.colorScheme.primary
+-            else -> MaterialTheme.colorScheme.error
++    if (isRecovery) {
++        GlCard(contentAlignment = Alignment.CenterHorizontally) {
++            SectionLabel(stringResource(R.string.generator_recovery_step))
++            Spacer(Modifier.height(4.dp))
++            Text(
++                text = stringResource(R.string.generator_recovery_supporting),
++                style = MaterialTheme.typography.bodyMedium,
++                color = MaterialTheme.colorScheme.primary,
++                textAlign = TextAlign.Center,
++                modifier = Modifier.fillMaxWidth(),
++            )
+         }
+-        Text(
+-            text = txStatusText,
+-            style = MaterialTheme.typography.bodySmall,
+-            color = txStatusColor,
+-            textAlign = TextAlign.Center,
+-            modifier = Modifier.fillMaxWidth(),
+-        )
+-        Spacer(Modifier.height(10.dp))
++    } else {
++        GlCard(contentAlignment = Alignment.CenterHorizontally) {
++            SectionLabel(stringResource(R.string.generator_payment_step))
++            Text(
++                text = stringResource(R.string.generator_payment_supporting),
++                style = MaterialTheme.typography.bodyMedium,
++                color = MaterialTheme.colorScheme.onSurfaceVariant,
++                textAlign = TextAlign.Center,
++                modifier = Modifier.fillMaxWidth(),
++            )
++            Spacer(Modifier.height(12.dp))
+ 
+-        Row(
+-            modifier = Modifier
+-                .fillMaxWidth()
+-                .height(GlDimens.touch)
+-                .toggleable(
+-                    value = paid,
+-                    enabled = txMatch,
+-                    role = Role.Checkbox,
+-                    onValueChange = { if (txMatch) onPaidChange(it) },
+-                ),
+-            verticalAlignment = Alignment.CenterVertically,
+-            horizontalArrangement = Arrangement.Center,
+-        ) {
+-            Checkbox(
+-                checked = paid,
+-                enabled = txMatch,
+-                onCheckedChange = null,
++            // Input 1 (arriba): No. transacción enviado por el cliente
++            OutlinedTextField(
++                value = txCliente,
++                onValueChange = onTxClienteChange,
++                label = { Text(stringResource(R.string.tx_cliente_label)) },
++                placeholder = { Text(stringResource(R.string.tx_cliente_hint)) },
++                singleLine = true,
++                modifier = Modifier.fillMaxWidth(),
++            )
++            Spacer(Modifier.height(8.dp))
++
++            // Input 2 (abajo): No. transacción extraído de los SMS
++            OutlinedTextField(
++                value = txSms,
++                onValueChange = onTxSmsChange,
++                label = { Text(stringResource(R.string.tx_sms_label)) },
++                placeholder = { Text(stringResource(R.string.tx_sms_hint)) },
++                singleLine = true,
++                modifier = Modifier.fillMaxWidth(),
+             )
+-            Spacer(Modifier.padding(horizontal = 4.dp))
++            Spacer(Modifier.height(8.dp))
++
++            val txStatusText = when {
++                txCliente.isBlank() || txSms.isBlank() -> stringResource(R.string.tx_pending_hint)
++                txMatch -> stringResource(R.string.tx_match_success)
++                else -> stringResource(R.string.tx_mismatch_error)
++            }
++            val txStatusColor = when {
++                txCliente.isBlank() || txSms.isBlank() -> MaterialTheme.colorScheme.onSurfaceVariant
++                txMatch -> MaterialTheme.colorScheme.primary
++                else -> MaterialTheme.colorScheme.error
++            }
+             Text(
+-                text = stringResource(R.string.payment_done),
+-                color = if (txMatch) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
++                text = txStatusText,
++                style = MaterialTheme.typography.bodySmall,
++                color = txStatusColor,
++                textAlign = TextAlign.Center,
++                modifier = Modifier.fillMaxWidth(),
+             )
++            Spacer(Modifier.height(10.dp))
++
++            Row(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .height(GlDimens.touch)
++                    .toggleable(
++                        value = paid,
++                        enabled = txMatch,
++                        role = Role.Checkbox,
++                        onValueChange = { if (txMatch) onPaidChange(it) },
++                    ),
++                verticalAlignment = Alignment.CenterVertically,
++                horizontalArrangement = Arrangement.Center,
++            ) {
++                Checkbox(
++                    checked = paid,
++                    enabled = txMatch,
++                    onCheckedChange = null,
++                )
++                Spacer(Modifier.padding(horizontal = 4.dp))
++                Text(
++                    text = stringResource(R.string.payment_done),
++                    color = if (txMatch) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
++                )
++            }
+         }
+     }
+     Spacer(Modifier.height(8.dp))
+     GlPrimaryButton(
+         text = stringResource(R.string.generate_license),
+         onClick = onGenerate,
+-        enabled = paid && txMatch && !loading && !hasEncryptedLicense,
++        enabled = (isRecovery || (paid && txMatch)) && !loading && !hasEncryptedLicense,
+         loading = loading && !hasEncryptedLicense,
+     )
+     Spacer(Modifier.height(8.dp))
+diff --git a/app/src/main/java/dev/gl/license/presentation/generator/GeneratorViewModel.kt b/app/src/main/java/dev/gl/license/presentation/generator/GeneratorViewModel.kt
+index c7a3897..a8adf97 100644
+--- a/app/src/main/java/dev/gl/license/presentation/generator/GeneratorViewModel.kt
++++ b/app/src/main/java/dev/gl/license/presentation/generator/GeneratorViewModel.kt
+@@ -50,6 +50,7 @@ data class GeneratorUi(
+     val encryptedLicense: String? = null,
+     val shareBody: String? = null,
+     val spvi: SolicitudSpviV2? = null,
++    val spviPrecioDesglose: String? = null,
+     val renuevaAviso: String? = null,
+     val pending: Licencia? = null,
+     val shareLaunched: Boolean = false,
+@@ -131,6 +132,7 @@ class GeneratorViewModel @Inject constructor(
+                 paid = false,
+                 solicitud = null,
+                 spvi = null,
++                spviPrecioDesglose = null,
+                 renuevaAviso = null,
+                 canRegister = false,
+                 shareLaunched = false,
+@@ -149,11 +151,50 @@ class GeneratorViewModel @Inject constructor(
+         rawValidationJob = viewModelScope.launch {
+             if (Spvi23.contieneCodigo(raw)) {
+                 when (val r = abrirSpvi.abrirSolicitud(raw)) {
+-                    is Outcome.Ok -> if (validationGeneration == rawValidationGeneration) {
+-                        _ui.update { it.copy(spvi = r.value, error = null) }
++                    is Outcome.Ok -> {
++                        val sol = r.value
++                        val recEval = when (val rec = evaluarHistorial.evaluarRecuperacionSpvi(sol)) {
++                            is Outcome.Ok -> rec.value
++                            is Outcome.Err -> {
++                                if (validationGeneration == rawValidationGeneration) {
++                                    _ui.update { it.copy(spvi = null, spviPrecioDesglose = null, error = rec.error.userMessage) }
++                                }
++                                return@launch
++                            }
++                        }
++                        val ampDesglose = when (val amp = evaluarHistorial.evaluarAmpliacionSpvi(sol)) {
++                            is Outcome.Ok -> amp.value
++                            is Outcome.Err -> {
++                                if (validationGeneration == rawValidationGeneration) {
++                                    _ui.update { it.copy(spvi = null, spviPrecioDesglose = null, error = amp.error.userMessage) }
++                                }
++                                return@launch
++                            }
++                        }
++                        val precioDesglose = when {
++                            sol.recupera != null -> recEval ?: PrecioTabla.desgloseRecuperacion(sol.recupera)
++                            sol.amplia != null -> ampDesglose
++                            else -> null
++                        }
++                        val aviso = when {
++                            sol.recupera != null -> recEval
++                            sol.amplia != null -> "Ampliación de apps secundarias: conserva la fecha de vencimiento de la licencia instalada."
++                            else -> null
++                        }
++                        if (validationGeneration == rawValidationGeneration) {
++                            _ui.update {
++                                it.copy(
++                                    spvi = sol,
++                                    spviPrecioDesglose = precioDesglose,
++                                    renuevaAviso = aviso,
++                                    paid = sol.recupera != null,
++                                    error = null,
++                                )
++                            }
++                        }
+                     }
+                     is Outcome.Err -> if (validationGeneration == rawValidationGeneration) {
+-                        _ui.update { it.copy(spvi = null, error = r.error.userMessage) }
++                        _ui.update { it.copy(spvi = null, spviPrecioDesglose = null, error = r.error.userMessage) }
+                     }
+                 }
+                 return@launch
+@@ -288,7 +329,8 @@ class GeneratorViewModel @Inject constructor(
+ 
+     fun setPaid(v: Boolean) {
+         val current = _ui.value
+-        if (!current.txMatch) return
++        val isRecovery = current.spvi?.recupera != null
++        if (!isRecovery && !current.txMatch) return
+         if (current.solicitud != null || current.spvi != null) {
+             generationGeneration++
+             generationJob?.cancel()
+@@ -298,18 +340,19 @@ class GeneratorViewModel @Inject constructor(
+ 
+     fun generateLicense() {
+         val current = _ui.value
+-        if (!current.paid || !current.txMatch || current.loading ||
++        val isRecovery = current.spvi?.recupera != null
++        if ((!isRecovery && (!current.paid || !current.txMatch)) || current.loading ||
+             current.pending != null || current.encryptedLicense != null ||
+             generationJob?.isCompleted == false
+         ) return
+         val generation = ++generationGeneration
+-        val tx = current.txCliente.trim()
++        val tx = if (isRecovery) null else current.txCliente.trim()
+         _ui.update { it.copy(loading = true, error = null, success = null) }
+         generationJob = viewModelScope.launch {
+             try {
+                 val spvi = current.spvi
+                 if (spvi != null) {
+-                    when (val r = emitirSpvi(spvi, pagoConfirmado = true, txNumber = tx)) {
++                    when (val r = emitirSpvi(spvi, pagoConfirmado = isRecovery || current.paid, txNumber = tx)) {
+                         is Outcome.Err -> if (isCurrentGeneration(generation, current.raw, tx)) {
+                             _ui.update { it.copy(error = r.error.userMessage) }
+                         }
+@@ -325,7 +368,7 @@ class GeneratorViewModel @Inject constructor(
+                                     renuevaAviso = if (emitida.renuevaIgnorada) {
+                                         "Renovación no aplicada: se emitió como licencia nueva."
+                                     } else {
+-                                        null
++                                        current.renuevaAviso
+                                     },
+                                     success = "Licencia generada.",
+                                     shareLaunched = true,
+@@ -403,13 +446,12 @@ class GeneratorViewModel @Inject constructor(
+         }
+     }
+ 
+-    private fun isCurrentGeneration(generation: Long, raw: String, tx: String): Boolean {
++    private fun isCurrentGeneration(generation: Long, raw: String, tx: String?): Boolean {
+         val state = _ui.value
++        val isRecovery = state.spvi?.recupera != null
+         return generation == generationGeneration &&
+             state.raw == raw &&
+-            state.txCliente.trim() == tx &&
+-            state.paid &&
+-            state.txMatch
++            (isRecovery || (state.txCliente.trim() == (tx ?: "") && state.paid && state.txMatch))
+     }
+ 
+     fun onReturnedFromShare() {
+diff --git a/app/src/main/java/dev/gl/license/security/Spvi23.kt b/app/src/main/java/dev/gl/license/security/Spvi23.kt
+index 17fa2b1..2b9bee8 100644
+--- a/app/src/main/java/dev/gl/license/security/Spvi23.kt
++++ b/app/src/main/java/dev/gl/license/security/Spvi23.kt
+@@ -161,9 +161,22 @@ object Spvi23 {
+         if (!nonceRe.matches(dto.nonce) || dto.solicitadaEn.length > 64) {
+             return Outcome.Err(AppError.InvalidPayload)
+         }
++        val countExcluyentes = listOfNotNull(dto.renueva, dto.amplia, dto.recupera).size
++        if (countExcluyentes > 1) {
++            return Outcome.Err(AppError.InvalidPayload)
++        }
+         if (dto.renueva != null && !renewalIdRe.matches(dto.renueva)) {
+             return Outcome.Err(AppError.InvalidPayload)
+         }
++        if (dto.amplia != null && !renewalIdRe.matches(dto.amplia)) {
++            return Outcome.Err(AppError.InvalidPayload)
++        }
++        if (dto.recupera != null && !renewalIdRe.matches(dto.recupera)) {
++            return Outcome.Err(AppError.InvalidPayload)
++        }
++        if (dto.amplia != null && dto.secundarias <= 0) {
++            return Outcome.Err(AppError.InvalidPayload)
++        }
+         when (val s = Secundarias.validar(null, dto.deviceId, dto.secundarias)) {
+             is Outcome.Err -> return s
+             is Outcome.Ok -> Unit
+@@ -287,14 +300,49 @@ object Spvi23 {
+         }
+     }
+ 
+-    /** Verifica firma del código con la pública de firma. Acepta con o sin prefijo. Nunca lanza. */
++    /**
++     * Extrae los 210 caracteres Base64url de una licencia corta tras `SPVI2:`,
++     * ignorando espacios en blanco y saltos de línea (tolerante a transporte SMS/WhatsApp).
++     * Si no trae el prefijo `SPVI2:`, limpia espacios y valida que sean 210 caracteres válidos.
++     */
++    fun extraerCodigoLicencia(raw: String): String? {
++        if (raw.length > MAX_REQUEST_TEXT_CHARS) return null
++        var desde = raw.indexOf("SPVI2:")
++        while (desde >= 0) {
++            val sb = StringBuilder(210)
++            var i = desde + "SPVI2:".length
++            while (i < raw.length && sb.length < 210) {
++                val c = raw[i]
++                when {
++                    (c in 'A'..'Z') || (c in 'a'..'z') || (c in '0'..'9') || c == '-' || c == '_' -> sb.append(c)
++                    c.isWhitespace() -> Unit
++                    else -> break
++                }
++                i++
++            }
++            if (sb.length == 210) return sb.toString()
++            desde = raw.indexOf("SPVI2:", desde + 1)
++        }
++        val sb = StringBuilder(210)
++        for (c in raw) {
++            if (c.isWhitespace()) continue
++            if ((c in 'A'..'Z') || (c in 'a'..'z') || (c in '0'..'9') || c == '-' || c == '_') {
++                sb.append(c)
++            } else {
++                return null
++            }
++        }
++        return if (sb.length == 210) sb.toString() else null
++    }
++
++    /** Verifica firma del código con la pública de firma. Acepta con o sin prefijo y tolera espacios/texto. Nunca lanza. */
+     fun verificar(codigo: String, firmaPub: PublicKey): Boolean {
+         return try {
+-            val encoded = codigo.removePrefix("SPVI2:").trim()
+-            if (encoded.length > MAX_LICENSE_CODE_CHARS || encoded.length != 210) return false
++            val encoded = extraerCodigoLicencia(codigo) ?: return false
+             val raw = b64urlD(encoded)
+             if (raw.size != 33 + 44 + 16 + 64) return false
+             val epk = raw.copyOfRange(0, 33)
++            if (epk[0] != 0x02.toByte() && epk[0] != 0x03.toByte()) return false
+             val ct = raw.copyOfRange(33, 77)
+             val tag = raw.copyOfRange(77, 93)
+             val firma = raw.copyOfRange(93, 157)
+@@ -303,10 +351,10 @@ object Spvi23 {
+                 val s = java.security.Signature.getInstance("SHA256withECDSAinP1363Format")
+                 s.initVerify(firmaPub)
+                 s.update(msg)
+-                s.verify(firma)
++                if (s.verify(firma)) return true
+             } catch (_: Exception) {
+-                CryptoEngine.verify(firmaPub, msg, rawToDer(firma))
+             }
++            CryptoEngine.verify(firmaPub, msg, rawToDer(firma))
+         } catch (_: Exception) {
+             false
+         }
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+index af7e095..3843915 100644
+--- a/app/src/main/res/values/strings.xml
++++ b/app/src/main/res/values/strings.xml
+@@ -77,6 +77,8 @@
+     <string name="generator_request_step">1. Solicitud</string>
+     <string name="generator_payment_step">2. Confirmar pago</string>
+     <string name="generator_payment_supporting">Confirma el cobro antes de crear la licencia.</string>
++    <string name="generator_recovery_step">2. Recuperación de licencia</string>
++    <string name="generator_recovery_supporting">Recuperación gratuita: transfiere la licencia anterior a este dispositivo y revoca la previa en el registro. No requiere pago.</string>
+     <string name="generator_response_step">3. Respuesta para el cliente</string>
+     <string name="cd_clipboard_detected">Solicitud detectada del portapapeles</string>
+     <string name="cd_encrypted_request">Solicitud cifrada</string>
+diff --git a/app/src/test/java/dev/gl/license/GeneratorViewModelTest.kt b/app/src/test/java/dev/gl/license/GeneratorViewModelTest.kt
+index 74f1fa6..4319296 100644
+--- a/app/src/test/java/dev/gl/license/GeneratorViewModelTest.kt
++++ b/app/src/test/java/dev/gl/license/GeneratorViewModelTest.kt
+@@ -49,7 +49,11 @@ class GeneratorViewModelTest {
+             }
+     }
+ 
+-    private fun solSpvi(renueva: String? = null) = SolicitudSpviV2(
++    private fun solSpvi(
++        renueva: String? = null,
++        recupera: String? = null,
++        amplia: String? = null,
++    ) = SolicitudSpviV2(
+         v = 2,
+         nombre = "Maria",
+         apellidos = "Perez Gonzalez",
+@@ -63,6 +67,29 @@ class GeneratorViewModelTest {
+         devicePub = "AiuZGHe7sUgbFLfqufeF1BMCvKuYZQuJKYSxnIoc0zMK",
+         secundarias = 2,
+         renueva = renueva,
++        recupera = recupera,
++        amplia = amplia,
++    )
++
++    private fun previaLic(id: String, venceSec: Long = 1_767_225_600L + 5 * 86_400L) = Licencia(
++        version = 2,
++        id = id,
++        firstName = "Maria",
++        lastName = "Perez Gonzalez",
++        nationalId = "85010112345",
++        channel = ViaSolicitud.WHATSAPP,
++        phone = "+5352345678",
++        deviceId = "SPVI:old-device",
++        appName = "SPVI",
++        type = TipoLicencia.MENSUAL,
++        requestedAtIso = "2025-12-01T00:00:00Z",
++        issuedAtIso = java.time.Instant.ofEpochSecond(venceSec - 30 * 86_400L).toString(),
++        expiresAtIso = java.time.Instant.ofEpochSecond(venceSec).toString(),
++        status = dev.gl.license.domain.model.EstadoLicencia.ACTIVA,
++        secundarias = 2,
++        precioCobrado = 8_000,
++        codigoCorto = "SPVI2:previa",
++        nonce = "AAAAAAAAAAAAAAAAAAAAAA==",
+     )
+ 
+     private class PuertaFake(
+@@ -95,6 +122,7 @@ class GeneratorViewModelTest {
+             RegistrarLicenciaUseCase(lic, reg, FixedClock),
+             puerta,
+             EmitirSpvi2UseCase(puerta, lic, FixedClock),
++            dev.gl.license.domain.usecase.EvaluarSolicitudHistorialUseCase(lic, FixedClock),
+         )
+     }
+ 
+@@ -241,4 +269,44 @@ class GeneratorViewModelTest {
+         assertThat(vm.ui.value.pending).isNotNull()
+         assertThat(vm.ui.value.renuevaAviso).isNotNull()
+     }
++
++    @Test
++    fun spviRecuperacionPermiteGenerarSinTransaccionNiPago() = runTest {
++        val licencias = MemLic()
++        licencias.upsert(previaLic("previa-uuid"))
++
++        val vm = vm(
++            licencias = licencias,
++            puerta = PuertaFake(solicitud = solSpvi(recupera = "previa-uuid"), codigo = "SPVI2:RECUPERADA"),
++        )
++        vm.onRawChange("SPVIR1:AAAA")
++
++        assertThat(vm.ui.value.spvi?.recupera).isEqualTo("previa-uuid")
++        assertThat(vm.ui.value.paid).isTrue()
++        assertThat(vm.ui.value.spviPrecioDesglose).contains("Recuperación")
++
++        // Genera directamente sin ingresar transacción ni marcar pago
++        vm.generateLicense()
++
++        assertThat(vm.ui.value.shareBody).contains("SPVI2:RECUPERADA")
++        assertThat(vm.ui.value.pending?.codigoCorto).isEqualTo("SPVI2:RECUPERADA")
++        assertThat(vm.ui.value.pending?.precioCobrado).isEqualTo(0)
++
++        // La anterior quedó revocada
++        val previa = licencias.getById("previa-uuid")
++        assertThat(previa?.status).isEqualTo(dev.gl.license.domain.model.EstadoLicencia.REVOCADA)
++    }
++
++    @Test
++    fun spviRecuperacionRechazaAnteriorInvalida() = runTest {
++        val licencias = MemLic()
++        val vm = vm(
++            licencias = licencias,
++            puerta = PuertaFake(solicitud = solSpvi(recupera = "previa-inexistente")),
++        )
++        vm.onRawChange("SPVIR1:AAAA")
++
++        assertThat(vm.ui.value.spvi).isNull()
++        assertThat(vm.ui.value.error).isEqualTo(AppError.RecuperacionInvalida.userMessage)
++    }
+ }
+diff --git a/app/src/test/java/dev/gl/license/PrecioTablaTest.kt b/app/src/test/java/dev/gl/license/PrecioTablaTest.kt
+index 4a9e28a..8e58787 100644
+--- a/app/src/test/java/dev/gl/license/PrecioTablaTest.kt
++++ b/app/src/test/java/dev/gl/license/PrecioTablaTest.kt
+@@ -42,4 +42,18 @@ class PrecioTablaTest {
+     fun formatoPrecioAgrupaMilesAntesDeCUP() {
+         assertThat(PrecioTabla.formatoPrecio(8_000)).isEqualTo("8 000 CUP")
+     }
++
++    @Test
++    fun desgloseAmpliacionCalculaDiferenciaDeSecundarias() {
++        assertThat(PrecioTabla.porSecundaria(TipoLicencia.MENSUAL)).isEqualTo(1_000)
++        assertThat(PrecioTabla.ampliacion(TipoLicencia.MENSUAL, 3)).isEqualTo(3_000)
++        assertThat(PrecioTabla.desgloseAmpliacion(TipoLicencia.MENSUAL, 2, 5))
++            .isEqualTo("Ampliación Mensual: +3 secundarias (2 → 5) × 1 000 = 3 000 CUP")
++    }
++
++    @Test
++    fun desgloseRecuperacionIndicaGratuidadYRevocacion() {
++        assertThat(PrecioTabla.desgloseRecuperacion("lic-123"))
++            .contains("Recuperación: gratuita")
++    }
+ }
+diff --git a/app/src/test/java/dev/gl/license/RenovacionSpviTest.kt b/app/src/test/java/dev/gl/license/RenovacionSpviTest.kt
+index 1bdf702..e883a28 100644
+--- a/app/src/test/java/dev/gl/license/RenovacionSpviTest.kt
++++ b/app/src/test/java/dev/gl/license/RenovacionSpviTest.kt
+@@ -168,4 +168,105 @@ class RenovacionSpviTest {
+ 
+         assertThat(result.value.licencia.txNumber).isEqualTo("TX-SPVI")
+     }
++
++    @Test
++    fun recuperacionExitosaRevocaAnteriorYConservaVencimiento() = runTest {
++        val licencias = MemLic()
++        val previaVence = ahoraSec + 5 * 86_400L
++        licencias.upsert(anterior("previa-uuid", venceSec = previaVence))
++
++        val solRecupera = sol().copy(
++            deviceId = "SPVI:nuevo-device-999",
++            renueva = null,
++            recupera = "previa-uuid",
++        )
++
++        val r = emitir(solRecupera, licencias) as Outcome.Ok
++        val nueva = r.value.licencia
++
++        // La anterior queda revocada en el registro
++        val previaActualizada = licencias.getById("previa-uuid")
++        assertThat(previaActualizada?.status).isEqualTo(EstadoLicencia.REVOCADA)
++
++        // La nueva pertenece al nuevo dispositivo, conserva vencimiento, tipo y secundarias, y es gratuita
++        assertThat(nueva.deviceId).isEqualTo("SPVI:nuevo-device-999")
++        assertThat(nueva.expiresAtIso).isEqualTo(Instant.ofEpochSecond(previaVence).toString())
++        assertThat(nueva.type).isEqualTo(TipoLicencia.MENSUAL)
++        assertThat(nueva.secundarias).isEqualTo(2)
++        assertThat(nueva.precioCobrado).isEqualTo(0)
++    }
++
++    @Test
++    fun recuperacionRechazaAnteriorInexistente() = runTest {
++        val licencias = MemLic()
++        val solInexistente = sol().copy(recupera = "no-existe-uuid")
++
++        val r = emitir(solInexistente, licencias) as Outcome.Err
++        assertThat(r.error).isEqualTo(AppError.RecuperacionInvalida)
++    }
++
++    @Test
++    fun recuperacionRechazaAnteriorRevocada() = runTest {
++        val licencias = MemLic()
++        licencias.upsert(anterior("previa-revocada", status = EstadoLicencia.REVOCADA, venceSec = ahoraSec + 5 * 86_400L))
++
++        val solRecupera = sol().copy(recupera = "previa-revocada")
++        val r = emitir(solRecupera, licencias) as Outcome.Err
++        assertThat(r.error).isEqualTo(AppError.RecuperacionInvalida)
++    }
++
++    @Test
++    fun recuperacionRechazaAnteriorVencida() = runTest {
++        val licencias = MemLic()
++        licencias.upsert(anterior("previa-vencida", venceSec = ahoraSec - 2 * 86_400L))
++
++        val solRecupera = sol().copy(recupera = "previa-vencida")
++        val r = emitir(solRecupera, licencias) as Outcome.Err
++        assertThat(r.error).isEqualTo(AppError.RecuperacionInvalida)
++    }
++
++    @Test
++    fun recuperacionRechazaCiDiferente() = runTest {
++        val licencias = MemLic()
++        licencias.upsert(anterior("previa-ci", venceSec = ahoraSec + 5 * 86_400L))
++
++        val solAjena = sol().copy(ci = "00112233445", recupera = "previa-ci")
++        val r = emitir(solAjena, licencias) as Outcome.Err
++        assertThat(r.error).isEqualTo(AppError.RecuperacionInvalida)
++    }
++
++    @Test
++    fun ampliacionExitosaConservaVencimientoYCobraSoloAdicionales() = runTest {
++        val licencias = MemLic()
++        val previaVence = ahoraSec + 5 * 86_400L
++        licencias.upsert(anterior("previa-ampliable", venceSec = previaVence))
++
++        val solAmplia = sol().copy(
++            secundarias = 5,
++            amplia = "previa-ampliable",
++        )
++
++        val r = emitir(solAmplia, licencias, txNumber = "TX-AMP") as Outcome.Ok
++        val nueva = r.value.licencia
++
++        assertThat(nueva.secundarias).isEqualTo(5)
++        assertThat(nueva.expiresAtIso).isEqualTo(Instant.ofEpochSecond(previaVence).toString())
++        assertThat(nueva.precioCobrado).isEqualTo(3_000) // (5 - 2) * 1_000
++    }
++
++    @Test
++    fun ampliacionRechazaCondicionesInvalidas() = runTest {
++        val licencias = MemLic()
++        licencias.upsert(anterior("vencida", venceSec = ahoraSec - 2 * 86_400L))
++        licencias.upsert(anterior("ajena", deviceId = "SPVI:otro-disp", venceSec = ahoraSec + 5 * 86_400L))
++        licencias.upsert(anterior("vigente", venceSec = ahoraSec + 5 * 86_400L))
++
++        val rVencida = emitir(sol().copy(secundarias = 4, amplia = "vencida"), licencias) as Outcome.Err
++        val rAjena = emitir(sol().copy(secundarias = 4, amplia = "ajena"), licencias) as Outcome.Err
++        val rIgual = emitir(sol().copy(secundarias = 2, amplia = "vigente"), licencias) as Outcome.Err
++
++        assertThat(rVencida.error).isEqualTo(AppError.AmpliacionInvalida)
++        assertThat(rAjena.error).isEqualTo(AppError.AmpliacionInvalida)
++        assertThat(rIgual.error).isEqualTo(AppError.AmpliacionInvalida)
++    }
+ }
+diff --git a/app/src/test/java/dev/gl/license/Spvi23SolicitudTest.kt b/app/src/test/java/dev/gl/license/Spvi23SolicitudTest.kt
+index fb0674e..3fdee1c 100644
+--- a/app/src/test/java/dev/gl/license/Spvi23SolicitudTest.kt
++++ b/app/src/test/java/dev/gl/license/Spvi23SolicitudTest.kt
+@@ -50,4 +50,32 @@ class Spvi23SolicitudTest {
+         assertThat(Spvi23.contieneCodigo(oversized)).isFalse()
+         assertThat(Spvi23.extraerCodigo(oversized)).isInstanceOf(Outcome.Err::class.java)
+     }
++
++    @Test
++    fun sellarAbrirRecuperacionYAmpliacion() {
++        val gl = CryptoEngine.generateEphemeralP256()
++
++        val rec = dto().copy(recupera = "lic-antigua-uuid")
++        val codRec = Spvi23.sellarSolicitud(rec, gl.public)
++        val resRec = Spvi23.abrir(codRec, gl.private)
++        assertThat((resRec as Outcome.Ok).value).isEqualTo(rec)
++
++        val amp = dto().copy(secundarias = 5, amplia = "lic-activa-uuid")
++        val codAmp = Spvi23.sellarSolicitud(amp, gl.public)
++        val resAmp = Spvi23.abrir(codAmp, gl.private)
++        assertThat((resAmp as Outcome.Ok).value).isEqualTo(amp)
++    }
++
++    @Test
++    fun rechazaCamposExcluyentesSimultaneos() {
++        val gl = CryptoEngine.generateEphemeralP256()
++
++        val conflicto = dto().copy(renueva = "lic-1", recupera = "lic-2")
++        val codConflicto = Spvi23.sellarSolicitud(conflicto, gl.public)
++        assertThat(Spvi23.abrir(codConflicto, gl.private)).isInstanceOf(Outcome.Err::class.java)
++
++        val conflictoAmp = dto().copy(renueva = "lic-1", amplia = "lic-2")
++        val codConflictoAmp = Spvi23.sellarSolicitud(conflictoAmp, gl.public)
++        assertThat(Spvi23.abrir(codConflictoAmp, gl.private)).isInstanceOf(Outcome.Err::class.java)
++    }
+ }
+diff --git a/app/src/test/java/dev/gl/license/Spvi23VectorTest.kt b/app/src/test/java/dev/gl/license/Spvi23VectorTest.kt
+index 355639e..d68c69e 100644
+--- a/app/src/test/java/dev/gl/license/Spvi23VectorTest.kt
++++ b/app/src/test/java/dev/gl/license/Spvi23VectorTest.kt
+@@ -112,4 +112,45 @@ class Spvi23VectorTest {
+         v.update(msg)
+         assertThat(v.verify(raw)).isTrue()
+     }
++
++    @Test
++    fun verificarToleraEspaciosSaltosDeLineaYTextoCircundante() {
++        val devicePub = Spvi23.descomprimirPunto(Spvi23.b64urlD(devicePubB64))
++        val efimera = parConEscalar(efimeraHex)
++        val firma = parConEscalar(firmaDHex)
++        val sellado = Spvi23.sellarLicencia(
++            hex(cuerpoHex),
++            devicePub,
++            firma.private,
++            efimera,
++        )
++        val firmaPub = CryptoEngine.parseEcPublic(firmaSpkiB64)
++        val codigoLimpio = sellado.codigo()
++
++        // 1. Código partido en líneas de 60 chars con espacios
++        val codigoConSaltos = "SPVI2:" + codigoLimpio.removePrefix("SPVI2:")
++            .chunked(60).joinToString("\n  ")
++        assertThat(Spvi23.verificar(codigoConSaltos, firmaPub)).isTrue()
++
++        // 2. Mensaje completo de respuesta
++        val mensajeCompleto = """
++            Licencia SPVI
++            Tipo: Mensual
++            Apps secundarias: 2
++            Emitida: 03/10/2026
++            Vence: 02/11/2026
++            ID: $licenseId
++
++            $codigoConSaltos
++
++            ¡Gracias por su compra!
++        """.trimIndent()
++        assertThat(Spvi23.verificar(mensajeCompleto, firmaPub)).isTrue()
++
++        // 3. Mutación en el código falla
++        val mutado = codigoLimpio.substring(0, 20) +
++            (if (codigoLimpio[20] == 'A') 'B' else 'A') +
++            codigoLimpio.substring(21)
++        assertThat(Spvi23.verificar(mutado, firmaPub)).isFalse()
++    }
+ }
+-- 
+2.39.5
+
