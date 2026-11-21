@@ -30,10 +30,10 @@ from cryptography.hazmat.primitives.asymmetric import ec
 # configura junto con el endpoint y las claves en el build aprobado: por sí solo
 # no habilita nada. Cambiar cualquiera de estos valores exige un build nuevo,
 # revisión y pruebas; nunca se reciben del usuario.
-APP_ID = ""
-ENDPOINT_REDEEM = ""
-ENDPOINT_ESTADO = ""
-KIDS_FIRMA: Mapping[str, str] = MappingProxyType({})
+APP_ID = "DSHALEV"
+ENDPOINT_REDEEM = "https://gl-redeem.rmdvcd.workers.dev/v1/redeem"
+ENDPOINT_ESTADO = "https://gl-redeem.rmdvcd.workers.dev/v1/status"
+KIDS_FIRMA: Mapping[str, str] = MappingProxyType({"gl-redeem-v1": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE553eHDlFY2mooBnPsNoaRe9gUd4iPEST98yH8OKQOCWCqphj1AwSAIMsfpTKr85QgyweZqMlH8aG248aJnHZpg=="})
 
 # ── Política de instalación ────────────────────────────────────────────────────
 # Una identidad P-256 y una licencia por instalación; los locales de `--local`
