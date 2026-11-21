@@ -333,6 +333,34 @@ class LicenseManager(
         return if (ev.state.unlocked) ev.state.secundariasPermitidas else 0
     }
 
+    /**
+     * 0.32.0 (S7): instala directamente una licencia canjeada y verificada mediante el protocolo de canje directo.
+     */
+    suspend fun activarDirecta(
+        licenseId: String,
+        emitidaEn: String,
+        venceEn: String?,
+        tipo: TipoLicencia,
+        secundarias: Int,
+        envelopeJson: String,
+    ): ActivationResult {
+        val payload = LicensePayload(
+            id = licenseId,
+            emitidaEn = emitidaEn,
+            venceEn = venceEn,
+            tipo = tipo,
+            deviceId = deviceId,
+            secundarias = secundarias,
+        )
+        val state = if (tipo == TipoLicencia.PERPETUA) {
+            LicenseState.Perpetual(licenseId, secundarias)
+        } else {
+            val days = java.time.Duration.between(clock.now(), Instant.parse(venceEn!!)).toDays().toInt()
+            LicenseState.Active(licenseId, days, tipo, secundarias)
+        }
+        return instalar(payload, state, envelopeJson, licenseId)
+    }
+
     /** No se instala una licencia más antigua que la actual ni anterior a la transferencia. */
     private suspend fun instalar(payload: LicensePayload, state: LicenseState, envelopeJson: String, licenseId: String): ActivationResult {
         val current = store.license()
