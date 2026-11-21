@@ -12,10 +12,11 @@ import base64
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 import threading
+from types import MappingProxyType
 from typing import Any, Mapping, Sequence
 from urllib.parse import urlsplit
 
@@ -76,6 +77,8 @@ class DirectorioConfianza:
     emitida_en: int
     claves: Sequence[ClaveDirectorio]
     datos_raw: str = ""
+    endpoint_base: str = ""
+    app_ids: Mapping[str, str] = field(default_factory=dict)
 
     def sign_keys_for(self, emitida_en: int | datetime) -> list[bytes]:
         """Devuelve las claves SPKI DER con uso 'firma' que cubren la fecha indicada y no están comprometidas."""
@@ -303,12 +306,22 @@ def verificar_y_parsear_directorio(
             )
         )
 
+    canje_dict = datos.get("canje") if isinstance(datos.get("canje"), dict) else {}
+    endpoint_base = str(canje_dict.get("endpoint_base") or "")
+    app_ids_dict = (
+        dict(canje_dict.get("app_ids") or {})
+        if isinstance(canje_dict.get("app_ids"), dict)
+        else {}
+    )
+
     return DirectorioConfianza(
         v=VERSION_DIRECTORIO,
         seq=seq,
         emitida_en=emitida_en,
         claves=claves_procesadas,
         datos_raw=datos_str,
+        endpoint_base=endpoint_base,
+        app_ids=MappingProxyType(app_ids_dict),
     )
 
 

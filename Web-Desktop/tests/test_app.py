@@ -198,3 +198,6 @@ def test_el_panel_de_licencia_explica_que_la_activacion_esta_deshabilitada(tmp_p
     assert "PRIVATE KEY" not in page.text
     assert "BEGIN" not in page.text
     assert "https://" not in page.text
+    assert "Huella de la instalación" in page.text
+    assert "identidad-huella" in page.text
+    assert "MAX_SECUNDARIAS = 0" in page.text

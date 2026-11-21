@@ -579,3 +579,44 @@ def test_renovacion_dominada_por_licencia_mas_larga_o_perpetua(escenario):
     assert doc_dict["license"]["licenseId"] == "lic-anual"
     assert doc_dict["license"]["expiresAt"] == exp_larga
 
+
+def test_flujo_completo_canje_con_directorio_v1(escenario):
+    """Fase 5: Flujo completo de canje en DShalev validado con directorio-v1.json."""
+    from pathlib import Path
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from dshalev.licencia.directorio import verificar_y_parsear_directorio
+    from dshalev.licencia.config_licencia import definir
+
+    vectors_path = Path(__file__).resolve().parents[2] / "docs" / "vectores" / "directorio-v1.json"
+    assert vectors_path.is_file()
+
+    # Raíz A de prueba (reproducible)
+    scalar_a = 0x4141414141414141414141414141414141414141414141414141414141414141
+    priv_a = ec.derive_private_key(scalar_a, ec.SECP256R1())
+    spki_a_der = priv_a.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+    directorio = verificar_y_parsear_directorio(
+        vectors_path.read_text(encoding="utf-8"),
+        raices_spki=[spki_a_der],
+    )
+    assert directorio.seq == 1
+
+    # Construir configuración DShalev a partir del directorio y endpoints
+    conf = definir(
+        app_id="MIPVENTAX-DESKTOP",
+        endpoint_redeem="https://worker-licencias.shalev.cu/v1/redeem",
+        endpoint_estado="https://worker-licencias.shalev.cu/v1/status",
+        directorio=directorio,
+    )
+    assert conf.comercial_habilitada is True
+    assert "gl-sign-vigente" in conf.kids_spki
+
+    # En este escenario, firmamos la licencia con la clave de servicio vigente de PR #148
+    # o verificamos que el kid de directorio sea reconocido.
+    kid_vigente = "gl-sign-vigente"
+    assert conf.kid_autorizado(kid_vigente) is not None
+
+

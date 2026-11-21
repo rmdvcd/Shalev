@@ -617,10 +617,24 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         user = current_user(request)
         if not user:
             return redirect("/entrar")
+        huella = ""
+        try:
+            from .licencia.identidad import cargar_o_crear_identidad, ruta_identidad
+            raiz_app = config.database_path.parent.parent
+            id_inst = cargar_o_crear_identidad(ruta_identidad(raiz_app))
+            huella = id_inst.huella
+        except Exception:
+            huella = "No disponible"
         return templates.TemplateResponse(
             request,
             "license.html",
-            context(request, user=user, section="licencia", motivo_licencia=motivo_activacion_deshabilitada()),
+            context(
+                request,
+                user=user,
+                section="licencia",
+                motivo_licencia=motivo_activacion_deshabilitada(),
+                huella_instalacion=huella,
+            ),
         )
 
     @app.get("/ayuda", response_class=HTMLResponse)
