@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "descripcion": "Precios y tarifas canónicas de licencias Shalev (CUP) compartidas por Android, iOS y DShalev",
+  "moneda": "CUP",
+  "tarifas": {
+    "MENSUAL": {
+      "tipo": "MENSUAL",
+      "etiqueta": "Mensual",
+      "precioBaseCentavos": 600000,
+      "precioBasePesos": 6000,
+      "precioSecundariaCentavos": 100000,
+      "precioSecundariaPesos": 1000,
+      "duracionDias": 30
+    },
+    "SEMESTRAL": {
+      "tipo": "SEMESTRAL",
+      "etiqueta": "Semestral",
+      "precioBaseCentavos": 3000000,
+      "precioBasePesos": 30000,
+      "precioSecundariaCentavos": 500000,
+      "precioSecundariaPesos": 5000,
+      "duracionDias": 180
+    },
+    "ANUAL": {
+      "tipo": "ANUAL",
+      "etiqueta": "Anual",
+      "precioBaseCentavos": 5000000,
+      "precioBasePesos": 50000,
+      "precioSecundariaCentavos": 900000,
+      "precioSecundariaPesos": 9000,
+      "duracionDias": 365
+    },
+    "PERPETUA": {
+      "tipo": "PERPETUA",
+      "etiqueta": "Perpetua",
+      "precioBaseCentavos": 9000000,
+      "precioBasePesos": 90000,
+      "precioSecundariaCentavos": 1700000,
+      "precioSecundariaPesos": 17000,
+      "duracionDias": null
+    }
+  },
+  "maxSecundarias": 10,
+  "secundariasDefecto": 5,
+  "formatoPrecio": "{pesos:,.2f} CUP"
+}

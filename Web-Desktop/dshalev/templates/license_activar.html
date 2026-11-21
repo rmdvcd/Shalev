@@ -1,0 +1,57 @@
+{% extends 'base.html' %}{% block title %}Activar Licencia{% endblock %}{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">ACTIVACIÓN DE LICENCIA</p>
+    <h1>Activar licencia</h1>
+    <p class="muted">Pega el mensaje o código que te envió el operador por WhatsApp o SMS.</p>
+  </div>
+  <div class="heading-actions">
+    <a href="/licencia" class="quiet-button">Volver</a>
+  </div>
+</div>
+
+<div class="content-grid">
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow">RESPUESTA DEL OPERADOR</p>
+        <h2>Código de activación</h2>
+      </div>
+      <span class="icon-tile">📥</span>
+    </div>
+
+    <form action="/licencia/activar" method="post" class="form-stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+
+      <label for="campo-texto-licencia">Mensaje recibido o código SPVI2
+        <textarea id="campo-texto-licencia" name="texto_licencia" rows="8" required placeholder="Pega aquí el mensaje completo o el código que comienza con SPVI2:..." class="code-input" style="width: 100%; font-family: monospace; resize: vertical; margin-top: 0.25rem;" spellcheck="false" autocomplete="off"></textarea>
+        <small class="muted">Puedes pegar todo el texto del chat: el sistema extrae automáticamente la licencia de 210 caracteres.</small>
+      </label>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem;">
+        <button type="submit" class="primary-button">Activar</button>
+        <a href="/licencia" class="quiet-button">Cancelar</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow">INSTRUCCIONES</p>
+        <h2>¿Cómo funciona?</h2>
+      </div>
+      <span class="icon-tile">ℹ️</span>
+    </div>
+
+    <div class="detail-group" style="display: grid; gap: 0.75rem;">
+      <p>1. <strong>Copia el mensaje:</strong> Cuando el operador procese tu solicitud, te enviará un mensaje con un código cifrado que empieza con <code>SPVI2:</code>.</p>
+      <p>2. <strong>Pégalo completo:</strong> No te preocupes por espacios, saltos de línea ni textos adicionales; el validador filtrará el contenido exacto.</p>
+      <p>3. <strong>Activación instantánea:</strong> La firma criptográfica de GL se comprobará de inmediato y tu instalación quedará activada sin requerir conexión a internet.</p>
+      <div class="notice info" style="margin-top: 1rem;">
+        <p class="tiny">Si el mensaje llegó dividido por SMS o incompleto, asegúrate de unir todas las partes antes de pulsar Activar.</p>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
