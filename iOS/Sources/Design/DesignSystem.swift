@@ -235,63 +235,6 @@ struct ShalevFilaAdaptable<Principal: View, Valor: View>: View {
     }
 }
 
-/// Pantalla animada de carga con el logo de MIPVentaX (Trazo Vectorial y Rebote / Path Draw & Snap).
-struct SplashAnimatedLogoView: View {
-    @State private var strokeProgress: CGFloat = 0.0
-    @State private var snapScale: CGFloat = 0.82
-    @State private var contentOpacity: Double = 0.0
-
-    var body: some View {
-        VStack(spacing: 20) {
-            ZStack {
-                // Trazo vectorial animado del contorno
-                Circle()
-                    .trim(from: 0, to: strokeProgress)
-                    .stroke(
-                        strokeProgress >= 1.0 ? Color.shalevSecondary : Color.shalevPrimary,
-                        style: StrokeStyle(lineWidth: 3.5, lineCap: .round)
-                    )
-                    .frame(width: 108, height: 108)
-                    .rotationEffect(.degrees(-90))
-
-                // Isotipo interior que destella con el rebote de resorte
-                Image(systemName: "storefront.fill")
-                    .font(.system(size: 46, weight: .semibold))
-                    .foregroundStyle(Color.shalevOnPrimary)
-                    .frame(width: 92, height: 92)
-                    .background(Color.shalevPrimary, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                    .scaleEffect(snapScale)
-                    .opacity(contentOpacity)
-                    .shadow(color: Color.shalevPrimary.opacity(0.35), radius: 12, x: 0, y: 5)
-            }
-
-            MIPVentaXTitulo(size: 28, isBrandFont: true)
-                .opacity(contentOpacity)
-
-            ProgressView()
-                .tint(Color.shalevSecondary)
-                .scaleEffect(1.1)
-                .padding(.top, 10)
-                .opacity(contentOpacity)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.shalevBackground.ignoresSafeArea())
-        .onAppear {
-            // Fase 1: Dibuja el trazo vectorial
-            withAnimation(.easeInOut(duration: 0.55)) {
-                strokeProgress = 1.0
-            }
-            // Fase 2: Rebote elástico (Snap) del logo y aparición
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.62, blendDuration: 0)) {
-                    snapScale = 1.0
-                    contentOpacity = 1.0
-                }
-            }
-        }
-    }
-}
-
 /// Vista que representa el nombre de marca "MIPVentaX" resaltando "IPV" mediante color y grosor.
 struct MIPVentaXTitulo: View {
     var size: CGFloat = 23

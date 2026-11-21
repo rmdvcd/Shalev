@@ -10,7 +10,6 @@ import cu.shalev.app.bloqueo.BloqueoGate
 import cu.shalev.app.navigation.MainScaffold
 import cu.shalev.app.onboarding.ModoWizard
 import cu.shalev.app.onboarding.OnboardingScreen
-import cu.shalev.designsystem.component.ShalevLoading
 import cu.shalev.designsystem.token.ShalevMotion
 
 /**
@@ -31,7 +30,7 @@ fun ShalevRoot(viewModel: RootViewModel) {
         label = "root",
     ) { s ->
         when (s) {
-            RootState.Loading -> AnimacionCargaMIPVentaX()
+            RootState.Loading -> Unit
             // 0.25.0 (§3.4): teléfono antiguo de una recuperación: datos borrados, pedir desinstalar.
             is RootState.Bloqueo -> if (s.snapshot.estado == cu.shalev.licencia.LicenseState.Revoked) cu.shalev.app.licencia.LicenciaTransferida() else BloqueoGate(s.snapshot.estado)
             // El asistente marca el onboarding como visto; RootViewModel pasa a Main solo.
