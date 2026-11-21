@@ -363,3 +363,86 @@ def test_conflicto_mismo_seq_contenido_distinto():
     with pytest.raises(DirectorioError, match="Conflicto de secuencia"):
         evaluar_actualizacion(actual=da, nuevo=db)
 
+
+def test_descargar_directorio_restricciones():
+    """Solo se permite HTTPS y solo el host github.com."""
+    from dshalev.licencia.directorio import descargar_directorio_remoto
+
+    # HTTP plano rechazado
+    assert descargar_directorio_remoto("http://github.com/rmdvcd/Shalev/releases/download/revocaciones/directorio.json") is None
+    # Host no autorizado rechazado
+    assert descargar_directorio_remoto("https://evil.com/directorio.json") is None
+
+
+def test_gestor_directorio_ciclo_vida(tmp_path: Path):
+    """El gestor carga bootstrap, ignora caché corrupta y actualiza con seq superior."""
+    from dshalev.licencia.directorio import GestorDirectorio
+
+    cache_file = tmp_path / "directorio.json"
+
+    _, b64_1, _, fp1 = _generar_par_p256()
+    datos1 = {
+        "v": 1,
+        "seq": 1,
+        "emitidaEn": 1776470400,
+        "claves": [{"kid": "k1", "uso": "firma", "spki": b64_1, "huella": fp1, "desde": 1700000000, "hasta": None, "estado": "vigente"}],
+    }
+    bootstrap_str = firmar_directorio(datos1, PRIV_A)
+
+    gestor = GestorDirectorio(
+        ruta_cache=cache_file,
+        raices_spki=[SPKI_A_DER],
+        bootstrap_json=bootstrap_str,
+    )
+    efectivo = gestor.efectivo
+    assert efectivo is not None
+    assert efectivo.seq == 1
+
+    # Escribir caché corrupta
+    cache_file.write_text("contenido no json corrupto", encoding="utf-8")
+    gestor_con_corrupto = GestorDirectorio(
+        ruta_cache=cache_file,
+        raices_spki=[SPKI_A_DER],
+        bootstrap_json=bootstrap_str,
+    )
+    # Debe ignorar la caché corrupta y usar bootstrap
+    assert gestor_con_corrupto.efectivo is not None
+    assert gestor_con_corrupto.efectivo.seq == 1
+
+    # Actualizar con seq 2
+    _, b64_2, _, fp2 = _generar_par_p256()
+    datos2 = {
+        "v": 1,
+        "seq": 2,
+        "emitidaEn": 1780000000,
+        "claves": [{"kid": "k2", "uso": "firma", "spki": b64_2, "huella": fp2, "desde": 1700000000, "hasta": None, "estado": "vigente"}],
+    }
+    sobre2 = firmar_directorio(datos2, PRIV_A)
+
+    class MockHttpxResponse:
+        status_code = 200
+        content = sobre2.encode("utf-8")
+
+    class MockHttpxClient:
+        def get(self, url, follow_redirects=True):
+            return MockHttpxResponse()
+
+    ok = gestor.actualizar_desde_red(cliente_httpx=MockHttpxClient())
+    assert ok is True
+    assert gestor.efectivo.seq == 2
+    assert cache_file.is_file()
+
+    # Si se intenta actualizar con seq 1 (menor), debe ser rechazado y mantener seq 2
+    class MockHttpxOldResponse:
+        status_code = 200
+        content = bootstrap_str.encode("utf-8")
+
+    class MockHttpxOldClient:
+        def get(self, url, follow_redirects=True):
+            return MockHttpxOldResponse()
+
+    ok_retroceso = gestor.actualizar_desde_red(cliente_httpx=MockHttpxOldClient())
+    assert ok_retroceso is False
+    assert gestor.efectivo.seq == 2
+
+

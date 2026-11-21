@@ -15,7 +15,9 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+import threading
 from typing import Any, Mapping, Sequence
+from urllib.parse import urlsplit
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
@@ -355,3 +357,156 @@ def firmar_directorio(
         "raiz": identificador_raiz,
     }
     return json.dumps(sobre, separators=(",", ":"), ensure_ascii=False)
+
+
+# ── Descarga periódica y almacenamiento seguro (Fase 1.3) ─────────────────────
+
+URL_DIRECTORIO_OFICIAL = (
+    "https://github.com/rmdvcd/Shalev/releases/download/revocaciones/directorio.json"
+)
+HOST_PERMITIDO = "github.com"
+
+_RUTA_BOOTSTRAP = Path(__file__).parent / "directorio_bootstrap.json"
+BOOTSTRAP_JSON_DEFECTO: str = (
+    _RUTA_BOOTSTRAP.read_text(encoding="utf-8")
+    if _RUTA_BOOTSTRAP.is_file()
+    else ""
+)
+
+
+def descargar_directorio_remoto(
+    url: str = URL_DIRECTORIO_OFICIAL,
+    timeout_segundos: float = 10.0,
+    cliente_httpx: Any | None = None,
+) -> str | None:
+    """Descarga el directorio de confianza desde el asset oficial de GitHub Releases.
+
+    Reglas de seguridad (Anexo A / Fase 1.3):
+    - Solo HTTPS.
+    - Host inicial debe ser github.com.
+    - Límite estricto de 64 KiB.
+    - Tiempo de espera máximo 10 s.
+    - Si falla o no cumple las restricciones, retorna None (no bloquea).
+    """
+    try:
+        partes = urlsplit(url)
+        if partes.scheme != "https":
+            return None
+        if partes.hostname != HOST_PERMITIDO:
+            return None
+
+        import httpx
+
+        def _solicitar(cli: httpx.Client) -> str | None:
+            resp = cli.get(url, follow_redirects=True)
+            if resp.status_code != 200:
+                return None
+            contenido = resp.content
+            if len(contenido) > MAXIMO_DIRECTORIO_BYTES:
+                return None
+            return contenido.decode("utf-8")
+
+        if cliente_httpx is not None:
+            return _solicitar(cliente_httpx)
+        with httpx.Client(timeout=timeout_segundos) as cli:
+            return _solicitar(cli)
+    except Exception:
+        return None
+
+
+class GestorDirectorio:
+    """Gestiona el ciclo de vida del directorio de confianza (bootstrap + caché local)."""
+
+    def __init__(
+        self,
+        ruta_cache: Path | None = None,
+        raices_spki: Sequence[bytes] | None = None,
+        bootstrap_json: str | None = None,
+    ) -> None:
+        self.ruta_cache = Path(ruta_cache) if ruta_cache else None
+        self.raices_spki = (
+            list(raices_spki) if raices_spki is not None else raices_compilacion()
+        )
+        self._bootstrap_json = bootstrap_json or BOOTSTRAP_JSON_DEFECTO
+        self._efectivo: DirectorioConfianza | None = None
+        self._cerrojo = threading.Lock()
+
+    def inicializar(self) -> DirectorioConfianza | None:
+        """Carga y valida en cada arranque el bootstrap y la caché si existe."""
+        with self._cerrojo:
+            bootstrap_dir: DirectorioConfianza | None = None
+            if self._bootstrap_json and self.raices_spki:
+                try:
+                    bootstrap_dir = verificar_y_parsear_directorio(
+                        self._bootstrap_json, self.raices_spki
+                    )
+                except DirectorioError:
+                    bootstrap_dir = None
+
+            cache_dir: DirectorioConfianza | None = None
+            if self.ruta_cache and self.ruta_cache.is_file() and self.raices_spki:
+                try:
+                    contenido = self.ruta_cache.read_text(encoding="utf-8")
+                    cache_dir = verificar_y_parsear_directorio(
+                        contenido, self.raices_spki
+                    )
+                except Exception:
+                    cache_dir = None
+
+            efectivo = bootstrap_dir
+            if cache_dir is not None:
+                try:
+                    efectivo = evaluar_actualizacion(bootstrap_dir, cache_dir)
+                except DirectorioError:
+                    pass
+
+            self._efectivo = efectivo
+            return efectivo
+
+    @property
+    def efectivo(self) -> DirectorioConfianza | None:
+        if self._efectivo is None:
+            return self.inicializar()
+        return self._efectivo
+
+    def actualizar_desde_red(
+        self,
+        url: str = URL_DIRECTORIO_OFICIAL,
+        timeout_segundos: float = 10.0,
+        cliente_httpx: Any | None = None,
+    ) -> bool:
+        """Descarga una actualización y la aplica atómicamente si es válida y su seq es mayor."""
+        texto = descargar_directorio_remoto(url, timeout_segundos, cliente_httpx)
+        if not texto:
+            return False
+        try:
+            nuevo = verificar_y_parsear_directorio(texto, self.raices_spki)
+            with self._cerrojo:
+                efectivo_actual = self.efectivo
+                actualizado = evaluar_actualizacion(efectivo_actual, nuevo)
+                if efectivo_actual is not None and actualizado.seq == efectivo_actual.seq:
+                    return True
+                if self.ruta_cache:
+                    self.ruta_cache.parent.mkdir(parents=True, exist_ok=True)
+                    temp = self.ruta_cache.with_suffix(".tmp")
+                    temp.write_text(texto, encoding="utf-8")
+                    temp.replace(self.ruta_cache)
+                self._efectivo = actualizado
+                return True
+        except Exception:
+            return False
+
+
+_GESTOR_GLOBAL: GestorDirectorio | None = None
+
+
+def gestor_directorio(ruta_datos: Path | None = None) -> GestorDirectorio:
+    """Instancia compartida del gestor de directorio."""
+    global _GESTOR_GLOBAL
+    if _GESTOR_GLOBAL is None:
+        ruta_cache = None
+        if ruta_datos:
+            ruta_cache = Path(ruta_datos) / "DShalevData" / "licencia" / "directorio.json"
+        _GESTOR_GLOBAL = GestorDirectorio(ruta_cache=ruta_cache)
+    return _GESTOR_GLOBAL
+

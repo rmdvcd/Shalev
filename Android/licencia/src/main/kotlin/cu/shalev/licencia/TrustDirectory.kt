@@ -213,4 +213,74 @@ object TrustDirectory {
         }
         return nuevo
     }
+
+    const val URL_DIRECTORIO_OFICIAL = "https://github.com/rmdvcd/Shalev/releases/download/revocaciones/directorio.json"
+    const val HOST_PERMITIDO = "github.com"
+}
+
+/**
+ * Gestor del ciclo de vida del directorio de confianza en Android (Fase 1.3).
+ */
+object TrustDirectoryManager {
+    var cacheFile: java.io.File? = null
+
+    fun loadEffective(cache: java.io.File? = cacheFile): TrustDirectory.Directorio? {
+        val bootstrap = try {
+            val stream = TrustDirectory::class.java.getResourceAsStream("/directorio-bootstrap.json")
+            val text = stream?.bufferedReader()?.use { it.readText() }
+            if (text != null) TrustDirectory.parseAndVerify(text) else null
+        } catch (_: Exception) {
+            null
+        }
+
+        val cached = try {
+            if (cache != null && cache.isFile) {
+                TrustDirectory.parseAndVerify(cache.readText(Charsets.UTF_8))
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+
+        var result = bootstrap
+        if (cached != null) {
+            try {
+                result = TrustDirectory.aplicarAntiRetroceso(bootstrap, cached)
+            } catch (_: Exception) { }
+        }
+        TrustDirectory.effectiveDirectory = result
+        return result
+    }
+
+    fun updateFromNetwork(
+        cache: java.io.File? = cacheFile,
+        urlString: String = TrustDirectory.URL_DIRECTORIO_OFICIAL,
+    ): Boolean {
+        try {
+            val url = java.net.URI(urlString).toURL()
+            if (url.protocol != "https" || url.host != TrustDirectory.HOST_PERMITIDO) return false
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout = 10000
+            conn.readTimeout = 10000
+            conn.instanceFollowRedirects = true
+            conn.connect()
+            if (conn.responseCode != 200) return false
+            val bytes = conn.inputStream.use { it.readNBytes(TrustDirectory.MAX_SIZE_BYTES + 1) }
+            if (bytes.size > TrustDirectory.MAX_SIZE_BYTES) return false
+            val text = String(bytes, Charsets.UTF_8)
+            val nuevo = TrustDirectory.parseAndVerify(text)
+            synchronized(this) {
+                val actual = TrustDirectory.effectiveDirectory ?: loadEffective(cache)
+                val actualizado = TrustDirectory.aplicarAntiRetroceso(actual, nuevo)
+                if (cache != null) {
+                    val tmp = java.io.File(cache.parentFile, cache.name + ".tmp")
+                    tmp.writeText(text, Charsets.UTF_8)
+                    tmp.renameTo(cache)
+                }
+                TrustDirectory.effectiveDirectory = actualizado
+            }
+            return true
+        } catch (_: Exception) {
+            return false
+        }
+    }
 }

@@ -204,4 +204,62 @@ enum TrustDirectory {
         }
         return next
     }
+
+    static let officialURL = URL(string: "https://github.com/rmdvcd/Shalev/releases/download/revocaciones/directorio.json")!
+    static let allowedHost = "github.com"
+}
+
+/// Gestor de descarga y caché de directorio en iOS (Fase 1.3).
+final class TrustDirectoryManager {
+    static let shared = TrustDirectoryManager()
+    var cacheURL: URL?
+
+    func loadEffective(cache: URL? = nil) -> TrustDirectory.Directory? {
+        let urlToUse = cache ?? cacheURL
+        let bootstrap: TrustDirectory.Directory? = {
+            if let bundleURL = Bundle.main.url(forResource: "directorio-bootstrap", withExtension: "json"),
+               let data = try? Data(contentsOf: bundleURL) {
+                return try? TrustDirectory.parseAndVerify(data)
+            }
+            return nil
+        }()
+
+        let cached: TrustDirectory.Directory? = {
+            guard let urlToUse, FileManager.default.fileExists(atPath: urlToUse.path),
+                  let data = try? Data(contentsOf: urlToUse) else { return nil }
+            return try? TrustDirectory.parseAndVerify(data)
+        }()
+
+        var effective = bootstrap
+        if let cached {
+            if let updated = try? TrustDirectory.applyAntiRollback(current: bootstrap, next: cached) {
+                effective = updated
+            }
+        }
+        TrustDirectory.effectiveDirectory = effective
+        return effective
+    }
+
+    func updateFromNetwork(cache: URL? = nil) async -> Bool {
+        let urlToUse = cache ?? cacheURL
+        guard TrustDirectory.officialURL.scheme == "https",
+              TrustDirectory.officialURL.host == TrustDirectory.allowedHost else { return false }
+        do {
+            let request = URLRequest(url: TrustDirectory.officialURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10.0)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200, data.count <= TrustDirectory.maxSizeBytes else {
+                return false
+            }
+            let next = try TrustDirectory.parseAndVerify(data)
+            let current = TrustDirectory.effectiveDirectory ?? loadEffective(cache: urlToUse)
+            let updated = try TrustDirectory.applyAntiRollback(current: current, next: next)
+            if let urlToUse {
+                try data.write(to: urlToUse, options: .atomic)
+            }
+            TrustDirectory.effectiveDirectory = updated
+            return true
+        } catch {
+            return false
+        }
+    }
 }
