@@ -79,12 +79,13 @@ class SeedActivity : ComponentActivity() {
 
     /** Activa la clave maestra de desarrollo (solo en builds `DEBUG`) para que la app no quede bloqueada. */
     private suspend fun activarLicencia(licencia: LicenciaRepository): String {
-        val r = licencia.activar(CodigoLicencia.MAESTRA)
+        val r = licencia.activar(cu.shalev.app.DebugMasterKey.MAESTRA)
         return "Licencia: " + when (r) {
             is cu.shalev.licencia.ActivationResult.Accepted -> "activada (${r.state})"
             is cu.shalev.licencia.ActivationResult.Rejected -> "rechazada"
             is cu.shalev.licencia.ActivationResult.Outdated -> "hay una más reciente"
             cu.shalev.licencia.ActivationResult.NotFound -> "no encontrada"
+            is cu.shalev.licencia.ActivationResult.Absorbed -> "absorbida (${r.state})"
         }
     }
 

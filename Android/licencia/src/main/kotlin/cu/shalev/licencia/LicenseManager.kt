@@ -13,6 +13,7 @@ import cu.shalev.licencia.contract.MensajesLicencia
 import cu.shalev.licencia.contract.SolicitudCifrada
 import cu.shalev.licencia.contract.RequestPayload
 import cu.shalev.licencia.contract.TipoLicencia
+import cu.shalev.licencia.contract.EstadoLicencia
 import cu.shalev.licencia.contract.Via
 import cu.shalev.licencia.crypto.B64
 import cu.shalev.licencia.crypto.DeviceKey
@@ -345,18 +346,22 @@ class LicenseManager(
         envelopeJson: String,
     ): ActivationResult {
         val payload = LicensePayload(
+            // El canje no trae datos personales: se guardan vacíos en el registro local (la UI los toma del Perfil).
+            nombre = "",
+            apellidos = "",
+            ci = "",
             id = licenseId,
             emitidaEn = emitidaEn,
             venceEn = venceEn,
             tipo = tipo,
             deviceId = deviceId,
+            estado = EstadoLicencia.ACTIVA,
             secundarias = secundarias,
         )
         val state = if (tipo == TipoLicencia.PERPETUA) {
             LicenseState.Perpetual(licenseId, secundarias)
         } else {
-            val days = java.time.Duration.between(clock.now(), Instant.parse(venceEn!!)).toDays().toInt()
-            LicenseState.Active(licenseId, days, tipo, secundarias)
+            LicenseState.Active(tipo, Instant.parse(venceEn!!), licenseId, secundarias)
         }
         return instalar(payload, state, envelopeJson, licenseId)
     }
@@ -366,10 +371,21 @@ class LicenseManager(
         val current = store.license()
         val currentVerified = current?.let { verifyStored(it, clock.now()) }
 
+        // Una licencia anterior a la transferencia (p. ej. el mensaje viejo aún en WhatsApp) ya no vale aquí.
+        val migrated = store.migratedAt()
+        if (migrated != null && !Instant.parse(payload.emitidaEn).isAfter(migrated)) {
+            return ActivationResult.Outdated
+        }
+        // Una licencia auténtica de GL anterior a la instalada se ignora (aunque su cobertura sea menor): se comprueba
+        // antes que la absorción S3, que solo describe una renovación emitida después.
+        if (current != null && !current.maestra && Instant.parse(payload.emitidaEn).isBefore(Instant.parse(current.emitidaEn))) {
+            return ActivationResult.Outdated
+        }
+
         // S3 (Renovación dominada): si la licencia actual domina a la nueva (misma o mayor cobertura),
         // no bloqueamos con error ni degradamos la fecha. Registramos la clave como absorbida y
-        // preservamos la mayor cobertura.
-        if (current != null && !current.maestra && currentVerified != null) {
+        // preservamos la mayor cobertura. Una revocación nunca se absorbe: debe aplicarse siempre.
+        if (payload.estado != EstadoLicencia.REVOCADA && current != null && !current.maestra && currentVerified != null) {
             val currentState = currentVerified.first
             if (current.tipo == TipoLicencia.PERPETUA) {
                 val mensaje = "Tu licencia ya cubría este periodo de forma perpetua. La nueva clave ha sido registrada como absorbida."
@@ -385,16 +401,6 @@ class LicenseManager(
             }
         }
 
-        // Una licencia auténtica de GL siempre manda sobre la clave maestra de desarrollo (que es solo una ayuda de
-        // depuración), aunque se instalara después.
-        if (current != null && !current.maestra && Instant.parse(payload.emitidaEn).isBefore(Instant.parse(current.emitidaEn))) {
-            return ActivationResult.Outdated
-        }
-        // Una licencia anterior a la transferencia (p. ej. el mensaje viejo aún en WhatsApp) ya no vale aquí.
-        val migrated = store.migratedAt()
-        if (migrated != null && !Instant.parse(payload.emitidaEn).isAfter(migrated)) {
-            return ActivationResult.Outdated
-        }
         store.clearRevoked()
         store.saveLicense(
             StoredLicense(

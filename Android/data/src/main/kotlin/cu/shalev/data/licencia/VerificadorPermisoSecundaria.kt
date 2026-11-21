@@ -41,7 +41,7 @@ class VerificadorPermisoSecundaria @Inject constructor(
                 ahora = clock.now(),
                 cuotaMaxima = GlContract.SECUNDARIAS_MAX,
                 esClaveComprometida = { spki ->
-                    cu.shalev.licencia.TrustDirectory.effectiveDirectory?.isKeyCompromised(spki) == true
+                    cu.shalev.licencia.TrustDirectory.effectiveDirectory?.esComprometida(spki) == true
                 },
             )
         }.getOrNull() ?: return bloquear()

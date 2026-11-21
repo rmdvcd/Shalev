@@ -2,12 +2,12 @@ package cu.shalev.licencia.redeem
 
 import cu.shalev.core.time.Clock
 import cu.shalev.licencia.ActivationResult
-import cu.shalev.licencia.DeviceKey
 import cu.shalev.licencia.LicenseManager
 import cu.shalev.licencia.LicenseState
 import cu.shalev.licencia.TrustDirectory
 import cu.shalev.licencia.contract.TipoLicencia
 import cu.shalev.licencia.crypto.B64
+import cu.shalev.licencia.crypto.DeviceKey
 import cu.shalev.licencia.crypto.EcP256
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
@@ -207,10 +207,7 @@ class RedeemClient(
             }
             val state = when (tipoEnum) {
                 TipoLicencia.PERPETUA -> LicenseState.Perpetual(licenseId, secundarias)
-                else -> {
-                    val days = java.time.Duration.between(clock.now(), Instant.parse(expiresAt!!)).toDays().toInt()
-                    LicenseState.Active(licenseId, days, tipoEnum, secundarias)
-                }
+                else -> LicenseState.Active(tipoEnum, Instant.parse(expiresAt!!), licenseId, secundarias)
             }
 
             when (val actRes = licenseManager.activarDirecta(licenseId, issuedAt, expiresAt, tipoEnum, secundarias, responseText)) {
@@ -388,10 +385,7 @@ class RedeemClient(
             }
             val state = when (tipoEnum) {
                 TipoLicencia.PERPETUA -> LicenseState.Perpetual(licenseId, secundarias)
-                else -> {
-                    val days = java.time.Duration.between(clock.now(), Instant.parse(expiresAt!!)).toDays().toInt()
-                    LicenseState.Active(licenseId, days, tipoEnum, secundarias)
-                }
+                else -> LicenseState.Active(tipoEnum, Instant.parse(expiresAt!!), licenseId, secundarias)
             }
             RedeemResult.Success(state)
         } catch (e: Exception) {

@@ -20,6 +20,12 @@ import java.time.Instant
  * máximo de apps secundarias, **solo en builds de depuración**. En release se ignora incluso si quedó instalada.
  */
 class MasterKeyTest {
+    /**
+     * Literal de la clave maestra de depuración. Vive solo en el código de test (y en `app/src/debug`), nunca en
+     * `:licencia`, para que el APK de release no lo contenga.
+     */
+    private val maestra = "GLMK-PERM-MAXS-9999"
+
     private val t0 = Instant.parse("2026-10-13T12:00:00Z")
     private val gl = FakeGl()
     private val clock = MutableClock(t0)
@@ -42,7 +48,7 @@ class MasterKeyTest {
 
     @Test fun enDebugActivaPerpetuaConDiezSecundarias() = runBlocking {
         val m = manager(esDebug = true)
-        val r = m.activate(CodigoLicencia.MAESTRA)
+        val r = m.activate(maestra)
         assertTrue(r is ActivationResult.Accepted)
         assertEquals(LicenseState.Perpetual(LicenseManager.ID_MAESTRA, GlContract.SECUNDARIAS_MAX), (r as ActivationResult.Accepted).state)
         val ev = m.evaluate()
@@ -61,8 +67,8 @@ class MasterKeyTest {
 
     @Test fun enReleaseNoSeAcepta() = runBlocking {
         val m = manager(esDebug = false)
-        assertFalse(m.esClaveMaestra(CodigoLicencia.MAESTRA))
-        assertTrue(m.activate(CodigoLicencia.MAESTRA) !is ActivationResult.Accepted)
+        assertFalse(m.esClaveMaestra(maestra))
+        assertTrue(m.activate(maestra) !is ActivationResult.Accepted)
         assertNull(store.lic)
         // Y sigue en periodo de prueba (7 días), como cualquier instalación nueva.
         assertTrue(m.evaluate().state is LicenseState.Trial)
@@ -70,7 +76,7 @@ class MasterKeyTest {
 
     @Test fun unaLicenciaMaestraInstaladaSeIgnoraEnRelease() = runBlocking {
         // Se instaló en un build de depuración…
-        manager(esDebug = true).activate(CodigoLicencia.MAESTRA)
+        manager(esDebug = true).activate(maestra)
         assertNotNull(store.lic)
         // …y ahora la app es de release: la licencia maestra no vale (vuelve a la prueba).
         val release = manager(esDebug = false)
@@ -88,7 +94,7 @@ class MasterKeyTest {
         val id = store.lic!!.licenseId
         // La clave maestra no pisa una licencia auténtica ya instalada con el mismo `emitidaEn`… se instala después,
         // así que sustituye; lo que NO puede es quedar por debajo de la instalada en `instalar()` (Outdated).
-        assertTrue(m.activate(CodigoLicencia.MAESTRA) is ActivationResult.Accepted)
+        assertTrue(m.activate(maestra) is ActivationResult.Accepted)
         assertEquals(LicenseManager.ID_MAESTRA, store.lic!!.licenseId)
         assertFalse(store.lic!!.licenseId == id)
     }
@@ -98,7 +104,7 @@ class MasterKeyTest {
         val m = manager(esDebug = true, firmante = firmante)
         // Sin licencia (periodo de prueba) la cuota es la de siempre para la prueba ([GlContract.SECUNDARIAS_DEFECTO]).
         assertEquals(GlContract.SECUNDARIAS_DEFECTO, m.cuotaSecundarias())
-        m.activate(CodigoLicencia.MAESTRA)
+        m.activate(maestra)
         assertEquals(GlContract.SECUNDARIAS_MAX, m.cuotaSecundarias())
         val token = m.emitirSubToken("SPVI:secundaria1", ranura = 1)
         assertNotNull(token)
