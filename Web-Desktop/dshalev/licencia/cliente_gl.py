@@ -401,9 +401,49 @@ class ClienteGL:
                 self.configuracion.endpoint_redeem, self._cuerpo(cuerpo), request_id_actual
             )
         except ErrorGL as exc:
-            if exc.codigo not in ("NETWORK", "INVALID_RESPONSE", "SERVER_ERROR", "RATE_LIMITED"):
-                self._pendiente = None
-            raise
+            if exc.codigo == "CLOCK_SKEW":
+                st = exc.server_time
+                if st is None:
+                    try:
+                        st = self.consultar_hora_servidor()
+                    except Exception:
+                        pass
+                if st is not None:
+                    self.recuperar_reloj_servidor(st)
+                    solicitado_nuevo = contrato.formatear_instante(st)
+                    nonce_nuevo = base64.b64encode(secrets.token_bytes(16)).decode("ascii")
+                    cuerpo_reintento = {
+                        "v": contrato.VERSION_SERVICIO,
+                        "appId": self.configuracion.app_id,
+                        "code": normalizado,
+                        "deviceKey": dispositivo,
+                        "requestId": request_id_actual,
+                        "requestedAt": solicitado_nuevo,
+                        "nonce": nonce_nuevo,
+                    }
+                    prueba = self.identidad.firmar(contrato.bytes_prueba_canje(cuerpo_reintento))
+                    cuerpo_reintento["proof"] = contrato.base64_estandar(prueba)
+                    self._pendiente = (huella_codigo, request_id_actual, solicitado_nuevo, nonce_nuevo)
+                    try:
+                        datos = self._enviar(
+                            self.configuracion.endpoint_redeem,
+                            self._cuerpo(cuerpo_reintento),
+                            request_id_actual,
+                        )
+                    except ErrorGL as rexc:
+                        if rexc.codigo not in ("NETWORK", "INVALID_RESPONSE", "SERVER_ERROR", "RATE_LIMITED"):
+                            self._pendiente = None
+                        raise
+                    except Exception:
+                        self._pendiente = None
+                        raise exc
+                else:
+                    self._pendiente = None
+                    raise
+            else:
+                if exc.codigo not in ("NETWORK", "INVALID_RESPONSE", "SERVER_ERROR", "RATE_LIMITED"):
+                    self._pendiente = None
+                raise
 
         if datos.get("ok") is not True or "license" not in datos:
             raise ErrorGL("INVALID_RESPONSE", detalle="respuesta sin licencia", request_id=request_id_actual)
@@ -551,9 +591,47 @@ class ClienteGL:
         }
         prueba = self.identidad.firmar(contrato.bytes_prueba_estado(cuerpo))
         cuerpo["proof"] = contrato.base64_estandar(prueba)
-        datos = self._enviar(
-            self.configuracion.endpoint_estado, self._cuerpo(cuerpo), request_id_actual
-        )
+        try:
+            datos = self._enviar(
+                self.configuracion.endpoint_estado, self._cuerpo(cuerpo), request_id_actual
+            )
+        except ErrorGL as exc:
+            if exc.codigo == "CLOCK_SKEW":
+                st = exc.server_time
+                if st is None:
+                    try:
+                        st = self.consultar_hora_servidor()
+                    except Exception:
+                        pass
+                if st is not None:
+                    self.recuperar_reloj_servidor(st)
+                    solicitado_nuevo = contrato.formatear_instante(st)
+                    nonce_nuevo = base64.b64encode(secrets.token_bytes(16)).decode("ascii")
+                    cuerpo_reintento = {
+                        "v": contrato.VERSION_SERVICIO,
+                        "appId": self.configuracion.app_id,
+                        "licenseId": verificada.contenido["licenseId"],
+                        "deviceKey": contrato.base64_estandar(self.identidad.spki_der),
+                        "requestId": request_id_actual,
+                        "requestedAt": solicitado_nuevo,
+                        "nonce": nonce_nuevo,
+                    }
+                    prueba = self.identidad.firmar(contrato.bytes_prueba_estado(cuerpo_reintento))
+                    cuerpo_reintento["proof"] = contrato.base64_estandar(prueba)
+                    try:
+                        datos = self._enviar(
+                            self.configuracion.endpoint_estado,
+                            self._cuerpo(cuerpo_reintento),
+                            request_id_actual,
+                        )
+                    except Exception as rexc:
+                        if isinstance(rexc, ErrorGL):
+                            raise
+                        raise exc
+                else:
+                    raise
+            else:
+                raise
         if datos.get("ok") is not True or "status" not in datos:
             raise ErrorGL("INVALID_RESPONSE", detalle="respuesta sin estado", request_id=request_id_actual)
         try:

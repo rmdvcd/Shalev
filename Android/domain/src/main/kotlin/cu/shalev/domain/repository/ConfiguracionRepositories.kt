@@ -31,6 +31,14 @@ interface LicenciaRepository {
      * de la cuota de la licencia).
      */
     suspend fun emitirSubToken(dispositivo: String, ranura: Int): cu.shalev.domain.model.SubTokenEmitido? = null
+
+    /** Canje de código comercial de 16 caracteres contra el Worker GL. */
+    suspend fun canjearCodigo(codigo: String): cu.shalev.licencia.redeem.RedeemResult =
+        cu.shalev.licencia.redeem.RedeemResult.Error("ACTIVACION_DESHABILITADA", "El canje comercial no está habilitado en esta edición.")
+
+    /** Consulta remota de estado contra el Worker GL. */
+    suspend fun consultarEstadoRemoto(): cu.shalev.licencia.redeem.RedeemResult =
+        cu.shalev.licencia.redeem.RedeemResult.Error("ACTIVACION_DESHABILITADA", "La consulta de estado no está habilitada en esta edición.")
 }
 
 interface PerfilRepository {

@@ -9,7 +9,8 @@ let package = Package(
         .target(
             name: "IShalevDomain",
             path: "Sources/Domain",
-            sources: ["Domain.swift", "License.swift", "AndroidBackup.swift", "SyncProtocol.swift", "SyncNetwork.swift", "SyncRepository.swift", "SyncManager.swift", "OcrDocumentParser.swift"],
+            sources: ["Domain.swift", "License.swift", "AndroidBackup.swift", "SyncProtocol.swift", "SyncNetwork.swift", "SyncRepository.swift", "SyncManager.swift", "OcrDocumentParser.swift", "TrustDirectory.swift", "Redeem/RedeemClient.swift", "Redeem/RedeemContract.swift"],
+            resources: [.process("directorio-bootstrap.json")],
             linkerSettings: [.linkedLibrary("z")]
         ),
         .testTarget(

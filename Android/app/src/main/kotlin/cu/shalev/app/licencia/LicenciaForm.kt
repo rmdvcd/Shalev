@@ -32,6 +32,7 @@ data class LicenciaForm(
     val tipo: TipoLicencia = TipoLicencia.MENSUAL,
     val via: Via = Via.WHATSAPP,
     val mensajeLicencia: String = "",
+    val codigoCanje: String = "",
     val mostrarErrores: Boolean = false,
     val editando: Boolean = true,
     /** 0.21.0 (C4): apps secundarias (empleados) que se pagan con la licencia, 0..[GlContract.SECUNDARIAS_MAX]. */

@@ -20,7 +20,7 @@ object RedeemContract {
     const val DOMINIO_LICENCIA = "GL-REDEEM-LICENSE1"
     const val DOMINIO_ESTADO = "GL-REDEEM-STATUS1"
 
-    const val DEFAULT_APP_ID = "MIPVENTAX-ANDROID"
+    const val DEFAULT_APP_ID = "SHALEV-ANDROID"
 
     private val SEPARADORES = Regex("[\\s\\-]")
     private val ALFABETO_CODIGO = Regex("^[0-9A-Z]{16}$")
@@ -133,6 +133,40 @@ object RedeemContract {
             transferredFrom ?: "",
             secundarias.toString(),
             devicePublicKey ?: "",
+        )
+    )
+
+    /** Bytes firmados por el emisor GL sobre el contenido del estado. */
+    fun bytesFirmaEstado(
+        v: Int,
+        licenseId: String,
+        appId: String,
+        type: String,
+        status: String,
+        issuedAt: String,
+        expiresAt: String?,
+        deviceThumbprint: String,
+        redemptionId: String,
+        transferredFrom: String?,
+        secundarias: Int,
+        devicePublicKey: String?,
+        checkedAt: String,
+    ): ByteArray = canonico(
+        listOf(
+            DOMINIO_ESTADO,
+            v.toString(),
+            licenseId,
+            appId,
+            type,
+            status,
+            issuedAt,
+            expiresAt ?: "",
+            deviceThumbprint,
+            redemptionId,
+            transferredFrom ?: "",
+            secundarias.toString(),
+            devicePublicKey ?: "",
+            checkedAt,
         )
     )
 }

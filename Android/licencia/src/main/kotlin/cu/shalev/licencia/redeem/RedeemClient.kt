@@ -6,15 +6,12 @@ import cu.shalev.licencia.DeviceKey
 import cu.shalev.licencia.LicenseManager
 import cu.shalev.licencia.LicenseState
 import cu.shalev.licencia.TrustDirectory
-import cu.shalev.licencia.contract.GlContract
 import cu.shalev.licencia.contract.TipoLicencia
 import cu.shalev.licencia.crypto.B64
 import cu.shalev.licencia.crypto.EcP256
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.HttpURLConnection
@@ -44,6 +41,9 @@ class RedeemClient(
 
     val canRedeem: Boolean
         get() = appId.isNotBlank() && endpointRedeem.startsWith("https://")
+
+    val canCheckStatus: Boolean
+        get() = appId.isNotBlank() && endpointStatus.startsWith("https://")
 
     suspend fun canjear(codigo: String): RedeemResult {
         if (!canRedeem) {
@@ -87,28 +87,40 @@ class RedeemClient(
         }
 
         return try {
-            val url = URI(endpointRedeem).toURL()
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.connectTimeout = 10000
-            conn.readTimeout = 10000
-            conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+            var (status, responseText) = sendPost(endpointRedeem, payload)
 
-            val status = conn.responseCode
-            val stream = if (status in 200..299) conn.inputStream else conn.errorStream
-            val responseText = stream?.bufferedReader()?.use { it.readText() } ?: ""
-
+            // Reintento automático ante CLOCK_SKEW (máximo 1 reintento con hora del servidor)
             if (status == 400 && responseText.contains("CLOCK_SKEW")) {
-                val parsed = json.parseToJsonElement(responseText).jsonObject
-                val errObj = parsed["error"]?.jsonObject
-                val stRaw = errObj?.get("serverTime")?.jsonPrimitive?.contentOrNull
-                    ?: parsed["serverTime"]?.jsonPrimitive?.contentOrNull
-                if (stRaw != null) {
-                    val serverTime = Instant.parse(stRaw)
+                val serverTime = parseServerTime(responseText) ?: consultarHora()
+                if (serverTime != null) {
                     licenseManager.resetearRelojServidor(serverTime)
-                    return RedeemResult.ClockSkew(serverTime)
+                    val retryRequestedAt = DateTimeFormatter.ISO_INSTANT.format(serverTime)
+                    val retryNonceBytes = ByteArray(16).also { random.nextBytes(it) }
+                    val retryNonceB64 = B64.enc(retryNonceBytes)
+                    val retryProofBytes = RedeemContract.bytesPruebaCanje(
+                        appId = appId,
+                        code = codeNorm,
+                        deviceKeyB64 = deviceKeyB64,
+                        requestId = requestId,
+                        requestedAt = retryRequestedAt,
+                        nonceB64 = retryNonceB64,
+                    )
+                    val retryProofB64 = B64.enc(deviceKey.sign(retryProofBytes))
+                    val retryPayload = buildString {
+                        append("{\"v\":1,")
+                        append("\"appId\":\"$appId\",")
+                        append("\"code\":\"$codeNorm\",")
+                        append("\"deviceKey\":\"$deviceKeyB64\",")
+                        append("\"requestId\":\"$requestId\",")
+                        append("\"requestedAt\":\"$retryRequestedAt\",")
+                        append("\"nonce\":\"$retryNonceB64\",")
+                        append("\"proof\":\"$retryProofB64\"}")
+                    }
+                    val retryRes = sendPost(endpointRedeem, retryPayload)
+                    status = retryRes.first
+                    responseText = retryRes.second
+                } else {
+                    return RedeemResult.ClockSkew(clock.now())
                 }
             }
 
@@ -139,7 +151,7 @@ class RedeemClient(
                 return RedeemResult.Error("LICENSE_WRONG_APP", "La licencia es para otra aplicación")
             }
 
-            // Verificar firma con las claves del directorio o del build
+            // Verificar firma con la clave de uso 'canje' (gl-redeem-v1) del directorio
             val v = licenseContent["v"]?.jsonPrimitive?.intOrNull ?: 1
             val licenseId = licenseContent["licenseId"]?.jsonPrimitive?.contentOrNull ?: ""
             val type = licenseContent["type"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -167,15 +179,21 @@ class RedeemClient(
             )
 
             val sigBytes = B64.dec(sigB64)
-            val issuedInstant = Instant.parse(issuedAt)
-            val signKeys = TrustDirectory.effectiveDirectory?.signKeysFor(issuedInstant.epochSecond)
-                ?: cu.shalev.licencia.LicenseTrust.signSpkis()
+            val kid = licenseObj["kid"]?.jsonPrimitive?.contentOrNull ?: "gl-redeem-v1"
+            val redeemSpki = TrustDirectory.effectiveDirectory?.redeemKey(kid)
+                ?: TrustDirectory.effectiveRedeemKey(kid)
+                ?: TrustDirectory.effectiveDirectory?.canjeKeys()?.firstOrNull()
 
-            val firmaValida = signKeys.any { spki ->
-                runCatching {
-                    EcP256.verify(EcP256.publicKey(spki), bytesAFirmar, sigBytes)
-                }.getOrDefault(false)
+            if (redeemSpki == null) {
+                return RedeemResult.Error("UNKNOWN_KID", "Clave pública del servicio no autorizada o no encontrada para kid: $kid")
             }
+
+            val pubKey = runCatching { EcP256.publicKey(redeemSpki) }.getOrNull()
+                ?: return RedeemResult.Error("INVALID_KEY", "Clave pública de canje inválida")
+
+            val firmaValida = runCatching {
+                EcP256.verify(pubKey, bytesAFirmar, sigBytes)
+            }.getOrDefault(false)
 
             if (!firmaValida) {
                 return RedeemResult.Error("INVALID_LICENSE_SIGNATURE", "Firma de licencia inválida")
@@ -206,7 +224,211 @@ class RedeemClient(
         }
     }
 
+    suspend fun consultarEstado(licenciaIdManual: String? = null): RedeemResult {
+        if (!canCheckStatus) {
+            return RedeemResult.Error(
+                "ACTIVACION_DESHABILITADA",
+                "La consulta de estado comercial no está configurada en este build.",
+            )
+        }
+
+        val targetLicenseId = licenciaIdManual
+            ?: licenseManager.installedLicenseId()
+            ?: return RedeemResult.Error("SIN_LICENCIA", "No hay una licencia guardada que consultar.")
+
+        val requestId = UUID.randomUUID().toString()
+        val requestedAt = DateTimeFormatter.ISO_INSTANT.format(clock.now())
+        val nonceBytes = ByteArray(16).also { random.nextBytes(it) }
+        val nonceB64 = B64.enc(nonceBytes)
+        val deviceKeyB64 = B64.enc(deviceKey.publicSpki())
+
+        val proofBytes = RedeemContract.bytesPruebaEstado(
+            appId = appId,
+            licenseId = targetLicenseId,
+            deviceKeyB64 = deviceKeyB64,
+            requestId = requestId,
+            requestedAt = requestedAt,
+            nonceB64 = nonceB64,
+        )
+        val proofB64 = B64.enc(deviceKey.sign(proofBytes))
+
+        val payload = buildString {
+            append("{\"v\":1,")
+            append("\"appId\":\"$appId\",")
+            append("\"licenseId\":\"$targetLicenseId\",")
+            append("\"deviceKey\":\"$deviceKeyB64\",")
+            append("\"requestId\":\"$requestId\",")
+            append("\"requestedAt\":\"$requestedAt\",")
+            append("\"nonce\":\"$nonceB64\",")
+            append("\"proof\":\"$proofB64\"}")
+        }
+
+        return try {
+            var (status, responseText) = sendPost(endpointStatus, payload)
+
+            // Reintento automático ante CLOCK_SKEW
+            if (status == 400 && responseText.contains("CLOCK_SKEW")) {
+                val serverTime = parseServerTime(responseText) ?: consultarHora()
+                if (serverTime != null) {
+                    licenseManager.resetearRelojServidor(serverTime)
+                    val retryRequestedAt = DateTimeFormatter.ISO_INSTANT.format(serverTime)
+                    val retryNonceBytes = ByteArray(16).also { random.nextBytes(it) }
+                    val retryNonceB64 = B64.enc(retryNonceBytes)
+                    val retryProofBytes = RedeemContract.bytesPruebaEstado(
+                        appId = appId,
+                        licenseId = targetLicenseId,
+                        deviceKeyB64 = deviceKeyB64,
+                        requestId = requestId,
+                        requestedAt = retryRequestedAt,
+                        nonceB64 = retryNonceB64,
+                    )
+                    val retryProofB64 = B64.enc(deviceKey.sign(retryProofBytes))
+                    val retryPayload = buildString {
+                        append("{\"v\":1,")
+                        append("\"appId\":\"$appId\",")
+                        append("\"licenseId\":\"$targetLicenseId\",")
+                        append("\"deviceKey\":\"$deviceKeyB64\",")
+                        append("\"requestId\":\"$requestId\",")
+                        append("\"requestedAt\":\"$retryRequestedAt\",")
+                        append("\"nonce\":\"$retryNonceB64\",")
+                        append("\"proof\":\"$retryProofB64\"}")
+                    }
+                    val retryRes = sendPost(endpointStatus, retryPayload)
+                    status = retryRes.first
+                    responseText = retryRes.second
+                } else {
+                    return RedeemResult.ClockSkew(clock.now())
+                }
+            }
+
+            if (status !in 200..299) {
+                val err = parseError(responseText, status)
+                return RedeemResult.Error(err.first, err.second)
+            }
+
+            val parsed = json.parseToJsonElement(responseText).jsonObject
+            val statusObj = parsed["status"]?.jsonObject
+                ?: return RedeemResult.Error("INVALID_RESPONSE", "Respuesta sin objeto de estado")
+
+            val statusContent = statusObj["status"]?.jsonObject
+                ?: return RedeemResult.Error("INVALID_RESPONSE", "Respuesta sin contenido de estado")
+            val sigB64 = statusObj["sig"]?.jsonPrimitive?.contentOrNull
+                ?: return RedeemResult.Error("INVALID_RESPONSE", "Respuesta sin firma")
+
+            // Verificar thumbprint del dispositivo y appId
+            val deviceThumbprint = statusContent["deviceThumbprint"]?.jsonPrimitive?.contentOrNull
+            val expectedThumbprint = RedeemContract.deviceThumbprint(deviceKey.publicSpki())
+            if (deviceThumbprint != expectedThumbprint) {
+                return RedeemResult.Error("LICENSE_WRONG_DEVICE", "El estado es para otro dispositivo")
+            }
+
+            val stAppId = statusContent["appId"]?.jsonPrimitive?.contentOrNull
+            if (stAppId != appId) {
+                return RedeemResult.Error("LICENSE_WRONG_APP", "El estado es para otra aplicación")
+            }
+
+            val v = statusContent["v"]?.jsonPrimitive?.intOrNull ?: 1
+            val licenseId = statusContent["licenseId"]?.jsonPrimitive?.contentOrNull ?: ""
+            val type = statusContent["type"]?.jsonPrimitive?.contentOrNull ?: ""
+            val licStatus = statusContent["status"]?.jsonPrimitive?.contentOrNull ?: ""
+            val issuedAt = statusContent["issuedAt"]?.jsonPrimitive?.contentOrNull ?: ""
+            val expiresAt = statusContent["expiresAt"]?.jsonPrimitive?.contentOrNull
+            val redemptionId = statusContent["redemptionId"]?.jsonPrimitive?.contentOrNull ?: ""
+            val transferredFrom = statusContent["transferredFrom"]?.jsonPrimitive?.contentOrNull
+            val secundarias = statusContent["secundarias"]?.jsonPrimitive?.intOrNull ?: 0
+            val devicePublicKey = statusContent["devicePublicKey"]?.jsonPrimitive?.contentOrNull
+            val checkedAt = statusContent["checkedAt"]?.jsonPrimitive?.contentOrNull ?: requestedAt
+
+            val bytesAFirmar = RedeemContract.bytesFirmaEstado(
+                v = v,
+                licenseId = licenseId,
+                appId = stAppId,
+                type = type,
+                status = licStatus,
+                issuedAt = issuedAt,
+                expiresAt = expiresAt,
+                deviceThumbprint = deviceThumbprint,
+                redemptionId = redemptionId,
+                transferredFrom = transferredFrom,
+                secundarias = secundarias,
+                devicePublicKey = devicePublicKey,
+                checkedAt = checkedAt,
+            )
+
+            val sigBytes = B64.dec(sigB64)
+            val kid = statusObj["kid"]?.jsonPrimitive?.contentOrNull ?: "gl-redeem-v1"
+            val redeemSpki = TrustDirectory.effectiveDirectory?.redeemKey(kid)
+                ?: TrustDirectory.effectiveRedeemKey(kid)
+                ?: TrustDirectory.effectiveDirectory?.canjeKeys()?.firstOrNull()
+
+            if (redeemSpki == null) {
+                return RedeemResult.Error("UNKNOWN_KID", "Clave pública del servicio no autorizada para kid: $kid")
+            }
+
+            val pubKey = runCatching { EcP256.publicKey(redeemSpki) }.getOrNull()
+                ?: return RedeemResult.Error("INVALID_KEY", "Clave de canje no es P-256 válida")
+
+            val firmaValida = runCatching {
+                EcP256.verify(pubKey, bytesAFirmar, sigBytes)
+            }.getOrDefault(false)
+
+            if (!firmaValida) {
+                return RedeemResult.Error("INVALID_LICENSE_SIGNATURE", "Firma de estado inválida")
+            }
+
+            if (licStatus == "REVOCADA") {
+                licenseManager.marcarRevocada()
+                return RedeemResult.Success(LicenseState.Revoked)
+            }
+
+            val tipoEnum = when (type) {
+                "PERPETUA" -> TipoLicencia.PERPETUA
+                "ANUAL" -> TipoLicencia.ANUAL
+                else -> TipoLicencia.MENSUAL
+            }
+            val state = when (tipoEnum) {
+                TipoLicencia.PERPETUA -> LicenseState.Perpetual(licenseId, secundarias)
+                else -> {
+                    val days = java.time.Duration.between(clock.now(), Instant.parse(expiresAt!!)).toDays().toInt()
+                    LicenseState.Active(licenseId, days, tipoEnum, secundarias)
+                }
+            }
+            RedeemResult.Success(state)
+        } catch (e: Exception) {
+            RedeemResult.Error("NETWORK", e.message ?: "Error de conexión")
+        }
+    }
+
+    private fun sendPost(urlStr: String, payload: String): Pair<Int, String> {
+        val url = URI(urlStr).toURL()
+        val conn = url.openConnection() as HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.connectTimeout = 10000
+        conn.readTimeout = 10000
+        conn.doOutput = true
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+
+        val status = conn.responseCode
+        val stream = if (status in 200..299) conn.inputStream else conn.errorStream
+        val text = stream?.bufferedReader()?.use { it.readText() } ?: ""
+        return status to text
+    }
+
+    private fun parseServerTime(responseText: String): Instant? {
+        return try {
+            val parsed = json.parseToJsonElement(responseText).jsonObject
+            val errObj = parsed["error"]?.jsonObject
+            val stRaw = errObj?.get("serverTime")?.jsonPrimitive?.contentOrNull
+                ?: parsed["serverTime"]?.jsonPrimitive?.contentOrNull
+            if (stRaw != null) Instant.parse(stRaw) else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     suspend fun consultarHora(): Instant? {
+        if (endpointRedeem.isBlank()) return null
         val base = endpointRedeem.substringBeforeLast("/")
         val timeUrl = "$base/time"
         return try {
@@ -231,7 +453,7 @@ class RedeemClient(
             val obj = json.parseToJsonElement(response).jsonObject
             val err = obj["error"]?.jsonObject
             val code = err?.get("code")?.jsonPrimitive?.contentOrNull ?: "HTTP_$httpStatus"
-            val message = err?.get("message")?.jsonPrimitive?.contentOrNull ?: "Error en el canje"
+            val message = err?.get("message")?.jsonPrimitive?.contentOrNull ?: "Error en la operación"
             code to message
         } catch (_: Exception) {
             "HTTP_$httpStatus" to "Error de comunicación ($httpStatus)"

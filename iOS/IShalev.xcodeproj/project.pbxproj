@@ -35,9 +35,11 @@
 		00000000000000000000011C /* ToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002E /* ToolsView.swift */; };
 		00000000000000000000010A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000024 /* Assets.xcassets */; };
 		00000000000000000000010B /* Orbitron-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000025 /* Orbitron-Bold.ttf */; };
+		00000000000000000000010C /* directorio-bootstrap.json in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002F /* directorio-bootstrap.json */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		00000000000000000000002F /* directorio-bootstrap.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "directorio-bootstrap.json"; sourceTree = "<group>"; };
 		000000000000000000000011 /* AppRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoot.swift; sourceTree = "<group>"; };
 		000000000000000000000012 /* Domain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Domain.swift; sourceTree = "<group>"; };
 		000000000000000000000013 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
@@ -148,6 +150,7 @@
 			children = (
 				000000000000000000000024 /* Assets.xcassets */,
 				00000000000000000000000A /* Fonts */,
+				00000000000000000000002F /* directorio-bootstrap.json */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -212,6 +215,7 @@
 			files = (
 				00000000000000000000010A /* Assets.xcassets in Resources */,
 				00000000000000000000010B /* Orbitron-Bold.ttf in Resources */,
+				00000000000000000000010C /* directorio-bootstrap.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -94,6 +94,9 @@ object TrustDirectory {
         fun redeemKey(kid: String): ByteArray? =
             claves.firstOrNull { it.uso == "canje" && it.kid == kid && it.activa }?.spkiDer
 
+        fun canjeKeys(): List<ByteArray> =
+            claves.filter { it.uso == "canje" && it.activa }.map { it.spkiDer }
+
         fun esComprometida(spkiDer: ByteArray): Boolean =
             claves.any { it.spkiDer.contentEquals(spkiDer) && it.estado == "comprometida" }
     }
@@ -107,6 +110,12 @@ object TrustDirectory {
 
     @Synchronized
     fun getDirectorioEfectivo(): Directorio? = directorioEfectivo
+
+    var effectiveDirectory: Directorio?
+        get() = getDirectorioEfectivo()
+        set(value) = setDirectorioEfectivo(value)
+
+    fun parseAndVerify(contenido: String): Directorio = parsear(contenido)
 
     fun effectiveEcdhSpki(): ByteArray? =
         directorioEfectivo?.ecdhVigente()

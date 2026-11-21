@@ -182,7 +182,7 @@ struct GLLicenseProfile: Codable, Equatable {
     var phone = ""
 }
 
-private struct GLVault: Codable {
+struct GLVault: Codable {
     var licenseCode: String? = nil
     var licenseID: String? = nil
     var issuedAt: Date? = nil
@@ -195,9 +195,10 @@ private struct GLVault: Codable {
     var migratedAt: Date? = nil
     var revokedAt: Date? = nil
     var profile = GLLicenseProfile()
+    var directEnvelope: String? = nil
 }
 
-private enum GLKeychain {
+enum GLKeychain {
     private static var service: String { Bundle.main.bundleIdentifier ?? "cu.shalev.ishalev" }
     static let deviceKeyAccount = "spvi-device-p256-v1"
     static let deviceIDAccount = "spvi-device-id-v1"
@@ -266,7 +267,46 @@ private final class GLDeviceIdentity {
     }
 }
 
-private enum GLVaultStore {
+final class GLIdentity {
+    let signingKey: P256.Signing.PrivateKey
+    let signingPublicKeyDER: Data
+    let deviceID: String
+
+    private static var cached: GLIdentity?
+
+    static func deviceIdentity() throws -> GLIdentity {
+        if let cached { return cached }
+        let stored = try GLKeychain.read(GLKeychain.deviceKeyAccount)
+        let signingKey: P256.Signing.PrivateKey
+        if let stored {
+            signingKey = try P256.Signing.PrivateKey(rawRepresentation: stored)
+        } else {
+            let generated = P256.KeyAgreement.PrivateKey()
+            try GLKeychain.write(generated.rawRepresentation, account: GLKeychain.deviceKeyAccount)
+            signingKey = try P256.Signing.PrivateKey(rawRepresentation: generated.rawRepresentation)
+        }
+        let storedID = try GLKeychain.read(GLKeychain.deviceIDAccount)
+        let deviceID: String
+        if let storedID, let id = String(data: storedID, encoding: .utf8), !id.isEmpty {
+            deviceID = id
+        } else {
+            let id = "SPVI:" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+            try GLKeychain.write(Data(id.utf8), account: GLKeychain.deviceIDAccount)
+            deviceID = id
+        }
+        let identity = GLIdentity(signingKey: signingKey, deviceID: deviceID)
+        cached = identity
+        return identity
+    }
+
+    init(signingKey: P256.Signing.PrivateKey, deviceID: String = "") {
+        self.signingKey = signingKey
+        self.signingPublicKeyDER = signingKey.publicKey.derRepresentation
+        self.deviceID = deviceID
+    }
+}
+
+enum GLVaultStore {
     static func load() -> GLVault {
         guard let data = try? GLKeychain.read(GLKeychain.vaultAccount),
               let vault = try? JSONDecoder().decode(GLVault.self, from: data) else { return GLVault() }
@@ -374,6 +414,9 @@ final class GLLicenseManager: ObservableObject {
         return false
     }
     private var verifiedInstalled: VerifiedLicense? {
+        if let _ = vault.directEnvelope, let id = vault.licenseID, let type = vault.type, let issued = vault.issuedAt {
+            return VerifiedLicense(id: id, type: type, secondaries: vault.secondaries ?? 0, issuedAt: issued, expiresAt: vault.expiresAt, stateCode: type == .perpetual ? 3 : 0)
+        }
         guard let identity, let code = vault.licenseCode,
               let verified = verify(code: code, identity: identity),
               vault.licenseID == verified.id, vault.issuedAt == verified.issuedAt,
@@ -404,6 +447,26 @@ final class GLLicenseManager: ObservableObject {
         if vault.lastSeen == nil || now > vault.lastSeen! {
             vault.lastSeen = now
             try? GLVaultStore.save(vault)
+        }
+
+        if let _ = vault.directEnvelope, let id = vault.licenseID, let type = vault.type {
+            if vault.revokedAt != nil {
+                state = .revoked
+                return
+            }
+            if type == .perpetual {
+                state = .perpetual(id: id, secondaries: vault.secondaries ?? 0)
+                return
+            }
+            if let expires = vault.expiresAt {
+                if now > expires {
+                    state = .expired(type: type)
+                } else {
+                    let days = max(0, Int(expires.timeIntervalSince(now) / 86400))
+                    state = .active(daysLeft: days, expiresAt: expires, id: id, secondaries: vault.secondaries ?? 0)
+                }
+                return
+            }
         }
 
         if let code = vault.licenseCode,
@@ -522,6 +585,59 @@ final class GLLicenseManager: ObservableObject {
         try? GLVaultStore.save(vault)
         state = verified.state(at: now)
         return .accepted
+    }
+
+    func installDirectLicense(
+        licenseID: String,
+        type: GLLicenseType,
+        issuedAt: Date,
+        expiresAt: Date?,
+        secondaries: Int,
+        envelope: String,
+        now: Date = Date()
+    ) throws -> GLActivationResult {
+        // S3: Renovación dominada
+        if vault.licenseID != nil, vault.revokedAt == nil {
+            if vault.type == .perpetual {
+                return .absorbed(message: "Tu licencia ya cubría este periodo de forma perpetua. La nueva clave ha sido registrada como absorbida.")
+            }
+            if let currentExpires = vault.expiresAt, let newExpires = expiresAt, newExpires <= currentExpires {
+                let formatter = ISO8601DateFormatter()
+                let dateStr = formatter.string(from: currentExpires)
+                return .absorbed(message: "Tu licencia ya cubría este periodo hasta \(dateStr). La nueva clave ha sido registrada como absorbida.")
+            }
+        }
+
+        if let currentIssued = vault.issuedAt, issuedAt < currentIssued { return .outdated }
+        if let migrated = vault.migratedAt, issuedAt <= migrated { return .outdated }
+
+        vault.directEnvelope = envelope
+        vault.licenseID = licenseID
+        vault.type = type
+        vault.issuedAt = issuedAt
+        vault.expiresAt = expiresAt
+        vault.secondaries = secondaries
+        vault.revokedAt = nil
+        vault.migratedAt = nil
+        vault.lastSeen = max(vault.lastSeen ?? now, now)
+        try GLVaultStore.save(vault)
+
+        if type == .perpetual {
+            state = .perpetual(id: licenseID, secondaries: secondaries)
+        } else if let expiresAt {
+            let days = max(0, Int(expiresAt.timeIntervalSince(now) / 86400))
+            state = .active(daysLeft: days, expiresAt: expiresAt, id: licenseID, secondaries: secondaries)
+        }
+        return .accepted
+    }
+
+    func markRevoked(now: Date = Date()) throws {
+        vault.revokedAt = now
+        vault.migratedAt = now
+        vault.licenseCode = nil
+        vault.directEnvelope = nil
+        try GLVaultStore.save(vault)
+        state = .revoked
     }
 
     /// S4: Restablece la marca de agua del reloj local (`lastSeen`) con hora verificada del servidor.

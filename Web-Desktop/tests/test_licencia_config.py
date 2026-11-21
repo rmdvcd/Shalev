@@ -24,15 +24,19 @@ def spki_b64(clave) -> str:
     )).decode()
 
 
-def test_el_build_no_tiene_endpoint_ni_claves_de_produccion():
+def test_el_build_aprobado_tiene_endpoint_y_claves_de_produccion():
     actual = configuracion()
-    assert actual.endpoint_redeem == "" and actual.endpoint_estado == ""
-    assert actual.app_id == "" and dict(actual.kids_spki) == {}
-    assert actual.comercial_habilitada is False
-    motivo = motivo_activacion_deshabilitada()
+    assert actual.endpoint_redeem == "https://gl-redeem.rmdvcd.workers.dev/v1/redeem"
+    assert actual.endpoint_estado == "https://gl-redeem.rmdvcd.workers.dev/v1/status"
+    assert actual.app_id == "DSHALEV" and "gl-redeem-v1" in actual.kids_spki
+    assert actual.comercial_habilitada is True
+    assert actual.motivo_deshabilitada() == ""
+
+    sin_conf = definir(app_id="", endpoint_redeem="", endpoint_estado="", kids_firma={})
+    assert sin_conf.comercial_habilitada is False
+    motivo = sin_conf.motivo_deshabilitada()
     assert "deshabilitada" in motivo
     assert "producción" in motivo
-    # Nunca se declara habilitada con material de prueba.
     assert "Falta: appId, endpoint de canje, endpoint de estado, claves públicas (kid)." in motivo
 
 
@@ -124,8 +128,11 @@ def test_la_configuracion_no_se_puede_cambiar_desde_ajustes_ni_desde_un_respaldo
     cargada = load_config(raiz)
     assert cargada.database_path.parent == datos
     actual = configuracion()
-    assert actual.endpoint_redeem == "" and actual.endpoint_estado == ""
-    assert actual.app_id == "" and dict(actual.kids_spki) == {}
+    assert actual.endpoint_redeem == config_licencia.ENDPOINT_REDEEM
+    assert actual.endpoint_estado == config_licencia.ENDPOINT_ESTADO
+    assert actual.app_id == config_licencia.APP_ID
+    assert "falso" not in actual.kids_spki
+    assert actual.endpoint_redeem != "https://atacante.ejemplo.test/v1/redeem"
 
 
 def test_el_codigo_no_contiene_claves_privadas_ni_endpoints_de_prueba():
@@ -134,11 +141,11 @@ def test_el_codigo_no_contiene_claves_privadas_ni_endpoints_de_prueba():
     assert "BEGIN EC" not in fuente
     assert "localhost" not in fuente
     assert "127.0.0.1" not in fuente
-    # Los valores de compilación siguen vacíos: sin endpoint aprobado, no hay activación.
-    assert config_licencia.APP_ID == ""
-    assert config_licencia.ENDPOINT_REDEEM == ""
-    assert config_licencia.ENDPOINT_ESTADO == ""
-    assert dict(config_licencia.KIDS_FIRMA) == {}
+    # Valores de compilación aprobados de producción
+    assert config_licencia.APP_ID == "DSHALEV"
+    assert config_licencia.ENDPOINT_REDEEM == "https://gl-redeem.rmdvcd.workers.dev/v1/redeem"
+    assert config_licencia.ENDPOINT_ESTADO == "https://gl-redeem.rmdvcd.workers.dev/v1/status"
+    assert "gl-redeem-v1" in config_licencia.KIDS_FIRMA
     assert config_licencia.POLITICA_IDENTIDAD == "instalacion"
 
 
@@ -175,6 +182,57 @@ def test_configuracion_desde_directorio_con_canje():
     assert conf.endpoint_redeem == "https://worker-licencias.shalev.cu/v1/redeem"
     assert conf.endpoint_estado == "https://worker-licencias.shalev.cu/v1/status"
     assert conf.kid_autorizado("gl-sign-v1") == spki
+
+
+def test_configuracion_desde_directorio_prioriza_claves_canje_y_dshalev():
+    from dshalev.licencia.directorio import ClaveDirectorio, DirectorioConfianza
+    from dshalev.licencia.config_licencia import configuracion_desde_directorio, BASE_PUBLICA_AUTORIZADA
+
+    clave_canje = ec.generate_private_key(ec.SECP256R1())
+    spki_canje = clave_canje.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    clave_firma = ec.generate_private_key(ec.SECP256R1())
+    spki_firma = clave_firma.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+    c_canje = ClaveDirectorio(
+        kid="gl-redeem-v1",
+        uso="canje",
+        spki_b64=base64.b64encode(spki_canje).decode(),
+        spki_der=spki_canje,
+        huella="sha256:1111:...",
+        desde=1700000000,
+        hasta=None,
+        estado="vigente",
+    )
+    c_firma = ClaveDirectorio(
+        kid="gl-sign-v2",
+        uso="firma",
+        spki_b64=base64.b64encode(spki_firma).decode(),
+        spki_der=spki_firma,
+        huella="sha256:2222:...",
+        desde=1700000000,
+        hasta=None,
+        estado="vigente",
+    )
+    directorio = DirectorioConfianza(
+        v=1,
+        seq=1,
+        emitida_en=1776470400,
+        claves=[c_canje, c_firma],
+        endpoint_base="",
+        app_ids={"DSHALEV": "DSHALEV"},
+    )
+
+    conf = configuracion_desde_directorio(directorio)
+    assert conf.comercial_habilitada is True
+    assert conf.app_id == "DSHALEV"
+    assert conf.endpoint_redeem == f"{BASE_PUBLICA_AUTORIZADA}/v1/redeem"
+    assert conf.endpoint_estado == f"{BASE_PUBLICA_AUTORIZADA}/v1/status"
+    assert conf.kid_autorizado("gl-redeem-v1") == spki_canje
+    assert conf.kid_autorizado("gl-sign-v2") is None
 
 
 def test_configuracion_desde_directorio_sin_endpoint_falla_cerrado():

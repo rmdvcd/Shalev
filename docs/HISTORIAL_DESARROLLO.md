@@ -2838,3 +2838,28 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
   - Canje contra un servicio GL real de producción ni actualización con un directorio firmado por claves raíz reales de producción.
   - Almacenamiento protegido DPAPI en Windows físico ni ejecutable portable `.exe` en Windows real.
 
+### 2026-11-21 — Culminación del canje comercial y consulta de estado multiplataforma (`arena/d372560f-shalev`)
+
+- **DShalev (Web-Desktop):**
+  - Configuración (`config_licencia.py`): resolución autorizada a `APP_ID = "DSHALEV"`, base pública autorizada fijada a `https://gl-redeem.rmdvcd.workers.dev`, y filtrado estricto de claves por `uso == "canje"` (`gl-redeem-v1`) y estado activo.
+  - Cliente (`cliente_gl.py`): reintento automático único ante `CLOCK_SKEW` en `canjear` y `consultar_estado`, extrayendo `serverTime` de la respuesta o mediante `/v1/time`, reseteando la marca de agua con `recuperar_reloj_servidor` y reintentando con UTC `requestedAt`, nuevo `nonce` y el mismo `requestId`.
+  - Panel Web (`app.py`, `templates/license.html`): implementados `POST /licencia/canjear` y `POST /licencia/estado` protegidos por autenticación de usuario y CSRF. Panel con formulario de 16 caracteres (`name="codigo_canje"`), botón para consultar estado, huella P-256 visible y copiable, y visualización legible del estado sin filtrar secretos.
+- **Android:**
+  - `RedeemClient.kt` corregido para validar contra claves de `uso: canje` (`redeemKey(kid)` del `TrustDirectory`), con reintento automático ante `CLOCK_SKEW` y nuevo método `consultarEstado()`.
+  - Cableado en `LicenciaRepositoryImpl`, `LicenciaViewModel`, `LicenciaForm` y `LicenciaScreen` con tarjeta «Tengo un código» / «Renovar con código» y consulta de estado, manteniendo el campo manual `SPVI2:` intacto.
+  - Deshabilitado por defecto para producción en móvil (`ALLOWED_APPS=DSHALEV`) mostrando mensajes legibles de servicio no habilitado.
+  - Verificado empaquetado de `directorio-bootstrap.json` en `src/main/resources/`.
+- **iOS:**
+  - `RedeemClient.swift` corregido para validar firmas contra claves de `canje` (`redeemKey(kid)` del `TrustDirectory`).
+  - Parseo de fechas ISO8601 con soporte para milisegundos (`GLDateParser`), consulta de estado `/v1/status`, reintento ante `CLOCK_SKEW` y guardado del sobre `CANJE`.
+  - Identidad de dispositivo anclada a la clave persistente de Keychain (`GLIdentity.deviceIdentity()`).
+  - `LicenseView.swift` actualizado con tarjeta de canje de código comercial y consulta de estado, dejando clara la deshabilitación para producción en móvil y preservando `SPVI2:`.
+  - Empaquetado de `directorio-bootstrap.json` verificado e incorporado en `Package.swift` y `project.pbxproj`.
+- **Verificación local ejecutada:**
+  - `pytest Web-Desktop/tests`: **242 passed** (incluyendo nuevas pruebas para endpoints de canje/estado, CSRF y reintentos ante `CLOCK_SKEW`).
+  - `python3 -m unittest discover -s tools/verificacion/tests`: **27 passed**.
+- **Qué NO se ejecutó (según restricciones operativas):**
+  - Pruebas ni peticiones de red contra el Worker remoto de Cloudflare ni base de datos D1.
+  - Suites instrumentadas sobre emuladores o dispositivos físicos Android/iOS.
+
+

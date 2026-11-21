@@ -32,6 +32,7 @@ from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
 from .inventory import format_milli, record_movement, record_retirement
 from .licencia import motivo_activacion_deshabilitada
+from .licencia.config_licencia import configuracion
 from .security import csrf_token, hash_password, valid_csrf, verify_password
 from .sync_protocol import canonical_json, generate_pairing_code
 from .sync_server import ShalevSyncServer
@@ -618,13 +619,42 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         if not user:
             return redirect("/entrar")
         huella = ""
+        licencia_info = None
+        conf = configuracion()
         try:
             from .licencia.identidad import cargar_o_crear_identidad, ruta_identidad
+            from .licencia.almacen import AlmacenLicencia
             raiz_app = config.database_path.parent.parent
             id_inst = cargar_o_crear_identidad(ruta_identidad(raiz_app))
             huella = id_inst.huella
+            almacen = AlmacenLicencia(raiz_app, huella)
+            obs = almacen.observar()
+            if obs.licencia is not None:
+                doc = obs.licencia.documento
+                estado_remoto = obs.licencia.estado_comprobacion_remota or "ACTIVA"
+                comprobada_en = obs.licencia.comprobada_en
+                tipo = "DESCONOCIDO"
+                vencimiento = "No disponible"
+                try:
+                    import json
+                    datos_doc = json.loads(doc)
+                    lic_obj = datos_doc.get("license", {}) if isinstance(datos_doc, dict) else {}
+                    lic_datos = lic_obj.get("license", {}) if isinstance(lic_obj, dict) else {}
+                    tipo = lic_datos.get("type", "DESCONOCIDO")
+                    exp = lic_datos.get("expiresAt")
+                    vencimiento = "Perpetua" if tipo == "PERPETUA" else (exp or "No disponible")
+                except Exception:
+                    pass
+                licencia_info = {
+                    "instalada": True,
+                    "estado": "REVOCADA" if obs.licencia.revocada else estado_remoto,
+                    "tipo": tipo,
+                    "vencimiento": vencimiento,
+                    "comprobada_en": comprobada_en.strftime("%Y-%m-%d %H:%M UTC") if comprobada_en else "No consultado aún",
+                    "revocada": obs.licencia.revocada,
+                }
         except Exception:
-            huella = "No disponible"
+            huella = huella or "No disponible"
         return templates.TemplateResponse(
             request,
             "license.html",
@@ -632,10 +662,76 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 request,
                 user=user,
                 section="licencia",
-                motivo_licencia=motivo_activacion_deshabilitada(),
+                motivo_licencia=conf.motivo_deshabilitada(),
+                comercial_habilitada=conf.comercial_habilitada,
                 huella_instalacion=huella,
+                licencia_info=licencia_info,
             ),
         )
+
+    @app.post("/licencia/canjear")
+    async def license_redeem(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        data = await require_csrf(request)
+        if data is None:
+            return flash_redirect(request, "/licencia", "Token de seguridad no válido o expirado.", kind="error")
+        codigo = (data.get("codigo_canje") or "").strip()
+        if not codigo:
+            return flash_redirect(request, "/licencia", "Debes introducir un código de canje.", kind="error")
+
+        conf = configuracion()
+        if not conf.comercial_habilitada:
+            return flash_redirect(request, "/licencia", "La activación comercial está deshabilitada en este build.", kind="error")
+
+        try:
+            from .licencia.identidad import cargar_o_crear_identidad, ruta_identidad
+            from .licencia.almacen import AlmacenLicencia
+            from .licencia.cliente_gl import ClienteGL, ErrorGL
+            raiz_app = config.database_path.parent.parent
+            id_inst = cargar_o_crear_identidad(ruta_identidad(raiz_app))
+            almacen = AlmacenLicencia(raiz_app, id_inst.huella)
+            cliente = ClienteGL(id_inst, almacen, configuracion=conf)
+            res = cliente.canjear(codigo)
+            if res.absorbida:
+                msg = res.mensaje_absorbida or "La licencia fue registrada como absorbida."
+                return flash_redirect(request, "/licencia", msg, kind="info")
+            return flash_redirect(request, "/licencia", "Licencia canjeada y activada con éxito.", kind="success")
+        except Exception as exc:
+            from .licencia.cliente_gl import ErrorGL
+            if isinstance(exc, ErrorGL):
+                return flash_redirect(request, "/licencia", exc.mensaje, kind="error")
+            return flash_redirect(request, "/licencia", "No se pudo completar el canje de la licencia.", kind="error")
+
+    @app.post("/licencia/estado")
+    async def license_status(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        data = await require_csrf(request)
+        if data is None:
+            return flash_redirect(request, "/licencia", "Token de seguridad no válido o expirado.", kind="error")
+
+        conf = configuracion()
+        if not conf.comercial_habilitada:
+            return flash_redirect(request, "/licencia", "La activación comercial está deshabilitada en este build.", kind="error")
+
+        try:
+            from .licencia.identidad import cargar_o_crear_identidad, ruta_identidad
+            from .licencia.almacen import AlmacenLicencia
+            from .licencia.cliente_gl import ClienteGL, ErrorGL
+            raiz_app = config.database_path.parent.parent
+            id_inst = cargar_o_crear_identidad(ruta_identidad(raiz_app))
+            almacen = AlmacenLicencia(raiz_app, id_inst.huella)
+            cliente = ClienteGL(id_inst, almacen, configuracion=conf)
+            res = cliente.consultar_estado()
+            return flash_redirect(request, "/licencia", f"Estado comprobado con el servicio: {res.estado}.", kind="success")
+        except Exception as exc:
+            from .licencia.cliente_gl import ErrorGL
+            if isinstance(exc, ErrorGL):
+                return flash_redirect(request, "/licencia", exc.mensaje, kind="error")
+            return flash_redirect(request, "/licencia", "No se pudo consultar el estado de la licencia.", kind="error")
 
     @app.get("/ayuda", response_class=HTMLResponse)
     async def help_page(request: Request):

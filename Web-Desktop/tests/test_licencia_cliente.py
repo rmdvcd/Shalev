@@ -388,8 +388,9 @@ def test_concurrencia_local_no_corrompe_el_estado(escenario):
 def test_activacion_deshabilitada_sin_configuracion(tmp_path):
     identidad = crear_identidad(tmp_path)
     almacen = crear_almacen(tmp_path, identidad)
+    conf_deshabilitada = definir(app_id="", endpoint_redeem="", endpoint_estado="", kids_firma={})
     cliente = ClienteGL(
-        configuracion=configuracion(), identidad=identidad, almacen=almacen, transporte=TransporteFalso()
+        configuracion=conf_deshabilitada, identidad=identidad, almacen=almacen, transporte=TransporteFalso()
     )
     with pytest.raises(ErrorGL) as excinfo:
         cliente.canjear("ABCD-EFGH-JKLM-NPQR")
@@ -618,5 +619,82 @@ def test_flujo_completo_canje_con_directorio_v1(escenario):
     # o verificamos que el kid de directorio sea reconocido.
     kid_vigente = "gl-sign-vigente"
     assert conf.kid_autorizado(kid_vigente) is not None
+
+
+def test_clock_skew_reintenta_automaticamente_con_server_time_y_mismo_request_id(escenario):
+    """S4: Al recibir CLOCK_SKEW en canje, reintenta automáticamente con el mismo requestId y hora del servidor."""
+    cuerpo_error = json.dumps(
+        {
+            "v": 1,
+            "ok": False,
+            "error": {
+                "code": "CLOCK_SKEW",
+                "message": "Clock skew detected",
+                "serverTime": "2026-11-18T12:00:00.000Z",
+            },
+        }
+    ).encode("utf-8")
+
+    c = contenido_licencia(escenario["identidad"])
+    sobre = sobre_licencia(c, escenario["servicio"])
+    cuerpo_ok = json.dumps({"v": 1, "ok": True, "license": sobre}).encode("utf-8")
+
+    transporte = TransporteFalso(
+        RespuestaHTTP(400, cuerpo_error),
+        RespuestaHTTP(200, cuerpo_ok),
+    )
+    cliente = _cliente(escenario, transporte)
+
+    res = cliente.canjear("ABCD-EFGH-JKLM-NPQR")
+    assert res.licencia.contenido["licenseId"] == c["licenseId"]
+    assert len(transporte.peticiones) == 2
+
+    pet1 = transporte.peticiones[0][1]
+    pet2 = transporte.peticiones[1][1]
+    assert pet1["requestId"] == pet2["requestId"]
+    assert pet2["requestedAt"] == "2026-11-18T12:00:00.000Z"
+    assert pet1["nonce"] != pet2["nonce"]
+    assert pet1["proof"] != pet2["proof"]
+
+
+def test_consultar_estado_clock_skew_reintenta_automaticamente(escenario):
+    """S4: Al recibir CLOCK_SKEW en consulta de estado, reintenta automáticamente."""
+    _guardar(escenario)
+
+    cuerpo_error = json.dumps(
+        {
+            "v": 1,
+            "ok": False,
+            "error": {
+                "code": "CLOCK_SKEW",
+                "message": "Clock skew detected",
+                "serverTime": "2026-11-18T12:30:00.000Z",
+            },
+        }
+    ).encode("utf-8")
+
+    estado_sobre = sobre_estado(
+        escenario["contenido"],
+        estado="ACTIVA",
+        comprobado_en=AHORA,
+        clave_servicio=escenario["servicio"],
+    )
+
+    transporte = TransporteFalso(
+        RespuestaHTTP(400, cuerpo_error),
+        _ok_estado(estado_sobre),
+    )
+    cliente = _cliente(escenario, transporte)
+    res_estado = cliente.consultar_estado()
+    assert res_estado.estado == "ACTIVA"
+    assert len(transporte.peticiones) == 2
+
+    pet1 = transporte.peticiones[0][1]
+    pet2 = transporte.peticiones[1][1]
+    assert pet1["requestId"] == pet2["requestId"]
+    assert pet2["requestedAt"] == "2026-11-18T12:30:00.000Z"
+    assert pet1["nonce"] != pet2["nonce"]
+    assert pet1["proof"] != pet2["proof"]
+
 
 

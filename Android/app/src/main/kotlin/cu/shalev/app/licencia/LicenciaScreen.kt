@@ -99,6 +99,9 @@ class LicenciaAcciones(
     val onRenovarIgual: () -> Boolean = { false },
     /** Prepara la ampliación de apps secundarias de la licencia vigente; true = datos válidos (salta al paso 2). */
     val onAmpliarSecundarias: () -> Boolean = { false },
+    val onCanjear: () -> Unit = {},
+    val onPegarCodigo: () -> Unit = {},
+    val onConsultarEstado: () -> Unit = {},
 )
 
 /**
@@ -172,6 +175,9 @@ fun LicenciaScreen(
                     onSecundaria = onSecundaria,
                     onRenovarIgual = viewModel::renovarIgual,
                     onAmpliarSecundarias = viewModel::ampliarSecundarias,
+                    onCanjear = viewModel::canjearCodigo,
+                    onPegarCodigo = { clipboard.getText()?.text?.let { t -> viewModel.editar { it.copy(codigoCanje = t) } } },
+                    onConsultarEstado = viewModel::consultarEstado,
                 ),
                 modifier = Modifier.padding(padding).consumeWindowInsets(padding),
             )
@@ -441,7 +447,42 @@ fun LicenciaContent(
                 }
             }
             PasoLicencia.ACTIVAR -> {
-                ShalevCard(title = "Activar licencia") {
+                ShalevCard(title = if (lic.instalada != null) "Renovar con código" else "Tengo un código") {
+                    ShalevSecondaryText("Escribe o pega tu código comercial de 16 caracteres.", textAlign = TextAlign.Center)
+                    ShalevTextField(
+                        filtro = FiltroEntrada.LIBRE,
+                        value = form.codigoCanje,
+                        onValueChange = { v -> acciones.onEditar { it.copy(codigoCanje = v) } },
+                        label = "Código comercial (16 caracteres)",
+                        singleLine = true,
+                        modifier = Modifier.testTag("licencia.codigo_canje"),
+                    )
+                    ShalevButtonRow {
+                        ShalevIconAction(ShalevIcons.Pegar, "Pegar", style = IconActionStyle.Tonal, onClick = acciones.onPegarCodigo)
+                        ShalevPrimaryButton(
+                            text = "Canjear",
+                            icon = ShalevIcons.Confirmar,
+                            onClick = acciones.onCanjear,
+                            enabled = form.codigoCanje.isNotBlank() && !state.ocupado,
+                            loading = state.ocupado,
+                            modifier = Modifier.testTag("licencia.boton_canjear"),
+                        )
+                    }
+                    if (lic.instalada != null) {
+                        ShalevButtonRow {
+                            ShalevSecondaryButton(
+                                text = "Consultar",
+                                etiqueta = "Estado",
+                                icon = ShalevIcons.Reintentar,
+                                onClick = acciones.onConsultarEstado,
+                                enabled = !state.ocupado,
+                                loading = state.ocupado,
+                                modifier = Modifier.testTag("licencia.boton_estado"),
+                            )
+                        }
+                    }
+                }
+                ShalevCard(title = "Activar licencia tradicional") {
                     ShalevSecondaryText(TextosActivacion.INSTRUCCION, textAlign = TextAlign.Center)
                     ShalevTextField(
                         filtro = FiltroEntrada.LIBRE,
