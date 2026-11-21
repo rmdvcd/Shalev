@@ -44,3 +44,4 @@ Este documento registra las decisiones, estado de verificación por fase, discre
 | Fase.Tarea | Estado | Notas |
 |---|---|---|
 | Fase 0 | `hecho-verificado` | Baseline ejecutado y documentado; bitácora creada. |
+| Fase 1.1 | `hecho-verificado` (DShalev) / `hecho-no-ejecutado` (Android, iOS) | Núcleo de TrustDirectory implementado en DShalev (`directorio.py`), Android (`TrustDirectory.kt`) e iOS (`TrustDirectory.swift`). Envoltorios `LicenseTrust` y `GLTrust` delegando al directorio efectivo. |

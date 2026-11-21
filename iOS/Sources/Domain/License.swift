@@ -34,10 +34,15 @@ enum GLTrust {
             sha256: "sha256:8a91:bcfb:19dc:af1b:af6e:0bb7:c82a:9410:e9b5:aa1d:fea0:cab8:241c:52d1:bcbd:6888")
     ]
 
-    static let ecdhPublicKey: P256.KeyAgreement.PublicKey? = validatedECDH()
-    static let signingPublicKeys: [P256.Signing.PublicKey] = signatures.compactMap(validatedSigningKey)
-    static let canValidate = !signingPublicKeys.isEmpty
-    static let canRequest = ecdhPublicKey != nil && canValidate
+    static var ecdhPublicKey: P256.KeyAgreement.PublicKey? {
+        TrustDirectory.effectiveDirectory?.activeECDH() ?? validatedECDH()
+    }
+    static var signingPublicKeys: [P256.Signing.PublicKey] {
+        let fromDir = TrustDirectory.effectiveDirectory?.signKeys() ?? []
+        return fromDir.isEmpty ? signatures.compactMap(validatedSigningKey) : fromDir
+    }
+    static var canValidate: Bool { !signingPublicKeys.isEmpty }
+    static var canRequest: Bool { ecdhPublicKey != nil && canValidate }
 
     private static func validatedECDH() -> P256.KeyAgreement.PublicKey? {
         guard let der = Data(base64Encoded: ecdh.spkiBase64), fingerprint(der) == normalizedFingerprint(ecdh.sha256) else { return nil }
