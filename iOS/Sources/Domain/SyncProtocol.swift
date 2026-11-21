@@ -256,16 +256,26 @@ enum SyncSubToken {
         return (text + "." + signature.base64EncodedString(), signer.publicKey.derRepresentation.base64EncodedString())
     }
 
-    static func verify(_ token: String, publicKeyBase64: String, deviceID: String, now: Date) -> SyncSubTokenData? {
+    static func verify(
+        _ token: String,
+        publicKeyBase64: String,
+        deviceID: String,
+        now: Date,
+        isRevoked: ((String) -> Bool)? = nil,
+        isKeyCompromised: ((Data) -> Bool)? = nil
+    ) -> SyncSubTokenData? {
         guard !token.isEmpty, token.count <= 4_096, let cut = token.lastIndex(of: "."), cut > token.startIndex else { return nil }
         let text = String(token[..<cut]), encoded = String(token[token.index(after: cut)...])
         guard !encoded.isEmpty, let der = Data(base64Encoded: encoded),
-              let keyDER = Data(base64Encoded: publicKeyBase64),
-              let key = try? P256.Signing.PublicKey(derRepresentation: keyDER),
+              let keyDER = Data(base64Encoded: publicKeyBase64) else { return nil }
+        if isKeyCompromised?(keyDER) == true { return nil }
+        guard let key = try? P256.Signing.PublicKey(derRepresentation: keyDER),
               let signature = try? P256.Signing.ECDSASignature(derRepresentation: der),
               key.isValidSignature(signature, for: Data(text.utf8)) else { return nil }
         let fields = text.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
-        guard fields.count == 5, let slot = Int(fields[2]), let allowed = Int(fields[3]),
+        guard fields.count == 5 else { return nil }
+        if isRevoked?(fields[0]) == true { return nil }
+        guard let slot = Int(fields[2]), let allowed = Int(fields[3]),
               (0...10).contains(allowed), slot >= 1, slot <= allowed, fields[1] == deviceID else { return nil }
         let expiry: Date?
         if fields[4] == "PERPETUA" { expiry = nil }
