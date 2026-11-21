@@ -25,15 +25,13 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 # ── Valores de compilación ─────────────────────────────────────────────────────
-# Se dejan vacíos a propósito: no hay endpoint ni claves de producción aprobadas.
-# El ``appId`` del contrato GL es ``DSHALEV`` (público, no es un secreto), pero se
-# configura junto con el endpoint y las claves en el build aprobado: por sí solo
-# no habilita nada. Cambiar cualquiera de estos valores exige un build nuevo,
+# Build aprobado con endpoint y claves de producción GL v1.
+# Cambiar cualquiera de estos valores exige un build nuevo,
 # revisión y pruebas; nunca se reciben del usuario.
-APP_ID = ""
-ENDPOINT_REDEEM = ""
-ENDPOINT_ESTADO = ""
-KIDS_FIRMA: Mapping[str, str] = MappingProxyType({})
+APP_ID = "DSHALEV"
+ENDPOINT_REDEEM = "https://gl-redeem.rmdvcd.workers.dev/v1/redeem"
+ENDPOINT_ESTADO = "https://gl-redeem.rmdvcd.workers.dev/v1/status"
+KIDS_FIRMA: Mapping[str, str] = MappingProxyType({"gl-redeem-v1": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE553eHDlFY2mooBnPsNoaRe9gUd4iPEST98yH8OKQOCWCqphj1AwSAIMsfpTKr85QgyweZqMlH8aG248aJnHZpg=="})
 BASE_PUBLICA_AUTORIZADA = "https://gl-redeem.rmdvcd.workers.dev"
 
 # ── Política de instalación ────────────────────────────────────────────────────
@@ -148,34 +146,52 @@ def definir(
     Si no se proporcionan valores explícitos ni de compilación, intenta resolver
     las claves y endpoints del directorio de confianza efectivo (Fase 5 / S6).
     """
-    app = APP_ID if app_id is None else app_id
-    if not app and directorio is not None:
+    if app_id is not None:
+        app = app_id
+    elif directorio is not None:
         app = (
             getattr(directorio, "app_ids", {}).get("DSHALEV")
             or getattr(directorio, "app_ids", {}).get("MIPVENTAX-DESKTOP")
             or getattr(directorio, "app_id", None)
-            or "DSHALEV"
+            or APP_ID
         )
+    else:
+        app = APP_ID
+
     if app and not _APP_ID_RE.fullmatch(app):
         raise ConfiguracionLicenciaError("El appId debe ser ASCII alfanumérico, punto, guion o guion bajo.")
 
-    ep_redeem = ENDPOINT_REDEEM if endpoint_redeem is None else endpoint_redeem
-    ep_estado = ENDPOINT_ESTADO if endpoint_estado is None else endpoint_estado
-    if not ep_redeem and directorio is not None:
+    if endpoint_redeem is not None:
+        ep_redeem = endpoint_redeem
+    elif directorio is not None:
         if getattr(directorio, "endpoint_base", None):
             base = getattr(directorio, "endpoint_base").rstrip("/")
             ep_redeem = f"{base}/v1/redeem"
-            ep_estado = f"{base}/v1/status"
         elif BASE_PUBLICA_AUTORIZADA and getattr(directorio, "claves", None):
             base = BASE_PUBLICA_AUTORIZADA.rstrip("/")
             ep_redeem = f"{base}/v1/redeem"
+        else:
+            ep_redeem = ""
+    else:
+        ep_redeem = ENDPOINT_REDEEM
+
+    if endpoint_estado is not None:
+        ep_estado = endpoint_estado
+    elif directorio is not None:
+        if getattr(directorio, "endpoint_base", None):
+            base = getattr(directorio, "endpoint_base").rstrip("/")
             ep_estado = f"{base}/v1/status"
+        elif BASE_PUBLICA_AUTORIZADA and getattr(directorio, "claves", None):
+            base = BASE_PUBLICA_AUTORIZADA.rstrip("/")
+            ep_estado = f"{base}/v1/status"
+        else:
+            ep_estado = ""
+    else:
+        ep_estado = ENDPOINT_ESTADO
 
     mapa_kids: dict[str, bytes] = {}
     if kids_firma is not None:
         mapa_kids = dict(_validar_kids(kids_firma))
-    elif KIDS_FIRMA:
-        mapa_kids = dict(_validar_kids(KIDS_FIRMA))
     elif directorio is not None:
         claves_canje = getattr(directorio, "claves_canje", None)
         if callable(claves_canje) and claves_canje():
@@ -200,6 +216,8 @@ def definir(
                         spki = getattr(c, "spki_der", None)
                         if kid and spki and _KID_RE.fullmatch(kid):
                             mapa_kids[kid] = spki
+    elif endpoint_redeem is None and endpoint_estado is None and app_id is None and KIDS_FIRMA:
+        mapa_kids = dict(_validar_kids(KIDS_FIRMA))
 
     return ConfiguracionLicencia(
         app_id=app,

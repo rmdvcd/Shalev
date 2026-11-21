@@ -184,27 +184,38 @@ def test_navegacion_accesible_y_seccion_actual(tmp_path):
     assert 'aria-hidden="true"><svg' in page
 
 
-def test_el_panel_de_licencia_explica_que_la_activacion_esta_deshabilitada(tmp_path):
+def test_el_panel_de_licencia_muestra_formulario_y_huella(tmp_path):
+    client = make_client(tmp_path)
+    create_admin(client)
+    login(client)
+    page = client.get("/licencia")
+    assert page.status_code == 200
+    assert "Huella de la instalación" in page.text
+    assert "identidad-huella" in page.text
+    assert "codigo-canje" in page.text
+    assert "Canjear / Renovar" in page.text
+    assert "MAX_SECUNDARIAS = 0" in page.text
+    # El panel no pide ni muestra secretos, claves ni códigos de activación espurios.
+    assert "name=\"codigo\"" not in page.text
+    assert "SPVI2" not in page.text
+    assert "PRIVATE KEY" not in page.text
+    assert "BEGIN" not in page.text
+
+
+def test_el_panel_de_licencia_explica_deshabilitada_sin_config(tmp_path, monkeypatch):
+    from dshalev.licencia.config_licencia import definir
+    monkeypatch.setattr("dshalev.app.configuracion", lambda: definir(app_id="", endpoint_redeem="", endpoint_estado="", kids_firma={}))
     client = make_client(tmp_path)
     create_admin(client)
     login(client)
     page = client.get("/licencia")
     assert page.status_code == 200
     assert "deshabilitada" in page.text
-    assert "endpoint HTTPS" in page.text
-    # El panel no pide ni muestra secretos, claves ni códigos de activación.
-    assert "name=\"codigo\"" not in page.text
-    assert "SPVI2" not in page.text
-    assert "PRIVATE KEY" not in page.text
-    assert "BEGIN" not in page.text
-    assert "https://" not in page.text
-    assert "Huella de la instalación" in page.text
-    assert "identidad-huella" in page.text
-    assert "MAX_SECUNDARIAS = 0" in page.text
 
 
-def test_post_canjear_exige_autenticacion_y_csrf(tmp_path):
+def test_post_canjear_exige_autenticacion_y_csrf(tmp_path, monkeypatch):
     import re
+    from dshalev.licencia.config_licencia import definir
     client = make_client(tmp_path)
     # Sin login
     resp = client.post("/licencia/canjear", data={"codigo_canje": "ABCD-EFGH-JKLM-NPQR", "csrf": "invalido"}, follow_redirects=False)
@@ -218,7 +229,8 @@ def test_post_canjear_exige_autenticacion_y_csrf(tmp_path):
     assert resp2.status_code == 200
     assert "Token de seguridad no válido" in resp2.text
 
-    # Con login y CSRF válido pero activación deshabilitada en build estándar
+    # Con login y CSRF válido pero activación deshabilitada sin config
+    monkeypatch.setattr("dshalev.app.configuracion", lambda: definir(app_id="", endpoint_redeem="", endpoint_estado="", kids_firma={}))
     page = client.get("/licencia")
     match = re.search(r'name="csrf"\s+value="([^"]+)"', page.text)
     assert match is not None
@@ -228,8 +240,9 @@ def test_post_canjear_exige_autenticacion_y_csrf(tmp_path):
     assert "deshabilitada" in resp3.text
 
 
-def test_post_estado_exige_autenticacion_y_csrf(tmp_path):
+def test_post_estado_exige_autenticacion_y_csrf(tmp_path, monkeypatch):
     import re
+    from dshalev.licencia.config_licencia import definir
     client = make_client(tmp_path)
     resp = client.post("/licencia/estado", data={"csrf": "invalido"}, follow_redirects=False)
     assert resp.status_code == 303
@@ -237,6 +250,7 @@ def test_post_estado_exige_autenticacion_y_csrf(tmp_path):
 
     create_admin(client)
     login(client)
+    monkeypatch.setattr("dshalev.app.configuracion", lambda: definir(app_id="", endpoint_redeem="", endpoint_estado="", kids_firma={}))
     page = client.get("/licencia")
     match = re.search(r'name="csrf"\s+value="([^"]+)"', page.text)
     assert match is not None

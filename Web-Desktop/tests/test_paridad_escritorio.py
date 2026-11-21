@@ -68,4 +68,5 @@ def test_navegacion_y_licencia_sin_falsa_activacion(tmp_path):
     assert 'Fotos / APK' not in page
     assert 'id="theme-select"' in page
     assert 'href="/distribucion"' in client.get('/equipo').text
-    assert 'no están implementadas' in client.get('/licencia').text
+    lic_page = client.get('/licencia').text
+    assert 'Huella de la instalación' in lic_page

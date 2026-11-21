@@ -24,15 +24,19 @@ def spki_b64(clave) -> str:
     )).decode()
 
 
-def test_el_build_no_tiene_endpoint_ni_claves_de_produccion():
+def test_el_build_aprobado_tiene_endpoint_y_claves_de_produccion():
     actual = configuracion()
-    assert actual.endpoint_redeem == "" and actual.endpoint_estado == ""
-    assert actual.app_id == "" and dict(actual.kids_spki) == {}
-    assert actual.comercial_habilitada is False
-    motivo = motivo_activacion_deshabilitada()
+    assert actual.endpoint_redeem == "https://gl-redeem.rmdvcd.workers.dev/v1/redeem"
+    assert actual.endpoint_estado == "https://gl-redeem.rmdvcd.workers.dev/v1/status"
+    assert actual.app_id == "DSHALEV" and "gl-redeem-v1" in actual.kids_spki
+    assert actual.comercial_habilitada is True
+    assert actual.motivo_deshabilitada() == ""
+
+    sin_conf = definir(app_id="", endpoint_redeem="", endpoint_estado="", kids_firma={})
+    assert sin_conf.comercial_habilitada is False
+    motivo = sin_conf.motivo_deshabilitada()
     assert "deshabilitada" in motivo
     assert "producción" in motivo
-    # Nunca se declara habilitada con material de prueba.
     assert "Falta: appId, endpoint de canje, endpoint de estado, claves públicas (kid)." in motivo
 
 
@@ -124,8 +128,11 @@ def test_la_configuracion_no_se_puede_cambiar_desde_ajustes_ni_desde_un_respaldo
     cargada = load_config(raiz)
     assert cargada.database_path.parent == datos
     actual = configuracion()
-    assert actual.endpoint_redeem == "" and actual.endpoint_estado == ""
-    assert actual.app_id == "" and dict(actual.kids_spki) == {}
+    assert actual.endpoint_redeem == config_licencia.ENDPOINT_REDEEM
+    assert actual.endpoint_estado == config_licencia.ENDPOINT_ESTADO
+    assert actual.app_id == config_licencia.APP_ID
+    assert "falso" not in actual.kids_spki
+    assert actual.endpoint_redeem != "https://atacante.ejemplo.test/v1/redeem"
 
 
 def test_el_codigo_no_contiene_claves_privadas_ni_endpoints_de_prueba():
@@ -134,11 +141,11 @@ def test_el_codigo_no_contiene_claves_privadas_ni_endpoints_de_prueba():
     assert "BEGIN EC" not in fuente
     assert "localhost" not in fuente
     assert "127.0.0.1" not in fuente
-    # Los valores de compilación siguen vacíos: sin endpoint aprobado, no hay activación.
-    assert config_licencia.APP_ID == ""
-    assert config_licencia.ENDPOINT_REDEEM == ""
-    assert config_licencia.ENDPOINT_ESTADO == ""
-    assert dict(config_licencia.KIDS_FIRMA) == {}
+    # Valores de compilación aprobados de producción
+    assert config_licencia.APP_ID == "DSHALEV"
+    assert config_licencia.ENDPOINT_REDEEM == "https://gl-redeem.rmdvcd.workers.dev/v1/redeem"
+    assert config_licencia.ENDPOINT_ESTADO == "https://gl-redeem.rmdvcd.workers.dev/v1/status"
+    assert "gl-redeem-v1" in config_licencia.KIDS_FIRMA
     assert config_licencia.POLITICA_IDENTIDAD == "instalacion"
 
 

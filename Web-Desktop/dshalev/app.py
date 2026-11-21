@@ -662,7 +662,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 request,
                 user=user,
                 section="licencia",
-                motivo_licencia=motivo_activacion_deshabilitada(),
+                motivo_licencia=conf.motivo_deshabilitada(),
                 comercial_habilitada=conf.comercial_habilitada,
                 huella_instalacion=huella,
                 licencia_info=licencia_info,

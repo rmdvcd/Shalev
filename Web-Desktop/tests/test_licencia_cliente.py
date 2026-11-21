@@ -388,8 +388,9 @@ def test_concurrencia_local_no_corrompe_el_estado(escenario):
 def test_activacion_deshabilitada_sin_configuracion(tmp_path):
     identidad = crear_identidad(tmp_path)
     almacen = crear_almacen(tmp_path, identidad)
+    conf_deshabilitada = definir(app_id="", endpoint_redeem="", endpoint_estado="", kids_firma={})
     cliente = ClienteGL(
-        configuracion=configuracion(), identidad=identidad, almacen=almacen, transporte=TransporteFalso()
+        configuracion=conf_deshabilitada, identidad=identidad, almacen=almacen, transporte=TransporteFalso()
     )
     with pytest.raises(ErrorGL) as excinfo:
         cliente.canjear("ABCD-EFGH-JKLM-NPQR")
