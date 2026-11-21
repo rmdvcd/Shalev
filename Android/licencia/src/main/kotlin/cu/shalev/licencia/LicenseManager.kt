@@ -46,7 +46,7 @@ data class StoredLicense(
     val venceEn: String? = null,
     val deviceId: String? = null,
     /**
-     * 0.31.0: la licencia se activó con la clave maestra de desarrollo (`GLMK-PERM-MAXS-9999`). Solo vale en builds
+     * 0.31.0 (S5): la licencia se activó con la clave maestra de desarrollo. Solo vale en builds
      * `DEBUG`: en release se descarta al evaluar (mitigación 1, Opción A).
      */
     val maestra: Boolean = false,
@@ -261,7 +261,7 @@ class LicenseManager(
 
     /**
      * Procesa el mensaje de licencia pegado, compartido o leído de un QR. Acepta, en este orden:
-     *  1. la **clave maestra de desarrollo** (`GLMK-PERM-MAXS-9999`), solo en builds `DEBUG` (mitigación 1);
+     *  1. la **clave maestra de desarrollo**, solo en builds `DEBUG` (mitigación 1 / S5);
      *  2. la licencia corta cifrada `SPVI2:…` (el formato de Shalev ≥ 0.23.1); el texto de arriba es informativo.
      * Una licencia **larga** (envelope v1) ya no se activa: [ActivationResult.NotFound] (decisión de la 0.23.0; si
      * estaba instalada, se sigue re-verificando en cada evaluación, ver [verifyStored]). Cualquier otra cosa:
@@ -274,7 +274,7 @@ class LicenseManager(
     }
 
     /** ¿El texto es la clave maestra de desarrollo? Solo en builds `DEBUG` (en release siempre `false`). */
-    fun esClaveMaestra(texto: String): Boolean = CodigoLicencia.esMaestra(texto, esDebug)
+    fun esClaveMaestra(texto: String): Boolean = CodigoLicencia.esMaestra(texto, esDebug && ModoDesarrollo.esDebug)
 
     /**
      * Activa la clave maestra: licencia PERPETUA con el máximo de apps secundarias (10), sin envelope ni firma (no
@@ -287,7 +287,7 @@ class LicenseManager(
         store.clearRevoked()
         store.saveLicense(
             StoredLicense(
-                envelopeJson = CodigoLicencia.MAESTRA,
+                envelopeJson = ID_MAESTRA,
                 licenseId = ID_MAESTRA,
                 emitidaEn = clock.now().toString(),
                 tipo = TipoLicencia.PERPETUA,
@@ -405,10 +405,10 @@ class LicenseManager(
 
     /** null = no verifica (alterada, otra clave de dispositivo, metadatos incoherentes…): se ignora. */
     private fun verifyStored(stored: StoredLicense, now: Instant): Pair<LicenseState, InstalledLicense>? = runCatching {
-        // Clave maestra: perpetua y con 10 secundarias, pero SOLO en builds DEBUG (mitigación 1, Opción A). En release
+        // Clave maestra: perpetua y con 10 secundarias, pero SOLO en builds DEBUG (mitigación 1, Opción A / S5). En release
         // la licencia instalada con la clave maestra se ignora, igual que si no existiera.
         if (stored.maestra) {
-            if (!esDebug) return@runCatching null
+            if (!esDebug || !ModoDesarrollo.esDebug) return@runCatching null
             return@runCatching LicenseState.Perpetual(ID_MAESTRA, GlContract.SECUNDARIAS_MAX) to InstalledLicense(
                 ID_MAESTRA, TipoLicencia.PERPETUA, Instant.parse(stored.emitidaEn), null, GlContract.SECUNDARIAS_MAX,
             )

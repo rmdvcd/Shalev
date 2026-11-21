@@ -6,6 +6,7 @@ import cu.shalev.licencia.contract.SolicitudCifrada
 import cu.shalev.licencia.contract.TipoLicencia
 import cu.shalev.licencia.contract.Via
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -15,7 +16,7 @@ import org.junit.Test
 import java.time.Instant
 
 /**
- * Clave maestra de desarrollo `GLMK-PERM-MAXS-9999` (mitigación 1, Opción A): activa Shalev de forma perpetua con el
+ * Clave maestra de desarrollo `GLMK-PERM-MAXS-9999` (mitigación 1, Opción A / S5): activa Shalev de forma perpetua con el
  * máximo de apps secundarias, **solo en builds de depuración**. En release se ignora incluso si quedó instalada.
  */
 class MasterKeyTest {
@@ -26,10 +27,18 @@ class MasterKeyTest {
     private val device = InMemoryDeviceKey()
     private val deviceId = "SPVI:aa11bb22cc33dd44"
 
-    private fun manager(esDebug: Boolean, firmante: cu.shalev.licencia.secondary.FirmanteLicencia? = null) = LicenseManager(
-        store, device, deviceId, gl.ecdh.public.encoded, listOf(gl.signing.public.encoded), clock,
-        esDebug = esDebug, firmante = firmante,
-    )
+    @After fun tearDown() {
+        ModoDesarrollo.esDebug = false
+    }
+
+    private fun manager(esDebug: Boolean, firmante: cu.shalev.licencia.secondary.FirmanteLicencia? = null): LicenseManager {
+        ModoDesarrollo.esDebug = esDebug
+        CodigoLicencia.validadorMaestra = { it == "GLMKPERMMAXS9999" }
+        return LicenseManager(
+            store, device, deviceId, gl.ecdh.public.encoded, listOf(gl.signing.public.encoded), clock,
+            esDebug = esDebug, firmante = firmante,
+        )
+    }
 
     @Test fun enDebugActivaPerpetuaConDiezSecundarias() = runBlocking {
         val m = manager(esDebug = true)

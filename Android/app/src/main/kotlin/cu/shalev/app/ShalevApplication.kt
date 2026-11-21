@@ -25,10 +25,15 @@ class ShalevApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // 0.31.0 (mitigación 1, Opción A): la clave maestra de desarrollo `GLMK-PERM-MAXS-9999` solo vale en builds de
+        // 0.31.0 (mitigación 1, Opción A / S5): la clave maestra de desarrollo solo vale en builds de
         // depuración. Se fija aquí, en el arranque y ANTES de tocar la licencia (los repositorios se construyen de
         // forma perezosa). En release BuildConfig.DEBUG es false y la comprobación queda como está: fail-closed.
         cu.shalev.licencia.ModoDesarrollo.esDebug = BuildConfig.DEBUG
+        if (BuildConfig.DEBUG) {
+            runCatching {
+                Class.forName("cu.shalev.app.DebugMasterKey").getMethod("instalar").invoke(null)
+            }
+        }
         avisoTurno.iniciar(this)
         avisoSync.iniciar()
         notificadorOperaciones.iniciar()

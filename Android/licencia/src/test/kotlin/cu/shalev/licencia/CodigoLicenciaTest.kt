@@ -28,12 +28,17 @@ class CodigoLicenciaTest {
     }
 
     @Test fun laClaveMaestraSoloValeEnDebug() {
-        assertTrue(CodigoLicencia.esMaestra("GLMK-PERM-MAXS-9999", esDebug = true))
-        assertTrue(CodigoLicencia.esMaestra("glmk permmaxs 9999", esDebug = true))
-        assertTrue(CodigoLicencia.esMaestra("GLMKPERMMAXS9999", esDebug = true))
-        // Mitigación 1 (Opción A): en release la comprobación devuelve siempre false.
-        assertFalse(CodigoLicencia.esMaestra("GLMK-PERM-MAXS-9999", esDebug = false))
-        assertFalse(CodigoLicencia.esMaestra("4K7N-9X2M-B8PQ-3T5V", esDebug = true))
+        CodigoLicencia.validadorMaestra = { it == "GLMKPERMMAXS9999" }
+        ModoDesarrollo.comoDebug {
+            assertTrue(CodigoLicencia.esMaestra("GLMK-PERM-MAXS-9999", esDebug = true))
+            assertTrue(CodigoLicencia.esMaestra("glmk permmaxs 9999", esDebug = true))
+            assertTrue(CodigoLicencia.esMaestra("GLMKPERMMAXS9999", esDebug = true))
+            // Mitigación 1 (Opción A): en release la comprobación devuelve siempre false.
+            assertFalse(CodigoLicencia.esMaestra("GLMK-PERM-MAXS-9999", esDebug = false))
+            assertFalse(CodigoLicencia.esMaestra("4K7N-9X2M-B8PQ-3T5V", esDebug = true))
+        }
+        // Unificación verdad debug (S5): sin ModoDesarrollo.esDebug es siempre false
+        assertFalse(CodigoLicencia.esMaestra("GLMK-PERM-MAXS-9999", esDebug = true))
     }
 
     @Test fun elModoDesarrolloArrancaApagado() {
