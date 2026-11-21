@@ -1,22 +1,72 @@
 {% extends 'base.html' %}{% block title %}Licencia{% endblock %}{% block content %}
-<div class="page-heading"><div><p class="eyebrow">ESTADO DE LA APLICACIÓN</p><h1>Licencia</h1><p class="muted">Información de la implementación de escritorio.</p></div></div>
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">ESTADO DE LA APLICACIÓN</p>
+    <h1>Licencia</h1>
+    <p class="muted">Información y canje de la licencia comercial de DShalev.</p>
+  </div>
+</div>
 <div class="content-grid">
-  <section class="panel"><div class="notice warning">La activación y verificación de licencias GL todavía no están implementadas en MIPVentaX de escritorio.</div><p>{{ motivo_licencia }}</p><p>La prueba local de siete días que se envía actualmente a las secundarias no es una licencia comercial GL ni un sub-token firmado. Este panel no activa ni valida licencias.</p><p class="muted">No introduzcas claves de licencia aquí. La integración y las pruebas con GL siguen pendientes; la licencia la firma el servicio GL, nunca este equipo.</p>
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow">LICENCIA COMERCIAL</p>
+        <h2>Estado de la licencia</h2>
+      </div>
+    </div>
+
+    {% if not comercial_habilitada %}
+    <div class="notice warning">
+      <p>La activación y verificación de licencias GL todavía no están implementadas en un build sin configuración de producción.</p>
+      <p>{{ motivo_licencia }}</p>
+    </div>
+    {% endif %}
+
+    {% if licencia_info and licencia_info.instalada %}
+    <div class="detail-group" style="margin-bottom: 1.5rem;">
+      <p><strong>Estado:</strong> <span class="tag {% if licencia_info.revocada %}error{% elif licencia_info.estado == 'ACTIVA' %}success{% else %}warning{% endif %}">{{ licencia_info.estado }}</span></p>
+      <p><strong>Tipo:</strong> {{ licencia_info.tipo }}</p>
+      <p><strong>Vencimiento:</strong> {{ licencia_info.vencimiento }}</p>
+      <p><strong>Última comprobación:</strong> {{ licencia_info.comprobada_en }}</p>
+    </div>
+    {% else %}
+    <p class="muted">No hay ninguna licencia comercial instalada en este equipo.</p>
+    {% endif %}
+
     <div class="form-group" style="margin-top: 1rem;">
       <label for="identidad-huella">Huella de la instalación (Thumbprint P-256)</label>
       <input id="identidad-huella" type="text" readonly value="{{ huella_instalacion }}" class="code-input" style="width: 100%; font-family: monospace;" onclick="this.select();">
       <p class="tiny muted">Identificador único de este equipo para transferencias y soporte del operador.</p>
     </div>
-    <div class="form-group" style="margin-top: 1.5rem;">
-      <label for="codigo-canje">Código de canje (16 caracteres)</label>
-      <input id="codigo-canje" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" class="code-input" style="width: 100%; font-family: monospace;" disabled>
-      <p class="tiny muted">El reloj del sistema debe estar sincronizado con la hora de red (tolerancia máxima de 2 horas).</p>
-    </div>
-    <div style="margin-top: 1rem;">
-      <button type="button" class="btn primary" disabled>Canjear / Renovar</button>
-    </div>
+
+    <form action="/licencia/canjear" method="post" style="margin-top: 1.5rem;">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="form-group">
+        <label for="codigo-canje">Código de canje (16 caracteres)</label>
+        <input id="codigo-canje" name="codigo_canje" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" class="code-input" style="width: 100%; font-family: monospace;" {% if not comercial_habilitada %}disabled{% endif %} autocomplete="off" spellcheck="false">
+        <p class="tiny muted">El reloj del sistema debe estar sincronizado con la hora de red (tolerancia máxima de 2 horas).</p>
+      </div>
+      <div style="margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center;">
+        <button type="submit" class="btn primary" {% if not comercial_habilitada %}disabled{% endif %}>Canjear / Renovar</button>
+      </div>
+    </form>
+
+    {% if licencia_info and licencia_info.instalada and comercial_habilitada %}
+    <form action="/licencia/estado" method="post" style="margin-top: 1rem;">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit" class="btn secondary">Consultar estado</button>
+    </form>
+    {% endif %}
   </section>
-  <section class="panel"><div class="panel-heading"><div><p class="eyebrow">PLAZAS SECUNDARIAS</p><h2>Dispositivos secundarios</h2></div><span class="icon-tile">📱</span></div>
+
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow">PLAZAS SECUNDARIAS</p>
+        <h2>Dispositivos secundarios</h2>
+      </div>
+      <span class="icon-tile">📱</span>
+    </div>
     <p>El servicio central opera actualmente con <code>MAX_SECUNDARIAS = 0</code>. Este panel no emite ni ofrece plazas secundarias comerciales.</p>
     <p class="muted">La sincronización con secundarias móviles utiliza el periodo de prueba local de siete días de <code>sync_server.py</code>, marcado como no comercial.</p>
   </section>

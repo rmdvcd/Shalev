@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass
 from datetime import timedelta
 from types import MappingProxyType
-from typing import Mapping
+from typing import Any, Mapping
 from urllib.parse import urlsplit
 
 from cryptography.hazmat.primitives import serialization
@@ -34,6 +34,7 @@ APP_ID = ""
 ENDPOINT_REDEEM = ""
 ENDPOINT_ESTADO = ""
 KIDS_FIRMA: Mapping[str, str] = MappingProxyType({})
+BASE_PUBLICA_AUTORIZADA = "https://gl-redeem.rmdvcd.workers.dev"
 
 # ── Política de instalación ────────────────────────────────────────────────────
 # Una identidad P-256 y una licencia por instalación; los locales de `--local`
@@ -150,19 +151,25 @@ def definir(
     app = APP_ID if app_id is None else app_id
     if not app and directorio is not None:
         app = (
-            getattr(directorio, "app_ids", {}).get("MIPVENTAX-DESKTOP")
+            getattr(directorio, "app_ids", {}).get("DSHALEV")
+            or getattr(directorio, "app_ids", {}).get("MIPVENTAX-DESKTOP")
             or getattr(directorio, "app_id", None)
-            or ""
+            or "DSHALEV"
         )
     if app and not _APP_ID_RE.fullmatch(app):
         raise ConfiguracionLicenciaError("El appId debe ser ASCII alfanumérico, punto, guion o guion bajo.")
 
     ep_redeem = ENDPOINT_REDEEM if endpoint_redeem is None else endpoint_redeem
     ep_estado = ENDPOINT_ESTADO if endpoint_estado is None else endpoint_estado
-    if not ep_redeem and directorio is not None and getattr(directorio, "endpoint_base", None):
-        base = getattr(directorio, "endpoint_base").rstrip("/")
-        ep_redeem = f"{base}/v1/redeem"
-        ep_estado = f"{base}/v1/status"
+    if not ep_redeem and directorio is not None:
+        if getattr(directorio, "endpoint_base", None):
+            base = getattr(directorio, "endpoint_base").rstrip("/")
+            ep_redeem = f"{base}/v1/redeem"
+            ep_estado = f"{base}/v1/status"
+        elif BASE_PUBLICA_AUTORIZADA and getattr(directorio, "claves", None):
+            base = BASE_PUBLICA_AUTORIZADA.rstrip("/")
+            ep_redeem = f"{base}/v1/redeem"
+            ep_estado = f"{base}/v1/status"
 
     mapa_kids: dict[str, bytes] = {}
     if kids_firma is not None:
@@ -170,13 +177,29 @@ def definir(
     elif KIDS_FIRMA:
         mapa_kids = dict(_validar_kids(KIDS_FIRMA))
     elif directorio is not None:
-        claves_dir = getattr(directorio, "claves", [])
-        for c in claves_dir:
-            if getattr(c, "activa", True):
-                kid = getattr(c, "kid", "")
-                spki = getattr(c, "spki_der", None)
-                if kid and spki and _KID_RE.fullmatch(kid):
-                    mapa_kids[kid] = spki
+        claves_canje = getattr(directorio, "claves_canje", None)
+        if callable(claves_canje) and claves_canje():
+            mapa_kids = dict(claves_canje())
+        else:
+            claves_dir = getattr(directorio, "claves", [])
+            canje = {
+                getattr(c, "kid", ""): getattr(c, "spki_der", None)
+                for c in claves_dir
+                if getattr(c, "uso", "") == "canje"
+                and getattr(c, "activa", True)
+                and getattr(c, "kid", "")
+                and getattr(c, "spki_der", None)
+                and _KID_RE.fullmatch(getattr(c, "kid", ""))
+            }
+            if canje:
+                mapa_kids = canje
+            else:
+                for c in claves_dir:
+                    if getattr(c, "activa", True):
+                        kid = getattr(c, "kid", "")
+                        spki = getattr(c, "spki_der", None)
+                        if kid and spki and _KID_RE.fullmatch(kid):
+                            mapa_kids[kid] = spki
 
     return ConfiguracionLicencia(
         app_id=app,

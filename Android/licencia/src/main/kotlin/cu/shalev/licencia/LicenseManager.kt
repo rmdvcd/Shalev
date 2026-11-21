@@ -457,6 +457,14 @@ class LicenseManager(
     suspend fun revocada(): Boolean = store.revokedAt() != null && store.migratedAt() != null &&
         evaluate().state == LicenseState.Revoked
 
+    /** Invalida la licencia guardada si fue revocada por el servicio de canje / estado. */
+    suspend fun marcarRevocada(at: Instant = clock.now()) {
+        store.markRevoked(at)
+    }
+
+    /** ID de la licencia instalada actualmente, o null si no hay ninguna. */
+    suspend fun installedLicenseId(): String? = store.license()?.licenseId
+
     private fun openPayload(env: Envelope, licenseId: String): LicensePayload {
         val plain = opener.open(env, licenseId)
         return GlJson.decoder.decodeFromString(LicensePayload.serializer(), plain.toString(Charsets.UTF_8))

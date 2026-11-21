@@ -1,6 +1,28 @@
 import Foundation
 import CryptoKit
 
+enum GLDateParser {
+    private static let withFraction: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    private static let standard: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    static func parse(_ string: String) -> Date? {
+        withFraction.date(from: string) ?? standard.date(from: string)
+    }
+
+    static func formatUTC(_ date: Date) -> String {
+        withFraction.string(from: date)
+    }
+}
+
 enum RedeemError: LocalizedError, Equatable {
     case disabled
     case invalidCode
@@ -44,6 +66,10 @@ final class RedeemClient {
         endpointRedeem != nil && endpointRedeem?.scheme == "https" && !appID.isEmpty
     }
 
+    var canCheckStatus: Bool {
+        endpointStatus != nil && endpointStatus?.scheme == "https" && !appID.isEmpty
+    }
+
     func redeem(code: String, identity: GLIdentity, manager: GLLicenseManager, now: Date = Date()) async throws -> GLActivationResult {
         guard canRedeem, let url = endpointRedeem else {
             throw RedeemError.disabled
@@ -53,12 +79,12 @@ final class RedeemClient {
         }
 
         let requestID = UUID().uuidString
-        let requestedAt = ISO8601DateFormatter().string(from: now)
-        let nonce = (0..<16).map { _ in UInt8.random(in: 0...255) }
-        let nonceB64 = Data(nonce).base64EncodedString()
+        var requestedAt = GLDateParser.formatUTC(now)
+        var nonce = (0..<16).map { _ in UInt8.random(in: 0...255) }
+        var nonceB64 = Data(nonce).base64EncodedString()
         let deviceKeyB64 = identity.signingPublicKeyDER.base64EncodedString()
 
-        let proofBytes = RedeemContract.redeemProofBytes(
+        var proofBytes = RedeemContract.redeemProofBytes(
             appID: appID,
             code: codeNorm,
             deviceKeyBase64: deviceKeyB64,
@@ -66,9 +92,9 @@ final class RedeemClient {
             requestedAt: requestedAt,
             nonceBase64: nonceB64
         )
-        let signature = try identity.signingKey.signature(for: proofBytes).derRepresentation.base64EncodedString()
+        var signature = try identity.signingKey.signature(for: proofBytes).derRepresentation.base64EncodedString()
 
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "v": 1,
             "appId": appID,
             "code": codeNorm,
@@ -79,29 +105,42 @@ final class RedeemClient {
             "proof": signature
         ]
 
-        var request = URLRequest(url: url, timeoutInterval: 10.0)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        var (data, statusCode) = try await sendPost(url: url, payload: payload)
 
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
-            throw RedeemError.network(error.localizedDescription)
-        }
-
-        let http = response as? HTTPURLResponse
-        let statusCode = http?.statusCode ?? 500
-
+        // Reintento automático ante CLOCK_SKEW (máximo 1 reintento con hora del servidor)
         if statusCode == 400 {
-            if let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-               let err = json["error"] as? [String: Any],
-               (err["code"] as? String) == "CLOCK_SKEW",
-               let stRaw = (err["serverTime"] as? String) ?? (json["serverTime"] as? String),
-               let serverTime = ISO8601DateFormatter().date(from: stRaw) {
+            if let serverTime = parseServerTime(from: data) ?? (await fetchTime(from: url)) {
                 manager.recoverClock(serverTime: serverTime)
-                throw RedeemError.clockSkew(serverTime)
+                requestedAt = GLDateParser.formatUTC(serverTime)
+                nonce = (0..<16).map { _ in UInt8.random(in: 0...255) }
+                nonceB64 = Data(nonce).base64EncodedString()
+
+                proofBytes = RedeemContract.redeemProofBytes(
+                    appID: appID,
+                    code: codeNorm,
+                    deviceKeyBase64: deviceKeyB64,
+                    requestID: requestID,
+                    requestedAt: requestedAt,
+                    nonceBase64: nonceB64
+                )
+                signature = try identity.signingKey.signature(for: proofBytes).derRepresentation.base64EncodedString()
+
+                payload = [
+                    "v": 1,
+                    "appId": appID,
+                    "code": codeNorm,
+                    "deviceKey": deviceKeyB64,
+                    "requestId": requestID,
+                    "requestedAt": requestedAt,
+                    "nonce": nonceB64,
+                    "proof": signature
+                ]
+
+                let retryResult = try await sendPost(url: url, payload: payload)
+                data = retryResult.0
+                statusCode = retryResult.1
+            } else {
+                throw RedeemError.clockSkew(now)
             }
         }
 
@@ -137,11 +176,20 @@ final class RedeemClient {
         }
 
         let v = (lic["v"] as? Int) ?? 1
-        let licenseID = (lic["licenseId"] as? String) ?? ""
-        let typeStr = (lic["type"] as? String) ?? ""
-        let statusStr = (lic["status"] as? String) ?? ""
-        let issuedAtStr = (lic["issuedAt"] as? String) ?? ""
+        guard let licenseID = lic["licenseId"] as? String, !licenseID.isEmpty,
+              let typeStr = lic["type"] as? String, !typeStr.isEmpty,
+              let statusStr = lic["status"] as? String, !statusStr.isEmpty,
+              let issuedAtStr = lic["issuedAt"] as? String, !issuedAtStr.isEmpty,
+              let issuedDate = GLDateParser.parse(issuedAtStr) else {
+            throw RedeemError.serverError(code: "INVALID_RESPONSE", message: "Campos requeridos de la licencia inválidos o faltantes")
+        }
+
         let expiresAtStr = lic["expiresAt"] as? String
+        let expiresDate: Date? = {
+            guard let str = expiresAtStr, !str.isEmpty else { return nil }
+            return GLDateParser.parse(str)
+        }()
+
         let redemptionID = (lic["redemptionId"] as? String) ?? ""
         let transferredFrom = lic["transferredFrom"] as? String
         let secondaries = (lic["secundarias"] as? Int) ?? 0
@@ -162,45 +210,231 @@ final class RedeemClient {
             devicePublicKey: devicePublicKey
         )
 
-        let issuedDate = ISO8601DateFormatter().date(from: issuedAtStr) ?? now
-        let signingKeys = TrustDirectory.effectiveDirectory?.signKeys(at: issuedDate) ?? GLTrust.signingPublicKeys
+        // Verificar firma contra claves de uso 'canje' del directorio
+        let kid = (licenseObj["kid"] as? String) ?? "gl-redeem-v1"
+        let redeemKey = TrustDirectory.effectiveDirectory?.redeemKey(kid: kid)
+            ?? TrustDirectory.effectiveDirectory?.canjeKeys().first
+
+        guard let redeemKey else {
+            throw RedeemError.serverError(code: "UNKNOWN_KID", message: "Clave pública del servicio no autorizada para kid: \(kid)")
+        }
 
         guard let ecdsaSignature = try? P256.Signing.ECDSASignature(derRepresentation: sigDER),
-              signingKeys.contains(where: { $0.isValidSignature(ecdsaSignature, for: signingBytes) }) else {
+              redeemKey.isValidSignature(ecdsaSignature, for: signingBytes) else {
             throw RedeemError.invalidSignature
         }
 
-        // Instalar o absorber licencia
-        let expiresDate = expiresAtStr.flatMap { ISO8601DateFormatter().date(from: $0) }
-        let licType: GLLicenseType = typeStr == "PERPETUA" ? .perpetual : (typeStr == "ANUAL" ? .annual : .monthly)
+        let licType: GLLicenseType
+        switch typeStr {
+        case "PERPETUA": licType = .perpetual
+        case "ANUAL": licType = .annual
+        case "MENSUAL": licType = .monthly
+        default:
+            throw RedeemError.serverError(code: "INVALID_TYPE", message: "Tipo de licencia no admitido: \(typeStr)")
+        }
 
-        // S3: Renovación dominada
-        if let currentID = manager.vault.licenseID, manager.vault.revokedAt == nil {
-            if manager.vault.type == .perpetual {
-                return .absorbed(message: "Tu licencia ya cubría este periodo de forma perpetua. La nueva clave ha sido registrada como absorbida.")
-            }
-            if let currentExpires = manager.vault.expiresAt, let newExpires = expiresDate, newExpires <= currentExpires {
-                let dateStr = ISO8601DateFormatter().string(from: currentExpires)
-                return .absorbed(message: "Tu licencia ya cubría este periodo hasta \(dateStr). La nueva clave ha sido registrada como absorbida.")
+        let envelopeData = try JSONSerialization.data(withJSONObject: licenseObj, options: [.sortedKeys])
+        let envelopeString = String(data: envelopeData, encoding: .utf8) ?? ""
+
+        return try manager.installDirectLicense(
+            licenseID: licenseID,
+            type: licType,
+            issuedAt: issuedDate,
+            expiresAt: expiresDate,
+            secondaries: secondaries,
+            envelope: envelopeString,
+            now: now
+        )
+    }
+
+    func status(identity: GLIdentity, manager: GLLicenseManager, licenseIDManual: String? = nil, now: Date = Date()) async throws -> GLActivationResult {
+        guard canCheckStatus, let url = endpointStatus else {
+            throw RedeemError.disabled
+        }
+
+        guard let targetLicenseID = licenseIDManual ?? manager.savedLicenseID ?? manager.renewableLicenseID else {
+            throw RedeemError.serverError(code: "SIN_LICENCIA", message: "No hay una licencia guardada que consultar.")
+        }
+
+        let requestID = UUID().uuidString
+        var requestedAt = GLDateParser.formatUTC(now)
+        var nonce = (0..<16).map { _ in UInt8.random(in: 0...255) }
+        var nonceB64 = Data(nonce).base64EncodedString()
+        let deviceKeyB64 = identity.signingPublicKeyDER.base64EncodedString()
+
+        var proofBytes = RedeemContract.statusProofBytes(
+            appID: appID,
+            licenseID: targetLicenseID,
+            deviceKeyBase64: deviceKeyB64,
+            requestID: requestID,
+            requestedAt: requestedAt,
+            nonceBase64: nonceB64
+        )
+        var signature = try identity.signingKey.signature(for: proofBytes).derRepresentation.base64EncodedString()
+
+        var payload: [String: Any] = [
+            "v": 1,
+            "appId": appID,
+            "licenseId": targetLicenseID,
+            "deviceKey": deviceKeyB64,
+            "requestId": requestID,
+            "requestedAt": requestedAt,
+            "nonce": nonceB64,
+            "proof": signature
+        ]
+
+        var (data, statusCode) = try await sendPost(url: url, payload: payload)
+
+        // Reintento automático ante CLOCK_SKEW
+        if statusCode == 400 {
+            if let serverTime = parseServerTime(from: data) ?? (await fetchTime(from: url)) {
+                manager.recoverClock(serverTime: serverTime)
+                requestedAt = GLDateParser.formatUTC(serverTime)
+                nonce = (0..<16).map { _ in UInt8.random(in: 0...255) }
+                nonceB64 = Data(nonce).base64EncodedString()
+
+                proofBytes = RedeemContract.statusProofBytes(
+                    appID: appID,
+                    licenseID: targetLicenseID,
+                    deviceKeyBase64: deviceKeyB64,
+                    requestID: requestID,
+                    requestedAt: requestedAt,
+                    nonceBase64: nonceB64
+                )
+                signature = try identity.signingKey.signature(for: proofBytes).derRepresentation.base64EncodedString()
+
+                payload = [
+                    "v": 1,
+                    "appId": appID,
+                    "licenseId": targetLicenseID,
+                    "deviceKey": deviceKeyB64,
+                    "requestId": requestID,
+                    "requestedAt": requestedAt,
+                    "nonce": nonceB64,
+                    "proof": signature
+                ]
+
+                let retryResult = try await sendPost(url: url, payload: payload)
+                data = retryResult.0
+                statusCode = retryResult.1
+            } else {
+                throw RedeemError.clockSkew(now)
             }
         }
 
-        manager.vault.licenseID = licenseID
-        manager.vault.type = licType
-        manager.vault.issuedAt = issuedDate
-        manager.vault.expiresAt = expiresDate
-        manager.vault.secondaries = secondaries
-        manager.vault.revokedAt = nil
-        manager.vault.migratedAt = nil
-        manager.vault.lastSeen = max(manager.vault.lastSeen ?? now, now)
-        try? GLVaultStore.save(manager.vault)
-
-        if licType == .perpetual {
-            manager.state = .perpetual(id: licenseID, secondaries: secondaries)
-        } else if let expiresDate {
-            let days = max(0, Int(expiresDate.timeIntervalSince(now) / 86400))
-            manager.state = .active(id: licenseID, daysLeft: days, type: licType, secondaries: secondaries)
+        guard statusCode == 200 else {
+            if let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+               let err = json["error"] as? [String: Any] {
+                let code = (err["code"] as? String) ?? "HTTP_\(statusCode)"
+                let msg = (err["message"] as? String) ?? "Error al consultar estado"
+                throw RedeemError.serverError(code: code, message: msg)
+            }
+            throw RedeemError.serverError(code: "HTTP_\(statusCode)", message: "Error \(statusCode)")
         }
+
+        guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let statusObj = json["status"] as? [String: Any],
+              let st = statusObj["status"] as? [String: Any],
+              let sigB64 = statusObj["sig"] as? String,
+              let sigDER = Data(base64Encoded: sigB64) else {
+            throw RedeemError.serverError(code: "INVALID_RESPONSE", message: "Respuesta ilegible")
+        }
+
+        let thumbprint = (st["deviceThumbprint"] as? String) ?? ""
+        let expectedThumbprint = RedeemContract.deviceThumbprint(identity.signingPublicKeyDER)
+        guard thumbprint == expectedThumbprint else {
+            throw RedeemError.wrongDevice
+        }
+
+        let stApp = (st["appId"] as? String) ?? ""
+        guard stApp == appID else {
+            throw RedeemError.wrongApp
+        }
+
+        let v = (st["v"] as? Int) ?? 1
+        let licenseID = (st["licenseId"] as? String) ?? ""
+        let typeStr = (st["type"] as? String) ?? ""
+        let statusStr = (st["status"] as? String) ?? ""
+        let issuedAtStr = (st["issuedAt"] as? String) ?? ""
+        let expiresAtStr = st["expiresAt"] as? String
+        let redemptionID = (st["redemptionId"] as? String) ?? ""
+        let transferredFrom = st["transferredFrom"] as? String
+        let secondaries = (st["secundarias"] as? Int) ?? 0
+        let devicePublicKey = st["devicePublicKey"] as? String
+        let checkedAtStr = (st["checkedAt"] as? String) ?? requestedAt
+
+        let signingBytes = RedeemContract.statusSigningBytes(
+            v: v,
+            licenseID: licenseID,
+            appID: stApp,
+            type: typeStr,
+            status: statusStr,
+            issuedAt: issuedAtStr,
+            expiresAt: expiresAtStr,
+            deviceThumbprint: thumbprint,
+            redemptionID: redemptionID,
+            transferredFrom: transferredFrom,
+            secondaries: secondaries,
+            devicePublicKey: devicePublicKey,
+            checkedAt: checkedAtStr
+        )
+
+        let kid = (statusObj["kid"] as? String) ?? "gl-redeem-v1"
+        let redeemKey = TrustDirectory.effectiveDirectory?.redeemKey(kid: kid)
+            ?? TrustDirectory.effectiveDirectory?.canjeKeys().first
+
+        guard let redeemKey else {
+            throw RedeemError.serverError(code: "UNKNOWN_KID", message: "Clave pública del servicio no autorizada para kid: \(kid)")
+        }
+
+        guard let ecdsaSignature = try? P256.Signing.ECDSASignature(derRepresentation: sigDER),
+              redeemKey.isValidSignature(ecdsaSignature, for: signingBytes) else {
+            throw RedeemError.invalidSignature
+        }
+
+        if statusStr == "REVOCADA" {
+            try manager.markRevoked(now: now)
+        }
+
         return .accepted
+    }
+
+    private func sendPost(url: URL, payload: [String: Any]) async throws -> (Data, Int) {
+        var request = URLRequest(url: url, timeoutInterval: 10.0)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw RedeemError.network(error.localizedDescription)
+        }
+
+        let http = response as? HTTPURLResponse
+        let statusCode = http?.statusCode ?? 500
+        return (data, statusCode)
+    }
+
+    private func parseServerTime(from data: Data) -> Date? {
+        guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        let err = json["error"] as? [String: Any]
+        guard let stRaw = (err?["serverTime"] as? String) ?? (json["serverTime"] as? String) else { return nil }
+        return GLDateParser.parse(stRaw)
+    }
+
+    func fetchTime(from serviceURL: URL) async -> Date? {
+        let base = serviceURL.deletingLastPathComponent().deletingLastPathComponent()
+        let timeURL = base.appendingPathComponent("v1").appendingPathComponent("time")
+        var request = URLRequest(url: timeURL, timeoutInterval: 5.0)
+        request.httpMethod = "GET"
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse, http.statusCode == 200,
+              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let nowStr = json["now"] as? String else {
+            return nil
+        }
+        return GLDateParser.parse(nowStr)
     }
 }

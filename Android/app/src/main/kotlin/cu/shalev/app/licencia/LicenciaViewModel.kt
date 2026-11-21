@@ -201,6 +201,52 @@ class LicenciaViewModel @Inject constructor(
             eventos.send(LicenciaEvento.Mensaje(mensajeActivacion(r)))
         }
     }
+
+    fun canjearCodigo() {
+        if (_state.value.ocupado) return
+        val codigo = _state.value.form.codigoCanje.trim()
+        if (codigo.isBlank()) return
+        _state.update { it.copy(ocupado = true) }
+        viewModelScope.launch {
+            val r = licenciaRepo.canjearCodigo(codigo)
+            _state.update { it.copy(ocupado = false, form = it.form.copy(codigoCanje = "")) }
+            val mensaje = when (r) {
+                is cu.shalev.licencia.redeem.RedeemResult.Success -> "Licencia canjeada y activada"
+                is cu.shalev.licencia.redeem.RedeemResult.Absorbed -> r.mensaje
+                is cu.shalev.licencia.redeem.RedeemResult.ClockSkew -> "El reloj del dispositivo no coincide con el servidor de canje"
+                is cu.shalev.licencia.redeem.RedeemResult.Error -> when (r.code) {
+                    "ACTIVACION_DESHABILITADA" -> "El canje comercial directo no está habilitado para esta edición."
+                    "NETWORK" -> "No hay conexión con el servicio de licencias."
+                    "CLOCK_SKEW" -> "El reloj del dispositivo no se pudo verificar con el servidor."
+                    "INVALID_CODE" -> "El código no tiene 16 caracteres alfanuméricos válidos."
+                    else -> "No se pudo canjear la licencia."
+                }
+            }
+            eventos.send(LicenciaEvento.Mensaje(mensaje))
+        }
+    }
+
+    fun consultarEstado() {
+        if (_state.value.ocupado) return
+        _state.update { it.copy(ocupado = true) }
+        viewModelScope.launch {
+            val r = licenciaRepo.consultarEstadoRemoto()
+            _state.update { it.copy(ocupado = false) }
+            val mensaje = when (r) {
+                is cu.shalev.licencia.redeem.RedeemResult.Success -> "Estado comprobado con el servicio"
+                is cu.shalev.licencia.redeem.RedeemResult.Absorbed -> r.mensaje
+                is cu.shalev.licencia.redeem.RedeemResult.ClockSkew -> "El reloj del dispositivo no coincide con el servidor de canje"
+                is cu.shalev.licencia.redeem.RedeemResult.Error -> when (r.code) {
+                    "ACTIVACION_DESHABILITADA" -> "La consulta de estado no está habilitada para esta edición."
+                    "NETWORK" -> "Sin conexión para consultar el estado."
+                    "CLOCK_SKEW" -> "Reloj no verificable con el servidor."
+                    "SIN_LICENCIA" -> "No hay una licencia guardada que consultar."
+                    else -> "No se pudo consultar el estado de la licencia."
+                }
+            }
+            eventos.send(LicenciaEvento.Mensaje(mensaje))
+        }
+    }
 }
 
 /** 0.25.0 (§3): textos de la recuperación automática de la licencia. */

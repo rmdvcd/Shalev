@@ -177,6 +177,57 @@ def test_configuracion_desde_directorio_con_canje():
     assert conf.kid_autorizado("gl-sign-v1") == spki
 
 
+def test_configuracion_desde_directorio_prioriza_claves_canje_y_dshalev():
+    from dshalev.licencia.directorio import ClaveDirectorio, DirectorioConfianza
+    from dshalev.licencia.config_licencia import configuracion_desde_directorio, BASE_PUBLICA_AUTORIZADA
+
+    clave_canje = ec.generate_private_key(ec.SECP256R1())
+    spki_canje = clave_canje.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    clave_firma = ec.generate_private_key(ec.SECP256R1())
+    spki_firma = clave_firma.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+    c_canje = ClaveDirectorio(
+        kid="gl-redeem-v1",
+        uso="canje",
+        spki_b64=base64.b64encode(spki_canje).decode(),
+        spki_der=spki_canje,
+        huella="sha256:1111:...",
+        desde=1700000000,
+        hasta=None,
+        estado="vigente",
+    )
+    c_firma = ClaveDirectorio(
+        kid="gl-sign-v2",
+        uso="firma",
+        spki_b64=base64.b64encode(spki_firma).decode(),
+        spki_der=spki_firma,
+        huella="sha256:2222:...",
+        desde=1700000000,
+        hasta=None,
+        estado="vigente",
+    )
+    directorio = DirectorioConfianza(
+        v=1,
+        seq=1,
+        emitida_en=1776470400,
+        claves=[c_canje, c_firma],
+        endpoint_base="",
+        app_ids={"DSHALEV": "DSHALEV"},
+    )
+
+    conf = configuracion_desde_directorio(directorio)
+    assert conf.comercial_habilitada is True
+    assert conf.app_id == "DSHALEV"
+    assert conf.endpoint_redeem == f"{BASE_PUBLICA_AUTORIZADA}/v1/redeem"
+    assert conf.endpoint_estado == f"{BASE_PUBLICA_AUTORIZADA}/v1/status"
+    assert conf.kid_autorizado("gl-redeem-v1") == spki_canje
+    assert conf.kid_autorizado("gl-sign-v2") is None
+
+
 def test_configuracion_desde_directorio_sin_endpoint_falla_cerrado():
     from dshalev.licencia.directorio import ClaveDirectorio, DirectorioConfianza
     from dshalev.licencia.config_licencia import configuracion_desde_directorio

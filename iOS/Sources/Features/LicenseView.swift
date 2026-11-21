@@ -34,6 +34,7 @@ struct LicenseView: View {
     @State private var channel: GLRequestChannel = .whatsapp
     @State private var recoveryID = ""
     @State private var activationText = ""
+    @State private var redeemCode = ""
     @State private var editingData = false
     @State private var showErrors = false
     @State private var requestMessage: String?
@@ -361,7 +362,11 @@ struct LicenseView: View {
         switch step {
         case .data: dataCard
         case .request: requestCard
-        case .activate: activationCard
+        case .activate:
+            VStack(spacing: 16) {
+                redeemCard
+                activationCard
+            }
         }
     }
 
@@ -620,6 +625,51 @@ struct LicenseView: View {
 
     // MARK: - Paso 3 · activación
 
+    private var redeemCard: some View {
+        ShalevCard {
+            VStack(alignment: .leading, spacing: 11) {
+                ShalevSectionHeader(title: license.installedType != nil ? "Renovar con código" : "Tengo un código")
+                Text("Escribe o pega tu código comercial de 16 caracteres.")
+                    .font(.shalev(12))
+                    .foregroundStyle(Color.shalevSecondaryText)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                TextField("XXXX-XXXX-XXXX-XXXX", text: $redeemCode)
+                    .font(.shalev(14, design: .monospaced))
+                    .padding(12)
+                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.shalevOutlineVariant, lineWidth: 1))
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                HStack(spacing: 9) {
+                    Button {
+                        redeemCode = UIPasteboard.general.string ?? ""
+                    } label: {
+                        Label("Pegar", systemImage: "doc.on.clipboard")
+                    }
+                    .buttonStyle(ShalevTonalButtonStyle())
+                    Button {
+                        Task { await redeem() }
+                    } label: {
+                        Label(isBusy ? "Canjeando…" : "Canjear", systemImage: "checkmark.seal.fill")
+                    }
+                    .buttonStyle(ShalevPrimaryButtonStyle())
+                    .disabled(isBusy || redeemCode.isBlank)
+                }
+                if license.installedType != nil {
+                    Button {
+                        Task { await checkStatus() }
+                    } label: {
+                        Label(isBusy ? "Consultando…" : "Consultar estado", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(ShalevTonalButtonStyle())
+                    .disabled(isBusy)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+    }
+
     private var activationCard: some View {
         ShalevCard {
             VStack(alignment: .leading, spacing: 11) {
@@ -832,6 +882,80 @@ struct LicenseView: View {
         case .notFound: alertMessage = "No se encontró una licencia en el texto pegado"
         case .rejected: alertMessage = "La licencia no es válida para este dispositivo"
         case .outdated: alertMessage = "Ya tienes instalada una licencia más reciente"
+        case .absorbed(let msg): alertMessage = msg
+        }
+    }
+
+    private func redeem() async {
+        guard !redeemCode.isBlank else { return }
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            let identity = try GLIdentity.deviceIdentity()
+            let client = RedeemClient(
+                appID: RedeemContract.defaultAppID,
+                endpointRedeem: nil,
+                endpointStatus: nil
+            )
+            let result = try await client.redeem(code: redeemCode, identity: identity, manager: license)
+            redeemCode = ""
+            await license.refresh()
+            switch result {
+            case .accepted:
+                alertMessage = "Licencia canjeada y activada con éxito."
+            case .absorbed(let msg):
+                alertMessage = msg
+            case .outdated:
+                alertMessage = "Ya tienes instalada una licencia más reciente."
+            case .rejected:
+                alertMessage = "No se pudo activar la licencia."
+            case .notFound:
+                alertMessage = "No se encontró una licencia válida para este código."
+            }
+        } catch let err as RedeemError {
+            switch err {
+            case .disabled:
+                alertMessage = "El canje comercial directo no está habilitado para esta edición."
+            case .network:
+                alertMessage = "Sin conexión con el servicio de licencias."
+            case .clockSkew:
+                alertMessage = "El reloj del dispositivo no se pudo verificar con el servidor."
+            case .invalidCode:
+                alertMessage = "El código debe tener 16 caracteres alfanuméricos válidos."
+            default:
+                alertMessage = err.localizedDescription
+            }
+        } catch {
+            alertMessage = "No se pudo canjear la licencia."
+        }
+    }
+
+    private func checkStatus() async {
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            let identity = try GLIdentity.deviceIdentity()
+            let client = RedeemClient(
+                appID: RedeemContract.defaultAppID,
+                endpointRedeem: nil,
+                endpointStatus: nil
+            )
+            _ = try await client.status(identity: identity, manager: license)
+            await license.refresh()
+            alertMessage = "Estado comprobado con el servicio."
+        } catch let err as RedeemError {
+            switch err {
+            case .disabled:
+                alertMessage = "La consulta de estado no está habilitada para esta edición."
+            case .network:
+                alertMessage = "Sin conexión para consultar el estado."
+            case .clockSkew:
+                alertMessage = "Reloj no verificable con el servidor."
+            default:
+                alertMessage = err.localizedDescription
+            }
+        } catch {
+            alertMessage = "No se pudo consultar el estado."
         }
     }
 }

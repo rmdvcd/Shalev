@@ -78,18 +78,22 @@ class LicenciaRepositoryImpl @Inject constructor(
         ).also { manager = it }
     }
 
+    private suspend fun refrescarLocked(): Licencia {
+        val m = managerLocked()
+        val ev = m.evaluate()
+        return Licencia(
+            estado = ev.state,
+            deviceId = m.deviceId,
+            puedeSolicitar = m.canRequest,
+            huellaEmisor = huellaEmisor,
+            instalada = ev.license,
+            validacionDisponible = LicenseTrust.canValidate,
+        ).also { _snapshot.value = it }
+    }
+
     override suspend fun refrescar(): Licencia = withContext(io) {
         mutex.withLock {
-            val m = managerLocked()
-            val ev = m.evaluate()
-            Licencia(
-                estado = ev.state,
-                deviceId = m.deviceId,
-                puedeSolicitar = m.canRequest,
-                huellaEmisor = huellaEmisor,
-                instalada = ev.license,
-                validacionDisponible = LicenseTrust.canValidate,
-            ).also { _snapshot.value = it }
+            refrescarLocked()
         }
     }
 
@@ -140,4 +144,51 @@ class LicenciaRepositoryImpl @Inject constructor(
     override suspend fun aplicarRevocaciones(texto: String): Boolean = withContext(io) {
         mutex.withLock { runCatchingCancelable { managerLocked().aplicarRevocaciones(texto) }.getOrDefault(false) }
     } // sin refrescar: quien llama borra los datos y después llama a refrescar (como al revocar la licencia)
+
+    private var redeemClient: cu.shalev.licencia.redeem.RedeemClient? = null
+
+    private suspend fun redeemClientLocked(): cu.shalev.licencia.redeem.RedeemClient {
+        redeemClient?.let { return it }
+        val m = managerLocked()
+        return cu.shalev.licencia.redeem.RedeemClient(
+            deviceKey = deviceKey,
+            licenseManager = m,
+            clock = clock,
+            appId = cu.shalev.licencia.redeem.RedeemContract.DEFAULT_APP_ID,
+            endpointRedeem = "", // Deshabilitado en producción según ENCARGO_ARENA_SHALEV
+            endpointStatus = "",
+        ).also { redeemClient = it }
+    }
+
+    override suspend fun canjearCodigo(codigo: String): cu.shalev.licencia.redeem.RedeemResult = withContext(io) {
+        mutex.withLock {
+            val client = redeemClientLocked()
+            if (!client.canRedeem) {
+                return@withLock cu.shalev.licencia.redeem.RedeemResult.Error(
+                    "ACTIVACION_DESHABILITADA",
+                    "El canje comercial directo no está habilitado para esta edición.",
+                )
+            }
+            val res = client.canjear(codigo)
+            if (res is cu.shalev.licencia.redeem.RedeemResult.Success || res is cu.shalev.licencia.redeem.RedeemResult.Absorbed) {
+                refrescarLocked()
+            }
+            res
+        }
+    }
+
+    override suspend fun consultarEstadoRemoto(): cu.shalev.licencia.redeem.RedeemResult = withContext(io) {
+        mutex.withLock {
+            val client = redeemClientLocked()
+            if (!client.canCheckStatus) {
+                return@withLock cu.shalev.licencia.redeem.RedeemResult.Error(
+                    "ACTIVACION_DESHABILITADA",
+                    "La consulta de estado no está habilitada para esta edición.",
+                )
+            }
+            val res = client.consultarEstado()
+            refrescarLocked()
+            res
+        }
+    }
 }

@@ -80,6 +80,11 @@ enum TrustDirectory {
             return try? P256.Signing.PublicKey(derRepresentation: key.spkiDER)
         }
 
+        func canjeKeys() -> [P256.Signing.PublicKey] {
+            keys.filter { $0.usage == "canje" && $0.isActive }
+                .compactMap { try? P256.Signing.PublicKey(derRepresentation: $0.spkiDER) }
+        }
+
         func isCompromised(der: Data) -> Bool {
             keys.contains(where: { $0.spkiDER == der && $0.status == "comprometida" })
         }
@@ -123,6 +128,15 @@ enum TrustDirectory {
         case keyMismatch(String)
         case multipleActiveECDH
         case rollback(current: Int, next: Int)
+    }
+
+    static func parseAndVerify(_ data: Data, rootsDER: [Data]? = nil) throws -> Directory {
+        guard let text = String(data: data, encoding: .utf8) else { throw DirectoryError.invalidData }
+        return try parse(text: text, rootsDER: rootsDER)
+    }
+
+    static func parseAndVerify(_ text: String, rootsDER: [Data]? = nil) throws -> Directory {
+        return try parse(text: text, rootsDER: rootsDER)
     }
 
     static func parse(text: String, rootsDER: [Data]? = nil) throws -> Directory {
@@ -217,8 +231,9 @@ final class TrustDirectoryManager {
     func loadEffective(cache: URL? = nil) -> TrustDirectory.Directory? {
         let urlToUse = cache ?? cacheURL
         let bootstrap: TrustDirectory.Directory? = {
-            if let bundleURL = Bundle.main.url(forResource: "directorio-bootstrap", withExtension: "json"),
-               let data = try? Data(contentsOf: bundleURL) {
+            let bundleURL = Bundle.main.url(forResource: "directorio-bootstrap", withExtension: "json")
+                ?? Bundle(for: TrustDirectoryManager.self).url(forResource: "directorio-bootstrap", withExtension: "json")
+            if let bundleURL, let data = try? Data(contentsOf: bundleURL) {
                 return try? TrustDirectory.parseAndVerify(data)
             }
             return nil

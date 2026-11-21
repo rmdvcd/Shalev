@@ -227,3 +227,20 @@ Los cuatro campos son **opcionales**: una principal anterior no los manda y una 
 Reglas de rechazo (fail-closed, sin decirle al usuario qué falló): firma inválida, dispositivo distinto, ranura fuera de
 `1..permitidas`, cuota mayor que 10, vencido o campos del mensaje que contradicen al permiso firmado. Sin permiso, la
 secundaria acepta la licencia como antes (la principal es anterior).
+
+## 12. Canje comercial directo y consulta de estado (Worker GL v1)
+
+El protocolo de canje comercial permite activar una licencia introduciendo un código alfanumérico de 16 caracteres normalizado (`XXXX-XXXX-XXXX-XXXX`).
+
+### Endpoints del Worker (`v1`)
+- `POST /v1/redeem`: canje de código contra prueba de posesión de clave de dispositivo.
+- `POST /v1/status`: consulta de estado (`ACTIVA`, `VENCIDA`, `REVOCADA`, etc.) de licencia previamente canjeada.
+- `GET /v1/time`: sincronización de reloj en caso de desfase (`CLOCK_SKEW`).
+
+### Reglas de seguridad y verificación
+1. **Clave de canje (`uso: canje`):** la firma devuelta por el Worker sobre el sobre de licencia o estado se verifica únicamente contra claves con `uso == "canje"` y estado activo en el `TrustDirectory` (`gl-redeem-v1`). Nunca se usan claves de firma de licencias offline (`uso == "firma"`).
+2. **Reintento ante `CLOCK_SKEW`:** si el Worker devuelve `CLOCK_SKEW`, el cliente extrae `serverTime` (o consulta `/v1/time`), actualiza la marca de agua del reloj local (`lastSeen`) y reintenta exactamente una vez firmando con el nuevo `requestedAt` (ISO con milisegundos en UTC), un nuevo `nonce` y el **mismo** `requestId`.
+3. **Persistencia del sobre verificable:** se guarda únicamente el sobre firmado de origen `CANJE`, jamás el código comercial de 16 caracteres.
+4. **Independencia de activación offline:** la activación tradicional mediante `SPVI2:` se mantiene intacta e independiente.
+5. **Restricción de producción:** el Worker central mantiene `ALLOWED_APPS=DSHALEV` y `MAX_SECUNDARIAS=0`. Las ediciones de Android e iOS incluyen el cliente y cableado completo, pero mantienen el servicio deshabilitado por defecto indicando claramente que no está disponible aún para la edición móvil respectiva.
+

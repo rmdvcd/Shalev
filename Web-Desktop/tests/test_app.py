@@ -201,3 +201,47 @@ def test_el_panel_de_licencia_explica_que_la_activacion_esta_deshabilitada(tmp_p
     assert "Huella de la instalación" in page.text
     assert "identidad-huella" in page.text
     assert "MAX_SECUNDARIAS = 0" in page.text
+
+
+def test_post_canjear_exige_autenticacion_y_csrf(tmp_path):
+    import re
+    client = make_client(tmp_path)
+    # Sin login
+    resp = client.post("/licencia/canjear", data={"codigo_canje": "ABCD-EFGH-JKLM-NPQR", "csrf": "invalido"}, follow_redirects=False)
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/entrar"
+
+    # Con login pero CSRF inválido
+    create_admin(client)
+    login(client)
+    resp2 = client.post("/licencia/canjear", data={"codigo_canje": "ABCD-EFGH-JKLM-NPQR", "csrf": "invalido"}, follow_redirects=True)
+    assert resp2.status_code == 200
+    assert "Token de seguridad no válido" in resp2.text
+
+    # Con login y CSRF válido pero activación deshabilitada en build estándar
+    page = client.get("/licencia")
+    match = re.search(r'name="csrf"\s+value="([^"]+)"', page.text)
+    assert match is not None
+    csrf_val = match.group(1)
+    resp3 = client.post("/licencia/canjear", data={"codigo_canje": "ABCD-EFGH-JKLM-NPQR", "csrf": csrf_val}, follow_redirects=True)
+    assert resp3.status_code == 200
+    assert "deshabilitada" in resp3.text
+
+
+def test_post_estado_exige_autenticacion_y_csrf(tmp_path):
+    import re
+    client = make_client(tmp_path)
+    resp = client.post("/licencia/estado", data={"csrf": "invalido"}, follow_redirects=False)
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/entrar"
+
+    create_admin(client)
+    login(client)
+    page = client.get("/licencia")
+    match = re.search(r'name="csrf"\s+value="([^"]+)"', page.text)
+    assert match is not None
+    csrf_val = match.group(1)
+    resp2 = client.post("/licencia/estado", data={"csrf": csrf_val}, follow_redirects=True)
+    assert resp2.status_code == 200
+    assert "deshabilitada" in resp2.text
+

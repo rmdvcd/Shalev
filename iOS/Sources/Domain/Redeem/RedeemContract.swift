@@ -12,7 +12,7 @@ enum RedeemContract {
     static let domainLicense = "GL-REDEEM-LICENSE1"
     static let domainStatus = "GL-REDEEM-STATUS1"
 
-    static let defaultAppID = "MIPVENTAX-IOS"
+    static let defaultAppID = "SHALEV-IOS"
 
     static func normalizeCode(_ raw: String) -> String? {
         let clean = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -60,6 +60,27 @@ enum RedeemContract {
         ])
     }
 
+    static func statusProofBytes(
+        appID: String,
+        licenseID: String,
+        deviceKeyBase64: String,
+        requestID: String,
+        requestedAt: String,
+        nonceBase64: String,
+        v: Int = versionService
+    ) -> Data {
+        canonical([
+            domainStatusRequest,
+            String(v),
+            appID,
+            licenseID,
+            deviceKeyBase64,
+            requestID,
+            requestedAt,
+            nonceBase64
+        ])
+    }
+
     static func licenseSigningBytes(
         v: Int,
         licenseID: String,
@@ -88,6 +109,39 @@ enum RedeemContract {
             transferredFrom ?? "",
             String(secondaries),
             devicePublicKey ?? ""
+        ])
+    }
+
+    static func statusSigningBytes(
+        v: Int,
+        licenseID: String,
+        appID: String,
+        type: String,
+        status: String,
+        issuedAt: String,
+        expiresAt: String?,
+        deviceThumbprint: String,
+        redemptionID: String,
+        transferredFrom: String?,
+        secondaries: Int,
+        devicePublicKey: String?,
+        checkedAt: String
+    ) -> Data {
+        canonical([
+            domainStatus,
+            String(v),
+            licenseID,
+            appID,
+            type,
+            status,
+            issuedAt,
+            expiresAt ?? "",
+            deviceThumbprint,
+            redemptionID,
+            transferredFrom ?? "",
+            String(secondaries),
+            devicePublicKey ?? "",
+            checkedAt
         ])
     }
 }
