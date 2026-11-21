@@ -72,12 +72,20 @@ struct SyncLicense: Codable, Equatable {
             permitidas: row["permitidas"].map { AndroidBackupCodec.int($0) })
     }
 
-    /// Una principal antigua puede omitir el permiso; si lo envía, cualquier inconsistencia bloquea la secundaria.
+    /// Una principal antigua puede omitir el permiso; si lo envía, cualquier inconsistencia bloquea la secundaria (S2).
     func validated(deviceID: String, now: Date = Date()) -> SyncLicense {
         if clase == "BLOQUEADA" { return self }
         guard let subToken, !subToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return self }
         guard let firmaPub, !firmaPub.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let permission = SyncSubToken.verify(subToken, publicKeyBase64: firmaPub, deviceID: deviceID, now: now),
+              let permission = SyncSubToken.verify(
+                subToken,
+                publicKeyBase64: firmaPub,
+                deviceID: deviceID,
+                now: now,
+                isKeyCompromised: { spki in
+                    TrustDirectory.effectiveDirectory?.isKeyCompromised(spki) == true
+                }
+              ),
               ranura == nil || ranura == permission.slot,
               permitidas == nil || permitidas == permission.allowed else { return SyncLicense(clase: "BLOQUEADA") }
         var copy = self

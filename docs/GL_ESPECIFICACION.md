@@ -138,3 +138,12 @@ Primitivas (implementa exactamente así en tu lenguaje).
    verificar antes de descifrar; bytes del UUID tal cual; firmas por
    verificación, nunca por igualdad.
 ```
+
+---
+
+## Ampliación v1.1+: Directorio de Confianza y Canje Directo
+
+A partir de la versión 1.1 del ecosistema Shalev:
+1. **Directorio de Confianza v1 (`directorio.json`):** especificado en el Anexo A de `IMPLEMENTACION_SHALEV.md`. Las claves públicas de firma (`gl-sign-*`) y de intercambio (`gl-ecdh-*`) son distribuidas dinámicamente y autenticadas por pares raíz P-256 fijados (`Raíz A` y `Raíz B`). La app valida el sobre `{ datos: "...", firma: "r||s", raiz: "A" }` con anti-retroceso estricto sobre `seq` y ventana temporal `desde`/`hasta`.
+2. **Canje Directo v1:** especificado en el Anexo B de `IMPLEMENTACION_SHALEV.md`. Permite canjear códigos comerciales de 16 caracteres directamente contra el servicio HTTP/JSON canónico de GL, utilizando autenticación mutua por transcripción canónica (`REDEEM-REQ-v1`, `REDEEM-RESP-v1`) y firma ECDSA P-256 de la identidad del dispositivo. Convive de forma transparente con el protocolo offline `SPVI2:`.
+

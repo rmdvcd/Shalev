@@ -32,13 +32,17 @@ class VerificadorPermisoSecundaria @Inject constructor(
         // Sin permiso: principal anterior a la 0.31.0. Se acepta la licencia tal cual (misma confianza que antes).
         val token = licencia.subToken?.takeIf { it.isNotBlank() } ?: return licencia
         val firma = licencia.firmaPub?.takeIf { it.isNotBlank() } ?: return bloquear()
+        val firmaBytes = B64.dec(firma)
         val datos = runCatching {
             cu.shalev.licencia.secondary.SubToken.verificar(
                 token = token,
-                firmaSpki = B64.dec(firma),
+                firmaSpki = firmaBytes,
                 dispositivoEsperado = deviceIds.deviceId,
                 ahora = clock.now(),
                 cuotaMaxima = GlContract.SECUNDARIAS_MAX,
+                esClaveComprometida = { spki ->
+                    cu.shalev.licencia.TrustDirectory.effectiveDirectory?.isKeyCompromised(spki) == true
+                },
             )
         }.getOrNull() ?: return bloquear()
         // Los campos sin firma, si vienen, no pueden contradecir al permiso.

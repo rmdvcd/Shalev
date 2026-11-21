@@ -108,4 +108,22 @@ class SubTokenTest {
             assertNull(SubToken.verificar(texto, firmante.publicSpki(), secundaria, t0, cuotaMaxima = 10))
         }
     }
+
+    @Test fun claveComprometidaORevocadaSeRechaza() {
+        val token = emitir(ranura = 1, permitidas = 3)
+        // Clave comprometida en directorio
+        assertNull(
+            SubToken.verificar(
+                token, firmante.publicSpki(), secundaria, t0, cuotaMaxima = 3,
+                esClaveComprometida = { true },
+            )
+        )
+        // Licencia revocada
+        assertNull(
+            SubToken.verificar(
+                token, firmante.publicSpki(), secundaria, t0, cuotaMaxima = 3,
+                esRevocada = { it == licenciaId },
+            )
+        )
+    }
 }

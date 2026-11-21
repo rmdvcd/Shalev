@@ -140,3 +140,55 @@ def test_el_codigo_no_contiene_claves_privadas_ni_endpoints_de_prueba():
     assert config_licencia.ENDPOINT_ESTADO == ""
     assert dict(config_licencia.KIDS_FIRMA) == {}
     assert config_licencia.POLITICA_IDENTIDAD == "instalacion"
+
+
+def test_configuracion_desde_directorio_con_canje():
+    from dshalev.licencia.directorio import ClaveDirectorio, DirectorioConfianza
+    from dshalev.licencia.config_licencia import configuracion_desde_directorio
+
+    clave = ec.generate_private_key(ec.SECP256R1())
+    spki = clave.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    c = ClaveDirectorio(
+        kid="gl-sign-v1",
+        uso="firma",
+        spki_b64=base64.b64encode(spki).decode(),
+        spki_der=spki,
+        huella="sha256:0000:...",
+        desde=1700000000,
+        hasta=None,
+        estado="vigente",
+    )
+    directorio = DirectorioConfianza(
+        v=1,
+        seq=1,
+        emitida_en=1776470400,
+        claves=[c],
+        endpoint_base="https://worker-licencias.shalev.cu",
+        app_ids={"MIPVENTAX-DESKTOP": "MIPVENTAX-DESKTOP"},
+    )
+
+    conf = configuracion_desde_directorio(directorio)
+    assert conf.comercial_habilitada is True
+    assert conf.app_id == "MIPVENTAX-DESKTOP"
+    assert conf.endpoint_redeem == "https://worker-licencias.shalev.cu/v1/redeem"
+    assert conf.endpoint_estado == "https://worker-licencias.shalev.cu/v1/status"
+    assert conf.kid_autorizado("gl-sign-v1") == spki
+
+
+def test_configuracion_desde_directorio_sin_endpoint_falla_cerrado():
+    from dshalev.licencia.directorio import ClaveDirectorio, DirectorioConfianza
+    from dshalev.licencia.config_licencia import configuracion_desde_directorio
+
+    directorio_sin_endpoint = DirectorioConfianza(
+        v=1,
+        seq=1,
+        emitida_en=1776470400,
+        claves=[],
+        endpoint_base="",
+    )
+    conf = configuracion_desde_directorio(directorio_sin_endpoint)
+    assert conf.comercial_habilitada is False
+    assert "Falta" in conf.motivo_deshabilitada()
+

@@ -22,8 +22,15 @@ En las ventas móviles, la acción de agregar artículos permanece en la barra i
 | Paquete | `cu.shalev.app` (debug: `cu.shalev.app.debug`) |
 | minSdk / targetSdk / compileSdk | 26 / 35 / 35 |
 | Base de datos | Room **v21**, migración 20→21 para el estado temporal de solicitudes de importación, cifrada con SQLCipher (contenido `RespaldoDto` v5, importa v3–v5; contenedor `.shalev` v4, lee v3/v4) |
-| Contrato de licencias | GL v1 (`ECIES-P256-AES256GCM-v1`) |
+| Contrato de licencias | GL v1 (`ECIES-P256-AES256GCM-v1`), Directorio de Confianza v1 (`directorio.json`) y Canje GL v1 |
 | Permisos | Solo `CAMERA`, `INTERNET` y `POST_NOTIFICATIONS` (aviso «Turno abierto», Android 13+), más `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_CONNECTED_DEVICE` y `CHANGE_NETWORK_STATE` (servicio de la app principal con secundarias, 0.19.2), `REQUEST_INSTALL_PACKAGES` / `REQUEST_DELETE_PACKAGES` (actualizaciones y licencia transferida, 0.25.0) y `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` (hasta Android 12) / `WRITE_EXTERNAL_STORAGE` (hasta Android 9) para el registro de la prueba (0.26.0), y `USE_BIOMETRIC` / `USE_FINGERPRINT` (acceso con clave opcional, 0.27.0; permisos normales que añade `androidx.biometric`). La captura SMS opcional requiere habilitar manualmente el Acceso especial a notificaciones; no solicita `READ_SMS`. |
+
+**Directorio de confianza y canje GL v1 (Android, iOS, DShalev):**
+
+- Las tres plataformas integran el **Directorio de Confianza v1** (`directorio.json`), autenticado criptográficamente por claves raíz P-256 (A y B) con regla estricta de anti-retroceso (`seq`). Sustituye el anclaje manual estático de claves públicas para soportar rotaciones del emisor sin recompilar las aplicaciones.
+- Se implementa el **cliente de canje directo** contra el protocolo GL v1 con transcripciones canónicas big-endian autenticadas en Android, iOS y DShalev, conviviendo con el formato `SPVI2:` legado.
+- Manejo de **desincronización de reloj** (`CLOCK_SKEW` / S4) permitiendo recuperar el estado `ClockTampered` cuando el reloj del equipo se ajusta con el servidor, y regla de **renovación dominada** (`Absorbed` / S3) que preserva la licencia de mayor cobertura cuando una nueva no extiende el vencimiento.
+- En apps secundarias, los sub-tokens comprueban activamente el estado de revocación y claves comprometidas en el directorio de confianza (S2).
 
 **Conversión de roles e importación autorizada (integración de esta rama; no publicada ni validada en dispositivos):**
 

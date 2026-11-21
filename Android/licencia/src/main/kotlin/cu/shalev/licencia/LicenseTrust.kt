@@ -3,36 +3,22 @@ package cu.shalev.licencia
 import cu.shalev.licencia.crypto.EcP256
 
 /**
- * Anclas de confianza de GL, FIJADAS EN EL BUILD (decisión D3, enmienda D3.1).
- * No son secretas; SÍ son críticas: la de firma es la única que puede validar licencias.
- *  - SIGN_KEYS: obligatorias. NUNCA se leen de la configuración ni de archivos importables.
- *  - ECDH_KEY: también fijada (Prompt 17: se eliminó la pantalla «Clave del emisor»). Sin ella no se pueden
- *    cifrar solicitudes y el panel de Licencia avisa de que hace falta una versión actualizada.
+ * Anclas de confianza de GL fijadas en el build y puente hacia el Directorio de Confianza v1.
  *
- * Origen: pestaña "Claves" de GL → «Copiar ambas claves» (contrato v1, kid gl-sign-v1).
- *  - Vigentes del emisor (GL 1.2.0, paquete dev.gl.license, teléfono 4bc9f8f3; leídas de su
- *    pantalla Claves el 2026-10-22 y huellas recalculadas desde el Base64): ECDH
- *    sha256:fb3a:…:078d y firma sha256:113f:…:4b1c. Son las que abren las solicitudes y firman
- *    las licencias hoy.
- *  - Las firmas de instalaciones anteriores (58d4… del bundle del 05/10/2026, e693… y d9c4…
- *    del 15/10/2026, 8a91… del 30/09/2026) se conservan para verificar licencias ya emitidas.
- *    Ninguna de ellas sirve para cifrar solicitudes: para eso solo vale [ECDH_KEY].
- * La huella se pega TAL CUAL la copia GL; también se admite hex plano. LicenseTrustTest
- * comprueba que las claves parsean como P-256 y que cada huella coincide.
- *
- * ATENCIÓN: GL genera el par en el Keystore de SU teléfono. Si se borran los datos de GL (`pm clear`), se
- * reinstala o se cambia de teléfono, sale otro par y hay que publicar un build nuevo:
- *  - Firma: AÑADIR la clave nueva a [SIGN_KEYS] SIN borrar la antigua, para que las licencias ya emitidas
- *    sigan verificando.
- *  - ECDH: SUSTITUIR [ECDH_KEY] (las solicitudes nuevas deben poder abrirse con el par nuevo).
- * Ambas cambian a la vez, así que fijar también la ECDH no añade builds extra.
+ * En la arquitectura v1 (IMPLEMENTACION_SHALEV.md):
+ *  - [TrustDirectory] gestiona las claves dinámicas (ECDH, firmas y canje) autenticadas por las raíces del build.
+ *  - [LicenseTrust] actúa como envoltorio compatible: si existe un directorio efectivo cargado,
+ *    consulta sus claves; de lo contrario, recurre a las claves ancladas del build.
+ *  - Claves ancladas vigentes: ECDH sha256:0289:... y firma sha256:d252:...
+ *    Las firmas de rotaciones anteriores (113f..., 58d4..., e693..., d9c4..., 8a91...) se conservan
+ *    para seguir verificando licencias ya emitidas.
  */
 object LicenseTrust {
 
     data class PinnedKey(val spkiB64: String, val sha256: String)
 
     // ECDH vigente del emisor GL (sustituida con la instalación actual).
-    // Es la única con la que se cifran las solicitudes: si GL cambia de par, hay que sustituirla.
+    // Es la única con la que se cifran las solicitudes si no hay un directorio efectivo.
     val ECDH_KEY = PinnedKey(
         spkiB64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELQaSJKdqp6b/uqGc+0juRctWGdb9mHQZj2CZRHsrKNsux9UhBbTHirLhF7q6KupNGc9PwwiqNAVcpAT7MR2EvA==",
         sha256 = "sha256:0289:7025:2266:8423:1613:2ccd:18a7:3ecd:e0ec:878f:767f:e9a4:916b:d356:6771:a2e0",
@@ -67,10 +53,14 @@ object LicenseTrust {
         ),
     )
 
-    /** DER validado o null si falta o no coincide con la huella. */
-    fun ecdhSpki(): ByteArray? = ECDH_KEY.validated()
+    /** DER validado o null si falta o no coincide con la huella. Consulta primero el directorio efectivo. */
+    fun ecdhSpki(): ByteArray? = TrustDirectory.effectiveEcdhSpki() ?: ECDH_KEY.validated()
 
-    fun signSpkis(): List<ByteArray> = SIGN_KEYS.mapNotNull { it.validated() }
+    fun signSpkis(emitidaEn: java.time.Instant? = null): List<ByteArray> {
+        val delDirectorio = TrustDirectory.effectiveSignSpkis(emitidaEn)
+        if (delDirectorio.isNotEmpty()) return delDirectorio
+        return SIGN_KEYS.mapNotNull { it.validated() }
+    }
 
     /** El build puede VALIDAR licencias (necesita al menos una clave de firma correcta). */
     val canValidate: Boolean get() = signSpkis().isNotEmpty()

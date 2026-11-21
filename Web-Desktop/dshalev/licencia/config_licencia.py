@@ -140,17 +140,55 @@ def definir(
     endpoint_redeem: str | None = None,
     endpoint_estado: str | None = None,
     kids_firma: Mapping[str, str] | None = None,
+    directorio: Any | None = None,
 ) -> ConfiguracionLicencia:
-    """Construye y valida la configuración. Los valores por defecto son los del build."""
+    """Construye y valida la configuración.
+
+    Si no se proporcionan valores explícitos ni de compilación, intenta resolver
+    las claves y endpoints del directorio de confianza efectivo (Fase 5 / S6).
+    """
     app = APP_ID if app_id is None else app_id
+    if not app and directorio is not None:
+        app = (
+            getattr(directorio, "app_ids", {}).get("MIPVENTAX-DESKTOP")
+            or getattr(directorio, "app_id", None)
+            or ""
+        )
     if app and not _APP_ID_RE.fullmatch(app):
         raise ConfiguracionLicenciaError("El appId debe ser ASCII alfanumérico, punto, guion o guion bajo.")
+
+    ep_redeem = ENDPOINT_REDEEM if endpoint_redeem is None else endpoint_redeem
+    ep_estado = ENDPOINT_ESTADO if endpoint_estado is None else endpoint_estado
+    if not ep_redeem and directorio is not None and getattr(directorio, "endpoint_base", None):
+        base = getattr(directorio, "endpoint_base").rstrip("/")
+        ep_redeem = f"{base}/v1/redeem"
+        ep_estado = f"{base}/v1/status"
+
+    mapa_kids: dict[str, bytes] = {}
+    if kids_firma is not None:
+        mapa_kids = dict(_validar_kids(kids_firma))
+    elif KIDS_FIRMA:
+        mapa_kids = dict(_validar_kids(KIDS_FIRMA))
+    elif directorio is not None:
+        claves_dir = getattr(directorio, "claves", [])
+        for c in claves_dir:
+            if getattr(c, "activa", True):
+                kid = getattr(c, "kid", "")
+                spki = getattr(c, "spki_der", None)
+                if kid and spki and _KID_RE.fullmatch(kid):
+                    mapa_kids[kid] = spki
+
     return ConfiguracionLicencia(
         app_id=app,
-        endpoint_redeem=_validar_endpoint(ENDPOINT_REDEEM if endpoint_redeem is None else endpoint_redeem, "endpoint de canje"),
-        endpoint_estado=_validar_endpoint(ENDPOINT_ESTADO if endpoint_estado is None else endpoint_estado, "endpoint de estado"),
-        kids_spki=_validar_kids(KIDS_FIRMA if kids_firma is None else kids_firma),
+        endpoint_redeem=_validar_endpoint(ep_redeem, "endpoint de canje"),
+        endpoint_estado=_validar_endpoint(ep_estado, "endpoint de estado"),
+        kids_spki=MappingProxyType(mapa_kids),
     )
+
+
+def configuracion_desde_directorio(directorio: Any) -> ConfiguracionLicencia:
+    """Construye una configuración dinámica anclada a las claves y endpoints del directorio (S6)."""
+    return definir(directorio=directorio)
 
 
 _CONFIGURACION: ConfiguracionLicencia | None = None

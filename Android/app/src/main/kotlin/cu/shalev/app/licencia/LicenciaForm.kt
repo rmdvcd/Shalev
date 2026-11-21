@@ -221,6 +221,7 @@ object TextosActivacion {
 
 fun mensajeActivacion(r: ActivationResult): String = when (r) {
     is ActivationResult.Accepted -> "Licencia activada"
+    is ActivationResult.Absorbed -> r.mensaje
     ActivationResult.NotFound -> "No se encontró una licencia en el texto pegado"
     ActivationResult.Rejected -> "La licencia no es válida para este dispositivo"
     ActivationResult.Outdated -> "Ya tienes instalada una licencia más reciente"

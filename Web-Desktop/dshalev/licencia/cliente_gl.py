@@ -66,6 +66,7 @@ MENSAJES = {
     "LICENSE_WRONG_DEVICE": "La licencia es para otro equipo. Usa la transferencia manual.",
     "UNKNOWN_KID": "La licencia usa una clave que este build no autoriza. Actualiza DShalev.",
     "CLOCK_ROLLBACK": "El reloj del equipo retrocedió más de lo permitido. Corrige la hora antes de continuar.",
+    "CLOCK_SKEW": "El reloj del equipo difiere del servidor de canje. La hora puede sincronizarse con el servidor.",
     "LICENSE_EXPIRED": "La licencia está vencida.",
     "LICENSE_REVOKED": "La licencia fue revocada por el servicio.",
     "SIN_LICENCIA": "No hay una licencia guardada que consultar.",
@@ -84,11 +85,13 @@ class ErrorGL(RuntimeError):
         estado_http: int | None = None,
         detalle: str = "",
         request_id: str | None = None,
+        server_time: datetime | None = None,
     ) -> None:
         self.codigo = codigo
         self.estado_http = estado_http
         self.detalle = detalle
         self.request_id = request_id
+        self.server_time = server_time
         super().__init__(self.mensaje)
 
     @property
@@ -167,6 +170,8 @@ class ResultadoCanje:
     request_id: str
     restaurada: bool
     guardada_en: datetime
+    absorbida: bool = False
+    mensaje_absorbida: str = ""
 
 
 @dataclass(frozen=True)
@@ -279,12 +284,26 @@ class ClienteGL:
     def _error_servicio(self, respuesta: RespuestaHTTP, request_id: str) -> ErrorGL:
         codigo = ""
         detalle = ""
+        server_time = None
         try:
             datos = json.loads(respuesta.cuerpo.decode("utf-8"))
             error = datos.get("error") if isinstance(datos, dict) else None
             if isinstance(error, dict):
                 codigo = str(error.get("code") or "")
                 detalle = str(error.get("message") or "")[:200]
+                st_raw = error.get("serverTime")
+                if isinstance(st_raw, str) and st_raw:
+                    try:
+                        server_time = contrato.analizar_instante(st_raw)
+                    except Exception:
+                        pass
+            elif isinstance(datos, dict) and datos.get("serverTime"):
+                st_raw = datos.get("serverTime")
+                if isinstance(st_raw, str) and st_raw:
+                    try:
+                        server_time = contrato.analizar_instante(st_raw)
+                    except Exception:
+                        pass
         except (ValueError, UnicodeDecodeError):
             pass
         conocidos = {
@@ -298,6 +317,7 @@ class ClienteGL:
             "RATE_LIMITED",
             "IDEMPOTENCY_CONFLICT",
             "SERVER_ERROR",
+            "CLOCK_SKEW",
         }
         if codigo not in conocidos:
             if respuesta.estado == 413:
@@ -308,7 +328,13 @@ class ClienteGL:
                 codigo = "SERVER_ERROR"
             else:
                 codigo = "INVALID_RESPONSE"
-        return ErrorGL(codigo, estado_http=respuesta.estado, detalle=detalle, request_id=request_id)
+        return ErrorGL(
+            codigo,
+            estado_http=respuesta.estado,
+            detalle=detalle,
+            request_id=request_id,
+            server_time=server_time,
+        )
 
     @staticmethod
     def _traducir_verificacion(exc: LicenciaInvalida, *, request_id: str) -> ErrorGL:
@@ -397,6 +423,53 @@ class ClienteGL:
         if not verificada.utilizable:
             raise ErrorGL("LICENSE_EXPIRED", request_id=request_id_actual)
 
+        # S3 (Renovación dominada): comprobar si la licencia instalada ya cubre el periodo
+        actual_local = self.almacen.observar(self._ahora()).licencia
+        absorbida = False
+        mensaje_absorbida = ""
+        actual_verificada = None
+        if actual_local is not None and not actual_local.revocada:
+            try:
+                actual_verificada = verificar_documento_guardado(
+                    actual_local.documento,
+                    claves=self.configuracion.kids_spki,
+                    app_id=self.configuracion.app_id,
+                    huella_local=self.identidad.huella,
+                    ahora=self._ahora(),
+                )
+                if actual_verificada.utilizable:
+                    exp_actual = actual_verificada.contenido.get("expiresAt")
+                    exp_nueva = verificada.contenido.get("expiresAt")
+                    tipo_actual = actual_verificada.contenido.get("type")
+                    if tipo_actual == "PERPETUA":
+                        absorbida = True
+                        mensaje_absorbida = (
+                            "Tu licencia ya cubría este periodo de forma perpetua. "
+                            "La nueva clave ha sido registrada como absorbida."
+                        )
+                    elif exp_actual and exp_nueva:
+                        dt_actual = contrato.analizar_instante(exp_actual)
+                        dt_nueva = contrato.analizar_instante(exp_nueva)
+                        if dt_nueva <= dt_actual:
+                            absorbida = True
+                            mensaje_absorbida = (
+                                f"Tu licencia ya cubría este periodo hasta {exp_actual}. "
+                                "La nueva clave ha sido registrada como absorbida."
+                            )
+            except Exception:
+                pass
+
+        if absorbida and actual_verificada is not None:
+            self._pendiente = None
+            return ResultadoCanje(
+                licencia=actual_verificada,
+                request_id=request_id_actual,
+                restaurada=bool(datos.get("restored")),
+                guardada_en=actual_local.guardada_en,
+                absorbida=True,
+                mensaje_absorbida=mensaje_absorbida,
+            )
+
         try:
             guardada = self.almacen.guardar_licencia(
                 self._sobre_a_texto(verificada.sobre),
@@ -411,7 +484,31 @@ class ClienteGL:
             request_id=request_id_actual,
             restaurada=bool(datos.get("restored")),
             guardada_en=guardada.guardada_en,
+            absorbida=False,
+            mensaje_absorbida="",
         )
+
+    def recuperar_reloj_servidor(self, server_time: datetime) -> None:
+        """Aplica la recuperación de reloj alterado (S4) reseteando la marca de agua local."""
+        self.almacen.resetear_reloj_servidor(server_time)
+
+    def consultar_hora_servidor(self, url_time: str | None = None) -> datetime:
+        """Consulta GET /v1/time al servidor de canje y devuelve la hora UTC verificada."""
+        endpoint = url_time or (self.configuracion.endpoint_redeem.rsplit("/", 1)[0] + "/time")
+        try:
+            peticion = urllib.request.Request(endpoint, headers={"User-Agent": "DShalev"}, method="GET")
+            with urllib.request.urlopen(peticion, timeout=self.tiempo_espera, context=self.contexto_ssl) as resp:
+                if resp.status != 200:
+                    raise ErrorGL("INVALID_RESPONSE", detalle=f"status {resp.status}")
+                cuerpo = resp.read(1024)
+                datos = json.loads(cuerpo.decode("utf-8"))
+                if not isinstance(datos, dict) or datos.get("ok") is not True or not datos.get("now"):
+                    raise ErrorGL("INVALID_RESPONSE", detalle="respuesta v1/time no válida")
+                return contrato.analizar_instante(str(datos["now"]))
+        except ErrorGL:
+            raise
+        except Exception as exc:
+            raise ErrorGL("NETWORK", detalle=str(exc)) from None
 
     # ── estado ───────────────────────────────────────────────────────────────
     def _licencia_guardada(self) -> tuple[LicenciaLocal, LicenciaVerificada]:

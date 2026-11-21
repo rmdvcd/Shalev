@@ -1,9 +1,9 @@
 package cu.shalev.licencia
 
 /**
- * Modo desarrollo (mitigación 1 del sistema de licencias de GL, Opción A).
+ * Modo desarrollo (mitigación 1 del sistema de licencias de GL, Opción A / S5).
  *
- * La **clave maestra** `GLMK-PERM-MAXS-9999` solo vale en builds de depuración (`BuildConfig.DEBUG`). En la app de
+ * La **clave maestra** de desarrollo solo vale en builds de depuración (`BuildConfig.DEBUG`). En la app de
  * release la comprobación devuelve siempre `false`, así que nadie puede activar Shalev con la clave de pruebas.
  *
  * El valor por defecto es `false` (**fail-closed**): si nadie lo activa —o si algún día se olvida hacerlo— la clave

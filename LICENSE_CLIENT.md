@@ -104,18 +104,30 @@ Nunca se indica qué comprobación falló.
 - **Bloqueo:** si el estado no desbloquea, `RootViewModel` muestra el panel de Licencia **directamente**, también si vence con la app abierta. Desde ahí se llega a *Soporte* y, con la **prueba vencida**, a **«Seguir como app secundaria»** (`Vinculacion.puedeSeguirComoSecundaria`): el teléfono se vincula a una principal con licencia activa (respaldando antes sus datos si no hay respaldo), pasa a `SECUNDARIA` y trabaja con la licencia de la principal. Una licencia vencida, transferida o un reloj manipulado no ofrecen esa salida. Atrás sale de la app.
 - **Precios mostrados:** Mensual 6,000 · Semestral 30,000 · Anual 50,000 · Perpetua 90,000 CUP. Perpetua no ofrece renovación; cualquier otra licencia instalada ofrece «Renovar o cambiar».
 
-## 5. Claves de GL
+## 5. Claves de GL y Directorio de Confianza v1
+
+A partir de la versión 1.1, las tres plataformas (Android, iOS y DShalev) sustituyen el anclaje manual estático por el **Directorio de Confianza v1** (`directorio.json`, Anexo A). Las claves públicas de firma y ECDH se resuelven dinámicamente a través del `TrustDirectory` efectivo:
 
 | Clave | Política |
 |---|---|
-| Firma (`kid = gl-sign-v1`) | **Solo fijada en el build**, como lista (`LicenseTrust.SIGN_KEYS`). La primera es la del **emisor vigente**: `sha256:d252:9bd9:…:64be`. Después se conservan las rotaciones anteriores para verificar licencias ya emitidas: `sha256:113f:a5f6:…:4b1c` (22/10/2026), `sha256:58d4:3aac:…:8c4e` (bundle `gl-public-keys.txt`, 05/10/2026), `sha256:e693:6c20:…:0a6e` y `sha256:d9c4:d821:…:998e` (GL el 15/10/2026) y `sha256:8a91:bcfb:…:6888` (30/09/2026) |
-| ECDH | **Solo fijada en el build** (`LicenseTrust.ECDH_KEY`) a la del **emisor vigente**: `sha256:0289:7025:…:a2e0`. La solicitud solo puede abrirse con la privada correspondiente en la instalación GL emisora. |
+| Firma (`uso = "firma"`) | Resuelta dinámicamente desde el `TrustDirectory` activo para la fecha de emisión de la licencia, siempre que su estado sea `vigente` (no `comprometida`). Como respaldo de compatibilidad, `LicenseTrust.SIGN_KEYS` conserva las rotaciones anteriores históricas para verificar licencias offline antiguas emitidas previamente. |
+| ECDH (`uso = "ecdh"`) | Resuelta desde la clave en estado `vigente` en el `TrustDirectory` activo. Solo puede haber como máximo una clave ECDH vigente a la vez. |
+| Canje (`uso = "canje"`) | Resuelta dinámicamente para autenticar respuestas del servicio GL de canje directo v1. |
+| Raíces del Directorio | **Fijadas en el build** (Raíz A y Raíz B). Autentican el sobre de directorio con firma cruda ECDSA P-256 (`r‖s`). |
 
-**Importante:** GL genera sus pares localmente en el Keystore; el archivo versionado de GL es un snapshot, no una garantía sobre todas las instalaciones. Si el GL emisor tiene otras claves, hay que comparar con su pestaña **Claves**: agregar su firma a `SIGN_KEYS` y fijar su ECDH requiere un build nuevo. Tras cambiar ECDH, las solicitudes pendientes cifradas para la clave anterior deben generarse de nuevo. Las licencias ya instaladas se re-verifican con las firmas históricas conservadas.
+**Reglas del Directorio (Anexo A):**
+- **Anti-retroceso e idempotencia:** el número de secuencia `seq` es estrictamente monótono. Un directorio con `seq` menor se rechaza. Mismo `seq` exige contenido idéntico.
+- **Tamaño máximo:** 64 KiB (65 536 bytes). Cargas mayores se rechazan antes de procesar.
+- **Canal seguro:** descarga periódica únicamente por HTTPS desde `github.com/rmdvcd/Shalev`.
+- **Persistencia atómica:** el archivo de caché local se escribe mediante archivo temporal con `fsync` y reemplazo atómico, verificándose en cada arranque.
+- **Compatibilidad histórica:** `LicenseTrust` en Android e iOS delega sus consultas al directorio efectivo; si no está inicializado o la licencia es de un emisor previo conocido, consulta la lista histórica de firmas fijadas. `GoldenVectorTest` sigue verificando byte a byte.
 
-**Rotación del 22/10/2026:** la ECDH fijada hasta entonces (`sha256:2a3f:…:666d`, del bundle del 05/10) ya no era la del GL instalado (1.2.0, alta el 20/10): el emisor rechazaba toda solicitud de Shalev con «solicitud dañada o no es para GL» y ninguna licencia se podía activar. Se fijaron la ECDH y la firma vigentes del teléfono `4bc9f8f3`.
+## 5 bis. Canje GL v1, Reloj y Sub-tokens
 
-`LicenseTrustTest` comprueba las huellas del bundle GL, que las claves parsean como P-256 y que las cuatro firmas de GL conocidas siguen aceptándose.
+1. **Cliente de canje directo (Anexo B / S7):** además de la activación offline con código `SPVI2:`, Android e iOS incorporan el cliente de canje directo contra el servicio central GL v1 mediante transcripciones canónicas big-endian (`REDEEM-REQ-v1`, `REDEEM-RESP-v1`).
+2. **Recuperación de reloj (`CLOCK_SKEW` / S4):** ante un desfase horario entre el dispositivo y el servidor, el cliente extrae `serverTime` de la respuesta, consulta `/v1/time` y permite resetear la marca de agua del reloj de instalación, liberando el bloqueo `ClockTampered` cuando la hora se normaliza.
+3. **Renovación dominada (`Absorbed` / S3):** si se canjea una licencia que no extiende la cobertura de la licencia actualmente instalada (por ejemplo, canjear una licencia mensual sobre una anual o perpetua), el sistema no retrocede el vencimiento, conserva la de mayor duración y reporta el resultado `Absorbed`.
+4. **Permisos anclados en secundarias (S2):** las apps secundarias comprueban que el sub-token de la primaria esté firmado por una clave de dispositivo válida, verificando que la clave principal no esté marcada como `comprometida` en el directorio ni la licencia revocada.
 
 ## 6. Almacenamiento
 

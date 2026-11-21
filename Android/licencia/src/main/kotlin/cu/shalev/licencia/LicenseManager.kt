@@ -46,7 +46,7 @@ data class StoredLicense(
     val venceEn: String? = null,
     val deviceId: String? = null,
     /**
-     * 0.31.0: la licencia se activó con la clave maestra de desarrollo (`GLMK-PERM-MAXS-9999`). Solo vale en builds
+     * 0.31.0 (S5): la licencia se activó con la clave maestra de desarrollo. Solo vale en builds
      * `DEBUG`: en release se descarta al evaluar (mitigación 1, Opción A).
      */
     val maestra: Boolean = false,
@@ -117,6 +117,8 @@ sealed interface ActivationResult {
     data object Rejected : ActivationResult
     /** Auténtica pero más antigua que la instalada: se ignora. */
     data object Outdated : ActivationResult
+    /** 0.32.0 (S3): renovación dominada / rollover absorbido. */
+    data class Absorbed(val state: LicenseState, val venceEn: String?, val mensaje: String) : ActivationResult
 }
 
 class LicenseManager(
@@ -261,7 +263,7 @@ class LicenseManager(
 
     /**
      * Procesa el mensaje de licencia pegado, compartido o leído de un QR. Acepta, en este orden:
-     *  1. la **clave maestra de desarrollo** (`GLMK-PERM-MAXS-9999`), solo en builds `DEBUG` (mitigación 1);
+     *  1. la **clave maestra de desarrollo**, solo en builds `DEBUG` (mitigación 1 / S5);
      *  2. la licencia corta cifrada `SPVI2:…` (el formato de Shalev ≥ 0.23.1); el texto de arriba es informativo.
      * Una licencia **larga** (envelope v1) ya no se activa: [ActivationResult.NotFound] (decisión de la 0.23.0; si
      * estaba instalada, se sigue re-verificando en cada evaluación, ver [verifyStored]). Cualquier otra cosa:
@@ -274,7 +276,7 @@ class LicenseManager(
     }
 
     /** ¿El texto es la clave maestra de desarrollo? Solo en builds `DEBUG` (en release siempre `false`). */
-    fun esClaveMaestra(texto: String): Boolean = CodigoLicencia.esMaestra(texto, esDebug)
+    fun esClaveMaestra(texto: String): Boolean = CodigoLicencia.esMaestra(texto, esDebug && ModoDesarrollo.esDebug)
 
     /**
      * Activa la clave maestra: licencia PERPETUA con el máximo de apps secundarias (10), sin envelope ni firma (no
@@ -287,7 +289,7 @@ class LicenseManager(
         store.clearRevoked()
         store.saveLicense(
             StoredLicense(
-                envelopeJson = CodigoLicencia.MAESTRA,
+                envelopeJson = ID_MAESTRA,
                 licenseId = ID_MAESTRA,
                 emitidaEn = clock.now().toString(),
                 tipo = TipoLicencia.PERPETUA,
@@ -331,9 +333,58 @@ class LicenseManager(
         return if (ev.state.unlocked) ev.state.secundariasPermitidas else 0
     }
 
+    /**
+     * 0.32.0 (S7): instala directamente una licencia canjeada y verificada mediante el protocolo de canje directo.
+     */
+    suspend fun activarDirecta(
+        licenseId: String,
+        emitidaEn: String,
+        venceEn: String?,
+        tipo: TipoLicencia,
+        secundarias: Int,
+        envelopeJson: String,
+    ): ActivationResult {
+        val payload = LicensePayload(
+            id = licenseId,
+            emitidaEn = emitidaEn,
+            venceEn = venceEn,
+            tipo = tipo,
+            deviceId = deviceId,
+            secundarias = secundarias,
+        )
+        val state = if (tipo == TipoLicencia.PERPETUA) {
+            LicenseState.Perpetual(licenseId, secundarias)
+        } else {
+            val days = java.time.Duration.between(clock.now(), Instant.parse(venceEn!!)).toDays().toInt()
+            LicenseState.Active(licenseId, days, tipo, secundarias)
+        }
+        return instalar(payload, state, envelopeJson, licenseId)
+    }
+
     /** No se instala una licencia más antigua que la actual ni anterior a la transferencia. */
     private suspend fun instalar(payload: LicensePayload, state: LicenseState, envelopeJson: String, licenseId: String): ActivationResult {
         val current = store.license()
+        val currentVerified = current?.let { verifyStored(it, clock.now()) }
+
+        // S3 (Renovación dominada): si la licencia actual domina a la nueva (misma o mayor cobertura),
+        // no bloqueamos con error ni degradamos la fecha. Registramos la clave como absorbida y
+        // preservamos la mayor cobertura.
+        if (current != null && !current.maestra && currentVerified != null) {
+            val currentState = currentVerified.first
+            if (current.tipo == TipoLicencia.PERPETUA) {
+                val mensaje = "Tu licencia ya cubría este periodo de forma perpetua. La nueva clave ha sido registrada como absorbida."
+                return ActivationResult.Absorbed(currentState, null, mensaje)
+            }
+            if (current.venceEn != null && payload.tipo != TipoLicencia.PERPETUA && payload.venceEn != null) {
+                val currentVence = Instant.parse(current.venceEn)
+                val newVence = Instant.parse(payload.venceEn)
+                if (!newVence.isAfter(currentVence)) {
+                    val mensaje = "Tu licencia ya cubría este periodo hasta ${current.venceEn}. La nueva clave ha sido registrada como absorbida."
+                    return ActivationResult.Absorbed(currentState, current.venceEn, mensaje)
+                }
+            }
+        }
+
         // Una licencia auténtica de GL siempre manda sobre la clave maestra de desarrollo (que es solo una ayuda de
         // depuración), aunque se instalara después.
         if (current != null && !current.maestra && Instant.parse(payload.emitidaEn).isBefore(Instant.parse(current.emitidaEn))) {
@@ -356,6 +407,14 @@ class LicenseManager(
             ),
         )
         return ActivationResult.Accepted(state)
+    }
+
+    /**
+     * 0.32.0 (S4): restablece la marca de agua del reloj local (`lastSeen`) con una hora
+     * autenticada/verificada del servidor (por ejemplo, desde un error CLOCK_SKEW o /v1/time).
+     */
+    suspend fun resetearRelojServidor(serverTime: Instant) {
+        store.setLastSeen(serverTime)
     }
 
     /**
@@ -405,10 +464,10 @@ class LicenseManager(
 
     /** null = no verifica (alterada, otra clave de dispositivo, metadatos incoherentes…): se ignora. */
     private fun verifyStored(stored: StoredLicense, now: Instant): Pair<LicenseState, InstalledLicense>? = runCatching {
-        // Clave maestra: perpetua y con 10 secundarias, pero SOLO en builds DEBUG (mitigación 1, Opción A). En release
+        // Clave maestra: perpetua y con 10 secundarias, pero SOLO en builds DEBUG (mitigación 1, Opción A / S5). En release
         // la licencia instalada con la clave maestra se ignora, igual que si no existiera.
         if (stored.maestra) {
-            if (!esDebug) return@runCatching null
+            if (!esDebug || !ModoDesarrollo.esDebug) return@runCatching null
             return@runCatching LicenseState.Perpetual(ID_MAESTRA, GlContract.SECUNDARIAS_MAX) to InstalledLicense(
                 ID_MAESTRA, TipoLicencia.PERPETUA, Instant.parse(stored.emitidaEn), null, GlContract.SECUNDARIAS_MAX,
             )

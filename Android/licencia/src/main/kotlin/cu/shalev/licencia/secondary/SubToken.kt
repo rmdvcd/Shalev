@@ -70,9 +70,10 @@ object SubToken {
     }
 
     /**
-     * Verifica un sub-token con la clave pública de la principal. Devuelve sus datos **solo** si todo cuadra:
+     * Verifica un sub-token con la clave pública de la principal (S2). Devuelve sus datos **solo** si todo cuadra:
      * firma, dispositivo, ranura dentro de `1..permitidas`, `permitidas` dentro de la cuota de la licencia
-     * ([cuotaMaxima]), formato correcto y no vencido. Cualquier otra cosa devuelve `null` (nunca lanza).
+     * ([cuotaMaxima]), formato correcto, no vencido, clave de principal no comprometida y licencia no revocada.
+     * Cualquier otra cosa devuelve `null` (nunca lanza).
      */
     fun verificar(
         token: String,
@@ -80,21 +81,26 @@ object SubToken {
         dispositivoEsperado: String,
         ahora: Instant,
         cuotaMaxima: Int = 10,
+        esRevocada: ((String) -> Boolean)? = null,
+        esClaveComprometida: ((ByteArray) -> Boolean)? = null,
     ): Datos? = runCatching {
         if (token.isEmpty() || token.length > LARGO_MAXIMO) return null
+        if (esClaveComprometida?.invoke(firmaSpki) == true) return null
         val corte = token.lastIndexOf(SEPARADOR_FIRMA)
         if (corte <= 0 || corte == token.length - 1) return null
         val texto = token.substring(0, corte)
         val firma = B64.dec(token.substring(corte + 1))
         val campos = texto.split(SEPARADOR_CAMPOS)
         if (campos.size != 5) return null
+        val licenciaId = campos[0]
+        if (esRevocada?.invoke(licenciaId) == true) return null
         if (!EcP256.verify(EcP256.publicKey(firmaSpki), texto.toByteArray(Charsets.UTF_8), firma)) return null
         val ranura = campos[2].toIntOrNull() ?: return null
         val permitidas = campos[3].toIntOrNull() ?: return null
         if (permitidas !in 0..10 || ranura !in 1..permitidas || permitidas > cuotaMaxima) return null
         if (campos[1] != dispositivoEsperado) return null
         val vence = if (campos[4] == PERPETUA) null else Instant.parse(campos[4])
-        Datos(campos[0], campos[1], ranura, permitidas, vence).takeIf { it.vigente(ahora) }
+        Datos(licenciaId, campos[1], ranura, permitidas, vence).takeIf { it.vigente(ahora) }
     }.getOrNull()
 
     /** `true` si el texto trae caracteres que rompen el formato (los separadores). */
