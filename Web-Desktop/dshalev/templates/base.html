@@ -32,6 +32,7 @@
   <footer class="rail-footer">MIPVentaX · 1.0</footer>
 </nav>
 <main class="main-shell" id="contenido">
+  {% if license_banner %}<div class="notice {{ license_banner.kind }}" role="alert">{{ license_banner.text }} <a href="/licencia" style="margin-left: 0.5rem; text-decoration: underline;">Gestionar</a></div>{% endif %}
   {% if notice %}<div class="notice {{ notice_kind or 'info' }}" role="status">{{ notice }}</div>{% endif %}
   {% block content %}{% endblock %}
 </main>

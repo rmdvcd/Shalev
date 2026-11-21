@@ -1,0 +1,233 @@
+{% extends 'base.html' %}{% block title %}Solicitar Licencia{% endblock %}{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">ASISTENTE DE LICENCIA</p>
+    <h1>Solicitar licencia</h1>
+    <p class="muted">Completa tus datos para generar la solicitud cifrada para el operador de Shalev.</p>
+  </div>
+  <div class="heading-actions">
+    <a href="/licencia" class="quiet-button">Volver</a>
+  </div>
+</div>
+
+<div class="content-grid">
+  {% if mensaje_generado %}
+  <!-- Paso 2 y 3: Solicitud generada con éxito -->
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow">PASO 2 DE 3</p>
+        <h2>Mensaje listo para enviar</h2>
+      </div>
+      <span class="icon-tile">✉️</span>
+    </div>
+
+    <div class="notice success" role="status" style="margin-bottom: 1.5rem;">
+      <p><strong>Solicitud generada correctamente.</strong> Cópiala y envíala al operador para procesar el pago y recibir tu código de activación.</p>
+    </div>
+
+    <div class="form-stack">
+      <label for="texto-solicitud">Mensaje completo para WhatsApp / SMS (100% GSM-7)
+        <textarea id="texto-solicitud" rows="8" readonly class="code-input" style="width: 100%; font-family: monospace; resize: vertical; margin-top: 0.25rem;" onclick="this.select();">{{ mensaje_generado }}</textarea>
+      </label>
+
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+        <button type="button" class="primary-button" onclick="navigator.clipboard.writeText(document.getElementById('texto-solicitud').value); this.textContent='Copiado'; setTimeout(()=>this.textContent='Copiar mensaje', 2000);">Copiar mensaje</button>
+        <button type="button" class="secondary-button" onclick="navigator.clipboard.writeText('{{ codigo_spvir1 }}'); this.textContent='Copiado'; setTimeout(()=>this.textContent='Copiar código', 2000);">Copiar código</button>
+        {% if enlace_whatsapp %}
+        <a href="{{ enlace_whatsapp }}" target="_blank" rel="noopener noreferrer" class="secondary-button" style="display: inline-flex; align-items: center; gap: 0.25rem;">WhatsApp</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="margin-top: 2rem; border-top: 1px solid var(--border-color, #e2e8f0); padding-top: 1rem;">
+      <p class="eyebrow">PASO 3 DE 3</p>
+      <h3>Activar cuando recibas respuesta</h3>
+      <p class="muted">El operador te responderá con un código que comienza con <code>SPVI2:</code>. Pégalo directamente en la pantalla de activación.</p>
+      <div style="margin-top: 1rem;">
+        <a href="/licencia/activar" class="primary-button">Activar</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow">RESUMEN</p>
+        <h2>Detalles de la orden</h2>
+      </div>
+    </div>
+
+    <div class="detail-group" style="display: grid; gap: 0.75rem;">
+      <p><strong>Titular:</strong> {{ form_data.nombre }} {{ form_data.apellidos }}</p>
+      <p><strong>Carné:</strong> {{ form_data.ci }}</p>
+      <p><strong>Teléfono:</strong> {{ form_data.telefono }}</p>
+      <p><strong>Plan:</strong> {{ form_data.tipo }}</p>
+      <p><strong>Apps secundarias:</strong> {{ form_data.secundarias }}</p>
+      <p><strong>Importe total:</strong> <strong style="font-size: 1.25rem; color: var(--primary-accent, #1d4ed8);">{{ precio_cup }}</strong></p>
+      <div class="notice info" style="margin-top: 1rem;">
+        <p class="tiny">{{ aviso_frescura }}</p>
+      </div>
+    </div>
+  </section>
+
+  {% else %}
+  <!-- Paso 1: Formulario de solicitud -->
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow">PASO 1 DE 3</p>
+        <h2>Datos del titular y plan</h2>
+      </div>
+      <span class="icon-tile">📝</span>
+    </div>
+
+    <form action="/licencia/solicitar" method="post" class="form-stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {% if renueva %}<input type="hidden" name="renueva" value="{{ renueva }}">{% endif %}
+      {% if amplia %}<input type="hidden" name="amplia" value="{{ amplia }}">{% endif %}
+      {% if recupera %}<input type="hidden" name="recupera" value="{{ recupera }}">{% endif %}
+      <input type="hidden" name="secundarias_previas" value="{{ secundarias_previas or 0 }}">
+
+      {% if renueva %}
+      <div class="notice info"><p><strong>Renovación de licencia:</strong> se renovará la licencia actual (<code>{{ renueva }}</code>).</p></div>
+      {% elif amplia %}
+      <div class="notice info"><p><strong>Ampliación de secundarias:</strong> actualmente tienes {{ secundarias_previas or 0 }} plazas secundarias.</p></div>
+      {% elif recupera %}
+      <div class="notice info"><p><strong>Recuperación de licencia:</strong> solicita la reactivación sin costo en este nuevo equipo.</p></div>
+      {% endif %}
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <label for="campo-nombre">Nombre
+          <input id="campo-nombre" name="nombre" type="text" required minlength="2" maxlength="80" value="{{ form_data.nombre if form_data else '' }}" placeholder="Nombre de pila">
+        </label>
+        <label for="campo-apellidos">Apellidos
+          <input id="campo-apellidos" name="apellidos" type="text" required minlength="2" maxlength="80" value="{{ form_data.apellidos if form_data else '' }}" placeholder="Apellidos">
+        </label>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <label for="campo-ci">Carné de identidad cubano
+          <input id="campo-ci" name="ci" type="text" required pattern="\d{11}" maxlength="11" value="{{ form_data.ci if form_data else '' }}" placeholder="11 dígitos" aria-describedby="ayuda-ci">
+          <small id="ayuda-ci" class="muted">Exactamente 11 dígitos numéricos.</small>
+        </label>
+        <label for="campo-telefono">Teléfono móvil (+53)
+          <input id="campo-telefono" name="telefono" type="tel" required value="{{ form_data.telefono if form_data else '' }}" placeholder="+535xxxxxxx" aria-describedby="ayuda-tel">
+          <small id="ayuda-tel" class="muted">Móvil cubano que inicia con 5 o 6.</small>
+        </label>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <label for="campo-tipo">Plan de licencia
+          <select id="campo-tipo" name="tipo" onchange="actualizarCalculoPrecio();" {% if amplia %}disabled{% endif %}>
+            <option value="MENSUAL" {% if tipo_seleccionado == 'MENSUAL' %}selected{% endif %}>Mensual · 6,000 CUP</option>
+            <option value="SEMESTRAL" {% if tipo_seleccionado == 'SEMESTRAL' %}selected{% endif %}>Semestral · 30,000 CUP</option>
+            <option value="ANUAL" {% if tipo_seleccionado == 'ANUAL' %}selected{% endif %}>Anual · 50,000 CUP</option>
+            <option value="PERPETUA" {% if tipo_seleccionado == 'PERPETUA' %}selected{% endif %}>Perpetua · 90,000 CUP</option>
+          </select>
+          {% if amplia %}<input type="hidden" name="tipo" value="{{ tipo_seleccionado }}">{% endif %}
+        </label>
+
+        <label for="campo-secundarias">Apps secundarias (0 a 10)
+          <input id="campo-secundarias" name="secundarias" type="number" min="{% if amplia %}{{ (secundarias_previas or 0) + 1 }}{% else %}0{% endif %}" max="10" step="1" value="{{ secundarias_seleccionadas or 0 }}" oninput="actualizarCalculoPrecio();" aria-describedby="ayuda-sec">
+          <small id="ayuda-sec" class="muted">{% if amplia %}Mínimo {{ (secundarias_previas or 0) + 1 }} para ampliar.{% else %}Dispositivos móviles adicionales.{% endif %}</small>
+        </label>
+      </div>
+
+      <label for="campo-via">Vía de recepción preferida
+        <select id="campo-via" name="via">
+          <option value="WHATSAPP">WhatsApp</option>
+          <option value="SMS">Mensaje SMS</option>
+        </select>
+      </label>
+
+      <div style="margin-top: 1rem;">
+        <button type="submit" class="primary-button">Generar</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow">TARIFAS Y PRECIOS</p>
+        <h2>Cálculo estimado</h2>
+      </div>
+      <span class="icon-tile">🏷️</span>
+    </div>
+
+    <div class="detail-group" style="display: grid; gap: 0.75rem;">
+      <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color, #e2e8f0); padding-bottom: 0.5rem;">
+        <span>Plan base:</span>
+        <strong id="precio-base-calc">6,000.00 CUP</strong>
+      </div>
+      <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color, #e2e8f0); padding-bottom: 0.5rem;">
+        <span>Plazas secundarias:</span>
+        <strong id="precio-sec-calc">0.00 CUP</strong>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 1.15rem; margin-top: 0.5rem;">
+        <span>Total a pagar:</span>
+        <strong id="precio-total-calc" style="color: var(--primary-accent, #1d4ed8);">6,000.00 CUP</strong>
+      </div>
+
+      <div class="notice info" style="margin-top: 1.5rem;">
+        <p class="tiny">Los pagos se procesan en moneda nacional (CUP) por transferencia hacia el número de cuenta que te indicará el operador.</p>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+<script>
+function actualizarCalculoPrecio() {
+  const tipoSelect = document.getElementById('campo-tipo');
+  const secInput = document.getElementById('campo-secundarias');
+  if (!tipoSelect || !secInput) return;
+
+  const tipo = tipoSelect.value;
+  const sec = parseInt(secInput.value || '0', 10);
+  const esAmplia = {{ 'true' if amplia else 'false' }};
+  const esRecupera = {{ 'true' if recupera else 'false' }};
+  const secPrevias = {{ secundarias_previas or 0 }};
+
+  const preciosBase = {
+    'MENSUAL': 6000,
+    'SEMESTRAL': 30000,
+    'ANUAL': 50000,
+    'PERPETUA': 90000
+  };
+
+  const preciosSec = {
+    'MENSUAL': 1000,
+    'SEMESTRAL': 5000,
+    'ANUAL': 9000,
+    'PERPETUA': 17000
+  };
+
+  if (esRecupera) {
+    document.getElementById('precio-base-calc').textContent = '0.00 CUP';
+    document.getElementById('precio-sec-calc').textContent = '0.00 CUP';
+    document.getElementById('precio-total-calc').textContent = '0.00 CUP (Gratis)';
+    return;
+  }
+
+  if (esAmplia) {
+    const adic = Math.max(0, sec - secPrevias);
+    const totalSec = adic * (preciosSec[tipo] || 0);
+    document.getElementById('precio-base-calc').textContent = '0.00 CUP (Ya activa)';
+    document.getElementById('precio-sec-calc').textContent = totalSec.toLocaleString('es-CU', {minimumFractionDigits: 2}) + ' CUP';
+    document.getElementById('precio-total-calc').textContent = totalSec.toLocaleString('es-CU', {minimumFractionDigits: 2}) + ' CUP';
+    return;
+  }
+
+  const base = preciosBase[tipo] || 6000;
+  const secTotal = Math.max(0, sec) * (preciosSec[tipo] || 0);
+  const total = base + secTotal;
+
+  document.getElementById('precio-base-calc').textContent = base.toLocaleString('es-CU', {minimumFractionDigits: 2}) + ' CUP';
+  document.getElementById('precio-sec-calc').textContent = secTotal.toLocaleString('es-CU', {minimumFractionDigits: 2}) + ' CUP';
+  document.getElementById('precio-total-calc').textContent = total.toLocaleString('es-CU', {minimumFractionDigits: 2}) + ' CUP';
+}
+window.addEventListener('DOMContentLoaded', actualizarCalculoPrecio);
+</script>
+{% endblock %}

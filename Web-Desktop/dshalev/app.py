@@ -184,6 +184,14 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                     values["flash_field"] = campo
         with db.connect() as conn:
             business = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+        if "license_banner" not in values and user is not None:
+            try:
+                from .licencia.estado import obtener_info_licencia
+                info_lic = obtener_info_licencia(config.database_path.parent.parent)
+                if info_lic.get("banner"):
+                    values["license_banner"] = info_lic["banner"]
+            except Exception:
+                pass
         return {
             "request": request, "user": user, "csrf": csrf(request), "section": section,
             "business_name": business["value"] if business else "DShalev", "local_id": config.local_id, "notice": None,
@@ -618,43 +626,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         user = current_user(request)
         if not user:
             return redirect("/entrar")
-        huella = ""
-        licencia_info = None
         conf = configuracion()
-        try:
-            from .licencia.identidad import cargar_o_crear_identidad, ruta_identidad
-            from .licencia.almacen import AlmacenLicencia
-            raiz_app = config.database_path.parent.parent
-            id_inst = cargar_o_crear_identidad(ruta_identidad(raiz_app))
-            huella = id_inst.huella
-            almacen = AlmacenLicencia(raiz_app, huella)
-            obs = almacen.observar()
-            if obs.licencia is not None:
-                doc = obs.licencia.documento
-                estado_remoto = obs.licencia.estado_comprobacion_remota or "ACTIVA"
-                comprobada_en = obs.licencia.comprobada_en
-                tipo = "DESCONOCIDO"
-                vencimiento = "No disponible"
-                try:
-                    import json
-                    datos_doc = json.loads(doc)
-                    lic_obj = datos_doc.get("license", {}) if isinstance(datos_doc, dict) else {}
-                    lic_datos = lic_obj.get("license", {}) if isinstance(lic_obj, dict) else {}
-                    tipo = lic_datos.get("type", "DESCONOCIDO")
-                    exp = lic_datos.get("expiresAt")
-                    vencimiento = "Perpetua" if tipo == "PERPETUA" else (exp or "No disponible")
-                except Exception:
-                    pass
-                licencia_info = {
-                    "instalada": True,
-                    "estado": "REVOCADA" if obs.licencia.revocada else estado_remoto,
-                    "tipo": tipo,
-                    "vencimiento": vencimiento,
-                    "comprobada_en": comprobada_en.strftime("%Y-%m-%d %H:%M UTC") if comprobada_en else "No consultado aún",
-                    "revocada": obs.licencia.revocada,
-                }
-        except Exception:
-            huella = huella or "No disponible"
+        raiz_app = config.database_path.parent.parent
+        from .licencia.estado import obtener_info_licencia
+        info_lic = obtener_info_licencia(raiz_app)
         return templates.TemplateResponse(
             request,
             "license.html",
@@ -664,10 +639,205 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 section="licencia",
                 motivo_licencia=conf.motivo_deshabilitada(),
                 comercial_habilitada=conf.comercial_habilitada,
-                huella_instalacion=huella,
-                licencia_info=licencia_info,
+                huella_instalacion=info_lic.get("huella", "No disponible"),
+                licencia_info=info_lic,
             ),
         )
+
+    @app.get("/licencia/solicitar", response_class=HTMLResponse)
+    async def license_request_page(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        raiz_app = config.database_path.parent.parent
+        from .licencia.estado import obtener_info_licencia
+        info_lic = obtener_info_licencia(raiz_app)
+
+        renueva = request.query_params.get("renueva")
+        if renueva in ("1", "actual"):
+            renueva = info_lic.get("id") or ""
+
+        amplia = request.query_params.get("amplia")
+        if amplia in ("1", "actual"):
+            amplia = info_lic.get("id") or ""
+
+        recupera = request.query_params.get("recupera")
+        if recupera in ("1", "actual"):
+            recupera = info_lic.get("id") or ""
+
+        secundarias_previas = info_lic.get("secundarias") or 0
+        tipo_defecto = info_lic.get("tipo") if info_lic.get("tipo") in ("MENSUAL", "SEMESTRAL", "ANUAL", "PERPETUA") else "MENSUAL"
+
+        return templates.TemplateResponse(
+            request,
+            "license_solicitar.html",
+            context(
+                request,
+                user=user,
+                section="licencia",
+                renueva=renueva,
+                amplia=amplia,
+                recupera=recupera,
+                secundarias_previas=secundarias_previas,
+                secundarias_seleccionadas=(secundarias_previas + 1 if amplia else 0),
+                tipo_seleccionado=tipo_defecto,
+                mensaje_generado=None,
+                codigo_spvir1=None,
+                precio_cup=None,
+                form_data=None,
+            ),
+        )
+
+    @app.post("/licencia/solicitar", response_class=HTMLResponse)
+    async def license_request_submit(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        data = await require_csrf(request)
+        if data is None:
+            return flash_redirect(request, "/licencia/solicitar", "Token de seguridad no válido o expirado.", kind="error")
+
+        raiz_app = config.database_path.parent.parent
+        from .licencia.identidad import cargar_o_crear_identidad, ruta_identidad
+        from .licencia.solicitud import (
+            AVISO_FRESCURA,
+            SolicitudError,
+            calcular_precio,
+            calcular_precio_ampliacion,
+            formatear_cup,
+            generar_solicitud,
+        )
+
+        nombre = (data.get("nombre") or "").strip()
+        apellidos = (data.get("apellidos") or "").strip()
+        ci = (data.get("ci") or "").strip()
+        telefono = (data.get("telefono") or "").strip()
+        tipo = (data.get("tipo") or "MENSUAL").strip().upper()
+        try:
+            secundarias = int(data.get("secundarias") or 0)
+        except ValueError:
+            secundarias = 0
+        try:
+            secundarias_previas = int(data.get("secundarias_previas") or 0)
+        except ValueError:
+            secundarias_previas = 0
+        via = (data.get("via") or "WHATSAPP").strip().upper()
+        renueva = (data.get("renueva") or "").strip() or None
+        amplia = (data.get("amplia") or "").strip() or None
+        recupera = (data.get("recupera") or "").strip() or None
+
+        form_data = {
+            "nombre": nombre,
+            "apellidos": apellidos,
+            "ci": ci,
+            "telefono": telefono,
+            "tipo": tipo,
+            "secundarias": secundarias,
+            "via": via,
+        }
+
+        try:
+            id_inst = cargar_o_crear_identidad(ruta_identidad(raiz_app))
+            mensaje, codigo, payload = generar_solicitud(
+                id_inst,
+                nombre=nombre,
+                apellidos=apellidos,
+                ci=ci,
+                telefono=telefono,
+                tipo=tipo,
+                secundarias=secundarias,
+                via=via,
+                renueva=renueva,
+                amplia=amplia,
+                recupera=recupera,
+                secundarias_previas=secundarias_previas,
+            )
+        except SolicitudError as exc:
+            return flash_redirect(request, "/licencia/solicitar", str(exc), kind="error")
+        except Exception:
+            return flash_redirect(request, "/licencia/solicitar", "No se pudo generar la solicitud de licencia.", kind="error")
+
+        if recupera:
+            precio_cup = "0.00 CUP (Gratis)"
+        elif amplia:
+            adic = max(1, secundarias - secundarias_previas)
+            precio_cup = formatear_cup(calcular_precio_ampliacion(tipo, adic))
+        else:
+            precio_cup = formatear_cup(calcular_precio(tipo, secundarias))
+
+        from urllib.parse import quote
+        tel_soporte = "5351815604"
+        enlace_whatsapp = f"https://api.whatsapp.com/send?phone={tel_soporte}&text={quote(mensaje)}"
+
+        return templates.TemplateResponse(
+            request,
+            "license_solicitar.html",
+            context(
+                request,
+                user=user,
+                section="licencia",
+                mensaje_generado=mensaje,
+                codigo_spvir1=codigo,
+                precio_cup=precio_cup,
+                aviso_frescura=AVISO_FRESCURA,
+                enlace_whatsapp=enlace_whatsapp,
+                form_data=form_data,
+                renueva=renueva,
+                amplia=amplia,
+                recupera=recupera,
+                secundarias_previas=secundarias_previas,
+                secundarias_seleccionadas=secundarias,
+                tipo_seleccionado=tipo,
+            ),
+        )
+
+    @app.get("/licencia/activar", response_class=HTMLResponse)
+    async def license_activate_page(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        return templates.TemplateResponse(
+            request,
+            "license_activar.html",
+            context(request, user=user, section="licencia"),
+        )
+
+    @app.post("/licencia/activar")
+    async def license_activate_submit(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        data = await require_csrf(request)
+        if data is None:
+            return flash_redirect(request, "/licencia/activar", "Token de seguridad no válido o expirado.", kind="error")
+
+        texto = (data.get("texto_licencia") or "").strip()
+        if not texto:
+            return flash_redirect(request, "/licencia/activar", "Debes pegar el mensaje o código de la licencia.", kind="error")
+
+        raiz_app = config.database_path.parent.parent
+        from .licencia.almacen import AlmacenLicencia, ruta_licencia
+        from .licencia.corta import activar_spvi2
+        from .licencia.identidad import cargar_o_crear_identidad, ruta_identidad
+
+        try:
+            id_inst = cargar_o_crear_identidad(ruta_identidad(raiz_app))
+            ruta_lic = ruta_licencia(raiz_app)
+            almacen = AlmacenLicencia(ruta_lic, huella=id_inst.huella, app_id="DSHALEV")
+            res = activar_spvi2(texto, id_inst, almacen)
+        except Exception as exc:
+            import traceback
+            traceback.print_exc()
+            return flash_redirect(request, "/licencia/activar", "No se pudo procesar la licencia.", kind="error")
+
+        if res.resultado == "Accepted":
+            return flash_redirect(request, "/licencia", "Licencia activada con éxito.", kind="success")
+        elif res.resultado == "Absorbed":
+            return flash_redirect(request, "/licencia", res.mensaje, kind="info")
+        elif res.resultado == "Outdated":
+            return flash_redirect(request, "/licencia", res.mensaje, kind="warning")
+        else:
+            return flash_redirect(request, "/licencia/activar", res.mensaje, kind="error")
 
     @app.post("/licencia/canjear")
     async def license_redeem(request: Request):
@@ -687,11 +857,12 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
 
         try:
             from .licencia.identidad import cargar_o_crear_identidad, ruta_identidad
-            from .licencia.almacen import AlmacenLicencia
+            from .licencia.almacen import AlmacenLicencia, ruta_licencia
             from .licencia.cliente_gl import ClienteGL, ErrorGL
             raiz_app = config.database_path.parent.parent
             id_inst = cargar_o_crear_identidad(ruta_identidad(raiz_app))
-            almacen = AlmacenLicencia(raiz_app, id_inst.huella)
+            ruta_lic = ruta_licencia(raiz_app)
+            almacen = AlmacenLicencia(ruta_lic, huella=id_inst.huella, app_id="DSHALEV")
             cliente = ClienteGL(id_inst, almacen, configuracion=conf)
             res = cliente.canjear(codigo)
             if res.absorbida:
@@ -719,11 +890,12 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
 
         try:
             from .licencia.identidad import cargar_o_crear_identidad, ruta_identidad
-            from .licencia.almacen import AlmacenLicencia
+            from .licencia.almacen import AlmacenLicencia, ruta_licencia
             from .licencia.cliente_gl import ClienteGL, ErrorGL
             raiz_app = config.database_path.parent.parent
             id_inst = cargar_o_crear_identidad(ruta_identidad(raiz_app))
-            almacen = AlmacenLicencia(raiz_app, id_inst.huella)
+            ruta_lic = ruta_licencia(raiz_app)
+            almacen = AlmacenLicencia(ruta_lic, huella=id_inst.huella, app_id="DSHALEV")
             cliente = ClienteGL(id_inst, almacen, configuracion=conf)
             res = cliente.consultar_estado()
             return flash_redirect(request, "/licencia", f"Estado comprobado con el servicio: {res.estado}.", kind="success")

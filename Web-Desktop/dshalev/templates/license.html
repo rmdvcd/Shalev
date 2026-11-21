@@ -3,60 +3,110 @@
   <div>
     <p class="eyebrow">ESTADO DE LA APLICACIÓN</p>
     <h1>Licencia</h1>
-    <p class="muted">Información y canje de la licencia comercial de DShalev.</p>
+    <p class="muted">Gestión, solicitud y activación de la licencia de DShalev.</p>
+  </div>
+  <div class="heading-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    <a href="/licencia/solicitar" class="primary-button">Solicitar</a>
+    <a href="/licencia/activar" class="secondary-button">Activar</a>
+    {% if licencia_info and licencia_info.instalada and licencia_info.id %}
+      {% if licencia_info.tipo != 'PERPETUA' %}
+        <a href="/licencia/solicitar?renueva={{ licencia_info.id }}" class="secondary-button">Renovar</a>
+        <a href="/licencia/solicitar?amplia={{ licencia_info.id }}" class="secondary-button">Ampliar</a>
+      {% endif %}
+    {% endif %}
+    <a href="/licencia/solicitar?recupera=1" class="quiet-button">Recuperar</a>
   </div>
 </div>
+
+{% if licencia_info and licencia_info.aviso_reloj %}
+<div class="notice warning" role="alert" style="margin-bottom: 1.5rem;">
+  <strong>Aviso del reloj:</strong> {{ licencia_info.aviso_reloj }}
+</div>
+{% endif %}
+
 <div class="content-grid">
   <section class="panel">
     <div class="panel-heading">
       <div>
         <p class="eyebrow">LICENCIA COMERCIAL</p>
-        <h2>Estado de la licencia</h2>
+        <h2>Estado actual</h2>
       </div>
+      <span class="icon-tile">📜</span>
     </div>
-
-    {% if not comercial_habilitada %}
-    <div class="notice warning">
-      <p>La activación y verificación de licencias GL todavía no están implementadas en un build sin configuración de producción.</p>
-      <p>{{ motivo_licencia }}</p>
-    </div>
-    {% endif %}
 
     {% if licencia_info and licencia_info.instalada %}
-    <div class="detail-group" style="margin-bottom: 1.5rem;">
-      <p><strong>Estado:</strong> <span class="tag {% if licencia_info.revocada %}error{% elif licencia_info.estado == 'ACTIVA' %}success{% else %}warning{% endif %}">{{ licencia_info.estado }}</span></p>
-      <p><strong>Tipo:</strong> {{ licencia_info.tipo }}</p>
+    <div class="detail-group" style="margin-bottom: 1.5rem; display: grid; gap: 0.75rem;">
+      <p><strong>Estado:</strong> 
+        <span class="stock-badge {% if licencia_info.estado in ('ACTIVA', 'PERPETUA') %}normal{% elif licencia_info.estado == 'VENCIDA' %}critical{% else %}low{% endif %}">
+          {{ licencia_info.estado }}
+        </span>
+      </p>
+      <p><strong>Tipo de plan:</strong> {{ licencia_info.tipo }}</p>
       <p><strong>Vencimiento:</strong> {{ licencia_info.vencimiento }}</p>
+      <p><strong>Plazas secundarias autorizadas:</strong> {{ licencia_info.secundarias }}</p>
+      {% if licencia_info.id %}
+      <p><strong>Identificador:</strong> <code>{{ licencia_info.id }}</code></p>
+      {% endif %}
       <p><strong>Última comprobación:</strong> {{ licencia_info.comprobada_en }}</p>
     </div>
     {% else %}
-    <p class="muted">No hay ninguna licencia comercial instalada en este equipo.</p>
-    {% endif %}
-
-    <div class="form-group" style="margin-top: 1rem;">
-      <label for="identidad-huella">Huella de la instalación (Thumbprint P-256)</label>
-      <input id="identidad-huella" type="text" readonly value="{{ huella_instalacion }}" class="code-input" style="width: 100%; font-family: monospace;" onclick="this.select();">
-      <p class="tiny muted">Identificador único de este equipo para transferencias y soporte del operador.</p>
+    <div class="notice info" style="margin-bottom: 1.5rem;">
+      <p>No hay ninguna licencia comercial activada en este equipo.</p>
+      <p class="tiny">Puedes solicitar una nueva licencia por WhatsApp o SMS y activarla en pocos minutos.</p>
     </div>
-
-    <form action="/licencia/canjear" method="post" style="margin-top: 1.5rem;">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
-      <div class="form-group">
-        <label for="codigo-canje">Código de canje (16 caracteres)</label>
-        <input id="codigo-canje" name="codigo_canje" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" class="code-input" style="width: 100%; font-family: monospace;" {% if not comercial_habilitada %}disabled{% endif %} autocomplete="off" spellcheck="false">
-        <p class="tiny muted">El reloj del sistema debe estar sincronizado con la hora de red (tolerancia máxima de 2 horas).</p>
-      </div>
-      <div style="margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center;">
-        <button type="submit" class="btn primary" {% if not comercial_habilitada %}disabled{% endif %}>Canjear / Renovar</button>
-      </div>
-    </form>
+    <div style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem;">
+      <a href="/licencia/solicitar" class="primary-button">Solicitar</a>
+      <a href="/licencia/activar" class="secondary-button">Activar</a>
+    </div>
+    {% endif %}
 
     {% if licencia_info and licencia_info.instalada and comercial_habilitada %}
     <form action="/licencia/estado" method="post" style="margin-top: 1rem;">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <button type="submit" class="btn secondary">Consultar estado</button>
+      <button type="submit" class="secondary-button">Consultar</button>
     </form>
     {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow">DATOS DEL EQUIPO</p>
+        <h2>Identidad de instalación</h2>
+      </div>
+      <span class="icon-tile">💻</span>
+    </div>
+
+    <div class="form-stack">
+      <label for="campo-device-id">Device ID (Identificador de hardware)
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.25rem;">
+          <input id="campo-device-id" type="text" readonly value="{{ licencia_info.device_id or 'No disponible' }}" class="code-input" style="flex: 1; font-family: monospace;" onclick="this.select();">
+          <button type="button" class="quiet-button" onclick="navigator.clipboard.writeText(document.getElementById('campo-device-id').value); this.textContent='Copiado'; setTimeout(()=>this.textContent='Copiar', 2000);">Copiar</button>
+        </div>
+      </label>
+
+      <label for="identidad-huella">Huella de la instalación (Thumbprint P-256)
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.25rem;">
+          <input id="identidad-huella" type="text" readonly value="{{ licencia_info.huella or 'No disponible' }}" class="code-input" style="flex: 1; font-family: monospace;" onclick="this.select();">
+          <button type="button" class="quiet-button" onclick="navigator.clipboard.writeText(document.getElementById('identidad-huella').value); this.textContent='Copiado'; setTimeout(()=>this.textContent='Copiar', 2000);">Copiar</button>
+        </div>
+        <small class="muted">Identificador único local derivado de la clave privada anclada en este equipo.</small>
+      </label>
+    </div>
+
+    <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color, #e2e8f0); padding-top: 1rem;">
+      <p class="eyebrow">CANJE POR CÓDIGO (PRODUCCIÓN)</p>
+      {% if not comercial_habilitada %}
+      <p class="tiny muted">{{ motivo_licencia }}</p>
+      {% endif %}
+      <form action="/licencia/canjear" method="post" style="margin-top: 0.5rem;">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label for="codigo-canje">Código de canje (16 caracteres)
+          <input id="codigo-canje" name="codigo_canje" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" class="code-input" style="width: 100%; font-family: monospace; margin-top: 0.25rem;" {% if not comercial_habilitada %}disabled{% endif %} autocomplete="off" spellcheck="false">
+        </label>
+        <button type="submit" class="secondary-button" style="margin-top: 0.75rem;" {% if not comercial_habilitada %}disabled{% endif %}>Canjear / Renovar</button>
+      </form>
+    </div>
   </section>
 
   <section class="panel">

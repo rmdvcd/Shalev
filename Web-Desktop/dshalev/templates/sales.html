@@ -7,7 +7,7 @@
     <div class="pos-search"><input id="pos-search" type="search" maxlength="80" autocomplete="off" placeholder="Nombre del producto o servicio" aria-describedby="pos-search-help"><kbd>F2</kbd></div>
     <p id="pos-search-help" class="tiny">Busca y agrega artículos sin perder el carrito. F2 vuelve a la búsqueda.</p>
     <p id="pos-results-status" class="pos-result-status" role="status" aria-live="polite"></p>
-    <div id="pos-results" class="pos-results" aria-label="Resultados de artículos" aria-busy="false"></div>
+    <div id="pos-results" class="pos-results" role="region" aria-label="Resultados de artículos" aria-busy="false"></div>
   </div>
   <form id="pos-sale-form" method="post" action="/ventas/nueva" class="pos-cart" data-manual>
     <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="sale_key" value="{{ sale_key }}"><input type="hidden" name="pos_prices" value="{}">
