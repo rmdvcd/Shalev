@@ -287,6 +287,14 @@ class AnclaInstalacion:
             datos["licencia"] = licencia.a_json()
             self._guardar(datos)
 
+    def resetear_reloj_servidor(self, server_time: datetime) -> None:
+        """Restablece la marca de agua del reloj local a una hora verificada del servidor (S4)."""
+        momento = _normalizar(server_time)
+        with self._cerrojo:
+            datos = self._leer() or {}
+            datos["ultimo_visto"] = _a_iso(momento)
+            self._guardar(datos)
+
 
 class AlmacenLicencia:
     """Licencia local + ancla. Una instancia por proceso; no hay bloqueo entre procesos."""
@@ -451,6 +459,10 @@ class AlmacenLicencia:
                     f"se recuperará al reiniciar. {exc}"
                 ) from None
         return licencia
+
+    def resetear_reloj_servidor(self, server_time: datetime) -> None:
+        """Restablece la marca de agua del reloj local en el ancla de instalación (S4)."""
+        self.ancla.resetear_reloj_servidor(server_time)
 
     # ── estado remoto ────────────────────────────────────────────────────────
     def registrar_estado(

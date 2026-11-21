@@ -117,6 +117,8 @@ sealed interface ActivationResult {
     data object Rejected : ActivationResult
     /** Auténtica pero más antigua que la instalada: se ignora. */
     data object Outdated : ActivationResult
+    /** 0.32.0 (S3): renovación dominada / rollover absorbido. */
+    data class Absorbed(val state: LicenseState, val venceEn: String?, val mensaje: String) : ActivationResult
 }
 
 class LicenseManager(
@@ -334,6 +336,27 @@ class LicenseManager(
     /** No se instala una licencia más antigua que la actual ni anterior a la transferencia. */
     private suspend fun instalar(payload: LicensePayload, state: LicenseState, envelopeJson: String, licenseId: String): ActivationResult {
         val current = store.license()
+        val currentVerified = current?.let { verifyStored(it, clock.now()) }
+
+        // S3 (Renovación dominada): si la licencia actual domina a la nueva (misma o mayor cobertura),
+        // no bloqueamos con error ni degradamos la fecha. Registramos la clave como absorbida y
+        // preservamos la mayor cobertura.
+        if (current != null && !current.maestra && currentVerified != null) {
+            val currentState = currentVerified.first
+            if (current.tipo == TipoLicencia.PERPETUA) {
+                val mensaje = "Tu licencia ya cubría este periodo de forma perpetua. La nueva clave ha sido registrada como absorbida."
+                return ActivationResult.Absorbed(currentState, null, mensaje)
+            }
+            if (current.venceEn != null && payload.tipo != TipoLicencia.PERPETUA && payload.venceEn != null) {
+                val currentVence = Instant.parse(current.venceEn)
+                val newVence = Instant.parse(payload.venceEn)
+                if (!newVence.isAfter(currentVence)) {
+                    val mensaje = "Tu licencia ya cubría este periodo hasta ${current.venceEn}. La nueva clave ha sido registrada como absorbida."
+                    return ActivationResult.Absorbed(currentState, current.venceEn, mensaje)
+                }
+            }
+        }
+
         // Una licencia auténtica de GL siempre manda sobre la clave maestra de desarrollo (que es solo una ayuda de
         // depuración), aunque se instalara después.
         if (current != null && !current.maestra && Instant.parse(payload.emitidaEn).isBefore(Instant.parse(current.emitidaEn))) {
@@ -356,6 +379,14 @@ class LicenseManager(
             ),
         )
         return ActivationResult.Accepted(state)
+    }
+
+    /**
+     * 0.32.0 (S4): restablece la marca de agua del reloj local (`lastSeen`) con una hora
+     * autenticada/verificada del servidor (por ejemplo, desde un error CLOCK_SKEW o /v1/time).
+     */
+    suspend fun resetearRelojServidor(serverTime: Instant) {
+        store.setLastSeen(serverTime)
     }
 
     /**

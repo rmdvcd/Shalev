@@ -519,3 +519,63 @@ def test_https_real_verifica_certificado_host_y_redirecciones(escenario, tmp_pat
         servidor.shutdown()
         servidor.server_close()
         hilo.join(timeout=5)
+
+
+def test_clock_skew_extrae_server_time_y_recupera_reloj(escenario):
+    """S4: Error CLOCK_SKEW entrega serverTime y permite recuperar la marca de agua del reloj."""
+    cuerpo_error = json.dumps(
+        {
+            "v": 1,
+            "ok": False,
+            "error": {
+                "code": "CLOCK_SKEW",
+                "message": "Clock skew detected",
+                "serverTime": "2026-04-18T12:00:00Z",
+            },
+        }
+    ).encode("utf-8")
+    transporte = TransporteFalso(RespuestaHTTP(400, cuerpo_error))
+    cliente = _cliente(escenario, transporte)
+
+    with pytest.raises(ErrorGL) as excinfo:
+        cliente.canjear("ABCD-EFGH-JKLM-NPQR")
+
+    assert excinfo.value.codigo == "CLOCK_SKEW"
+    assert excinfo.value.server_time is not None
+    assert excinfo.value.server_time.isoformat().startswith("2026-04-18T12:00:00")
+
+    # Recuperar reloj con el serverTime verificado
+    cliente.recuperar_reloj_servidor(excinfo.value.server_time)
+    assert escenario["almacen"].ancla.ultimo_visto() == excinfo.value.server_time
+
+
+def test_renovacion_dominada_por_licencia_mas_larga_o_perpetua(escenario):
+    """S3: Una renovación dominada por la actual no bloquea la app y preserva la mayor fecha."""
+    # Instalar primero una licencia larga válida por 365 días
+    c_larga = contenido_licencia(escenario["identidad"], vence=AHORA + timedelta(days=365), license_id="lic-anual")
+    sobre_larga = sobre_licencia(c_larga, escenario["servicio"])
+    transporte1 = TransporteFalso(_ok_licencia(sobre_larga))
+    cliente = _cliente(escenario, transporte1)
+    res1 = cliente.canjear("ABCD-EFGH-JKLM-NPQR")
+    assert not res1.absorbida
+    assert res1.licencia.contenido["licenseId"] == "lic-anual"
+    exp_larga = res1.licencia.contenido["expiresAt"]
+
+    # Intentar canjear una renovación con periodo más corto (30 días)
+    c_corta = contenido_licencia(escenario["identidad"], vence=AHORA + timedelta(days=30), license_id="lic-mensual")
+    sobre_corta = sobre_licencia(c_corta, escenario["servicio"])
+    transporte2 = TransporteFalso(_ok_licencia(sobre_corta))
+    cliente2 = _cliente(escenario, transporte2)
+    res2 = cliente2.canjear("WXYZ-EFGH-JKLM-NPQR")
+
+    assert res2.absorbida is True
+    assert "absorbida" in res2.mensaje_absorbida
+    assert exp_larga in res2.mensaje_absorbida
+
+    # La licencia guardada en almacén conserva la fecha y licencia mayor
+    guardada = escenario["almacen"].observar().licencia
+    assert guardada is not None
+    doc_dict = json.loads(guardada.documento)
+    assert doc_dict["license"]["licenseId"] == "lic-anual"
+    assert doc_dict["license"]["expiresAt"] == exp_larga
+

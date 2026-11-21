@@ -111,6 +111,7 @@ enum GLActivationResult: Equatable {
     case notFound
     case rejected
     case outdated
+    case absorbed(message: String)
 }
 
 enum GLLicenseState: Equatable {
@@ -493,6 +494,19 @@ final class GLLicenseManager: ObservableObject {
         guard let identity, GLTrust.canValidate else { return .rejected }
         guard let code = extractShortLicense(message) else { return .notFound }
         guard let verified = verify(code: code, identity: identity) else { return .rejected }
+
+        // S3: Renovación dominada / rollover absorbido
+        if vault.licenseID != nil, vault.revokedAt == nil {
+            if vault.type == .perpetual {
+                return .absorbed(message: "Tu licencia ya cubría este periodo de forma perpetua. La nueva clave ha sido registrada como absorbida.")
+            }
+            if let currentExpires = vault.expiresAt, let newExpires = verified.expiresAt, newExpires <= currentExpires {
+                let formatter = ISO8601DateFormatter()
+                let dateStr = formatter.string(from: currentExpires)
+                return .absorbed(message: "Tu licencia ya cubría este periodo hasta \(dateStr). La nueva clave ha sido registrada como absorbida.")
+            }
+        }
+
         if let currentIssued = vault.issuedAt, verified.issuedAt < currentIssued { return .outdated }
         if let migrated = vault.migratedAt, verified.issuedAt <= migrated { return .outdated }
 
@@ -508,6 +522,12 @@ final class GLLicenseManager: ObservableObject {
         try? GLVaultStore.save(vault)
         state = verified.state(at: now)
         return .accepted
+    }
+
+    /// S4: Restablece la marca de agua del reloj local (`lastSeen`) con hora verificada del servidor.
+    func recoverClock(serverTime: Date) {
+        vault.lastSeen = serverTime
+        try? GLVaultStore.save(vault)
     }
 
     func saveRequestProfile() {
