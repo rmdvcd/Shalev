@@ -73,6 +73,7 @@ class DirectorioConfianza:
     seq: int
     emitida_en: int
     claves: Sequence[ClaveDirectorio]
+    datos_raw: str = ""
 
     def sign_keys_for(self, emitida_en: int | datetime) -> list[bytes]:
         """Devuelve las claves SPKI DER con uso 'firma' que cubren la fecha indicada y no están comprometidas."""
@@ -114,7 +115,7 @@ class DirectorioConfianza:
 
 def normalizar_huella(huella: str) -> str:
     """Normaliza 'sha256:0289:...' o hex plano a 64 hex minúsculas."""
-    return huella.strip().lower().removePrefix("sha256:").replace(":", "")
+    return huella.strip().lower().removeprefix("sha256:").replace(":", "")
 
 
 def calcular_huella(spki_der: bytes) -> str:
@@ -305,6 +306,34 @@ def verificar_y_parsear_directorio(
         seq=seq,
         emitida_en=emitida_en,
         claves=claves_procesadas,
+        datos_raw=datos_str,
+    )
+
+
+def evaluar_actualizacion(
+    actual: DirectorioConfianza | None,
+    nuevo: DirectorioConfianza,
+) -> DirectorioConfianza:
+    """Aplica la regla de anti-retroceso e idempotencia del Anexo A.
+
+    - Si no hay directorio actual: acepta nuevo.
+    - Si nuevo.seq > actual.seq: acepta nuevo.
+    - Si nuevo.seq == actual.seq: si el contenido de datos es idéntico, es idempotente (retorna actual).
+      Si el contenido difiere con el mismo seq, se rechaza con DirectorioError.
+    - Si nuevo.seq < actual.seq: rechaza con DirectorioError (anti-retroceso).
+    """
+    if actual is None:
+        return nuevo
+    if nuevo.seq > actual.seq:
+        return nuevo
+    if nuevo.seq == actual.seq:
+        if actual.datos_raw and nuevo.datos_raw and actual.datos_raw == nuevo.datos_raw:
+            return actual
+        if actual.claves == nuevo.claves and actual.emitida_en == nuevo.emitida_en:
+            return actual
+        raise DirectorioError(f"Conflicto de secuencia: mismo seq ({nuevo.seq}) pero contenido diferente.")
+    raise DirectorioError(
+        f"Anti-retroceso: el directorio recibido tiene seq={nuevo.seq}, menor que el actual seq={actual.seq}."
     )
 
 

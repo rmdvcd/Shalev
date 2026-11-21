@@ -1,0 +1,5 @@
+{
+  "datos": "{\"v\":1,\"seq\":1,\"emitidaEn\":1776470400,\"claves\":[{\"kid\":\"gl-ecdh-vigente\",\"uso\":\"ecdh\",\"spki\":\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELQaSJKdqp6b/uqGc+0juRctWGdb9mHQZj2CZRHsrKNsux9UhBbTHirLhF7q6KupNGc9PwwiqNAVcpAT7MR2EvA==\",\"huella\":\"sha256:0289:7025:2266:8423:1613:2ccd:18a7:3ecd:e0ec:878f:767f:e9a4:916b:d356:6771:a2e0\",\"desde\":1700000000,\"hasta\":null,\"estado\":\"vigente\"},{\"kid\":\"gl-sign-vigente\",\"uso\":\"firma\",\"spki\":\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAED3b2+vZldNNAkjW9X6hKZebUnQ4ycS7lqCK1Z6IMdRHlhhXq1/h7eBRj/4VYAzIjdSFKRknFaATttWM4NTlEQg==\",\"huella\":\"sha256:d252:9bd9:0aa3:e8bb:d120:06e6:b4d0:7a23:9092:9a9e:7501:1a05:a80c:d994:aacb:64be\",\"desde\":1700000000,\"hasta\":null,\"estado\":\"vigente\"}]}",
+  "firma": "ZHnSBKanyCNtjChjxz0GIBNZzvd-lzM_9qgXRJ9PvSLiEYitdxRdHe5l6vaX7UbdGgFlxu0m-MASs3VuXlGrQQ",
+  "raiz": "A"
+}
