@@ -33,6 +33,8 @@ object B64 {
     fun enc(b: ByteArray): String = Base64.getEncoder().encodeToString(b)
     fun dec(s: String): ByteArray = try { Base64.getDecoder().decode(s) } catch (e: IllegalArgumentException) { fail() }
     fun urlNoPad(b: ByteArray): String = Base64.getUrlEncoder().withoutPadding().encodeToString(b)
+    /** Alias usado por el protocolo de canje GL v1 (`deviceThumbprint`): Base64url sin relleno. */
+    fun encUrlNoPad(b: ByteArray): String = urlNoPad(b)
     fun urlDec(s: String): ByteArray = try { Base64.getUrlDecoder().decode(s) } catch (e: IllegalArgumentException) { fail() }
 }
 
@@ -194,11 +196,16 @@ object AesGcm {
 
 /**
  * Par P-256 persistente del dispositivo. Su SPKI viaja en `devicePub`.
- * La privada nunca sale: solo se expone el acuerdo ECDH.
+ * La privada nunca sale: se expone el acuerdo ECDH y la firma (prueba de posesión del canje GL v1).
  */
 interface DeviceKey {
     fun publicSpki(): ByteArray
     fun agree(peer: PublicKey): ByteArray
+    /**
+     * 0.32.0 (S7): firma ECDSA `SHA256withECDSA` en DER con la clave del equipo. La usa la prueba de posesión del
+     * canje (`/v1/redeem`) y la consulta de estado; la clave del Keystore debe habilitar `PURPOSE_SIGN`.
+     */
+    fun sign(data: ByteArray): ByteArray = throw LicenseCryptoException()
     fun exportarClaves(): Pair<ByteArray, ByteArray>? = null
     fun restaurarClaves(pub: ByteArray, privPkcs8: ByteArray) {}
 }

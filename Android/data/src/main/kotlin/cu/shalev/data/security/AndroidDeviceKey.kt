@@ -15,6 +15,7 @@ import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.PrivateKey
 import java.security.PublicKey
+import java.security.Signature
 import java.security.spec.ECGenParameterSpec
 import java.security.spec.PKCS8EncodedKeySpec
 import javax.crypto.KeyAgreement
@@ -51,6 +52,7 @@ class AndroidDeviceKey @Inject constructor(
 
     override fun publicSpki(): ByteArray = impl.publicSpki()
     override fun agree(peer: PublicKey): ByteArray = impl.agree(peer)
+    override fun sign(data: ByteArray): ByteArray = impl.sign(data)
 
     override fun exportarClaves(): Pair<ByteArray, ByteArray>? = runCatching {
         if (!softFile.exists()) {
@@ -75,8 +77,15 @@ class AndroidDeviceKey @Inject constructor(
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun createKeystoreEc() {
-        fun spec(strongBox: Boolean) = KeyGenParameterSpec.Builder(EC_ALIAS, KeyProperties.PURPOSE_AGREE_KEY)
+        // 0.32.0 (S7): la misma clave sirve para ECDH (licencia corta) y para firmar la prueba de posesión del canje.
+        // Los teléfonos con una clave anterior (solo AGREE) conservan su identidad y su licencia; el canje directo les
+        // pide volver a instalar la app (el Keystore no permite añadir propósitos a una clave ya creada).
+        fun spec(strongBox: Boolean) = KeyGenParameterSpec.Builder(
+            EC_ALIAS,
+            KeyProperties.PURPOSE_AGREE_KEY or KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
+        )
             .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+            .setDigests(KeyProperties.DIGEST_SHA256)
             .setIsStrongBoxBacked(strongBox)
             .build()
         val gen = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, ANDROID_KS)
@@ -96,11 +105,17 @@ class AndroidDeviceKey @Inject constructor(
             doPhase(peer, true)
             generateSecret()
         }
+        override fun sign(data: ByteArray): ByteArray = Signature.getInstance("SHA256withECDSA", ANDROID_KS).run {
+            initSign(ks.getKey(EC_ALIAS, null) as PrivateKey)
+            update(data)
+            sign()
+        }
     }
 
     private class Software(private val pub: ByteArray, private val priv: PrivateKey) : DeviceKey {
         override fun publicSpki() = pub
         override fun agree(peer: PublicKey) = EcP256.ecdh(priv, peer)
+        override fun sign(data: ByteArray) = EcP256.sign(priv, data)
     }
 
     /** Formato: [len pub:int][pub][AEAD(pkcs8)] con AAD = pub. */

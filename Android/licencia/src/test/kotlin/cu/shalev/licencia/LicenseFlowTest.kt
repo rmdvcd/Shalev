@@ -162,8 +162,8 @@ class LicenseFlowTest {
         val engañoso = iss.message.replace("Tipo: Mensual", "Tipo: Perpetua").replace("Apps secundarias: 5", "Apps secundarias: 10")
         assertTrue(m.activate(engañoso) is ActivationResult.Accepted)
         assertEquals(TipoLicencia.MENSUAL, m.evaluate().license!!.tipo)
-        // Solo el código (QR) también vale.
-        assertTrue(manager().activate(iss.codigo) is ActivationResult.Accepted)
+        // Solo el código (QR) también vale. Reinstalar la misma licencia no extiende la cobertura: S3 la absorbe.
+        assertTrue(manager().activate(iss.codigo) is ActivationResult.Absorbed)
     }
 
     @Test fun garbageIsNotFound() = runBlocking {
