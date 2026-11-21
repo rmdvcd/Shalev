@@ -36,6 +36,10 @@ if gh api "repos/$REPO/releases/tags/$TAG" >/dev/null 2>&1; then
   exit 1
 fi
 
+# 1b. D3: Comprobar que las raíces de confianza para release están configuradas.
+echo "== Verificando raíces de confianza SPVI para release (D3)…"
+python3 "$ROOT/tools/verificacion/verificar_raices_release.py" --release || exit 1
+
 # 2. Compilar release firmado (usa Android/keystore.properties o Shalev_*; no toca claves).
 echo "== Compilando :app:assembleRelease (puede tardar varios minutos)…"
 ( cd "$ROOT" && "$GRADLE" :app:assembleRelease )

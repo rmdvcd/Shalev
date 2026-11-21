@@ -22,6 +22,7 @@ from dshalev.licencia import (
     AnclaInstalacion,
     CamposLicenciaCorta,
     Identidad,
+    LicenciaCortaError,
     activar_spvi2,
     calcular_precio,
     calcular_precio_ampliacion,
@@ -331,4 +332,33 @@ def test_solicitud_recuperacion_y_ampliacion(tmp_path: Path):
     assert pay_amp["amplia"] == id_anterior
     # Semestral secundaria: 5,000 CUP * 2 = 10,000 CUP
     assert "10,000.00 CUP" in msg_amp
+
+
+def test_d2_directorio_con_clave_comprometida_o_fuera_de_ventana_no_cae_a_fijas(tmp_path: Path):
+    """D2: Si hay directorio válido, su respuesta (incluso vacía) manda; no revive claves fijas."""
+    identidad = _identidad_dorada(tmp_path)
+    gl_sign_priv = ec.derive_private_key(probar_gl.VECTOR_FIRMA_D, ec.SECP256R1())
+    dev_pub = probar_gl.comprimir(identidad.publica)
+    dev_id = derivar_device_id(identidad)
+    huella_dev = probar_gl.huella(dev_id, dev_pub)
+
+    ahora = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
+    vence = ahora + timedelta(days=30)
+    cuerpo = probar_gl.cuerpo(str(uuid.uuid4()), huella_dev, "MENSUAL", "ACTIVA", 0, ahora, vence)
+    spvi2_msg = probar_gl.emitir(cuerpo, dev_pub, gl_sign_priv)
+    binario, _, _ = extraer_spvi2(spvi2_msg)
+
+    # 1. Crear mock de directorio que marca la clave como comprometida
+    class DirectorioMockComprometido:
+        def sign_keys_for(self, emitida_en):
+            return []  # Lista vacía porque la clave fue revocada / comprometida
+
+    with pytest.raises(LicenciaCortaError, match="no es válida para este dispositivo"):
+        descifrar_y_verificar(
+            binario,
+            identidad,
+            device_id=dev_id,
+            directorio=DirectorioMockComprometido(),
+        )
+
 

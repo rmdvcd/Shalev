@@ -51,4 +51,28 @@ class LicenseTrustTest {
         val mala = LicenseTrust.PinnedKey(LicenseTrust.ECDH_KEY.spkiB64, huellaFirmaGl)
         with(LicenseTrust) { assertNull(mala.validated()) }
     }
+
+    @Test fun cuandoDirectorioEfectivoExisteSusClavesMandanInclusoSiVacias() {
+        val dirVacio = TrustDirectory.Directorio(
+            v = 1,
+            secuencia = 1,
+            actualizadaEn = "2026-11-20T00:00:00Z",
+            validaHasta = "2026-12-20T00:00:00Z",
+            endpointBase = "https://example.com",
+            claves = emptyList(),
+            appIds = emptyMap()
+        )
+        TrustDirectory.effectiveDirectory = dirVacio
+        try {
+            assertTrue("Si hay directorio efectivo, no debe caer a claves fijas", LicenseTrust.signSpkis().isEmpty())
+            assertNull("Si hay directorio efectivo, ecdh debe ser null sin caer a clave fija", LicenseTrust.ecdhSpki())
+            assertFalse(LicenseTrust.canValidate)
+        } finally {
+            TrustDirectory.effectiveDirectory = null
+        }
+        // Sin directorio efectivo, vuelve al respaldo fijo
+        assertTrue(LicenseTrust.signSpkis().isNotEmpty())
+        assertNotNull(LicenseTrust.ecdhSpki())
+        assertTrue(LicenseTrust.canValidate)
+    }
 }

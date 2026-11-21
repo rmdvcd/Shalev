@@ -35,11 +35,16 @@ enum GLTrust {
     ]
 
     static var ecdhPublicKey: P256.KeyAgreement.PublicKey? {
-        TrustDirectory.effectiveDirectory?.activeECDH() ?? validatedECDH()
+        if let dir = TrustDirectory.effectiveDirectory {
+            return dir.activeECDH()
+        }
+        return validatedECDH()
     }
     static var signingPublicKeys: [P256.Signing.PublicKey] {
-        let fromDir = TrustDirectory.effectiveDirectory?.signKeys() ?? []
-        return fromDir.isEmpty ? signatures.compactMap(validatedSigningKey) : fromDir
+        if let dir = TrustDirectory.effectiveDirectory {
+            return dir.signKeys()
+        }
+        return signatures.compactMap(validatedSigningKey)
     }
     static var canValidate: Bool { !signingPublicKeys.isEmpty }
     static var canRequest: Bool { ecdhPublicKey != nil && canValidate }

@@ -329,6 +329,12 @@ data class LicenciaDto(
     val firmaPub: String? = null,
     val ranura: Int? = null,
     val permitidas: Int? = null,
+    val primariaLicenseJson: String? = null,
+    val okm: String? = null,
+    val mac: String? = null,
+    val primariaDeviceId: String? = null,
+    val primariaDevicePub: String? = null,
+    val spvi2: String? = null,
 )
 
 // ---------------------------------------------------------------------------------------------- acciones remotas

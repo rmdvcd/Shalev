@@ -53,12 +53,23 @@ object LicenseTrust {
         ),
     )
 
-    /** DER validado o null si falta o no coincide con la huella. Consulta primero el directorio efectivo. */
-    fun ecdhSpki(): ByteArray? = TrustDirectory.effectiveEcdhSpki() ?: ECDH_KEY.validated()
+    /** DER validado o null si falta o no coincide con la huella. Consulta primero el directorio efectivo.
+     * Si hay un directorio efectivo válido, su respuesta (incluido null/vacío) manda (D2).
+     * El respaldo de claves fijadas en el build solo aplica cuando NO hay directorio efectivo.
+     */
+    fun ecdhSpki(): ByteArray? {
+        val dir = TrustDirectory.effectiveDirectory
+        if (dir != null) {
+            return dir.ecdhVigente()
+        }
+        return ECDH_KEY.validated()
+    }
 
     fun signSpkis(emitidaEn: java.time.Instant? = null): List<ByteArray> {
-        val delDirectorio = TrustDirectory.effectiveSignSpkis(emitidaEn)
-        if (delDirectorio.isNotEmpty()) return delDirectorio
+        val dir = TrustDirectory.effectiveDirectory
+        if (dir != null) {
+            return dir.signKeysFor(emitidaEn)
+        }
         return SIGN_KEYS.mapNotNull { it.validated() }
     }
 
