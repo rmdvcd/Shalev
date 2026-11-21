@@ -8,7 +8,8 @@
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-<div id="splash-loader" class="splash-screen" aria-hidden="true">
+<noscript><style>#splash-loader{display:none!important;}</style></noscript>
+<div id="splash-loader" class="splash-screen" aria-hidden="true" title="Haz clic para continuar">
   <div class="splash-card">
     <div class="splash-vector-wrap">
       <svg class="splash-svg-ring" viewBox="0 0 108 108">
@@ -21,12 +22,48 @@
   </div>
 </div>
 <script>
-window.addEventListener('DOMContentLoaded',function(){
-  setTimeout(function(){
-    var s=document.getElementById('splash-loader');
-    if(s){s.classList.add('loaded');}
-  },150);
-});
+(function(){
+  var s = document.getElementById('splash-loader');
+  if (!s) return;
+
+  // Evitar repetir la pantalla de carga en cada navegación interna de la misma sesión
+  try {
+    if (sessionStorage.getItem('mipventax_splash_visto')) {
+      s.style.display = 'none';
+      if (s.parentNode) s.parentNode.removeChild(s);
+      return;
+    }
+    sessionStorage.setItem('mipventax_splash_visto', '1');
+  } catch(e){}
+
+  function quitarSplash(){
+    if (!s) return;
+    s.classList.add('loaded');
+    s.style.opacity = '0';
+    s.style.visibility = 'hidden';
+    setTimeout(function(){
+      if (s) {
+        s.style.display = 'none';
+        if (s.parentNode) s.parentNode.removeChild(s);
+        s = null;
+      }
+    }, 200);
+  }
+
+  // Clic o pulsación en cualquier parte para descartar inmediatamente
+  s.addEventListener('click', quitarSplash);
+
+  // Descarte al completar la carga
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(quitarSplash, 450);
+  } else {
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(quitarSplash, 450); });
+    window.addEventListener('load', function(){ setTimeout(quitarSplash, 150); });
+  }
+
+  // Seguro de vida absoluto: descartar forzosamente a los 800ms bajo cualquier circunstancia
+  setTimeout(quitarSplash, 800);
+})();
 </script>
 <a class="skip-link" href="#contenido">Saltar al contenido</a>
 {% if user %}
