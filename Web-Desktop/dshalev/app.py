@@ -651,6 +651,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             return redirect("/entrar")
         raiz_app = config.database_path.parent.parent
         from .licencia.estado import obtener_info_licencia
+        from .licencia.pago import AVISO_SIN_METODOS, FRASE_PAGA_SOLO, METODOS_COBRO, TITULO_PAGO
         info_lic = obtener_info_licencia(raiz_app)
 
         renueva = request.query_params.get("renueva")
@@ -663,7 +664,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
 
         recupera = request.query_params.get("recupera")
         if recupera in ("1", "actual"):
-            recupera = info_lic.get("id") or ""
+            recupera = info_lic.get("id") or recupera
 
         secundarias_previas = info_lic.get("secundarias") or 0
         tipo_defecto = info_lic.get("tipo") if info_lic.get("tipo") in ("MENSUAL", "SEMESTRAL", "ANUAL", "PERPETUA") else "MENSUAL"
@@ -685,6 +686,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 codigo_spvir1=None,
                 precio_cup=None,
                 form_data=None,
+                metodos_cobro=METODOS_COBRO,
+                titulo_pago=TITULO_PAGO,
+                frase_paga_solo=FRASE_PAGA_SOLO,
+                aviso_sin_metodos=AVISO_SIN_METODOS,
             ),
         )
 
@@ -699,6 +704,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
 
         raiz_app = config.database_path.parent.parent
         from .licencia.identidad import cargar_o_crear_identidad, ruta_identidad
+        from .licencia.pago import AVISO_SIN_METODOS, FRASE_PAGA_SOLO, METODOS_COBRO, TITULO_PAGO
         from .licencia.solicitud import (
             AVISO_FRESCURA,
             SolicitudError,
@@ -788,6 +794,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 secundarias_previas=secundarias_previas,
                 secundarias_seleccionadas=secundarias,
                 tipo_seleccionado=tipo,
+                metodos_cobro=METODOS_COBRO,
+                titulo_pago=TITULO_PAGO,
+                frase_paga_solo=FRASE_PAGA_SOLO,
+                aviso_sin_metodos=AVISO_SIN_METODOS,
             ),
         )
 

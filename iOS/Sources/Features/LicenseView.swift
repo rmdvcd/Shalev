@@ -546,6 +546,63 @@ struct LicenseView: View {
                                 .frame(maxWidth: .infinity)
                         }
 
+                        // T2: Tarjeta "Cómo pagar" antes del botón de envío (oculta en recuperación)
+                        if recoveryID.isBlank {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(PaymentInstructions.titulo)
+                                    .font(.shalev(14, weight: .semibold))
+                                    .foregroundStyle(Color.shalevText)
+                                let amountText: String = {
+                                    if isExtensionFlow {
+                                        let prev = max(0, min(license.installedSecondaries ?? 0, secondaries - 1))
+                                        let added = max(1, secondaries - prev)
+                                        return Cup(cents: type.extensionPriceCents(addedSecondaries: added)).formatted
+                                    } else {
+                                        return Cup(cents: type.totalPriceCents(secondaries: secondaries)).formatted
+                                    }
+                                }()
+                                Text("Importe a pagar: \(amountText)")
+                                    .font(.shalev(13, weight: .medium))
+                                    .foregroundStyle(Color.shalevPrimary)
+
+                                if PaymentInstructions.metodos.isEmpty {
+                                    Text(PaymentInstructions.avisoSinMetodos)
+                                        .font(.shalev(12))
+                                        .foregroundStyle(Color.shalevSecondaryText)
+                                } else {
+                                    Text(PaymentInstructions.frasePagaSolo)
+                                        .font(.shalev(12))
+                                        .foregroundStyle(Color.shalevSecondaryText)
+                                    ForEach(PaymentInstructions.metodos, id: \.self) { metodo in
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(metodo.nombre)
+                                                    .font(.shalev(12, weight: .semibold))
+                                                    .foregroundStyle(Color.shalevText)
+                                                Text(metodo.destino)
+                                                    .font(.shalev(12, design: .monospaced))
+                                                    .foregroundStyle(Color.shalevSecondaryText)
+                                                if let nota = metodo.nota {
+                                                    Text(nota)
+                                                        .font(.shalev(11))
+                                                        .foregroundStyle(Color.shalevSecondaryText)
+                                                }
+                                            }
+                                            Spacer()
+                                            Button("Copiar") {
+                                                UIPasteboard.general.string = metodo.destino
+                                            }
+                                            .buttonStyle(ShalevTonalButtonStyle())
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                            }
+                            .padding(12)
+                            .background(Color.shalevCardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+
                         Button {
                             createRequest()
                         } label: {

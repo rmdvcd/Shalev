@@ -2,6 +2,7 @@ package cu.shalev.app.licencia
 
 import cu.shalev.app.perfil.TextosPerfil
 import cu.shalev.app.vinculacion.VinculacionLogic
+import cu.shalev.core.contact.PaymentInstructions
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.designsystem.component.coachMark
 import cu.shalev.app.recorrido.RecorridoModulo
@@ -433,6 +434,46 @@ fun LicenciaContent(
                                 modifier = Modifier.testTag(LicenciaTags.SIN_PERDER_DIAS),
                             )
                         }
+
+                        // T2: Tarjeta "Cómo pagar" antes del botón de envío (oculta en recuperación)
+                        if (form.recupera.isBlank()) {
+                            val importePagar = if (accion == AccionSolicitud.AMPLIAR && instalada != null) {
+                                val adic = (form.secundarias - instalada.secundarias).coerceAtLeast(1)
+                                Money.cup(instalada.tipo.precioAmpliacion(adic))
+                            } else {
+                                Money.cup(form.tipo.precio(form.secundarias))
+                            }
+                            ShalevCard(title = PaymentInstructions.TITULO) {
+                                ShalevSecondaryText("Importe a pagar: $importePagar")
+                                if (PaymentInstructions.METODOS.isEmpty()) {
+                                    ShalevSecondaryText(PaymentInstructions.AVISO_SIN_METODOS)
+                                } else {
+                                    ShalevSecondaryText(PaymentInstructions.FRASE_PAGA_SOLO)
+                                    val clipboard = LocalClipboardManager.current
+                                    PaymentInstructions.METODOS.forEach { metodo ->
+                                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xxs)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    ShalevSecondaryText(metodo.nombre)
+                                                    ShalevSecondaryText(metodo.destino)
+                                                    metodo.nota?.let { ShalevSecondaryText(it) }
+                                                }
+                                                ShalevSecondaryButton(
+                                                    text = "Copiar",
+                                                    icon = ShalevIcons.Copiar,
+                                                    onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(metodo.destino)) },
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         ShalevButtonRow {
                             ShalevPrimaryButton(
                                 text = accion.boton, etiqueta = "Solicitar", icon = ShalevIcons.Enviar, onClick = acciones.onSolicitar,

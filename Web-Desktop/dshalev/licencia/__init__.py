@@ -27,6 +27,13 @@ from .corta import (
 from .estado import obtener_info_licencia
 from .identidad import Identidad, IdentidadError, cargar_identidad, cargar_o_crear_identidad, ruta_identidad
 from .proteccion import ProteccionError
+from .pago import (
+    AVISO_SIN_METODOS,
+    FRASE_PAGA_SOLO,
+    METODOS_COBRO,
+    TITULO_PAGO,
+    MetodoCobro,
+)
 from .solicitud import (
     AVISO_FRESCURA,
     SolicitudError,
@@ -49,9 +56,14 @@ __all__ = [
     "AlmacenError",
     "AlmacenLicencia",
     "AnclaInstalacion",
+    "AVISO_SIN_METODOS",
     "ClienteGL",
     "ConfiguracionLicencia",
     "ConfiguracionLicenciaError",
+    "FRASE_PAGA_SOLO",
+    "METODOS_COBRO",
+    "MetodoCobro",
+    "TITULO_PAGO",
     "ContratoError",
     "ErrorGL",
     "EstadoVerificado",
