@@ -34,4 +34,13 @@ final class LicenseContractTests: XCTestCase {
         XCTAssertEqual(normalizePhone("+53 5212 3456"), "+5352123456")
         XCTAssertNil(normalizePhone("123"))
     }
+
+    func testAvisoFrescuraIsSevenDaysGSM7() {
+        let expected = "Vale 7 dias: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."
+        XCTAssertEqual(GLLicenseMessage.AVISO_FRESCURA, expected)
+        let allowed = Set("@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\u{001b}ÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà")
+        for ch in GLLicenseMessage.AVISO_FRESCURA {
+            XCTAssertTrue(allowed.contains(ch), "Character '\(ch)' is not in GSM-7 basic charset")
+        }
+    }
 }

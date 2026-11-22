@@ -362,3 +362,17 @@ def test_d2_directorio_con_clave_comprometida_o_fuera_de_ventana_no_cae_a_fijas(
         )
 
 
+def test_t1_aviso_frescura_7_dias_gsm7():
+    """T1: La constante AVISO_FRESCURA debe ser exactamente de 7 días y 100% GSM-7."""
+    texto_esperado = "Vale 7 dias: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."
+    assert AVISO_FRESCURA == texto_esperado
+
+    gsm7_basic = set(
+        "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./"
+        "0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà"
+    )
+    for ch in AVISO_FRESCURA:
+        assert ch in gsm7_basic, f"Carácter {ch!r} no es GSM-7 básico"
+
+
+

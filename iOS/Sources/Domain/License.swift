@@ -778,9 +778,13 @@ final class GLLicenseManager: ObservableObject {
             lines.append("Precio: \(Cup(cents: payload.tipo.totalPriceCents(secondaries: payload.secundarias)).formatted)")
             if let renewal = payload.renueva { lines.append("Renueva: \(renewal)") }
         }
-        lines.append("Vale 72 horas: envíala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud.")
+        lines.append(GLLicenseMessage.AVISO_FRESCURA)
         return lines.joined(separator: "\n") + "\n\n" + code
     }
+}
+
+public enum GLLicenseMessage {
+    public static let AVISO_FRESCURA = "Vale 7 dias: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."
 }
 
 private struct VerifiedLicense {

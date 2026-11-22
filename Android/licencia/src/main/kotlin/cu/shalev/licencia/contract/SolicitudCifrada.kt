@@ -84,11 +84,11 @@ object SolicitudCifrada {
  */
 object MensajesLicencia {
     /**
-     * GL PR #3 (2026-10-14, commit `005288d`): la emisión Shalev2 ahora exige frescura exacta de la solicitud
-     * (≤ 72 h de antigüedad y ≤ 2 h de adelanto contra el reloj del emisor; antes el flujo corto no la aplicaba).
+     * GL PR #3 y T1: aviso de frescura de la solicitud (100% GSM-7, sin tildes).
      * Esta línea va en la parte legible del mensaje para que cliente y operador lo sepan antes de pagar.
+     * Debe publicarse DESPUÉS del APK de GL que acepta 7 días.
      */
-    const val AVISO_FRESCURA = "Vale 72 horas: envíala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."
+    const val AVISO_FRESCURA = "Vale 7 dias: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."
 
     /** Solicitud: datos del solicitante y de lo que pide (todos en claro, decisión del Prompt 64). */
     fun solicitud(p: RequestPayload, codigo: String, secundariasPrevias: Int = 0): String = when {

@@ -36,7 +36,7 @@ SOL_DOMINIO = b"SPVI-R1|"
 LARGO_EPK = 33
 LARGO_TAG = 16
 
-AVISO_FRESCURA = "Vale 72 horas: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."
+AVISO_FRESCURA = "Vale 7 dias: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."
 
 TIPOS = ("MENSUAL", "SEMESTRAL", "ANUAL", "PERPETUA")
 VIAS = ("WHATSAPP", "SMS")
