@@ -47,13 +47,17 @@ from .verificador import (
 TIEMPO_ESPERA = 15.0
 
 MENSAJES = {
-    "ACTIVACION_DESHABILITADA": "La activación comercial está deshabilitada en este build.",
-    "INVALID_CODE": "El código no tiene el formato esperado. Revísalo y vuelve a escribirlo.",
+    "ACTIVACION_DESHABILITADA": "Aún no disponible en esta edición",
+    "AUN_NO_DISPONIBLE": "Aún no disponible en esta edición",
+    "INVALID_CODE": "Código no válido para esta aplicación o ya utilizado",
     "NETWORK": "No se pudo contactar con el servicio de licencias. Se conserva la licencia anterior.",
     "INVALID_RESPONSE": "El servicio respondió algo que no cumple el contrato. No se guardó nada.",
     "INVALID_PROOF": "El servicio rechazó la prueba de este equipo. No se guardó nada.",
-    "CODE_UNAVAILABLE": "El código no existe, ya no está disponible o no es para esta aplicación.",
-    "CODE_ALREADY_REDEEMED": "El código ya se canjeó en otro equipo. No se guardó nada.",
+    "CODE_UNAVAILABLE": "Código no válido para esta aplicación o ya utilizado",
+    "CODE_ALREADY_REDEEMED": "Código no válido para esta aplicación o ya utilizado",
+    "CODE_ALREADY_USED": "Código no válido para esta aplicación o ya utilizado",
+    "CODE_FOR_OTHER_APP": "Código no válido para esta aplicación o ya utilizado",
+    "CODE_NOT_FOUND": "Código no válido para esta aplicación o ya utilizado",
     "CODE_EXPIRED": "El código caducó antes de canjearse.",
     "IDEMPOTENCY_CONFLICT": "El reintento no coincide con la solicitud original. No se guardó nada.",
     "LICENSE_NOT_FOUND": "El servicio no reconoce esta licencia para este equipo.",
@@ -62,7 +66,7 @@ MENSAJES = {
     "INVALID_REQUEST": "El servicio rechazó la solicitud. Revisa la hora del equipo: debe estar a menos de cinco minutos de la del servicio.",
     "PAYLOAD_TOO_LARGE": "La solicitud o la respuesta superan el tamaño admitido.",
     "INVALID_LICENSE_SIGNATURE": "La firma de la licencia no es válida. No se guardó nada.",
-    "LICENSE_WRONG_APP": "La licencia es para otra aplicación. No se guardó nada.",
+    "LICENSE_WRONG_APP": "Código no válido para esta aplicación o ya utilizado",
     "LICENSE_WRONG_DEVICE": "La licencia es para otro equipo. Usa la transferencia manual.",
     "UNKNOWN_KID": "La licencia usa una clave que este build no autoriza. Actualiza DShalev.",
     "CLOCK_ROLLBACK": "El reloj del equipo retrocedió más de lo permitido. Corrige la hora antes de continuar.",
@@ -457,6 +461,9 @@ class ClienteGL:
             )
         except LicenciaInvalida as exc:
             raise self._traducir_verificacion(exc, request_id=request_id_actual) from None
+
+        if verificada.contenido.get("secundarias", 0) > 0:
+            raise ErrorGL("INVALID_CODE", request_id=request_id_actual)
 
         if verificada.estado == "REVOCADA":
             raise ErrorGL("LICENSE_REVOKED", request_id=request_id_actual)

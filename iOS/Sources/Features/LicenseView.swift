@@ -703,46 +703,63 @@ struct LicenseView: View {
 
     // MARK: - Paso 3 · activación
 
+    private var isCanjeActive: Bool {
+        let dir = TrustDirectory.effectiveDirectory
+        let hasCanjeKey = dir?.claves.contains(where: { $0.uso == "canje" && $0.activa }) ?? false
+        let hasBase = dir?.endpointBase.hasPrefix("https://") ?? false
+        let appId = Bundle.main.object(forInfoDictionaryKey: "CANJE_APP_ID") as? String ?? RedeemContract.defaultAppID
+        let enabled = Bundle.main.object(forInfoDictionaryKey: "CANJE_HABILITADO") as? Bool ?? true
+        return enabled && !appId.isEmpty && hasCanjeKey && hasBase
+    }
+
     private var redeemCard: some View {
         ShalevCard {
             VStack(alignment: .leading, spacing: 11) {
                 ShalevSectionHeader(title: license.installedType != nil ? "Renovar con código" : "Tengo un código")
-                Text("Escribe o pega tu código comercial de 16 caracteres.")
-                    .font(.shalev(12))
-                    .foregroundStyle(Color.shalevSecondaryText)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                TextField("XXXX-XXXX-XXXX-XXXX", text: $redeemCode)
-                    .font(.shalev(14, design: .monospaced))
-                    .padding(12)
-                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.shalevOutlineVariant, lineWidth: 1))
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                HStack(spacing: 9) {
-                    Button {
-                        redeemCode = UIPasteboard.general.string ?? ""
-                    } label: {
-                        Label("Pegar", systemImage: "doc.on.clipboard")
+                if !isCanjeActive {
+                    Text(RedeemContract.motivoAunNoDisponible)
+                        .font(.shalev(12))
+                        .foregroundStyle(Color.shalevSecondaryText)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text("Escribe o pega tu código comercial de 16 caracteres.")
+                        .font(.shalev(12))
+                        .foregroundStyle(Color.shalevSecondaryText)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                    TextField("XXXX-XXXX-XXXX-XXXX", text: $redeemCode)
+                        .font(.shalev(14, design: .monospaced))
+                        .padding(12)
+                        .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.shalevOutlineVariant, lineWidth: 1))
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                    HStack(spacing: 9) {
+                        Button {
+                            redeemCode = UIPasteboard.general.string ?? ""
+                        } label: {
+                            Label("Pegar", systemImage: "doc.on.clipboard")
+                        }
+                        .buttonStyle(ShalevTonalButtonStyle())
+                        Button {
+                            Task { await redeem() }
+                        } label: {
+                            Label(isBusy ? "Canjeando…" : "Canjear", systemImage: "checkmark.seal.fill")
+                        }
+                        .buttonStyle(ShalevPrimaryButtonStyle())
+                        .disabled(isBusy || redeemCode.isBlank)
                     }
-                    .buttonStyle(ShalevTonalButtonStyle())
-                    Button {
-                        Task { await redeem() }
-                    } label: {
-                        Label(isBusy ? "Canjeando…" : "Canjear", systemImage: "checkmark.seal.fill")
+                    if license.installedType != nil {
+                        Button {
+                            Task { await checkStatus() }
+                        } label: {
+                            Label(isBusy ? "Consultando…" : "Consultar estado", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(ShalevTonalButtonStyle())
+                        .disabled(isBusy)
+                        .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(ShalevPrimaryButtonStyle())
-                    .disabled(isBusy || redeemCode.isBlank)
-                }
-                if license.installedType != nil {
-                    Button {
-                        Task { await checkStatus() }
-                    } label: {
-                        Label(isBusy ? "Consultando…" : "Consultar estado", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(ShalevTonalButtonStyle())
-                    .disabled(isBusy)
-                    .frame(maxWidth: .infinity)
                 }
             }
         }

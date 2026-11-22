@@ -32,6 +32,10 @@
     <array>
         <string>_shalev._tcp</string>
     </array>
+    <key>CANJE_APP_ID</key>
+    <string>SHALEV-IOS</string>
+    <key>CANJE_HABILITADO</key>
+    <true/>
     <key>NSCameraUsageDescription</key>
     <string>MIPVentaX usa la cámara para escanear códigos QR de vinculación, apuntes manuscritos y fotos de inventario, servicios o ventas.</string>
     <key>UIAppFonts</key>

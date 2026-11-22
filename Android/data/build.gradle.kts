@@ -20,6 +20,8 @@ android {
             "shalevRelayUrl debe ser una URL HTTPS sin ruta, credenciales ni parámetros"
         }
         buildConfigField("String", "SHALEV_RELAY_URL", "\"$relay\"")
+        buildConfigField("String", "CANJE_APP_ID", "\"SHALEV-ANDROID\"")
+        buildConfigField("boolean", "CANJE_HABILITADO", "true")
         consumerProguardFiles("consumer-rules.pro")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -231,6 +231,16 @@ def test_licencia_revocada_no_se_guarda(escenario):
     assert escenario["almacen"].observar().licencia is None
 
 
+def test_canje_con_secundarias_se_rechaza(escenario):
+    contenido = contenido_licencia(escenario["identidad"], secundarias=1)
+    transporte = TransporteFalso(_ok_licencia(sobre_licencia(contenido, escenario["servicio"])))
+    with pytest.raises(ErrorGL) as excinfo:
+        _cliente(escenario, transporte).canjear("ABCD-EFGH-JKLM-NPQR")
+    assert excinfo.value.codigo == "INVALID_CODE"
+    assert excinfo.value.mensaje == "Código no válido para esta aplicación o ya utilizado"
+    assert escenario["almacen"].observar().licencia is None
+
+
 def test_redireccion_y_cuerpo_gigante_se_rechazan(escenario):
     transporte = TransporteFalso(RespuestaHTTP(302, b""))
     with pytest.raises(ErrorGL) as excinfo:
@@ -695,6 +705,27 @@ def test_consultar_estado_clock_skew_reintenta_automaticamente(escenario):
     assert pet2["requestedAt"] == "2026-11-18T12:30:00.000Z"
     assert pet1["nonce"] != pet2["nonce"]
     assert pet1["proof"] != pet2["proof"]
+
+
+def test_mensajes_canje_genericos_y_aun_no_disponible():
+    from dshalev.licencia.cliente_gl import ErrorGL
+
+    codigos_genericos = [
+        "CODE_ALREADY_USED",
+        "CODE_NOT_FOUND",
+        "LICENSE_WRONG_APP",
+        "CODE_FOR_OTHER_APP",
+        "INVALID_CODE",
+    ]
+    esperado = "Código no válido para esta aplicación o ya utilizado"
+    for cod in codigos_genericos:
+        err = ErrorGL(cod)
+        assert err.mensaje == esperado, f"Fallo en código {cod}"
+        assert str(err) == esperado
+
+    err_no_disp = ErrorGL("AUN_NO_DISPONIBLE")
+    assert err_no_disp.mensaje == "Aún no disponible en esta edición"
+    assert str(err_no_disp) == "Aún no disponible en esta edición"
 
 
 

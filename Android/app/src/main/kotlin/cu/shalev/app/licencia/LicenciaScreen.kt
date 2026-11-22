@@ -517,38 +517,48 @@ fun LicenciaContent(
                 }
             }
             PasoLicencia.ACTIVAR -> {
+                val dirCanje = cu.shalev.licencia.TrustDirectory.effectiveDirectory
+                val canjeActivo = cu.shalev.app.BuildConfig.CANJE_HABILITADO &&
+                    cu.shalev.app.BuildConfig.CANJE_APP_ID.isNotBlank() &&
+                    dirCanje?.claves?.any { it.uso == "canje" && it.activa } == true &&
+                    dirCanje?.endpointBase?.startsWith("https://") == true
+
                 ShalevCard(title = if (lic.instalada != null) "Renovar con código" else "Tengo un código") {
-                    ShalevSecondaryText("Escribe o pega tu código comercial de 16 caracteres.", textAlign = TextAlign.Center)
-                    ShalevTextField(
-                        filtro = FiltroEntrada.LIBRE,
-                        value = form.codigoCanje,
-                        onValueChange = { v -> acciones.onEditar { it.copy(codigoCanje = v) } },
-                        label = "Código comercial (16 caracteres)",
-                        singleLine = true,
-                        modifier = Modifier.testTag("licencia.codigo_canje"),
-                    )
-                    ShalevButtonRow {
-                        ShalevIconAction(ShalevIcons.Pegar, "Pegar", style = IconActionStyle.Tonal, onClick = acciones.onPegarCodigo)
-                        ShalevPrimaryButton(
-                            text = "Canjear",
-                            icon = ShalevIcons.Confirmar,
-                            onClick = acciones.onCanjear,
-                            enabled = form.codigoCanje.isNotBlank() && !state.ocupado,
-                            loading = state.ocupado,
-                            modifier = Modifier.testTag("licencia.boton_canjear"),
+                    if (!canjeActivo) {
+                        ShalevSecondaryText(cu.shalev.licencia.redeem.RedeemContract.MOTIVO_AUN_NO_DISPONIBLE, textAlign = TextAlign.Center)
+                    } else {
+                        ShalevSecondaryText("Escribe o pega tu código comercial de 16 caracteres.", textAlign = TextAlign.Center)
+                        ShalevTextField(
+                            filtro = FiltroEntrada.LIBRE,
+                            value = form.codigoCanje,
+                            onValueChange = { v -> acciones.onEditar { it.copy(codigoCanje = v) } },
+                            label = "Código comercial (16 caracteres)",
+                            singleLine = true,
+                            modifier = Modifier.testTag("licencia.codigo_canje"),
                         )
-                    }
-                    if (lic.instalada != null) {
                         ShalevButtonRow {
-                            ShalevSecondaryButton(
-                                text = "Consultar",
-                                etiqueta = "Estado",
-                                icon = ShalevIcons.Reintentar,
-                                onClick = acciones.onConsultarEstado,
-                                enabled = !state.ocupado,
+                            ShalevIconAction(ShalevIcons.Pegar, "Pegar", style = IconActionStyle.Tonal, onClick = acciones.onPegarCodigo)
+                            ShalevPrimaryButton(
+                                text = "Canjear",
+                                icon = ShalevIcons.Confirmar,
+                                onClick = acciones.onCanjear,
+                                enabled = form.codigoCanje.isNotBlank() && !state.ocupado,
                                 loading = state.ocupado,
-                                modifier = Modifier.testTag("licencia.boton_estado"),
+                                modifier = Modifier.testTag("licencia.boton_canjear"),
                             )
+                        }
+                        if (lic.instalada != null) {
+                            ShalevButtonRow {
+                                ShalevSecondaryButton(
+                                    text = "Consultar",
+                                    etiqueta = "Estado",
+                                    icon = ShalevIcons.Reintentar,
+                                    onClick = acciones.onConsultarEstado,
+                                    enabled = !state.ocupado,
+                                    loading = state.ocupado,
+                                    modifier = Modifier.testTag("licencia.boton_estado"),
+                                )
+                            }
                         }
                     }
                 }

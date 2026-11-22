@@ -51,6 +51,8 @@ android {
         // Repositorio PÚBLICO de GitHub cuyas Releases sirven APK y revocaciones (por defecto rmdvcd/Shalev).
         // Se puede sobrescribir con -PshalevGithubRepo=owner/repo; vacío desactiva estas consultas.
         buildConfigField("String", "GITHUB_REPO", "\"${(project.findProperty("shalevGithubRepo") as String?).orEmpty()}\"")
+        buildConfigField("String", "CANJE_APP_ID", "\"SHALEV-ANDROID\"")
+        buildConfigField("boolean", "CANJE_HABILITADO", "true")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

@@ -22,6 +22,12 @@ RUTA_ANDROID = ROOT_DIR / "Android" / "licencia" / "src" / "main" / "kotlin" / "
 RUTA_IOS = ROOT_DIR / "iOS" / "Sources" / "Domain" / "TrustDirectory.swift"
 RUTA_DSHALEV = ROOT_DIR / "Web-Desktop" / "dshalev" / "licencia" / "directorio.py"
 
+RUTA_REDEEM_ANDROID = ROOT_DIR / "Android" / "licencia" / "src" / "main" / "kotlin" / "cu" / "shalev" / "licencia" / "redeem" / "RedeemContract.kt"
+RUTA_REDEEM_IOS = ROOT_DIR / "iOS" / "Sources" / "Domain" / "Redeem" / "RedeemContract.swift"
+RUTA_CONFIG_DSHALEV = ROOT_DIR / "Web-Desktop" / "dshalev" / "licencia" / "config_licencia.py"
+
+CANJE_APP_IDS_PERMITIDOS = {"DSHALEV", "SHALEV-ANDROID", "SHALEV-IOS"}
+
 MARCADORES_TEST = {
     "",
     "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE=",
@@ -62,11 +68,35 @@ def extraer_raices_dshalev() -> tuple[str, str]:
     return ma.group(1).strip(), mb.group(1).strip()
 
 
+def extraer_app_id_android() -> str:
+    if not RUTA_REDEEM_ANDROID.exists():
+        return ""
+    texto = RUTA_REDEEM_ANDROID.read_text(encoding="utf-8")
+    m = re.search(r'DEFAULT_APP_ID\s*=\s*"([^"]*)"', texto)
+    return m.group(1).strip() if m else ""
+
+
+def extraer_app_id_ios() -> str:
+    if not RUTA_REDEEM_IOS.exists():
+        return ""
+    texto = RUTA_REDEEM_IOS.read_text(encoding="utf-8")
+    m = re.search(r'defaultAppID\s*=\s*"([^"]*)"', texto)
+    return m.group(1).strip() if m else ""
+
+
+def extraer_app_id_dshalev() -> str:
+    if not RUTA_CONFIG_DSHALEV.exists():
+        return ""
+    texto = RUTA_CONFIG_DSHALEV.read_text(encoding="utf-8")
+    m = re.search(r'APP_ID\s*=\s*"([^"]*)"', texto)
+    return m.group(1).strip() if m else ""
+
+
 def verificar_raices(es_release: bool = False) -> list[str]:
-    """Comprueba el estado de las raíces en las 3 plataformas.
+    """Comprueba el estado de las raíces y CANJE_APP_ID en las 3 plataformas.
 
     En modo release (es_release=True), devuelve una lista de errores si alguna raíz
-    está vacía o es un marcador de prueba.
+    está vacía o es un marcador de prueba, o si CANJE_APP_ID no está en el conjunto permitido.
     """
     errores = []
 
@@ -86,6 +116,18 @@ def verificar_raices(es_release: bool = False) -> list[str]:
                 errores.append(f"[{nombre}] RAIZ_A_SPKI no puede estar vacía ni ser de prueba en release.")
             if not rb or rb in MARCADORES_TEST:
                 errores.append(f"[{nombre}] RAIZ_B_SPKI no puede estar vacía ni ser de prueba en release.")
+
+    app_ids = [
+        ("Android", extraer_app_id_android()),
+        ("iOS", extraer_app_id_ios()),
+        ("DShalev", extraer_app_id_dshalev()),
+    ]
+
+    for nombre, app_id in app_ids:
+        if app_id not in CANJE_APP_IDS_PERMITIDOS:
+            errores.append(
+                f"[{nombre}] CANJE_APP_ID '{app_id}' no está en el conjunto permitido {CANJE_APP_IDS_PERMITIDOS}."
+            )
 
     return errores
 

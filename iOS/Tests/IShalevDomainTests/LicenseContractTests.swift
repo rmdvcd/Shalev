@@ -53,4 +53,35 @@ final class LicenseContractTests: XCTestCase {
         XCTAssertNil(String(repeating: "A", count: 31).range(of: pattern, options: .regularExpression))
         XCTAssertNil("TX@123".range(of: pattern, options: .regularExpression))
     }
+
+    func testRedeemContractNormalizationAndTranscriptVector() {
+        XCTAssertEqual(RedeemContract.normalizeCode("4K7N-9X2M-B8PQ-3T5V"), "4K7N9X2MB8PQ3T5V")
+        XCTAssertEqual(RedeemContract.normalizeCode(" 4k7n 9x2m b8pq 3t5v "), "4K7N9X2MB8PQ3T5V")
+        XCTAssertEqual(RedeemContract.normalizeCode("4K7N9X2MB8PQ3T5V"), "4K7N9X2MB8PQ3T5V")
+
+        XCTAssertNil(RedeemContract.normalizeCode("4K7N-9X2M-B8PQ-3T5")) // 15
+        XCTAssertNil(RedeemContract.normalizeCode("4K7N-9X2M-B8PQ-3T5VV")) // 17
+        XCTAssertNil(RedeemContract.normalizeCode("ABCD-EFGH-JKLM-NPQI")) // I
+        XCTAssertNil(RedeemContract.normalizeCode("ABCD-EFGH-JKLM-NPQO")) // O
+
+        let proofBytes = RedeemContract.redeemProofBytes(
+            appId: "DSHALEV",
+            code: "4K7N9X2MB8PQ3T5V",
+            deviceKeyB64: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsg/+aDd+3cH8ZhZK5n77JMi/+seJn1aVw+l7XmJsOAbQRsvlmYx5suxdvhkhIbte6N8pFn196CH/jv0I9ipxog==",
+            requestId: "11111111-1111-4111-8111-111111111111",
+            requestedAt: "2026-11-10T12:00:00.000Z",
+            nonceB64: "AAECAwQFBgcICQoLDA0ODw=="
+        )
+        let expectedB64 = "AAAAEkdMLVJFREVFTS1SRVFVRVNUMQAAAAExAAAAB0RTSEFMRVYAAAAQNEs3TjlYMk1COFBRM1Q1VgAAAHxNRmt3RXdZSEtvWkl6ajBDQVFZSUtvWkl6ajBEQVFjRFFnQUVzZy8rYURkKzNjSDhaaFpLNW43N0pNaS8rc2VKbjFhVncrbDdYbUpzT0FiUVJzdmxtWXg1c3V4ZHZoa2hJYnRlNk44cEZuMTk2Q0gvanYwSTlpcHhvZz09AAAAJDExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMQAAABgyMDI2LTExLTEwVDEyOjAwOjAwLjAwMFoAAAAYQUFFQ0F3UUZCZ2NJQ1FvTERBME9Edz09"
+        XCTAssertEqual(proofBytes.base64EncodedString(), expectedB64)
+
+        XCTAssertEqual(
+            RedeemContract.mensajeCodigoInvalidoOUsado,
+            "Código no válido para esta aplicación o ya utilizado"
+        )
+        XCTAssertEqual(
+            RedeemContract.motivoAunNoDisponible,
+            "Aún no disponible en esta edición"
+        )
+    }
 }

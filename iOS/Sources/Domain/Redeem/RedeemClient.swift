@@ -35,11 +35,11 @@ enum RedeemError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .disabled: "La activación comercial directa no está configurada en este build."
+        case .disabled: RedeemContract.motivoAunNoDisponible
         case .invalidCode: "El código debe tener 16 caracteres alfanuméricos válidos."
         case .clockSkew: "El reloj del dispositivo no coincide con el servidor de canje."
         case .wrongDevice: "La licencia canjeada es para otro dispositivo."
-        case .wrongApp: "La licencia canjeada es para otra aplicación."
+        case .wrongApp: RedeemContract.mensajeCodigoInvalidoOUsado
         case .invalidSignature: "La firma de la licencia no pudo ser verificada."
         case .serverError(let code, let msg): "[\(code)] \(msg)"
         case .network(let detail): "Error de conexión: \(detail)"
@@ -145,13 +145,21 @@ final class RedeemClient {
         }
 
         guard statusCode == 200 else {
+            let codigosOcultos: Set<String> = [
+                "CODE_ALREADY_USED", "CODE_NOT_FOUND", "LICENSE_WRONG_APP", "CODE_FOR_OTHER_APP",
+                "ALREADY_REDEEMED", "INVALID_CODE", "CODE_UNAVAILABLE", "CODE_EXPIRED"
+            ]
             if let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                let err = json["error"] as? [String: Any] {
                 let code = (err["code"] as? String) ?? "HTTP_\(statusCode)"
-                let msg = (err["message"] as? String) ?? "Error en el canje"
+                let rawMsg = (err["message"] as? String) ?? "Error en el canje"
+                let msg = (codigosOcultos.contains(code) || [404, 409, 422].contains(statusCode))
+                    ? RedeemContract.mensajeCodigoInvalidoOUsado
+                    : rawMsg
                 throw RedeemError.serverError(code: code, message: msg)
             }
-            throw RedeemError.serverError(code: "HTTP_\(statusCode)", message: "Error \(statusCode)")
+            let msg = [404, 409, 422].contains(statusCode) ? RedeemContract.mensajeCodigoInvalidoOUsado : "Error \(statusCode)"
+            throw RedeemError.serverError(code: "HTTP_\(statusCode)", message: msg)
         }
 
         guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -193,6 +201,9 @@ final class RedeemClient {
         let redemptionID = (lic["redemptionId"] as? String) ?? ""
         let transferredFrom = lic["transferredFrom"] as? String
         let secondaries = (lic["secundarias"] as? Int) ?? 0
+        guard secondaries == 0 else {
+            throw RedeemError.invalidCode
+        }
         let devicePublicKey = lic["devicePublicKey"] as? String
 
         let signingBytes = RedeemContract.licenseSigningBytes(
@@ -210,12 +221,9 @@ final class RedeemClient {
             devicePublicKey: devicePublicKey
         )
 
-        // Verificar firma contra claves de uso 'canje' del directorio
+        // Verificar firma contra claves de uso 'canje' del directorio (por kid exacto)
         let kid = (licenseObj["kid"] as? String) ?? "gl-redeem-v1"
-        let redeemKey = TrustDirectory.effectiveDirectory?.redeemKey(kid: kid)
-            ?? TrustDirectory.effectiveDirectory?.canjeKeys().first
-
-        guard let redeemKey else {
+        guard let redeemKey = TrustDirectory.effectiveDirectory?.redeemKey(kid: kid) else {
             throw RedeemError.serverError(code: "UNKNOWN_KID", message: "Clave pública del servicio no autorizada para kid: \(kid)")
         }
 
@@ -228,9 +236,14 @@ final class RedeemClient {
         switch typeStr {
         case "PERPETUA": licType = .perpetual
         case "ANUAL": licType = .annual
+        case "SEMESTRAL": licType = .semiannual
         case "MENSUAL": licType = .monthly
         default:
             throw RedeemError.serverError(code: "INVALID_TYPE", message: "Tipo de licencia no admitido: \(typeStr)")
+        }
+
+        if licType != .perpetual && expiresDate == nil {
+            throw RedeemError.serverError(code: "INVALID_EXPIRES", message: "Fecha de vencimiento requerida para licencia temporal")
         }
 
         let envelopeData = try JSONSerialization.data(withJSONObject: licenseObj, options: [.sortedKeys])
