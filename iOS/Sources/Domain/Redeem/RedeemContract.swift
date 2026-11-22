@@ -13,13 +13,19 @@ enum RedeemContract {
     static let domainStatus = "GL-REDEEM-STATUS1"
 
     static let defaultAppID = "SHALEV-IOS"
+    static let mensajeCodigoInvalidoOUsado = "Código no válido para esta aplicación o ya utilizado"
+    static let motivoAunNoDisponible = "Aún no disponible en esta edición"
+
+    private static let codigoRegex = try? NSRegularExpression(pattern: "^[0-9A-HJ-NP-Z]{16}$")
 
     static func normalizeCode(_ raw: String) -> String? {
         let clean = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             .uppercased()
             .replacingOccurrences(of: "-", with: "")
             .replacingOccurrences(of: " ", with: "")
-        guard clean.count == 16, clean.allSatisfy({ $0.isLetter || $0.isNumber }) else { return nil }
+        guard clean.count == 16 else { return nil }
+        let range = NSRange(location: 0, length: clean.utf16.count)
+        guard codigoRegex?.firstMatch(in: clean, range: range) != nil else { return nil }
         return clean
     }
 

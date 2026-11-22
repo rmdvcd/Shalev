@@ -150,13 +150,20 @@ class LicenciaRepositoryImpl @Inject constructor(
     private suspend fun redeemClientLocked(): cu.shalev.licencia.redeem.RedeemClient {
         redeemClient?.let { return it }
         val m = managerLocked()
+        val dir = cu.shalev.licencia.TrustDirectory.effectiveDirectory
+        val baseUrl = dir?.endpointBase.orEmpty()
+        val canjeActivo = cu.shalev.data.BuildConfig.CANJE_HABILITADO &&
+            baseUrl.startsWith("https://") &&
+            dir?.claves?.any { it.uso == "canje" && it.activa } == true
+        val endpointRedeem = if (canjeActivo) "$baseUrl/v1/redeem" else ""
+        val endpointStatus = if (canjeActivo) "$baseUrl/v1/status" else ""
         return cu.shalev.licencia.redeem.RedeemClient(
             deviceKey = deviceKey,
             licenseManager = m,
             clock = clock,
-            appId = cu.shalev.licencia.redeem.RedeemContract.DEFAULT_APP_ID,
-            endpointRedeem = "", // Deshabilitado en producción según ENCARGO_ARENA_SHALEV
-            endpointStatus = "",
+            appId = cu.shalev.data.BuildConfig.CANJE_APP_ID,
+            endpointRedeem = endpointRedeem,
+            endpointStatus = endpointStatus,
         ).also { redeemClient = it }
     }
 

@@ -21,9 +21,11 @@ object RedeemContract {
     const val DOMINIO_ESTADO = "GL-REDEEM-STATUS1"
 
     const val DEFAULT_APP_ID = "SHALEV-ANDROID"
+    const val MENSAJE_CODIGO_INVALIDO_O_USADO = "Código no válido para esta aplicación o ya utilizado"
+    const val MOTIVO_AUN_NO_DISPONIBLE = "Aún no disponible en esta edición"
 
     private val SEPARADORES = Regex("[\\s\\-]")
-    private val ALFABETO_CODIGO = Regex("^[0-9A-Z]{16}$")
+    private val ALFABETO_CODIGO = Regex("^[0-9A-HJ-NP-Z]{16}$")
 
     /** Normaliza un código de canje eliminando guiones y espacios y pasando a mayúsculas. */
     fun normalizarCodigo(entrada: String): String {

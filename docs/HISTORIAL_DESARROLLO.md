@@ -1,3 +1,15 @@
+## Encargo complementario: ventana de 7 días, instrucciones de pago, transferencia y canje habilitado (2026-11-22, versión de trabajo 1.0.9)
+
+- **Objetivo:** Cumplir el encargo complementario en las tres plataformas (Android, iOS y DShalev):
+  1. **Ventana de 7 días:** Ampliación de la ventana de validez de solicitudes de 72 h a 7 días. Constante exacta `AVISO_FRESCURA` (`"Vale 7 dias: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."`) en juego básico GSM-7 de 7 bits, unificada en `MensajesLicencia` (Android), `GLLicenseMessage` (iOS) y `solicitud.py` (DShalev) para solicitud inicial, ampliación y recuperación.
+  2. **Instrucciones de pago en la app:** Fuente única de métodos de cobro por plataforma (`PaymentInstructions` en Android e iOS, `pago.py` en DShalev) con advertencia de no exponer datos bancarios reales en repositorios públicos. Tarjeta «Cómo pagar» antes del botón de envío con desglose dinámico de precio según plan y secundarias (o diferencia al ampliar; oculta en recuperación) y advertencia obligatoria: *«Paga solo a los datos que muestra esta pantalla»*.
+  3. **N.º de transferencia opcional y pegado:** Campo opcional de transferencia bancaria (`^[A-Za-z0-9-]{4,30}$`) con botón de pegado y extracción automática de referencia. Incluido en el texto visible del mensaje como `"Transferencia: <tx>"` antes del aviso de frescura. Modelado en `RequestPayload` v=2 manteniendo la bandera de seguridad `ENVIAR_TX_EN_SOLICITUD = false` para no filtrar datos en el payload cifrado `SPVIR1:`.
+  4. **Canje por código comercial habilitado en Android e iOS:**
+     - Configuración: `CANJE_APP_ID="SHALEV-ANDROID"` y `CANJE_HABILITADO=true` en Android; `CANJE_APP_ID="SHALEV-IOS"` y `CANJE_HABILITADO=true` en iOS; `DSHALEV` en DShalev. En flavors derivados permanece en false y con app ID vacía.
+     - Verificación estricta: solo acepta claves del directorio con `uso == "canje"` y `kid` exacto; tipo de licencia obligatorio y `expiresAt` obligatorio si tipo != PERPETUA; rechazo de respuestas con `secundarias > 0` (`MAX_SECUNDARIAS = 0`).
+     - Persistencia Keystore/Keychain idéntica a licencias ordinarias; reintento único ante `CLOCK_SKEW` con hora del servidor y nuevo nonce/proof; mensajes genéricos de error (*«Código no válido para esta aplicación o ya utilizado»*) y motivo de deshabilitación (*«Aún no disponible en esta edición»*).
+     - Verificación D3 (`verificar_raices_release.py`) actualizada para aceptar `CANJE_APP_ID` en `{"DSHALEV", "SHALEV-ANDROID", "SHALEV-IOS"}`.
+
 ## Miniaturas de tarjetas bancarias redondeadas y visibilidad con teclado (2026-11-18, versión de trabajo 1.0.8)
 
 - **Petición del dueño:** (1) redondear las esquinas de las miniaturas de las tarjetas bancarias, y (2) verificar que las alertas, notificaciones y campos de texto donde se está escribiendo no queden ocultos por el teclado.

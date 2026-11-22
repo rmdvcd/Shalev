@@ -33,6 +33,7 @@ struct LicenseView: View {
     @State private var extendingSecondaries = false
     @State private var channel: GLRequestChannel = .whatsapp
     @State private var recoveryID = ""
+    @State private var transferNumber = ""
     @State private var activationText = ""
     @State private var redeemCode = ""
     @State private var editingData = false
@@ -532,6 +533,26 @@ struct LicenseView: View {
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
 
+                        // T3: Campo opcional N.º de transferencia
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("N.º de transferencia (opcional)")
+                                .font(.shalev(13, weight: .semibold))
+                                .foregroundStyle(Color.shalevText)
+                            inputField("N.º de transferencia", text: $transferNumber, placeholder: "Ej. BR601ADLM8997")
+                            Text("Si ya pagaste, escribe el número de la transferencia para que te activen más rápido.")
+                                .font(.shalev(11))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                            Button {
+                                if let text = UIPasteboard.general.string, let parsed = TransferMessageParser.parse(text) {
+                                    transferNumber = parsed.transactionNumber
+                                }
+                            } label: {
+                                Label("Pegar confirmación de pago", systemImage: "doc.on.clipboard")
+                                    .font(.shalev(12, weight: .semibold))
+                            }
+                            .buttonStyle(ShalevTonalButtonStyle())
+                        }
+
                         if isExtensionFlow {
                             Text("Conserva el vencimiento actual de tu licencia y cobra solo las secundarias añadidas.")
                                 .font(.shalev(12))
@@ -544,6 +565,63 @@ struct LicenseView: View {
                                 .foregroundStyle(Color.shalevSecondaryText)
                                 .multilineTextAlignment(.center)
                                 .frame(maxWidth: .infinity)
+                        }
+
+                        // T2: Tarjeta "Cómo pagar" antes del botón de envío (oculta en recuperación)
+                        if recoveryID.isBlank {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(PaymentInstructions.titulo)
+                                    .font(.shalev(14, weight: .semibold))
+                                    .foregroundStyle(Color.shalevText)
+                                let amountText: String = {
+                                    if isExtensionFlow {
+                                        let prev = max(0, min(license.installedSecondaries ?? 0, secondaries - 1))
+                                        let added = max(1, secondaries - prev)
+                                        return Cup(cents: type.extensionPriceCents(addedSecondaries: added)).formatted
+                                    } else {
+                                        return Cup(cents: type.totalPriceCents(secondaries: secondaries)).formatted
+                                    }
+                                }()
+                                Text("Importe a pagar: \(amountText)")
+                                    .font(.shalev(13, weight: .medium))
+                                    .foregroundStyle(Color.shalevPrimary)
+
+                                if PaymentInstructions.metodos.isEmpty {
+                                    Text(PaymentInstructions.avisoSinMetodos)
+                                        .font(.shalev(12))
+                                        .foregroundStyle(Color.shalevSecondaryText)
+                                } else {
+                                    Text(PaymentInstructions.frasePagaSolo)
+                                        .font(.shalev(12))
+                                        .foregroundStyle(Color.shalevSecondaryText)
+                                    ForEach(PaymentInstructions.metodos, id: \.self) { metodo in
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(metodo.nombre)
+                                                    .font(.shalev(12, weight: .semibold))
+                                                    .foregroundStyle(Color.shalevText)
+                                                Text(metodo.destino)
+                                                    .font(.shalev(12, design: .monospaced))
+                                                    .foregroundStyle(Color.shalevSecondaryText)
+                                                if let nota = metodo.nota {
+                                                    Text(nota)
+                                                        .font(.shalev(11))
+                                                        .foregroundStyle(Color.shalevSecondaryText)
+                                                }
+                                            }
+                                            Spacer()
+                                            Button("Copiar") {
+                                                UIPasteboard.general.string = metodo.destino
+                                            }
+                                            .buttonStyle(ShalevTonalButtonStyle())
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                            }
+                            .padding(12)
+                            .background(Color.shalevCardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
 
                         Button {
@@ -625,46 +703,63 @@ struct LicenseView: View {
 
     // MARK: - Paso 3 · activación
 
+    private var isCanjeActive: Bool {
+        let dir = TrustDirectory.effectiveDirectory
+        let hasCanjeKey = dir?.claves.contains(where: { $0.uso == "canje" && $0.activa }) ?? false
+        let hasBase = dir?.endpointBase.hasPrefix("https://") ?? false
+        let appId = Bundle.main.object(forInfoDictionaryKey: "CANJE_APP_ID") as? String ?? RedeemContract.defaultAppID
+        let enabled = Bundle.main.object(forInfoDictionaryKey: "CANJE_HABILITADO") as? Bool ?? true
+        return enabled && !appId.isEmpty && hasCanjeKey && hasBase
+    }
+
     private var redeemCard: some View {
         ShalevCard {
             VStack(alignment: .leading, spacing: 11) {
                 ShalevSectionHeader(title: license.installedType != nil ? "Renovar con código" : "Tengo un código")
-                Text("Escribe o pega tu código comercial de 16 caracteres.")
-                    .font(.shalev(12))
-                    .foregroundStyle(Color.shalevSecondaryText)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                TextField("XXXX-XXXX-XXXX-XXXX", text: $redeemCode)
-                    .font(.shalev(14, design: .monospaced))
-                    .padding(12)
-                    .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.shalevOutlineVariant, lineWidth: 1))
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                HStack(spacing: 9) {
-                    Button {
-                        redeemCode = UIPasteboard.general.string ?? ""
-                    } label: {
-                        Label("Pegar", systemImage: "doc.on.clipboard")
+                if !isCanjeActive {
+                    Text(RedeemContract.motivoAunNoDisponible)
+                        .font(.shalev(12))
+                        .foregroundStyle(Color.shalevSecondaryText)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text("Escribe o pega tu código comercial de 16 caracteres.")
+                        .font(.shalev(12))
+                        .foregroundStyle(Color.shalevSecondaryText)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                    TextField("XXXX-XXXX-XXXX-XXXX", text: $redeemCode)
+                        .font(.shalev(14, design: .monospaced))
+                        .padding(12)
+                        .background(Color.shalevBackground, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.shalevOutlineVariant, lineWidth: 1))
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                    HStack(spacing: 9) {
+                        Button {
+                            redeemCode = UIPasteboard.general.string ?? ""
+                        } label: {
+                            Label("Pegar", systemImage: "doc.on.clipboard")
+                        }
+                        .buttonStyle(ShalevTonalButtonStyle())
+                        Button {
+                            Task { await redeem() }
+                        } label: {
+                            Label(isBusy ? "Canjeando…" : "Canjear", systemImage: "checkmark.seal.fill")
+                        }
+                        .buttonStyle(ShalevPrimaryButtonStyle())
+                        .disabled(isBusy || redeemCode.isBlank)
                     }
-                    .buttonStyle(ShalevTonalButtonStyle())
-                    Button {
-                        Task { await redeem() }
-                    } label: {
-                        Label(isBusy ? "Canjeando…" : "Canjear", systemImage: "checkmark.seal.fill")
+                    if license.installedType != nil {
+                        Button {
+                            Task { await checkStatus() }
+                        } label: {
+                            Label(isBusy ? "Consultando…" : "Consultar estado", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(ShalevTonalButtonStyle())
+                        .disabled(isBusy)
+                        .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(ShalevPrimaryButtonStyle())
-                    .disabled(isBusy || redeemCode.isBlank)
-                }
-                if license.installedType != nil {
-                    Button {
-                        Task { await checkStatus() }
-                    } label: {
-                        Label(isBusy ? "Consultando…" : "Consultar estado", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(ShalevTonalButtonStyle())
-                    .disabled(isBusy)
-                    .frame(maxWidth: .infinity)
                 }
             }
         }
@@ -864,7 +959,8 @@ struct LicenseView: View {
                 secondaries: effectiveSecondaries,
                 channel: channel,
                 recoveryID: isExtensionFlow ? nil : normalizedRecoveryID,
-                extendingCurrentSecondaries: isExtensionFlow
+                extendingCurrentSecondaries: isExtensionFlow,
+                tx: transferNumber.isBlank ? nil : transferNumber
             )
         } catch {
             alertMessage = "Revisa los datos y vuelve a intentarlo."

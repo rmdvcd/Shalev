@@ -148,7 +148,7 @@ class RedeemClient(
             // Verificar appId
             val licAppId = licenseContent["appId"]?.jsonPrimitive?.contentOrNull
             if (licAppId != appId) {
-                return RedeemResult.Error("LICENSE_WRONG_APP", "La licencia es para otra aplicación")
+                return RedeemResult.Error("LICENSE_WRONG_APP", RedeemContract.MENSAJE_CODIGO_INVALIDO_O_USADO)
             }
 
             // Verificar firma con la clave de uso 'canje' (gl-redeem-v1) del directorio
@@ -161,6 +161,9 @@ class RedeemClient(
             val redemptionId = licenseContent["redemptionId"]?.jsonPrimitive?.contentOrNull ?: ""
             val transferredFrom = licenseContent["transferredFrom"]?.jsonPrimitive?.contentOrNull
             val secundarias = licenseContent["secundarias"]?.jsonPrimitive?.intOrNull ?: 0
+            if (secundarias > 0) {
+                return RedeemResult.Failure(RedeemContract.MENSAJE_CODIGO_INVALIDO_O_USADO)
+            }
             val devicePublicKey = licenseContent["devicePublicKey"]?.jsonPrimitive?.contentOrNull
 
             val bytesAFirmar = RedeemContract.bytesFirmaLicencia(
@@ -182,7 +185,6 @@ class RedeemClient(
             val kid = licenseObj["kid"]?.jsonPrimitive?.contentOrNull ?: "gl-redeem-v1"
             val redeemSpki = TrustDirectory.effectiveDirectory?.redeemKey(kid)
                 ?: TrustDirectory.effectiveRedeemKey(kid)
-                ?: TrustDirectory.effectiveDirectory?.canjeKeys()?.firstOrNull()
 
             if (redeemSpki == null) {
                 return RedeemResult.Error("UNKNOWN_KID", "Clave pública del servicio no autorizada o no encontrada para kid: $kid")
@@ -203,11 +205,16 @@ class RedeemClient(
             val tipoEnum = when (type) {
                 "PERPETUA" -> TipoLicencia.PERPETUA
                 "ANUAL" -> TipoLicencia.ANUAL
-                else -> TipoLicencia.MENSUAL
+                "SEMESTRAL" -> TipoLicencia.SEMESTRAL
+                "MENSUAL" -> TipoLicencia.MENSUAL
+                else -> return RedeemResult.Error("INVALID_TYPE", "Tipo de licencia no admitido: $type")
+            }
+            if (tipoEnum != TipoLicencia.PERPETUA && expiresAt.isNullOrBlank()) {
+                return RedeemResult.Error("INVALID_EXPIRES", "Fecha de vencimiento requerida para licencia temporal")
             }
             val state = when (tipoEnum) {
                 TipoLicencia.PERPETUA -> LicenseState.Perpetual(licenseId, secundarias)
-                else -> LicenseState.Active(tipoEnum, Instant.parse(expiresAt!!), licenseId, secundarias)
+                else -> LicenseState.Active(tipoEnum, Instant.parse(expiresAt), licenseId, secundarias)
             }
 
             when (val actRes = licenseManager.activarDirecta(licenseId, issuedAt, expiresAt, tipoEnum, secundarias, responseText)) {
@@ -448,7 +455,16 @@ class RedeemClient(
             val err = obj["error"]?.jsonObject
             val code = err?.get("code")?.jsonPrimitive?.contentOrNull ?: "HTTP_$httpStatus"
             val message = err?.get("message")?.jsonPrimitive?.contentOrNull ?: "Error en la operación"
-            code to message
+            val codigosGenericos = setOf(
+                "CODE_ALREADY_USED", "CODE_NOT_FOUND", "LICENSE_WRONG_APP", "CODE_FOR_OTHER_APP",
+                "ALREADY_REDEEMED", "INVALID_CODE", "CODE_UNAVAILABLE", "CODE_EXPIRED",
+            )
+            val mensajeFinal = if (code in codigosGenericos || httpStatus in setOf(404, 409, 422)) {
+                RedeemContract.MENSAJE_CODIGO_INVALIDO_O_USADO
+            } else {
+                message
+            }
+            code to mensajeFinal
         } catch (_: Exception) {
             "HTTP_$httpStatus" to "Error de comunicación ($httpStatus)"
         }

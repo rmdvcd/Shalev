@@ -597,22 +597,23 @@ Entra en **Ajustes → Licencia**:
 2. **Paso 2 — Pide la licencia:**
    - Elige el tipo (**Mensual**, **Semestral**, **Anual** o **Perpetua**): cada fila muestra el nombre a la izquierda y el precio alineado a la derecha. Ajusta con **− / +** cuántas **Apps secundarias (empleados)** necesitas. Verás el total exacto calculado debajo.
    - *(Solo si estás cambiando de teléfono: verifica que aparezca el **ID de la licencia anterior** para que el traspaso sea gratuito; el teléfono viejo quedará revocado y pedirá desinstalar la app).*
+   - **Tarjeta «Cómo pagar»:** antes de enviar tu solicitud, revisa las instrucciones de pago en pantalla con el desglose exacto de tu importe y las vías de cobro autorizadas. Recuerda: *«Paga solo a los datos que muestra esta pantalla»*.
+   - **N.º de transferencia (opcional):** si ya realizaste la transferencia por Transfermóvil o EnZona, puedes escribir la referencia bancaria o tocar **Pegar** para extraerla automáticamente del portapapeles. Se incluirá en el mensaje para agilizar la confirmación.
+   - **Validez de 7 días:** cada solicitud generada es válida durante **7 días** (*«Vale 7 dias: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud.»*). Si transcurre ese plazo antes de confirmar el pago, genera una nueva solicitud desde la app.
    - En **Enviar por**, toca el botón con texto visible **WhatsApp** *(recomendado por rapidez y porque cabe en un solo mensaje)* o **SMS**, y toca el botón de **Enviar**. Se abrirá tu app de mensajería con tus datos y el código cifrado `SPVIR1:` listos: solo pulsa enviar.
 3. **Paso 3 — Activa la licencia:**
    - Cuando el desarrollador te responda con tu mensaje de activación (`SPVI2:`), cópialo completo (si te llegó por SMS dividido en varias partes, copia todas) o compártelo directamente hacia Shalev.
    - En el Paso 3 toca el botón de **Pegar** y luego **Confirmar**. ¡Listo!
 
-> **Guarda el ID de tu licencia:** en **Ajustes → Perfil**, tarjeta **ID de la licencia**, toca **Mostrar**. Se abre una ventana con el ID (un código como `3f2b8c1e-5a7d-4e9f-b0c2-9d8e7f6a5b4c`) y el botón **Copiar**, que lo deja en el portapapeles para guardarlo fuera del teléfono (una nota, un correo a ti mismo o papel). Si pierdes o se rompe el teléfono, instala Shalev en el nuevo y pega ese ID en **Licencia → ID de la licencia anterior** para pasar gratis la licencia ya pagada. No lo compartas: al usarlo, el teléfono anterior se bloquea y borra sus datos. Si aún no has activado una licencia, la ventana te lo indica. En las apps secundarias no aparece, porque usan la licencia de la principal.
+### 14.3 Activación directa por código comercial (Canje)
 
-> **Renovar sin perder ni un día:** cuando tengas una licencia activa y se acerque su fecha, puedes usar **Renovar igual** para pedir otra idéntica en dos toques. Si la activas antes de que venza la actual, **los días nuevos se suman a los que te quedaban**.
+Si adquiriste un código oficial de activación de 16 caracteres emitido por GL (formato `XXXX-XXXX-XXXX-XXXX`):
+- En la pantalla de Licencia encontrarás la opción **Activar por código** (o **Renovar con código**).
+- Escribe o pega tu código y pulsa **Canjear**. La app se comunicará directamente con el servicio de canje mediante conexión segura y activará tu licencia al instante.
+- Esta función está habilitada en las ediciones oficiales de Android e iOS siempre que el directorio de claves públicas incluya claves autorizadas de canje. Si la edición en uso no admite canje o no hay claves disponibles, la app mostrará claramente el motivo: *«Aún no disponible en esta edición»*.
+- **Sin secundarias:** los códigos de canje activan exclusivamente la app principal del negocio (`secundarias = 0`). Las secundarias adicionales se gestionan mediante el flujo de solicitud y ampliación habitual.
 
-> **Cuidado con la fecha y hora del teléfono:** para evitar manipulaciones del calendario, si el reloj de tu teléfono se atrasa más de **2 horas**, Shalev bloqueará temporalmente el acceso avisándote **«Fecha u hora incorrecta»**. Basta con volver a poner en hora automática el reloj de Android para seguir trabajando enseguida con todos tus datos intactos.
-
-| <img src="Android/app/capturas/claro/07n_licencia_activa.png" alt="Estado de licencia, tarifas y Paso 1" width="240"/> | <img src="Android/app/capturas/claro/07l_licencia_paso3_activar.png" alt="Paso 3 Activar licencia" width="240"/> |
-|:---:|:---:|
-| *Figura 14.1 — Licencia activa, tarifas oficiales y Paso 1* | *Figura 14.2 — Paso 3 para pegar y activar la respuesta* |
-
-### 14.3 Actualizaciones seguras de la aplicación
+### 14.4 Actualizaciones seguras de la aplicación
 
 Para que disfrutes siempre de las últimas mejoras y que la App Principal y las Secundarias hablen el mismo idioma:
 
@@ -726,4 +727,4 @@ En Shalev e IShalev, cuando el carrito contiene artículos puedes volver al sele
 
 En **Servicios** puedes crear y consultar los servicios del catálogo de escritorio; usa **Recetas** para asociar insumos. En Inicio, el gráfico muestra siete días de ventas de escritorio y móviles sincronizadas; el Top 3 incluye solo ventas de escritorio. El selector **Tema** de la cabecera permite usar el modo del sistema, claro u oscuro.
 
-En **DShalev de escritorio**, el menú **Herramientas** permite convertir entre CUP y USD o calcular una tasa manual, sin conexión a un servicio de tasas. En Fichas de costo puedes guardar partidas en CUP y USD y calcular un margen; puedes exportarlas a Excel o al catálogo web como producto o servicio con receta. Confirma el destino y proporciona la tasa CUP por USD si hay partidas en USD; los insumos nuevos se crean sin existencias. En escritorio un producto necesita además existencia propia antes de venderse. **Licencia** informa del estado de la integración pendiente; no permite activar una licencia GL. La administración avanzada de fotos y actualización Android está en **Equipo**, no en la navegación principal. DShalev permite iniciar locales independientes mediante `--local`; consulta el README de DShalev para los límites y respaldos. La gestión visual y sincronización por local siguen pendientes.
+En **DShalev de escritorio**, el menú **Herramientas** permite convertir entre CUP y USD o calcular una tasa manual, sin conexión a un servicio de tasas. En Fichas de costo puedes guardar partidas en CUP y USD y calcular un margen; puedes exportarlas a Excel o al catálogo web como producto o servicio con receta. Confirma el destino y proporciona la tasa CUP por USD si hay partidas en USD; los insumos nuevos se crean sin existencias. En escritorio un producto necesita además existencia propia antes de venderse. **Licencia** permite generar solicitudes con instrucciones de pago y referencia bancaria opcional, activar licencias `SPVI2:` y canjear códigos comerciales de activación. La administración avanzada de fotos y actualización Android está en **Equipo**, no en la navegación principal. DShalev permite iniciar locales independientes mediante `--local`; consulta el README de DShalev para los límites y respaldos. La gestión visual y sincronización por local siguen pendientes.

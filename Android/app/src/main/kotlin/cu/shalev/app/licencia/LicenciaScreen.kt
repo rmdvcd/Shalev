@@ -2,6 +2,7 @@ package cu.shalev.app.licencia
 
 import cu.shalev.app.perfil.TextosPerfil
 import cu.shalev.app.vinculacion.VinculacionLogic
+import cu.shalev.core.contact.PaymentInstructions
 import cu.shalev.app.recorrido.ObjetivosRecorrido
 import cu.shalev.designsystem.component.coachMark
 import cu.shalev.app.recorrido.RecorridoModulo
@@ -402,6 +403,35 @@ fun LicenciaContent(
                                 )
                             }
                         }
+
+                        // T3: Campo opcional N.º de transferencia
+                        ShalevSecondaryText("N.º de transferencia (opcional)")
+                        ShalevTextField(
+                            filtro = FiltroEntrada.LIBRE,
+                            value = form.transferencia,
+                            onValueChange = { v -> acciones.onEditar { it.copy(transferencia = v.take(30)) } },
+                            label = "N.º de transferencia (opcional)",
+                            supportingText = "Si ya pagaste, escribe el número de la transferencia para que te activen más rápido.",
+                            isError = !form.transferenciaOk,
+                            errorText = "Escribe de 4 a 30 caracteres alfanuméricos o guiones.",
+                            modifier = Modifier.testTag("licencia.transferencia"),
+                        )
+                        val clipboardTransfer = LocalClipboardManager.current
+                        ShalevButtonRow {
+                            ShalevSecondaryButton(
+                                text = "Pegar confirmación de pago",
+                                etiqueta = "Pegar",
+                                icon = ShalevIcons.Pegar,
+                                onClick = {
+                                    val clipText = clipboardTransfer.getText()?.text.orEmpty()
+                                    val num = cu.shalev.domain.usecase.ExtraerNumeroTransaccion().invoke(clipText)
+                                    if (num != null) {
+                                        acciones.onEditar { it.copy(transferencia = num) }
+                                    }
+                                },
+                            )
+                        }
+
                         ShalevSecondaryText("Enviar por")
                         ShalevButtonRow {
                             ShalevIconAction(
@@ -433,6 +463,46 @@ fun LicenciaContent(
                                 modifier = Modifier.testTag(LicenciaTags.SIN_PERDER_DIAS),
                             )
                         }
+
+                        // T2: Tarjeta "Cómo pagar" antes del botón de envío (oculta en recuperación)
+                        if (form.recupera.isBlank()) {
+                            val importePagar = if (accion == AccionSolicitud.AMPLIAR && instalada != null) {
+                                val adic = (form.secundarias - instalada.secundarias).coerceAtLeast(1)
+                                Money.cup(instalada.tipo.precioAmpliacion(adic))
+                            } else {
+                                Money.cup(form.tipo.precio(form.secundarias))
+                            }
+                            ShalevCard(title = PaymentInstructions.TITULO) {
+                                ShalevSecondaryText("Importe a pagar: $importePagar")
+                                if (PaymentInstructions.METODOS.isEmpty()) {
+                                    ShalevSecondaryText(PaymentInstructions.AVISO_SIN_METODOS)
+                                } else {
+                                    ShalevSecondaryText(PaymentInstructions.FRASE_PAGA_SOLO)
+                                    val clipboard = LocalClipboardManager.current
+                                    PaymentInstructions.METODOS.forEach { metodo ->
+                                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xxs)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    ShalevSecondaryText(metodo.nombre)
+                                                    ShalevSecondaryText(metodo.destino)
+                                                    metodo.nota?.let { ShalevSecondaryText(it) }
+                                                }
+                                                ShalevSecondaryButton(
+                                                    text = "Copiar",
+                                                    icon = ShalevIcons.Copiar,
+                                                    onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(metodo.destino)) },
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         ShalevButtonRow {
                             ShalevPrimaryButton(
                                 text = accion.boton, etiqueta = "Solicitar", icon = ShalevIcons.Enviar, onClick = acciones.onSolicitar,
@@ -447,38 +517,48 @@ fun LicenciaContent(
                 }
             }
             PasoLicencia.ACTIVAR -> {
+                val dirCanje = cu.shalev.licencia.TrustDirectory.effectiveDirectory
+                val canjeActivo = cu.shalev.app.BuildConfig.CANJE_HABILITADO &&
+                    cu.shalev.app.BuildConfig.CANJE_APP_ID.isNotBlank() &&
+                    dirCanje?.claves?.any { it.uso == "canje" && it.activa } == true &&
+                    dirCanje?.endpointBase?.startsWith("https://") == true
+
                 ShalevCard(title = if (lic.instalada != null) "Renovar con código" else "Tengo un código") {
-                    ShalevSecondaryText("Escribe o pega tu código comercial de 16 caracteres.", textAlign = TextAlign.Center)
-                    ShalevTextField(
-                        filtro = FiltroEntrada.LIBRE,
-                        value = form.codigoCanje,
-                        onValueChange = { v -> acciones.onEditar { it.copy(codigoCanje = v) } },
-                        label = "Código comercial (16 caracteres)",
-                        singleLine = true,
-                        modifier = Modifier.testTag("licencia.codigo_canje"),
-                    )
-                    ShalevButtonRow {
-                        ShalevIconAction(ShalevIcons.Pegar, "Pegar", style = IconActionStyle.Tonal, onClick = acciones.onPegarCodigo)
-                        ShalevPrimaryButton(
-                            text = "Canjear",
-                            icon = ShalevIcons.Confirmar,
-                            onClick = acciones.onCanjear,
-                            enabled = form.codigoCanje.isNotBlank() && !state.ocupado,
-                            loading = state.ocupado,
-                            modifier = Modifier.testTag("licencia.boton_canjear"),
+                    if (!canjeActivo) {
+                        ShalevSecondaryText(cu.shalev.licencia.redeem.RedeemContract.MOTIVO_AUN_NO_DISPONIBLE, textAlign = TextAlign.Center)
+                    } else {
+                        ShalevSecondaryText("Escribe o pega tu código comercial de 16 caracteres.", textAlign = TextAlign.Center)
+                        ShalevTextField(
+                            filtro = FiltroEntrada.LIBRE,
+                            value = form.codigoCanje,
+                            onValueChange = { v -> acciones.onEditar { it.copy(codigoCanje = v) } },
+                            label = "Código comercial (16 caracteres)",
+                            singleLine = true,
+                            modifier = Modifier.testTag("licencia.codigo_canje"),
                         )
-                    }
-                    if (lic.instalada != null) {
                         ShalevButtonRow {
-                            ShalevSecondaryButton(
-                                text = "Consultar",
-                                etiqueta = "Estado",
-                                icon = ShalevIcons.Reintentar,
-                                onClick = acciones.onConsultarEstado,
-                                enabled = !state.ocupado,
+                            ShalevIconAction(ShalevIcons.Pegar, "Pegar", style = IconActionStyle.Tonal, onClick = acciones.onPegarCodigo)
+                            ShalevPrimaryButton(
+                                text = "Canjear",
+                                icon = ShalevIcons.Confirmar,
+                                onClick = acciones.onCanjear,
+                                enabled = form.codigoCanje.isNotBlank() && !state.ocupado,
                                 loading = state.ocupado,
-                                modifier = Modifier.testTag("licencia.boton_estado"),
+                                modifier = Modifier.testTag("licencia.boton_canjear"),
                             )
+                        }
+                        if (lic.instalada != null) {
+                            ShalevButtonRow {
+                                ShalevSecondaryButton(
+                                    text = "Consultar",
+                                    etiqueta = "Estado",
+                                    icon = ShalevIcons.Reintentar,
+                                    onClick = acciones.onConsultarEstado,
+                                    enabled = !state.ocupado,
+                                    loading = state.ocupado,
+                                    modifier = Modifier.testTag("licencia.boton_estado"),
+                                )
+                            }
                         }
                     }
                 }

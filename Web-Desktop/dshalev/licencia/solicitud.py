@@ -36,7 +36,9 @@ SOL_DOMINIO = b"SPVI-R1|"
 LARGO_EPK = 33
 LARGO_TAG = 16
 
-AVISO_FRESCURA = "Vale 72 horas: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."
+AVISO_FRESCURA = "Vale 7 dias: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."
+
+ENVIAR_TX_EN_SOLICITUD: bool = False
 
 TIPOS = ("MENSUAL", "SEMESTRAL", "ANUAL", "PERPETUA")
 VIAS = ("WHATSAPP", "SMS")
@@ -145,6 +147,18 @@ def normalizar_gsm7(texto: str) -> str:
 
 _RE_CI = re.compile(r"^\d{11}$")
 _RE_UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+_RE_TX = re.compile(r"^[A-Za-z0-9-]{4,30}$")
+
+
+def validar_transferencia(tx: str | None) -> str | None:
+    if not tx:
+        return None
+    limpio = tx.strip()
+    if not limpio:
+        return None
+    if not _RE_TX.fullmatch(limpio):
+        raise SolicitudError("El número de transferencia debe tener entre 4 y 30 caracteres alfanuméricos o guiones.")
+    return limpio
 
 
 def validar_nombre(nombre: str) -> str:
@@ -241,6 +255,7 @@ def generar_solicitud(
     recupera: str | None = None,
     amplia: str | None = None,
     secundarias_previas: int = 0,
+    tx: str | None = None,
     gl_ecdh_pub: ec.EllipticCurvePublicKey | None = None,
     efimera: ec.EllipticCurvePrivateKey | None = None,
     nonce: str | None = None,
@@ -255,6 +270,7 @@ def generar_solicitud(
     ape = validar_nombre(apellidos)
     carnet = validar_carne_cubano(ci, ahora)
     tel = normalizar_telefono_cubano(telefono)
+    tx_valido = validar_transferencia(tx)
 
     t = (tipo or "").strip().upper()
     if t not in TIPOS:
@@ -304,6 +320,8 @@ def generar_solicitud(
         payload["recupera"] = id_recupera
     if id_amplia:
         payload["amplia"] = id_amplia
+    if ENVIAR_TX_EN_SOLICITUD and tx_valido:
+        payload["tx"] = tx_valido
 
     plano_bytes = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
@@ -324,6 +342,8 @@ def generar_solicitud(
         lineas.append(f"Carne de identidad: {carnet}")
         lineas.append(f"Telefono: {tel}")
         lineas.append(f"Licencia anterior: {id_recupera}")
+        if tx_valido:
+            lineas.append(f"Transferencia: {tx_valido}")
         lineas.append(AVISO_FRESCURA)
         lineas.append("")
         lineas.append(codigo)
@@ -340,6 +360,8 @@ def generar_solicitud(
         lineas.append(f"Apps secundarias: {sec}")
         lineas.append(f"Precio: {formatear_cup(precio_ampliacion(t, adic))}")
         lineas.append(f"Amplia: {id_amplia}")
+        if tx_valido:
+            lineas.append(f"Transferencia: {tx_valido}")
         lineas.append(AVISO_FRESCURA)
         lineas.append("")
         lineas.append(codigo)
@@ -353,6 +375,8 @@ def generar_solicitud(
         lineas.append(f"Precio: {formatear_cup(precio_total(t, sec))}")
         if id_renueva:
             lineas.append(f"Renueva: {id_renueva}")
+        if tx_valido:
+            lineas.append(f"Transferencia: {tx_valido}")
         lineas.append(AVISO_FRESCURA)
         lineas.append("")
         lineas.append(codigo)

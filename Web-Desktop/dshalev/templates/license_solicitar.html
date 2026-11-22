@@ -141,6 +141,31 @@
         </select>
       </label>
 
+      <label for="campo-tx">N.º de transferencia (opcional)
+        <input id="campo-tx" name="tx" type="text" pattern="[A-Za-z0-9-]{4,30}" maxlength="30" value="{{ form_data.tx if form_data else '' }}" placeholder="Ej. BR601ADLM8997" aria-describedby="ayuda-tx">
+        <small id="ayuda-tx" class="muted">Si ya pagaste, escribe el número de la transferencia para que te activen más rápido.</small>
+      </label>
+
+      {% if not recupera %}
+      <div class="panel" style="margin-top: 1rem; padding: 1rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px;">
+        <h3 style="margin-top: 0;">{{ titulo_pago }}</h3>
+        <p><strong>Paga solo a los datos que muestra esta pantalla</strong></p>
+        {% if metodos_cobro %}
+          {% for metodo in metodos_cobro %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding: 0.5rem; background: var(--surface-bg, #f8fafc); border-radius: 6px;">
+              <div>
+                <strong>{{ metodo.nombre }}</strong>: <code>{{ metodo.destino }}</code>
+                {% if metodo.nota %}<small class="muted" style="display: block;">{{ metodo.nota }}</small>{% endif %}
+              </div>
+              <button type="button" class="quiet-button" onclick="navigator.clipboard.writeText('{{ metodo.destino }}'); this.textContent='Copiado'; setTimeout(()=>this.textContent='Copiar', 2000);">Copiar</button>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="muted">{{ aviso_sin_metodos }}</p>
+        {% endif %}
+      </div>
+      {% endif %}
+
       <div style="margin-top: 1rem;">
         <button type="submit" class="primary-button">Generar</button>
       </div>

@@ -87,10 +87,10 @@ cat > "$TC/stub/src/cu/shalev/app/R.java" <<'J'
 package cu.shalev.app; public final class R { public static final class drawable { public static final int ic_stat_shalev = 0x7f010002; public static final int billete_1 = 0x7f010010; public static final int billete_3 = 0x7f010011; public static final int billete_5 = 0x7f010012; public static final int billete_10 = 0x7f010013; public static final int billete_20 = 0x7f010014; public static final int billete_50 = 0x7f010015; public static final int billete_100 = 0x7f010016; public static final int billete_200 = 0x7f010017; public static final int billete_500 = 0x7f010018; public static final int billete_1000 = 0x7f010019; public static final int billete_2000 = 0x7f01001a; public static final int billete_5000 = 0x7f01001b; public static final int billete_20000 = 0x7f01001c; } }
 J
 cat > "$TC/stub/src/cu/shalev/app/BuildConfig.java" <<J
-package cu.shalev.app; public final class BuildConfig { public static final boolean DEBUG = false; public static final int VERSION_CODE = ${VC:-1}; public static final String VERSION_NAME = "${VN:-0}"; public static final String APPLICATION_ID = "cu.shalev.app"; public static final String GITHUB_REPO = ""; }
+package cu.shalev.app; public final class BuildConfig { public static final boolean DEBUG = false; public static final int VERSION_CODE = ${VC:-1}; public static final String VERSION_NAME = "${VN:-0}"; public static final String APPLICATION_ID = "cu.shalev.app"; public static final String GITHUB_REPO = ""; public static final String CANJE_APP_ID = "SHALEV-ANDROID"; public static final boolean CANJE_HABILITADO = true; }
 J
 cat > "$TC/stub/src/cu/shalev/data/BuildConfig.java" <<'J'
-package cu.shalev.data; public final class BuildConfig { public static final String SHALEV_RELAY_URL = ""; }
+package cu.shalev.data; public final class BuildConfig { public static final String SHALEV_RELAY_URL = ""; public static final String CANJE_APP_ID = "SHALEV-ANDROID"; public static final boolean CANJE_HABILITADO = true; }
 J
 cat > "$TC/stub/src/cu/shalev/designsystem/R.java" <<'J'
 package cu.shalev.designsystem; public final class R { public static final class drawable { public static final int shalev_logo = 0x7f010001; } public static final class font { public static final int orbitron = 0x7f020001; } }

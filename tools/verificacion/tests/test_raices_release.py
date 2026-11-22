@@ -2,14 +2,29 @@
 
 import unittest
 from tools.verificacion.verificar_raices_release import (
+    extraer_app_id_android,
+    extraer_app_id_dshalev,
+    extraer_app_id_ios,
     extraer_raices_android,
     extraer_raices_dshalev,
     extraer_raices_ios,
     verificar_raices,
+    CANJE_APP_IDS_PERMITIDOS,
 )
 
 
 class RaicesReleaseTest(unittest.TestCase):
+    def test_canje_app_id_en_conjunto_permitido(self):
+        android_id = extraer_app_id_android()
+        ios_id = extraer_app_id_ios()
+        dshalev_id = extraer_app_id_dshalev()
+
+        self.assertIn(android_id, CANJE_APP_IDS_PERMITIDOS)
+        self.assertIn(ios_id, CANJE_APP_IDS_PERMITIDOS)
+        self.assertIn(dshalev_id, CANJE_APP_IDS_PERMITIDOS)
+        self.assertEqual("SHALEV-ANDROID", android_id)
+        self.assertEqual("SHALEV-IOS", ios_id)
+        self.assertEqual("DSHALEV", dshalev_id)
     def test_extraccion_raices_en_tres_plataformas(self):
         a_a, a_b = extraer_raices_android()
         ios_a, ios_b = extraer_raices_ios()
