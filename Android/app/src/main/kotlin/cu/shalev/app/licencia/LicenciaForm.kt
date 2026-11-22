@@ -44,6 +44,8 @@ data class LicenciaForm(
     val recupera: String = "",
     /** Solicitud de ampliación de apps secundarias sobre la licencia activa instalada (conservando vencimiento). */
     val ampliandoSecundarias: Boolean = false,
+    /** T3: Número opcional de comprobante o transferencia bancaria (4 a 30 caracteres alfanuméricos y guiones). */
+    val transferencia: String = "",
 ) {
     /** 0.21.0 (C4): precio total = base del tipo + importe por cada secundaria. */
     val precio: Long get() = tipo.precio(secundarias)
@@ -55,13 +57,19 @@ data class LicenciaForm(
     val apellidosOk: Boolean get() = Validators.nombre(apellidos)
     val ciOk: Boolean get() = Validators.carneCubano(ci)
     val telefonoOk: Boolean get() = Phone.esMovilCubano(telefono)
-    val valido: Boolean get() = nombreOk && apellidosOk && ciOk && telefonoOk
+    val transferenciaOk: Boolean
+        get() {
+            val t = transferencia.trim()
+            return t.isEmpty() || t.matches(Regex("^[A-Za-z0-9-]{4,30}$"))
+        }
+    val valido: Boolean get() = nombreOk && apellidosOk && ciOk && telefonoOk && transferenciaOk
     /** ID canónico a recuperar (null = vacío o sin un ID reconocible). */
     val idRecupera: String? get() = recupera.takeIf { it.isNotBlank() }?.let { cu.shalev.licencia.contract.IdLicencia.extraer(it) }
     val recuperaOk: Boolean get() = recupera.isBlank() || idRecupera != null
 
     fun aInput(lic: Licencia? = null): SolicitudInput {
         val inst = lic?.instalada
+        val txLimpia = transferencia.trim().takeIf { it.isNotBlank() && transferenciaOk }
         if (lic != null && inst != null && lic.accionSolicitud(ampliandoSecundarias) == AccionSolicitud.AMPLIAR) {
             val total = secundarias.coerceIn(inst.secundarias + 1, GlContract.SECUNDARIAS_MAX)
             return SolicitudInput(
@@ -74,9 +82,20 @@ data class LicenciaForm(
                 secundarias = total,
                 amplia = inst.id,
                 secundariasPrevias = inst.secundarias,
+                tx = txLimpia,
             )
         }
-        return SolicitudInput(nombre.trim(), apellidos.trim(), ci.trim(), telefono.trim(), tipo, via, secundarias, recupera = idRecupera)
+        return SolicitudInput(
+            nombre = nombre.trim(),
+            apellidos = apellidos.trim(),
+            ci = ci.trim(),
+            telefono = telefono.trim(),
+            tipo = tipo,
+            via = via,
+            secundarias = secundarias,
+            recupera = idRecupera,
+            tx = txLimpia,
+        )
     }
 
     /** 0.21.0 (C4): cambia el nº de secundarias dentro de [minimo]..[GlContract.SECUNDARIAS_MAX]. */

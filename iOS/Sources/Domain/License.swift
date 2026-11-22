@@ -340,9 +340,10 @@ private struct GLRequestPayload: Encodable {
     var renueva: String?
     var recupera: String?
     var amplia: String?
+    var tx: String?
 
     enum CodingKeys: String, CodingKey {
-        case v, nombre, apellidos, ci, via, telefono, deviceId, tipo, solicitadaEn, nonce, devicePub, secundarias, renueva, recupera, amplia
+        case v, nombre, apellidos, ci, via, telefono, deviceId, tipo, solicitadaEn, nonce, devicePub, secundarias, renueva, recupera, amplia, tx
     }
 
     func encode(to encoder: Encoder) throws {
@@ -362,6 +363,9 @@ private struct GLRequestPayload: Encodable {
         try container.encodeIfPresent(renueva, forKey: .renueva)
         try container.encodeIfPresent(recupera, forKey: .recupera)
         try container.encodeIfPresent(amplia, forKey: .amplia)
+        if GLLicenseManager.ENVIAR_TX_EN_SOLICITUD {
+            try container.encodeIfPresent(tx, forKey: .tx)
+        }
     }
 }
 
@@ -369,6 +373,8 @@ private struct GLRequestPayload: Encodable {
 
 @MainActor
 final class GLLicenseManager: ObservableObject {
+    public static var ENVIAR_TX_EN_SOLICITUD: Bool = false
+
     @Published private(set) var state: GLLicenseState = .loading
     @Published var requestProfile = GLLicenseProfile()
     @Published private(set) var lastError: String?
@@ -503,7 +509,8 @@ final class GLLicenseManager: ObservableObject {
         secondaries: Int,
         channel: GLRequestChannel,
         recoveryID: String? = nil,
-        extendingCurrentSecondaries: Bool = false
+        extendingCurrentSecondaries: Bool = false,
+        tx: String? = nil
     ) throws -> String {
         guard let identity, let glPublic = GLTrust.ecdhPublicKey, GLTrust.canValidate else {
             throw GLLicenseError.configuration
@@ -515,6 +522,15 @@ final class GLLicenseManager: ObservableObject {
         let recovery = recoveryID?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let recovery, !recovery.isEmpty, UUID(uuidString: recovery) == nil { throw GLLicenseError.invalidRequest }
         let normalizedRecovery = (recovery?.isEmpty == false) ? recovery : nil
+
+        var cleanTx: String? = nil
+        if let rawTx = tx?.trimmingCharacters(in: .whitespacesAndNewlines), !rawTx.isEmpty {
+            guard rawTx.range(of: "^[A-Za-z0-9-]{4,30}$", options: .regularExpression) != nil else {
+                throw GLLicenseError.invalidRequest
+            }
+            cleanTx = rawTx
+        }
+
         var previousSecondaries = 0
         var resolvedType = type
         var extensionID: String? = nil
@@ -543,7 +559,8 @@ final class GLLicenseManager: ObservableObject {
             secundarias: secondaries,
             renueva: (normalizedRecovery == nil && extensionID == nil) ? renewableLicenseID : nil,
             recupera: normalizedRecovery?.lowercased(),
-            amplia: extensionID
+            amplia: extensionID,
+            tx: cleanTx
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = []
@@ -777,6 +794,9 @@ final class GLLicenseManager: ObservableObject {
             lines.append("Apps secundarias: \(payload.secundarias)")
             lines.append("Precio: \(Cup(cents: payload.tipo.totalPriceCents(secondaries: payload.secundarias)).formatted)")
             if let renewal = payload.renueva { lines.append("Renueva: \(renewal)") }
+        }
+        if let tx = payload.tx, !tx.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            lines.append("Transferencia: \(tx)")
         }
         lines.append(GLLicenseMessage.AVISO_FRESCURA)
         return lines.joined(separator: "\n") + "\n\n" + code

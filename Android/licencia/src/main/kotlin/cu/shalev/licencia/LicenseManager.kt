@@ -104,6 +104,8 @@ data class SolicitudInput(
     val amplia: String? = null,
     /** Secundarias actuales de la licencia que se amplía (para el texto legible de [MensajesLicencia.ampliacion]). */
     val secundariasPrevias: Int = 0,
+    /** T3: Número opcional de comprobante o transferencia bancaria. */
+    val tx: String? = null,
 )
 
 /**
@@ -222,6 +224,9 @@ class LicenseManager(
                     input.secundarias in (input.secundariasPrevias + 1)..GlContract.SECUNDARIAS_MAX),
         ) { "La ampliación debe incrementar las apps secundarias actuales (máx. ${GlContract.SECUNDARIAS_MAX})" }
 
+        val txLimpio = input.tx?.trim()?.takeIf { it.isNotBlank() }
+        require(txLimpio == null || txLimpio.matches(Regex("^[A-Za-z0-9-]{4,30}$"))) { "Número de transferencia inválido" }
+
         val nonce = B64.urlNoPad(ByteArray(16).also(random::nextBytes))
         val payload = RequestPayload(
             nombre = input.nombre.trim(),
@@ -238,8 +243,10 @@ class LicenseManager(
             renueva = input.renueva,
             recupera = input.recupera?.trim()?.lowercase(),
             amplia = input.amplia,
+            tx = txLimpio,
         )
-        val plain = GlJson.encoder.encodeToString(RequestPayload.serializer(), payload).toByteArray(Charsets.UTF_8)
+        val payloadCifrar = if (MensajesLicencia.ENVIAR_TX_EN_SOLICITUD) payload else payload.copy(tx = null)
+        val plain = GlJson.encoder.encodeToString(RequestPayload.serializer(), payloadCifrar).toByteArray(Charsets.UTF_8)
         val codigo = SolicitudCifrada.sellar(plain, gl)
         plain.fill(0)
         return SolicitudGenerada(MensajesLicencia.solicitud(payload, codigo, input.secundariasPrevias), codigo)

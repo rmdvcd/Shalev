@@ -33,6 +33,7 @@ struct LicenseView: View {
     @State private var extendingSecondaries = false
     @State private var channel: GLRequestChannel = .whatsapp
     @State private var recoveryID = ""
+    @State private var transferNumber = ""
     @State private var activationText = ""
     @State private var redeemCode = ""
     @State private var editingData = false
@@ -532,6 +533,26 @@ struct LicenseView: View {
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
 
+                        // T3: Campo opcional N.º de transferencia
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("N.º de transferencia (opcional)")
+                                .font(.shalev(13, weight: .semibold))
+                                .foregroundStyle(Color.shalevText)
+                            inputField("N.º de transferencia", text: $transferNumber, placeholder: "Ej. BR601ADLM8997")
+                            Text("Si ya pagaste, escribe el número de la transferencia para que te activen más rápido.")
+                                .font(.shalev(11))
+                                .foregroundStyle(Color.shalevSecondaryText)
+                            Button {
+                                if let text = UIPasteboard.general.string, let parsed = TransferMessageParser.parse(text) {
+                                    transferNumber = parsed.transactionNumber
+                                }
+                            } label: {
+                                Label("Pegar confirmación de pago", systemImage: "doc.on.clipboard")
+                                    .font(.shalev(12, weight: .semibold))
+                            }
+                            .buttonStyle(ShalevTonalButtonStyle())
+                        }
+
                         if isExtensionFlow {
                             Text("Conserva el vencimiento actual de tu licencia y cobra solo las secundarias añadidas.")
                                 .font(.shalev(12))
@@ -921,7 +942,8 @@ struct LicenseView: View {
                 secondaries: effectiveSecondaries,
                 channel: channel,
                 recoveryID: isExtensionFlow ? nil : normalizedRecoveryID,
-                extendingCurrentSecondaries: isExtensionFlow
+                extendingCurrentSecondaries: isExtensionFlow,
+                tx: transferNumber.isBlank ? nil : transferNumber
             )
         } catch {
             alertMessage = "Revisa los datos y vuelve a intentarlo."

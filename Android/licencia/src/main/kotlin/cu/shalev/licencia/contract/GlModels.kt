@@ -86,6 +86,13 @@ data class RequestPayload(
     @OptIn(ExperimentalSerializationApi::class)
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val amplia: String? = null,
+    /**
+     * T3: Número de comprobante o transferencia bancaria (opcional).
+     * Omitido si está vacío o si ENVIAR_TX_EN_SOLICITUD es false.
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val tx: String? = null,
 )
 
 /**

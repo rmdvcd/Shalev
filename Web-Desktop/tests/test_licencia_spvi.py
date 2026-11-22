@@ -375,4 +375,92 @@ def test_t1_aviso_frescura_7_dias_gsm7():
         assert ch in gsm7_basic, f"Carácter {ch!r} no es GSM-7 básico"
 
 
+def test_t3_campo_transferencia_validaciones_y_mensaje(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """T3: Validación de transferencia, línea en mensaje, payload protegido y partes SMS."""
+    from dshalev.licencia import ENVIAR_TX_EN_SOLICITUD, SolicitudError, solicitud, validar_transferencia
+
+    # 1. Validación de formato
+    assert validar_transferencia(None) is None
+    assert validar_transferencia("") is None
+    assert validar_transferencia("   ") is None
+    assert validar_transferencia("BR601ADLM8997") == "BR601ADLM8997"
+    assert validar_transferencia("  PAG-123456  ") == "PAG-123456"
+
+    with pytest.raises(SolicitudError, match="El número de transferencia"):
+        validar_transferencia("A12")  # Menos de 4
+    with pytest.raises(SolicitudError, match="El número de transferencia"):
+        validar_transferencia("A" * 31)  # Más de 30
+    with pytest.raises(SolicitudError, match="El número de transferencia"):
+        validar_transferencia("BR601@INV")  # Carácter inválido
+
+    identidad = _identidad_dorada(tmp_path)
+
+    # 2. Mensaje sin transferencia
+    msg_sin, _, payload_sin = generar_solicitud(
+        identidad,
+        nombre="Carlos",
+        apellidos="Perez",
+        ci="85010112345",
+        telefono="+5352345678",
+        tx=None,
+    )
+    assert "Transferencia:" not in msg_sin
+    assert "tx" not in payload_sin
+
+    # 3. Mensaje con transferencia y ENVIAR_TX_EN_SOLICITUD=False (por defecto)
+    msg_con, _, payload_con = generar_solicitud(
+        identidad,
+        nombre="Carlos",
+        apellidos="Perez",
+        ci="85010112345",
+        telefono="+5352345678",
+        tx="BR601ADLM8997",
+    )
+    assert "Transferencia: BR601ADLM8997" in msg_con
+    # Antes del aviso de frescura:
+    assert msg_con.index("Transferencia: BR601ADLM8997") < msg_con.index(AVISO_FRESCURA)
+    # Por defecto no se envía en el payload cifrado:
+    assert "tx" not in payload_con
+
+    # 4. Con ENVIAR_TX_EN_SOLICITUD=True
+    monkeypatch.setattr(solicitud, "ENVIAR_TX_EN_SOLICITUD", True)
+    _, _, payload_tx = generar_solicitud(
+        identidad,
+        nombre="Carlos",
+        apellidos="Perez",
+        ci="85010112345",
+        telefono="+5352345678",
+        tx="BR601ADLM8997",
+    )
+    assert payload_tx.get("tx") == "BR601ADLM8997"
+
+    # 5. Extracción desde textos de ejemplo de confirmaciones bancarias
+    import math
+    import re
+    sms_ejemplos = [
+        "Banco BPA: Nro. Transaccion: BR601ADLM8997. Monto: 6000.00 CUP. Fecha: 21/11/2026",
+        "PAGOxMOVIL: Pago exitoso No. Transaccion: PAG-987654-ABC por 6000 CUP",
+    ]
+    patron_extraccion = re.compile(r"transacci[oó]n\s*(?:no\.?|nro\.?|n[º°]|#)?\s*[:.]?\s*([A-Za-z0-9-]{4,30})\b", re.IGNORECASE)
+    for sms in sms_ejemplos:
+        m = patron_extraccion.search(sms)
+        assert m is not None
+        tx_extraida = m.group(1)
+        assert validar_transferencia(tx_extraida) is not None
+
+    # 6. Estimación de partes SMS GSM-7 con el campo incluido
+    gsm7_basic = set(
+        "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./"
+        "0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà"
+    )
+    cabecera = msg_con.split("SPVIR1:")[0]
+    for ch in cabecera:
+        assert ch in gsm7_basic, f"Carácter {ch!r} en cabecera no es GSM-7"
+
+    total_len = len(msg_con)
+    partes_sms = 1 if total_len <= 160 else math.ceil(total_len / 153)
+    assert partes_sms <= 6, f"Se esperaban <= 6 partes SMS para la solicitud completa, obtenido {partes_sms} ({total_len} chars)"
+
+
+
 

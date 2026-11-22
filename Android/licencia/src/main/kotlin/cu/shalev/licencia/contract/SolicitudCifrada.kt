@@ -84,6 +84,13 @@ object SolicitudCifrada {
  */
 object MensajesLicencia {
     /**
+     * T3: Constante que controla si el campo 'tx' se incluye dentro del payload JSON cifrado.
+     * Por defecto false. El propietario la activa cuando el APK de GL que acepta tx esté instalado.
+     * La línea legible "Transferencia: X" en el mensaje se incluye SIEMPRE que haya valor.
+     */
+    const val ENVIAR_TX_EN_SOLICITUD: Boolean = false
+
+    /**
      * GL PR #3 y T1: aviso de frescura de la solicitud (100% GSM-7, sin tildes).
      * Esta línea va en la parte legible del mensaje para que cliente y operador lo sepan antes de pagar.
      * Debe publicarse DESPUÉS del APK de GL que acepta 7 días.
@@ -103,6 +110,7 @@ object MensajesLicencia {
             appendLine("Apps secundarias: ${p.secundarias}")
             appendLine("Precio: ${Money.cup(p.tipo.precio(p.secundarias))}")
             p.renueva?.let { appendLine("Renueva: $it") }
+            p.tx?.takeIf { it.isNotBlank() }?.let { appendLine("Transferencia: $it") }
             appendLine(AVISO_FRESCURA)
             appendLine()
             append(codigo)
@@ -124,6 +132,7 @@ object MensajesLicencia {
             appendLine("Apps secundarias: ${p.secundarias}")
             appendLine("Precio: ${Money.cup(p.tipo.precioAmpliacion(adicionales))}")
             appendLine("Amplía: ${p.amplia}")
+            p.tx?.takeIf { it.isNotBlank() }?.let { appendLine("Transferencia: $it") }
             appendLine(AVISO_FRESCURA)
             appendLine()
             append(codigo)
@@ -137,6 +146,7 @@ object MensajesLicencia {
         appendLine("Carné de identidad: ${p.ci}")
         appendLine("Teléfono: ${p.telefono}")
         appendLine("Licencia anterior: ${p.recupera}")
+        p.tx?.takeIf { it.isNotBlank() }?.let { appendLine("Transferencia: $it") }
         appendLine(AVISO_FRESCURA)
         appendLine()
         append(codigo)

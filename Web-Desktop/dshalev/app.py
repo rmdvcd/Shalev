@@ -731,6 +731,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         renueva = (data.get("renueva") or "").strip() or None
         amplia = (data.get("amplia") or "").strip() or None
         recupera = (data.get("recupera") or "").strip() or None
+        tx = (data.get("tx") or "").strip() or None
 
         form_data = {
             "nombre": nombre,
@@ -740,6 +741,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             "tipo": tipo,
             "secundarias": secundarias,
             "via": via,
+            "tx": tx or "",
         }
 
         try:
@@ -757,6 +759,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 amplia=amplia,
                 recupera=recupera,
                 secundarias_previas=secundarias_previas,
+                tx=tx,
             )
         except SolicitudError as exc:
             return flash_redirect(request, "/licencia/solicitar", str(exc), kind="error")

@@ -74,5 +74,10 @@
       "95": "AIS",
       "97": "Clásica"
     }
+  },
+  "transferenciaPago": {
+    "patron": "^[A-Za-z0-9-]{4,30}$",
+    "opcional": true,
+    "descripcion": "Número de comprobante o transferencia bancaria (4 a 30 caracteres alfanuméricos y guiones)"
   }
 }

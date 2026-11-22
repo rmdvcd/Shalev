@@ -36,6 +36,7 @@ from .pago import (
 )
 from .solicitud import (
     AVISO_FRESCURA,
+    ENVIAR_TX_EN_SOLICITUD,
     SolicitudError,
     calcular_precio,
     calcular_precio_ampliacion,
@@ -43,6 +44,7 @@ from .solicitud import (
     derivar_device_pub,
     generar_solicitud,
     normalizar_gsm7,
+    validar_transferencia,
 )
 from .verificador import (
     EstadoVerificado,
@@ -95,9 +97,11 @@ __all__ = [
     "calcular_precio_ampliacion",
     "normalizar_gsm7",
     "AVISO_FRESCURA",
+    "ENVIAR_TX_EN_SOLICITUD",
     "configuracion",
     "motivo_activacion_deshabilitada",
     "normalizar_codigo",
+    "validar_transferencia",
     "verificar_estado",
     "verificar_licencia",
 ]

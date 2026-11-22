@@ -403,6 +403,35 @@ fun LicenciaContent(
                                 )
                             }
                         }
+
+                        // T3: Campo opcional N.º de transferencia
+                        ShalevSecondaryText("N.º de transferencia (opcional)")
+                        ShalevTextField(
+                            filtro = FiltroEntrada.LIBRE,
+                            value = form.transferencia,
+                            onValueChange = { v -> acciones.onEditar { it.copy(transferencia = v.take(30)) } },
+                            label = "N.º de transferencia (opcional)",
+                            supportingText = "Si ya pagaste, escribe el número de la transferencia para que te activen más rápido.",
+                            isError = !form.transferenciaOk,
+                            errorText = "Escribe de 4 a 30 caracteres alfanuméricos o guiones.",
+                            modifier = Modifier.testTag("licencia.transferencia"),
+                        )
+                        val clipboardTransfer = LocalClipboardManager.current
+                        ShalevButtonRow {
+                            ShalevSecondaryButton(
+                                text = "Pegar confirmación de pago",
+                                etiqueta = "Pegar",
+                                icon = ShalevIcons.Pegar,
+                                onClick = {
+                                    val clipText = clipboardTransfer.getText()?.text.orEmpty()
+                                    val num = cu.shalev.domain.usecase.ExtraerNumeroTransaccion().invoke(clipText)
+                                    if (num != null) {
+                                        acciones.onEditar { it.copy(transferencia = num) }
+                                    }
+                                },
+                            )
+                        }
+
                         ShalevSecondaryText("Enviar por")
                         ShalevButtonRow {
                             ShalevIconAction(
