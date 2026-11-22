@@ -40,24 +40,31 @@ Cómo cumple la app Android Shalev el contrato v1 del emisor offline **GL** (`CO
 | `devicePub` | **Punto comprimido** P-256 (33 B) de la clave del dispositivo, Base64url sin relleno. Nunca `null` |
 | `secundarias` | Apps secundarias, 0–10. Precio = base del tipo + `secundarias` × importe del tipo (1 000 / 5 000 / 9 000 / 17 000 CUP) |
 | `renueva` | Solo al renovar: `id` de la licencia instalada, auténtica y con vencimiento (`LicenseManager.licenciaRenovable`). Ausente en una primera licencia |
+| `tx` | N.º de transferencia bancaria opcional (`^[A-Za-z0-9-]{4,30}$`). Modelado en el payload v=2; por seguridad y compatibilidad, `ENVIAR_TX_EN_SOLICITUD = false` (se omite del JSON cifrado SPVIR1 y se incluye en el texto visible del mensaje como `Transferencia: <tx>`) |
 
 Si el Perfil está vacío, el panel pide los datos y los guarda en el Perfil al solicitar.
 
-**Frescura y límites que GL aplica al emitir (PR #3 de GL, 2026-10-14, commit `005288d`; análisis en
-`docs/ANALISIS_GL_2026-10-15.md`):** la emisión Shalev2 exige `solicitadaEn` con ≤ 72 h de antigüedad y
-≤ 2 h de adelanto contra el reloj del emisor (comparación exacta; antes el flujo corto no lo aplicaba),
-nonce de 16–128 caracteres, `devicePub` de exactamente 33 B (44 en Base64url), `renueva` con formato
-`[A-Za-z0-9._:-]{1,64}` y solicitud ≤ 12 288 B. Shalev ya generaba todo eso; lo nuevo es el aviso
-`Vale 72 horas…` en la parte legible del mensaje Android. `Validators.nombre` ya es un subconjunto
-estricto de la regla de GL. El nonce **no** se consume en GL: la misma solicitud puede
-reemitirse dentro de la ventana si el operador vuelve a confirmar el pago.
+**Frescura y ventana de 7 días (0.24.0 / Encargo Complementario):** la emisión exige `solicitadaEn` con
+≤ 7 días de antigüedad (ampliada desde la ventana original de 72 h) y ≤ 2 h de adelanto contra el reloj
+del emisor, nonce de 16–128 caracteres, `devicePub` de exactamente 33 B (44 en Base64url), `renueva` con
+formato `[A-Za-z0-9._:-]{1,64}` y solicitud ≤ 12 288 B. Las tres plataformas comparten la constante
+exacta `AVISO_FRESCURA` (estricta en alfabeto básico GSM-7 de 7 bits):
+`"Vale 7 dias: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."`
+utilizada en solicitudes nuevas, ampliaciones de secundarias y recuperaciones de licencia.
+
+**Instrucciones de pago en la app:** cada plataforma mantiene una fuente única de métodos de cobro
+(`PaymentInstructions` en Android e iOS, `pago.py` en DShalev) con advertencia visible de no exponer
+datos bancarios en repositorios públicos. Antes del botón de envío se renderiza la tarjeta «Cómo pagar»
+con el desglose canónico de precio según tipo y secundarias (o diferencia de secundarias al ampliar;
+oculta en recuperación gratuita) y el aviso obligatorio:
+`"Paga solo a los datos que muestra esta pantalla"`.
 
 ### Cifrado (`SolicitudCifrada`) y mensaje (`MensajesLicencia.solicitud`)
 
 1. Par efímero P-256; `epk` = su pública comprimida (33 B).
 2. ECDH(efímera, ECDH pública de GL) → HKDF-SHA256 (salt = `epk`, info `SPVI-R1`, 44 B) → clave AES-256 ‖ IV.
 3. AES-256-GCM con AAD `"SPVI-R1|"` ‖ `epk`. Código = `SPVIR1:` + Base64url(`epk` ‖ ct ‖ tag).
-4. Mensaje = datos legibles (nombre, carné, teléfono, tipo, secundarias, precio y, si aplica, «Renueva») + renglón en blanco + código. `LicenseManager.buildRequest` devuelve `SolicitudGenerada(texto, codigo)`.
+4. Mensaje = datos legibles (nombre, carné, teléfono, tipo, secundarias, precio, `Transferencia: <tx>` si aplica, «Renueva» o «Recupera», y aviso de frescura) + renglón en blanco + código. `LicenseManager.buildRequest` devuelve `SolicitudGenerada(texto, codigo)`.
 5. **Solo texto** (0.23.1): WhatsApp (`https://wa.me/5351815604?text=…`) o SMS (`smsto:+5351815604`, `sms_body`). El usuario solo pulsa Enviar. Sin permisos.
 
 ## 3. Activación (GL → Shalev) — licencia corta cifrada `SPVI2:`
@@ -78,6 +85,25 @@ El usuario pega el mensaje de GL (o solo el código) en *Activar licencia* (desd
 | `NotFound` | «No se encontró una licencia en el texto pegado» |
 | `Rejected` | «La licencia no es válida para este dispositivo» |
 | `Outdated` | «Ya tienes instalada una licencia más reciente» |
+
+## 4. Canje por código comercial (`GL-REDEEM-REQUEST1` / `GL-REDEEM-LICENSE1`)
+
+Implementado como vía paralela y directa en Android, iOS y DShalev para activar códigos alfanuméricos de 16 caracteres (`XXXX-XXXX-XXXX-XXXX`, alfabeto Crockford sin `I` ni `O`).
+
+1. **Identificadores de aplicación autorizados:**
+   - Android: `CANJE_APP_ID = "SHALEV-ANDROID"`, `CANJE_HABILITADO = true`.
+   - iOS: `CANJE_APP_ID = "SHALEV-IOS"`, `CANJE_HABILITADO = true`.
+   - DShalev: `CANJE_APP_ID = "DSHALEV"`, `CANJE_HABILITADO = true`.
+   - Flavors derivados / no oficiales: `CANJE_HABILITADO = false` y `CANJE_APP_ID = ""`.
+2. **UI condicional:** la tarjeta de canje por código solo se activa si el directorio de confianza contiene al menos un `kid` con `uso == "canje"` y `CANJE_HABILITADO` es verdadero. Si está deshabilitado, la interfaz muestra de forma legible: `«Aún no disponible en esta edición»`.
+3. **Verificación estricta:**
+   - La firma de la licencia sólo se valida contra claves de `uso == "canje"` resueltas por `kid` exacto en el directorio de confianza. Se rechazan claves de firma ordinaria de licencias manuales.
+   - El tipo de licencia es obligatorio y `expiresAt` es obligatorio para tipos no perpetuos. No se inventan estados ni tipos predeterminados.
+   - **Límite de secundarias:** los códigos de canje nunca llevan secundarias (`MAX_SECUNDARIAS = 0`). Si una respuesta de canje declara `secundarias > 0`, se rechaza de inmediato como inválida.
+4. **Persistencia:** el sobre de canje verificado se almacena en el Keystore/Keychain de la plataforma (ancla de instalación y registro local protegido), manteniendo plena prevalencia (mayor vencimiento; perpetua gana).
+5. **Reintento por desvío de reloj (`CLOCK_SKEW`):** si el reloj local difiere más de 5 minutos del servidor, el cliente recupera la hora autorizada mediante la cabecera `Date` o el endpoint `/v1/time`, reajusta la marca temporal y reintenta exactamente una vez con nuevo `nonce` y prueba firmada, preservando el `requestId` original.
+6. **Protección contra oráculos de enumeración:** cualquier código de otra aplicación, inexistente o ya utilizado responde al usuario con el mensaje genérico:
+   `«Código no válido para esta aplicación o ya utilizado»`.
 
 Nunca se indica qué comprobación falló.
 
