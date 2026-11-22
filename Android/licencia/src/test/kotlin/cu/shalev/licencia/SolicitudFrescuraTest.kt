@@ -41,7 +41,9 @@ class SolicitudFrescuraTest {
             secundarias = 1,
             deviceId = "SPVI:testdevice123",
             devicePub = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...",
-            requestedAt = "2026-11-20T12:00:00Z",
+            via = cu.shalev.licencia.contract.Via.WHATSAPP,
+            solicitadaEn = "2026-11-20T12:00:00Z",
+            nonce = "nonce123",
         )
 
         // 1. Solicitud

@@ -162,7 +162,7 @@ class RedeemClient(
             val transferredFrom = licenseContent["transferredFrom"]?.jsonPrimitive?.contentOrNull
             val secundarias = licenseContent["secundarias"]?.jsonPrimitive?.intOrNull ?: 0
             if (secundarias > 0) {
-                return RedeemResult.Failure(RedeemContract.MENSAJE_CODIGO_INVALIDO_O_USADO)
+                return RedeemResult.Error("INVALID_CODE", RedeemContract.MENSAJE_CODIGO_INVALIDO_O_USADO)
             }
             val devicePublicKey = licenseContent["devicePublicKey"]?.jsonPrimitive?.contentOrNull
 

@@ -28,7 +28,7 @@ class VerificadorPermisoSecundariaTest {
     private val ahora = Instant.parse("2026-11-20T12:00:00Z")
     private val clock = { ahora }
     private val deviceIdSecundaria = "SPVI:secundaria01"
-    private val deviceIds = object : DeviceIdProvider {
+    private val deviceIds = object : DeviceIdProvider(null as android.content.Context) {
         override val deviceId: String = deviceIdSecundaria
     }
 
@@ -44,24 +44,19 @@ class VerificadorPermisoSecundariaTest {
     @Before
     fun setUp() {
         val claveDirectorio = TrustDirectory.Clave(
-            id = "gl-redeem-v1",
             kid = "gl-redeem-v1",
             uso = "canje",
-            alg = "ECIES-P256",
             spkiDer = glRedeemKey.public.encoded,
-            sha256 = EcP256.fingerprint(glRedeemKey.public.encoded),
-            desde = null,
+            huella = EcP256.fingerprint(glRedeemKey.public.encoded),
+            desde = 0L,
             hasta = null,
-            estado = "vigente"
+            estado = "vigente",
         )
         val dir = TrustDirectory.Directorio(
             v = 1,
-            secuencia = 1,
-            actualizadaEn = "2026-11-20T00:00:00Z",
-            validaHasta = "2026-12-20T00:00:00Z",
-            endpointBase = "https://example.com",
+            seq = 1,
+            emitidaEn = ahora.epochSecond,
             claves = listOf(claveDirectorio),
-            appIds = emptyMap()
         )
         TrustDirectory.effectiveDirectory = dir
     }
