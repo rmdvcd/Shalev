@@ -774,7 +774,7 @@ final class GLLicenseManager: ObservableObject {
         }
         var lines = [
             header,
-            "Nombre: \(payload.nombre) \(payload.apellidos)",
+            "Nombre: \(gsm7(payload.nombre)) \(gsm7(payload.apellidos))",
             "Carné de identidad: \(payload.ci)",
             "Teléfono: \(payload.telefono)"
         ]
@@ -787,12 +787,12 @@ final class GLLicenseManager: ObservableObject {
             lines.append("Apps secundarias actuales: \(prev)")
             lines.append("Secundarias adicionales: \(added)")
             lines.append("Apps secundarias: \(payload.secundarias)")
-            lines.append("Precio: \(Cup(cents: payload.tipo.extensionPriceCents(addedSecondaries: added)).formatted)")
-            lines.append("Amplía: \(extensionID)")
+            lines.append("Precio: \(Cup(cents: payload.tipo.extensionPriceCents(addedSecondaries: added)).formattedForExport)")
+            lines.append("Amplia: \(extensionID)")
         } else {
             lines.append("Tipo: \(payload.tipo.title)")
             lines.append("Apps secundarias: \(payload.secundarias)")
-            lines.append("Precio: \(Cup(cents: payload.tipo.totalPriceCents(secondaries: payload.secundarias)).formatted)")
+            lines.append("Precio: \(Cup(cents: payload.tipo.totalPriceCents(secondaries: payload.secundarias)).formattedForExport)")
             if let renewal = payload.renueva { lines.append("Renueva: \(renewal)") }
         }
         if let tx = payload.tx, !tx.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -805,6 +805,21 @@ final class GLLicenseManager: ObservableObject {
 
 public enum GLLicenseMessage {
     public static let AVISO_FRESCURA = "Vale 7 dias: enviala y paga cuanto antes; si pasa ese tiempo, genera otra solicitud."
+}
+
+/// S-5: nombre y apellidos viajan en la parte legible del SMS; se escriben en ASCII (igual que Android y DShalev)
+/// para que una tilde no obligue a la operadora a usar UCS-2 y triplique las partes del mensaje.
+/// Solo se normaliza el texto visible: el payload cifrado conserva el nombre tal como lo escribio el cliente.
+private func gsm7(_ source: String) -> String {
+    let mapa: [Character: Character] = [
+        "á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u", "ñ": "n",
+        "Á": "A", "É": "E", "Í": "I", "Ó": "O", "Ú": "U", "Ü": "U", "Ñ": "N",
+    ]
+    return String(source.compactMap { original in
+        let c = mapa[original] ?? original
+        guard let ascii = c.asciiValue else { return nil }
+        return ascii >= 0x20 && ascii <= 0x7E ? c : nil
+    })
 }
 
 private struct VerifiedLicense {
@@ -842,7 +857,8 @@ private extension GLLicenseType {
     }
 }
 
-private enum Base64URL {
+/// Compartido con TrustDirectory.swift (firma del directorio usa Base64url sin relleno).
+enum Base64URL {
     static func encode(_ data: Data) -> String {
         data.base64EncodedString().replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
@@ -965,7 +981,8 @@ private func isRevoked(id: String, in data: Data) -> Bool {
     return revoked.contains(fingerprint)
 }
 
-private enum SignatureFormat {
+/// Compartido con TrustDirectory.swift (firma cruda r‖s de P-256 → DER).
+enum SignatureFormat {
     static func der(fromRaw raw: Data) -> Data? {
         guard raw.count == 64 else { return nil }
         func integer(_ source: Data) -> Data {

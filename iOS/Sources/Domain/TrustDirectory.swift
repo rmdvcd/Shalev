@@ -85,7 +85,8 @@ enum TrustDirectory {
                 .compactMap { try? P256.Signing.PublicKey(derRepresentation: $0.spkiDER) }
         }
 
-        func isCompromised(der: Data) -> Bool {
+        /// D2: clave de principal con estado "comprometida" (mismo nombre que en Android).
+        func isKeyCompromised(_ der: Data) -> Bool {
             keys.contains(where: { $0.spkiDER == der && $0.status == "comprometida" })
         }
     }
