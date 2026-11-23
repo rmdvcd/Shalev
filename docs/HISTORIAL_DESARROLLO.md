@@ -2874,4 +2874,12 @@ Cinco runs sobre `macos-15` (`arm64`) habían caducado sin obtener runner por sa
   - Pruebas ni peticiones de red contra el Worker remoto de Cloudflare ni base de datos D1.
   - Suites instrumentadas sobre emuladores o dispositivos físicos Android/iOS.
 
+### 2026-11-23 — Verificación en el PC del propietario (`pc/2026-11-22-verificacion`)
+
+- **GSM-7 en los mensajes de solicitud (Android e iOS):** el nombre y los apellidos de la parte legible del SMS se escriben en ASCII (misma normalización que DShalev), y el importe usa el formato de exportación (`45,000 CUP`) en vez del separador tipográfico U+202F de las pantallas. Así un nombre con tilde o un precio no obligan a la operadora a usar UCS-2. El payload cifrado conserva el nombre tal como lo escribió el cliente. Se añaden `MensajesGsm7Test` (Android) y `tools/verificacion/gsm7.py` con `test_gsm7.py` (tres plataformas, 4 nombres de prueba, partes SMS 160/153).
+- **Verificador de permisos de secundarias:** `DeviceIdProvider` pasa a implementar `ProveedorDeviceId` (sustituible en pruebas JVM); se corrige la lectura del sobre firmado del canje (acepta `{license,sig,kid}` y la respuesta completa `{license:{…}}`) y se añade `org.json` como dependencia de prueba.
+- **iOS (sin CI todavía):** `Base64URL` y `SignatureFormat` pasan a ser internas para que `TrustDirectory` compile, y `Directory.isKeyCompromised` sustituye al nombre que usaba `SyncRepository`.
+- **Verificación local ejecutada:** `./gradlew shalevTests` 1160 pruebas / 0 fallos; `shalevCheck` correcto (lint, APK debug, `shalevPermisos`); `pytest` 232 passed / 33 skipped; `unittest` 37 OK; `gsm7.py` conforme; `probar_gl.py autoprueba` correcta; DShalev en vivo (redirección sin sesión, tarjeta «Cómo pagar», campo `tx`).
+- **Hallazgo no corregido:** en modo LAN, DShalev sirve `/licencia/*` en `0.0.0.0` (protegido solo por inicio de sesión). Queda anotado para decisión del propietario.
+
 
