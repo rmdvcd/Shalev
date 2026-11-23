@@ -35,7 +35,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class VerificadorPermisoSecundaria @Inject constructor(
-    private val deviceIds: DeviceIdProvider,
+    private val deviceIds: ProveedorDeviceId,
     private val clock: Clock,
 ) {
 
@@ -106,7 +106,13 @@ class VerificadorPermisoSecundaria @Inject constructor(
 
     private fun verificarAnclajeCanje(licenciaJson: String, firmaPubDto: String?): ClaveAnclada? = runCatching {
         val root = JSONObject(licenciaJson)
-        val envelope = if (root.has("license") && root.get("license") is JSONObject) root.getJSONObject("license") else root
+        // El DTO puede traer el sobre firmado tal cual ({license, sig, kid}) o la respuesta completa del servicio
+        // ({license: {license, sig, kid}}): en ambos casos el sobre es el objeto que contiene la firma.
+        val envelope = when {
+            root.has("sig") -> root
+            root.optJSONObject("license")?.has("sig") == true -> root.getJSONObject("license")
+            else -> return null
+        }
         val licData = envelope.getJSONObject("license")
         val sigB64 = envelope.getString("sig")
         val kid = envelope.optString("kid", "gl-redeem-v1")

@@ -9,13 +9,21 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
+ * Identidad del equipo para las comprobaciones de licencia. La implementación real es [DeviceIdProvider];
+ * la interfaz permite sustituirla en pruebas JVM sin necesitar un `Context` de Android.
+ */
+interface ProveedorDeviceId {
+    val deviceId: String
+}
+
+/**
  * deviceId = "SPVI:" + ANDROID_ID (decisión D2.1). ANDROID_ID es por app+firma+usuario desde API 26:
  * no requiere permisos y no identifica al usuario entre apps.
  */
 @Singleton
-open class DeviceIdProvider @Inject constructor(@ApplicationContext private val context: Context) {
+open class DeviceIdProvider @Inject constructor(@ApplicationContext private val context: Context) : ProveedorDeviceId {
     @get:SuppressLint("HardwareIds")
-    open val deviceId: String by lazy {
+    override val deviceId: String by lazy {
         deDispositivo(Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID))
     }
 

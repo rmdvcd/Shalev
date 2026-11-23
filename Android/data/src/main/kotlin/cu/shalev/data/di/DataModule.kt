@@ -43,6 +43,8 @@ abstract class DataModule {
     @Binds abstract fun fichasCosto(impl: cu.shalev.data.repository.FichaCostoRepositoryImpl): cu.shalev.domain.fichacosto.FichaCostoRepository
     @Binds abstract fun almacenLocal(impl: cu.shalev.data.repository.LocalRepositoryImpl): cu.shalev.domain.repository.LocalRepository
     @Binds abstract fun licenseStore(impl: DataStoreLicenseStore): LicenseStore
+    /** Identidad del equipo (interfaz para poder sustituirla en pruebas JVM). */
+    @Binds abstract fun proveedorDeviceId(impl: cu.shalev.data.licencia.DeviceIdProvider): cu.shalev.data.licencia.ProveedorDeviceId
     @Binds abstract fun licenciaRepository(impl: LicenciaRepositoryImpl): LicenciaRepository
     /** 0.31.0 (mitigación 7): clave con la que la principal firma los sub-tokens de las secundarias. */
     @Binds abstract fun firmanteLicencia(impl: cu.shalev.data.licencia.FirmanteLicenciaAndroid): cu.shalev.licencia.secondary.FirmanteLicencia

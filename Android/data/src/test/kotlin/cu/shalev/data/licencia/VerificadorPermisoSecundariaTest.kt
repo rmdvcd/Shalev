@@ -28,7 +28,7 @@ class VerificadorPermisoSecundariaTest {
     private val ahora = Instant.parse("2026-11-20T12:00:00Z")
     private val clock = { ahora }
     private val deviceIdSecundaria = "SPVI:secundaria01"
-    private val deviceIds = object : DeviceIdProvider(null as android.content.Context) {
+    private val deviceIds = object : ProveedorDeviceId {
         override val deviceId: String = deviceIdSecundaria
     }
 
