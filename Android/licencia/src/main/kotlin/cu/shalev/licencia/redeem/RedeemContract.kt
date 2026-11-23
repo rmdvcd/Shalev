@@ -24,6 +24,12 @@ object RedeemContract {
     const val MENSAJE_CODIGO_INVALIDO_O_USADO = "Código no válido para esta aplicación o ya utilizado"
     const val MOTIVO_AUN_NO_DISPONIBLE = "Aún no disponible en esta edición"
 
+    /**
+     * Base del servicio GL de canje directo v1 (Worker). No lleva ruta: los clientes añaden `/v1/redeem`,
+     * `/v1/status` y `/v1/time`. Debe ser HTTPS.
+     */
+    const val URL_BASE_CANJE = "https://gl-redeem.rmdvcd.workers.dev"
+
     private val SEPARADORES = Regex("[\\s\\-]")
     private val ALFABETO_CODIGO = Regex("^[0-9A-HJ-NP-Z]{16}$")
 

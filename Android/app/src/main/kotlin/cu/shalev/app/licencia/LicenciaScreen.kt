@@ -521,7 +521,7 @@ fun LicenciaContent(
                 val canjeActivo = cu.shalev.app.BuildConfig.CANJE_HABILITADO &&
                     cu.shalev.app.BuildConfig.CANJE_APP_ID.isNotBlank() &&
                     dirCanje?.claves?.any { it.uso == "canje" && it.activa } == true &&
-                    dirCanje?.endpointBase?.startsWith("https://") == true
+                    cu.shalev.licencia.redeem.RedeemContract.URL_BASE_CANJE.startsWith("https://")
 
                 ShalevCard(title = if (lic.instalada != null) "Renovar con código" else "Tengo un código") {
                     if (!canjeActivo) {

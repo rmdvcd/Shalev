@@ -151,7 +151,7 @@ class LicenciaRepositoryImpl @Inject constructor(
         redeemClient?.let { return it }
         val m = managerLocked()
         val dir = cu.shalev.licencia.TrustDirectory.effectiveDirectory
-        val baseUrl = dir?.endpointBase.orEmpty()
+        val baseUrl = cu.shalev.licencia.redeem.RedeemContract.URL_BASE_CANJE
         val canjeActivo = cu.shalev.data.BuildConfig.CANJE_HABILITADO &&
             baseUrl.startsWith("https://") &&
             dir?.claves?.any { it.uso == "canje" && it.activa } == true
