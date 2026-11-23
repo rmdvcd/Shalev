@@ -1,5 +1,6 @@
 package cu.shalev.licencia.contract
 
+import cu.shalev.core.money.Cup
 import cu.shalev.core.money.Money
 import cu.shalev.licencia.crypto.AesGcm
 import cu.shalev.licencia.crypto.EcP256
@@ -103,12 +104,12 @@ object MensajesLicencia {
         p.amplia != null -> ampliacion(p, codigo, secundariasPrevias)
         else -> buildString {
             appendLine("Solicitud de licencia Shalev")
-            appendLine("Nombre: ${p.nombre} ${p.apellidos}")
+            appendLine("Nombre: ${gsm7(p.nombre)} ${gsm7(p.apellidos)}")
             appendLine("Carné de identidad: ${p.ci}")
             appendLine("Teléfono: ${p.telefono}")
             appendLine("Tipo: ${p.tipo.etiqueta}")
             appendLine("Apps secundarias: ${p.secundarias}")
-            appendLine("Precio: ${Money.cup(p.tipo.precio(p.secundarias))}")
+            appendLine("Precio: ${Money.formatExport(Cup.ofPesos(p.tipo.precio(p.secundarias)))}")
             p.renueva?.let { appendLine("Renueva: $it") }
             p.tx?.takeIf { it.isNotBlank() }?.let { appendLine("Transferencia: $it") }
             appendLine(AVISO_FRESCURA)
@@ -123,15 +124,15 @@ object MensajesLicencia {
         val adicionales = (p.secundarias - previas).coerceAtLeast(1)
         return buildString {
             appendLine("Ampliar secundarias Shalev")
-            appendLine("Nombre: ${p.nombre} ${p.apellidos}")
+            appendLine("Nombre: ${gsm7(p.nombre)} ${gsm7(p.apellidos)}")
             appendLine("Carné de identidad: ${p.ci}")
             appendLine("Teléfono: ${p.telefono}")
             appendLine("Tipo: ${p.tipo.etiqueta}")
             appendLine("Apps secundarias actuales: $previas")
             appendLine("Secundarias adicionales: $adicionales")
             appendLine("Apps secundarias: ${p.secundarias}")
-            appendLine("Precio: ${Money.cup(p.tipo.precioAmpliacion(adicionales))}")
-            appendLine("Amplía: ${p.amplia}")
+            appendLine("Precio: ${Money.formatExport(Cup.ofPesos(p.tipo.precioAmpliacion(adicionales)))}")
+            appendLine("Amplia: ${p.amplia}")
             p.tx?.takeIf { it.isNotBlank() }?.let { appendLine("Transferencia: $it") }
             appendLine(AVISO_FRESCURA)
             appendLine()
@@ -142,7 +143,7 @@ object MensajesLicencia {
     /** 0.25.0: solicitud de recuperación (gratis: tipo, vencimiento y secundarias los decide GL con sus registros). */
     fun recuperacion(p: RequestPayload, codigo: String): String = buildString {
         appendLine("Recuperar licencia Shalev")
-        appendLine("Nombre: ${p.nombre} ${p.apellidos}")
+        appendLine("Nombre: ${gsm7(p.nombre)} ${gsm7(p.apellidos)}")
         appendLine("Carné de identidad: ${p.ci}")
         appendLine("Teléfono: ${p.telefono}")
         appendLine("Licencia anterior: ${p.recupera}")
@@ -170,4 +171,21 @@ object MensajesLicencia {
     }
 
     val ZONA_CUBA: ZoneId = ZoneId.of("America/Havana")
+
+    /**
+     * S-5: nombre y apellidos van en la parte legible del SMS; se escriben en ASCII (igual que DShalev) para que
+     * un nombre con tilde no obligue a la operadora a usar UCS-2 y triplicar las partes del mensaje.
+     * Solo se normaliza el texto visible: el payload cifrado conserva el nombre tal como lo escribió el cliente.
+     */
+    private fun gsm7(texto: String): String = buildString {
+        for (original in texto) {
+            val c = ACENTOS_GSM7[original] ?: original
+            if (c in ' '..'~' || c == '\n' || c == '\t') append(c)
+        }
+    }
+
+    private val ACENTOS_GSM7 = mapOf(
+        'á' to 'a', 'é' to 'e', 'í' to 'i', 'ó' to 'o', 'ú' to 'u', 'ü' to 'u', 'ñ' to 'n',
+        'Á' to 'A', 'É' to 'E', 'Í' to 'I', 'Ó' to 'O', 'Ú' to 'U', 'Ü' to 'U', 'Ñ' to 'N',
+    )
 }

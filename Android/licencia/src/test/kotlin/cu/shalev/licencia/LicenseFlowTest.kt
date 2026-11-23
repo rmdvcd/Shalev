@@ -56,8 +56,8 @@ class LicenseFlowTest {
         assertTrue(cifrada.startsWith("SPVIR1:"))
         assertEquals(
             listOf(
-                "Solicitud de licencia Shalev", "Nombre: María Pérez González", "Carné de identidad: 85010112345",
-                "Teléfono: +5352345678", "Tipo: Semestral", "Apps secundarias: 3", "Precio: 45\u202F000 CUP",
+                "Solicitud de licencia Shalev", "Nombre: Maria Perez Gonzalez", "Carné de identidad: 85010112345",
+                "Teléfono: +5352345678", "Tipo: Semestral", "Apps secundarias: 3", "Precio: 45,000 CUP",
                 cu.shalev.licencia.contract.MensajesLicencia.AVISO_FRESCURA,
             ),
             intro.lines(),
@@ -249,7 +249,7 @@ class LicenseFlowTest {
         assertTrue(intro.lines().contains("Apps secundarias actuales: 2"))
         assertTrue(intro.lines().contains("Secundarias adicionales: 3"))
         assertTrue(intro.lines().contains("Apps secundarias: 5"))
-        assertTrue(intro.lines().contains("Precio: 3\u202F000 CUP"))
-        assertTrue(intro.lines().contains("Amplía: 3f2a9c0d-1e4b-5a67-8899-aabbccddeeff"))
+        assertTrue(intro.lines().contains("Precio: 3,000 CUP"))
+        assertTrue(intro.lines().contains("Amplia: 3f2a9c0d-1e4b-5a67-8899-aabbccddeeff"))
     }
 }
