@@ -262,9 +262,17 @@ def emitir(cuerpo44, device_pub_comprimida, gl_sign_priv, efimera=None):
 
 def texto_licencia(lic_id, tipo, n, emitida, vence, codigo):
     """MensajesLicencia.licencia (referencia de GL): características + renglón en blanco + código. Fechas en hora de Cuba."""
-    from zoneinfo import ZoneInfo
+    from datetime import timedelta, timezone
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-    dia = lambda d: d.astimezone(ZoneInfo("America/Havana")).strftime("%d/%m/%Y")
+    try:
+        zona = ZoneInfo("America/Havana")
+    except ZoneInfoNotFoundError:
+        # Windows sin el paquete tzdata: se usa la hora estandar de Cuba (UTC-5).
+        # Solo afecta a las fechas mostradas en el mensaje, no a los vencimientos.
+        zona = timezone(timedelta(hours=-5), "America/Havana")
+
+    dia = lambda d: d.astimezone(zona).strftime("%d/%m/%Y")
     return (
         "\n".join(
             [
@@ -632,6 +640,12 @@ def vector():
 
 
 if __name__ == "__main__":
+    # En Windows la consola puede ser cp1252 y los caracteres de recuadro del informe fallan al imprimir.
+    for _flujo in (sys.stdout, sys.stderr):
+        _reconfigurar = getattr(_flujo, "reconfigure", None)
+        if _reconfigurar and (_flujo.encoding or "").lower().replace("-", "") != "utf8":
+            _reconfigurar(encoding="utf-8", errors="replace")
+
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )

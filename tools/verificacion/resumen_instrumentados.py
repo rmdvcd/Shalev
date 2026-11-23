@@ -26,7 +26,8 @@ def main():
             anotar("error", f"Instrumentados: XML ilegible en {archivo}")
             incompleto = True
             continue
-        modulo = str(archivo).split("/build/")[0]
+        # as_posix(): en Windows glob devuelve separadores "\" y el modulo se perderia.
+        modulo = archivo.as_posix().split("/build/")[0]
         for caso in raiz.iter("testcase"):
             modulos[modulo][0] += 1
             problemas = caso.findall("failure") + caso.findall("error")

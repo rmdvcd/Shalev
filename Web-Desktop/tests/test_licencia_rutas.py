@@ -31,6 +31,8 @@ CSRF_RE = re.compile(r'name="csrf"\s+value="([^"]+)"')
 def _permitir_identidad_dev(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setenv("DSHALEV_ALLOW_DEV_IDENTITY", "1")
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
+    # En Windows el ancla de licencia vive en LOCALAPPDATA: aislarla para no usar la del usuario real.
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "localappdata"))
 
 
 def _make_client(tmp_path: Path) -> TestClient:

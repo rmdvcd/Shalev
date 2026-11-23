@@ -6,6 +6,18 @@ import tempfile
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'verificar_firma_apk.sh'
+
+
+def _bash():
+    """En Windows el `bash` del PATH suele ser WSL y puede no estar disponible.
+
+    El script es POSIX: se prefiere Git Bash, que si esta instalado en el PC.
+    """
+    if os.name == 'nt':
+        for ruta in (r'C:\Program Files\Git\bin\bash.exe', r'C:\Program Files\Git\usr\bin\bash.exe'):
+            if Path(ruta).is_file():
+                return ruta
+    return 'bash'
 HUELLA = '139d3da93bd3abb881a2c55503dae0b059ab4c36a68ad16394a8b526ffd41738'
 V2 = 'Verified using v2 scheme (APK Signature Scheme v2): true'
 
@@ -22,7 +34,7 @@ class FirmaApkTest(unittest.TestCase):
             ejecutable = tools / 'apksigner'
             ejecutable.write_text(f"#!/bin/sh\ncat <<'SALIDA_APKSIGNER'\n{salida}\nSALIDA_APKSIGNER\nexit {codigo}\n", encoding='utf-8')
             ejecutable.chmod(0o755)
-            return subprocess.run(['bash', str(SCRIPT), str(apk)], capture_output=True, text=True,
+            return subprocess.run([_bash(), str(SCRIPT), str(apk)], capture_output=True, text=True,
                                   env={**os.environ, 'ANDROID_HOME': str(sdk)})
 
     def test_formato_real_sha_sin_dos_puntos(self):
