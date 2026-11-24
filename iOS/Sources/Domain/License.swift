@@ -472,8 +472,7 @@ final class GLLicenseManager: ObservableObject {
                 if now > expires {
                     state = .expired(type: type)
                 } else {
-                    let days = max(0, Int(expires.timeIntervalSince(now) / 86400))
-                    state = .active(daysLeft: days, expiresAt: expires, id: id, secondaries: vault.secondaries ?? 0)
+                    state = .active(type: type, expiresAt: expires, id: id, secondaries: vault.secondaries ?? 0)
                 }
                 return
             }
@@ -647,8 +646,7 @@ final class GLLicenseManager: ObservableObject {
         if type == .perpetual {
             state = .perpetual(id: licenseID, secondaries: secondaries)
         } else if let expiresAt {
-            let days = max(0, Int(expiresAt.timeIntervalSince(now) / 86400))
-            state = .active(daysLeft: days, expiresAt: expiresAt, id: licenseID, secondaries: secondaries)
+            state = .active(type: type, expiresAt: expiresAt, id: licenseID, secondaries: secondaries)
         }
         return .accepted
     }
