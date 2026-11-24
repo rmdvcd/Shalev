@@ -29,7 +29,10 @@ class VerificadorPermisoSecundariaTest {
     // `Clock` es la interfaz de `cu.shalev.core.time`, no un lambda: el verificador llama a `clock.now()`.
     private val clock = cu.shalev.core.time.Clock { ahora }
     private val deviceIdSecundaria = "SPVI:secundaria01"
-    private val deviceIds = object : DeviceIdProvider {
+    // `DeviceIdProvider` es una clase con `Context` inyectado (no una interfaz) y `deviceId` es una propiedad
+    // perezosa que lee `Settings.Secure`: en la prueba JVM basta con `null` como contexto porque solo se
+    // sobrescribe `deviceId`, que es lo único que consume el verificador.
+    private val deviceIds = object : DeviceIdProvider(null as android.content.Context?) {
         override val deviceId: String = deviceIdSecundaria
     }
 
