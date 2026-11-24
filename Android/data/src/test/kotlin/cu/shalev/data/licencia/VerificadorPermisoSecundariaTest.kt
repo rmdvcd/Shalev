@@ -26,7 +26,8 @@ import java.time.Instant
 class VerificadorPermisoSecundariaTest {
 
     private val ahora = Instant.parse("2026-11-20T12:00:00Z")
-    private val clock = { ahora }
+    // `Clock` es la interfaz de `cu.shalev.core.time`, no un lambda: el verificador llama a `clock.now()`.
+    private val clock = cu.shalev.core.time.Clock { ahora }
     private val deviceIdSecundaria = "SPVI:secundaria01"
     private val deviceIds = object : DeviceIdProvider {
         override val deviceId: String = deviceIdSecundaria
