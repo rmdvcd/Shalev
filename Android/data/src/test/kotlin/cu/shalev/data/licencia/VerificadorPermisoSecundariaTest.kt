@@ -1,6 +1,6 @@
 package cu.shalev.data.licencia
 
-import android.test.mock.MockContext
+import android.content.ContextWrapper
 import cu.shalev.data.sync.LicenciaDto
 import cu.shalev.domain.model.LicenciaPrincipal
 import cu.shalev.licencia.TrustDirectory
@@ -30,11 +30,10 @@ class VerificadorPermisoSecundariaTest {
     // `Clock` es la interfaz de `cu.shalev.core.time`, no un lambda: el verificador llama a `clock.now()`.
     private val clock = cu.shalev.core.time.Clock { ahora }
     private val deviceIdSecundaria = "SPVI:secundaria01"
-    // `DeviceIdProvider` es una clase con `Context` inyectado (no una interfaz). En la prueba JVM se pasa un
-    // `MockContext` del SDK (clase vacía, sin comportamiento) y se sobrescribe `deviceId`, lo único que consume
-    // el verificador: la propiedad real, que lee `Settings.Secure`, nunca se evalúa.
-    @Suppress("DEPRECATION")
-    private val deviceIds = object : DeviceIdProvider(MockContext()) {
+    // `DeviceIdProvider` es una clase con `Context` inyectado (no una interfaz). En la prueba JVM sobra el
+    // contexto: se pasa un `ContextWrapper` vacío y se sobrescribe `deviceId`, lo único que consume el
+    // verificador, así que la propiedad real (que lee `Settings.Secure`) nunca se evalúa.
+    private val deviceIds = object : DeviceIdProvider(ContextWrapper(null)) {
         override val deviceId: String = deviceIdSecundaria
     }
 
