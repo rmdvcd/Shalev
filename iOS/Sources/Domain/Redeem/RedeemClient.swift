@@ -117,6 +117,7 @@ final class RedeemClient {
         endpointStatus != nil && endpointStatus?.scheme == "https" && !appID.isEmpty
     }
 
+    @MainActor
     func redeem(code: String, identity: GLIdentity, manager: GLLicenseManager, now: Date = Date()) async throws -> GLActivationResult {
         guard canRedeem, let url = endpointRedeem else {
             throw RedeemError.disabled
@@ -156,7 +157,12 @@ final class RedeemClient {
 
         // Reintento automático ante CLOCK_SKEW (máximo 1 reintento con hora del servidor)
         if statusCode == 400 {
-            if let serverTime = parseServerTime(from: data) ?? (await fetchTime(from: url)) {
+            // `??` con un operando `async` no compila: la autoclosura no soporta concurrencia.
+            var serverTime: Date? = parseServerTime(from: data)
+            if serverTime == nil {
+                serverTime = await fetchTime(from: url)
+            }
+            if let serverTime {
                 manager.recoverClock(serverTime: serverTime)
                 requestedAt = GLDateParser.formatUTC(serverTime)
                 nonce = (0..<16).map { _ in UInt8.random(in: 0...255) }
@@ -307,6 +313,7 @@ final class RedeemClient {
         )
     }
 
+    @MainActor
     func status(identity: GLIdentity, manager: GLLicenseManager, licenseIDManual: String? = nil, now: Date = Date()) async throws -> GLActivationResult {
         guard canCheckStatus, let url = endpointStatus else {
             throw RedeemError.disabled

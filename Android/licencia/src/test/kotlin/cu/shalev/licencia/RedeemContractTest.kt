@@ -70,7 +70,6 @@ class RedeemContractTest {
             RedeemContract.MOTIVO_AUN_NO_DISPONIBLE,
         )
     }
-}
 
     /**
      * Fase 1.3: la base de canje publicada en el directorio es la única fuente del endpoint. Se valida la
@@ -94,3 +93,4 @@ class RedeemContractTest {
             habilitado = true, appId = "SHALEV-ANDROID", endpointBase = "http://licencias.ejemplo.test", tieneClaveCanje = true,
         ))
     }
+}

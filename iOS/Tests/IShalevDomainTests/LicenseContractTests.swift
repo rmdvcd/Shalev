@@ -123,10 +123,10 @@ final class LicenseContractTests: XCTestCase {
 
     func testBootstrapDirectoryNowPublishesRedeemBaseAndAppIDs() throws {
         // Fase 1.3: sin `canje.endpoint_base` ni clave `uso == "canje"`, APK e IPA no pueden canjear.
-        let bundle = Bundle(for: TrustDirectoryManager.self)
+        // El mismo localizador que usa el arranque: cubre el bundle de la app y el del paquete de SwiftPM.
         let url = try XCTUnwrap(
-            bundle.url(forResource: "directorio-bootstrap", withExtension: "json")
-                ?? Bundle.main.url(forResource: "directorio-bootstrap", withExtension: "json"),
+            TrustDirectoryManager.shared.bundleDirectoryURL(in: Bundle(for: TrustDirectoryManager.self))
+                ?? TrustDirectoryManager.shared.bundleDirectoryURL(in: .main),
             "Falta directorio-bootstrap.json en el bundle"
         )
         let directorio = try TrustDirectory.parseAndVerify(Data(contentsOf: url))

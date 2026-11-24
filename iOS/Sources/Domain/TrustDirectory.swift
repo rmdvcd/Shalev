@@ -255,8 +255,11 @@ final class TrustDirectoryManager {
     func loadEffective(cache: URL? = nil) -> TrustDirectory.Directory? {
         let urlToUse = cache ?? cacheURL
         let bootstrap: TrustDirectory.Directory? = {
+            // Primero el bundle de la app; si la clase vive en un paquete (pruebas, utilidades compartidas),
+            // `Bundle(for:)` es el que contiene el recurso `.process("directorio-bootstrap.json")`.
             let bundleURL = Bundle.main.url(forResource: "directorio-bootstrap", withExtension: "json")
-                ?? Bundle(for: TrustDirectoryManager.self).url(forResource: "directorio-bootstrap", withExtension: "json")
+                ?? bundleDirectoryURL(in: Bundle(for: TrustDirectoryManager.self))
+                ?? bundleDirectoryURL(in: .main)
             if let bundleURL, let data = try? Data(contentsOf: bundleURL) {
                 return try? TrustDirectory.parseAndVerify(data)
             }
@@ -277,6 +280,18 @@ final class TrustDirectoryManager {
         }
         TrustDirectory.effectiveDirectory = effective
         return effective
+    }
+
+    /// Localiza `directorio-bootstrap.json` en un bundle, probando también el subdirectorio del paquete.
+    ///
+    /// SwiftPM copia los recursos procesados a `Contents/Resources/` dentro del bundle del paquete y en Xcode
+    /// quedan en la raíz del bundle de la app; `url(forResource:withExtension:)` no cubre ambos casos.
+    func bundleDirectoryURL(in bundle: Bundle) -> URL? {
+        if let directo = bundle.url(forResource: "directorio-bootstrap", withExtension: "json") {
+            return directo
+        }
+        let candidato = bundle.bundleURL.appendingPathComponent("Contents/Resources/directorio-bootstrap.json")
+        return FileManager.default.fileExists(atPath: candidato.path) ? candidato : nil
     }
 
     func updateFromNetwork(cache: URL? = nil) async -> Bool {

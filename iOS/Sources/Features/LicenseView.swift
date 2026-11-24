@@ -586,14 +586,16 @@ struct LicenseView: View {
                                     .font(.shalev(13, weight: .medium))
                                     .foregroundStyle(Color.shalevPrimary)
 
+                                // La advertencia se muestra siempre, igual que en Android y DShalev: antes solo
+                                // aparecía cuando había métodos de cobro configurados.
+                                Text(PaymentInstructions.frasePagaSolo)
+                                    .font(.shalev(12))
+                                    .foregroundStyle(Color.shalevSecondaryText)
                                 if PaymentInstructions.metodos.isEmpty {
                                     Text(PaymentInstructions.avisoSinMetodos)
                                         .font(.shalev(12))
                                         .foregroundStyle(Color.shalevSecondaryText)
                                 } else {
-                                    Text(PaymentInstructions.frasePagaSolo)
-                                        .font(.shalev(12))
-                                        .foregroundStyle(Color.shalevSecondaryText)
                                     ForEach(PaymentInstructions.metodos, id: \.self) { metodo in
                                         HStack {
                                             VStack(alignment: .leading, spacing: 2) {
