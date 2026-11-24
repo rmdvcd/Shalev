@@ -622,7 +622,7 @@ struct LicenseView: View {
                                 }
                             }
                             .padding(12)
-                            .background(Color.shalevCardBackground)
+                            .background(Color.shalevSurfaceVariant)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
 
