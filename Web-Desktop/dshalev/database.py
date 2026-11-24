@@ -111,7 +111,11 @@ CREATE TABLE IF NOT EXISTS presets (
     service_ids_json TEXT NOT NULL DEFAULT '[]',
     payment_method TEXT,
     minimum_cents INTEGER,
-    active INTEGER NOT NULL DEFAULT 1
+    active INTEGER NOT NULL DEFAULT 1,
+    -- 1.0.8: condiciones de volumen y tipo de cliente (paridad con `CondicionPreajuste` de Android). Una sola
+    -- condición activa por preajuste; `minimum_cents` se conserva para leer respaldos antiguos.
+    volume_minimum INTEGER CHECK (volume_minimum IS NULL OR volume_minimum > 0),
+    customer_type TEXT CHECK (customer_type IS NULL OR customer_type IN ('PARTICULAR','EMPRESA'))
 );
 CREATE TABLE IF NOT EXISTS recipes (
     product_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
@@ -671,6 +675,13 @@ class Database:
                 }.items():
                     if name not in sales_columns:
                         conn.execute(f"ALTER TABLE sales ADD COLUMN {name} {definition}")
+                preset_columns = {row[1] for row in conn.execute("PRAGMA table_info(presets)")}
+                for name, definition in {
+                    "volume_minimum": "INTEGER CHECK (volume_minimum IS NULL OR volume_minimum > 0)",
+                    "customer_type": "TEXT CHECK (customer_type IS NULL OR customer_type IN ('PARTICULAR','EMPRESA'))",
+                }.items():
+                    if name not in preset_columns:
+                        conn.execute(f"ALTER TABLE presets ADD COLUMN {name} {definition}")
                 command_columns = {row[1] for row in conn.execute("PRAGMA table_info(sync_commands)")}
                 if "request_hash" not in command_columns:
                     conn.execute("ALTER TABLE sync_commands ADD COLUMN request_hash TEXT NOT NULL DEFAULT ''")
@@ -747,7 +758,7 @@ class Database:
                         END""",
                 ):
                     conn.execute(trigger_sql)
-                conn.execute("UPDATE app_meta SET value='10' WHERE key='schema_version'")
+                conn.execute("UPDATE app_meta SET value='11' WHERE key='schema_version'")
                 conn.commit()
             except Exception:
                 conn.rollback()

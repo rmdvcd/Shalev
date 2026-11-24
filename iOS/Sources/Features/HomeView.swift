@@ -73,7 +73,7 @@ struct HomeView: View {
         return base.filter { $0.isService ? canViewServices : canViewSales }
     }
 
-    private var monthlySales: [(label: String, cents: Int64)] {
+    private var monthlySales: [(label: String, cents: Int64, cost: Int64)] {
         let calendar = Calendar.current
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "es_ES")
@@ -83,11 +83,13 @@ struct HomeView: View {
             guard let month = calendar.date(byAdding: .month, value: -offset,
                                             to: calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now),
                   let interval = calendar.dateInterval(of: .month, for: month) else { return nil }
-            let total = store.activeSales.filter {
+            let delMes = store.activeSales.filter {
                 !$0.isCancelled && ($0.isService ? canViewServices : canViewSales)
                     && $0.date >= interval.start && $0.date < interval.end
-            }.reduce(Int64(0)) { $0 + $1.totalCents }
-            return (formatter.string(from: month).lowercased(), total)
+            }
+            let total = delMes.reduce(Int64(0)) { $0 + $1.totalCents }
+            let costo = delMes.reduce(Int64(0)) { $0 + $1.costCents }
+            return (formatter.string(from: month).lowercased(), total, costo)
         }
     }
 
@@ -431,6 +433,27 @@ struct HomeView: View {
                         .font(.shalev(12, weight: .medium))
                         .foregroundStyle(Color.shalevSecondaryText)
                 }
+                // Área de dos series (venta y costo) por mes, como `ShalevAreaChart` de Android: una sola vista
+                // deja ver la brecha que es la ganancia. Solo se dibuja si hubo ventas en algún mes.
+                if monthlySales.contains(where: { $0.cents > 0 }) {
+                    Chart {
+                        ForEach(Array(monthlySales.enumerated()), id: \.offset) { _, punto in
+                            AreaMark(x: .value("Mes", punto.label),
+                                     y: .value("Venta CUP", Double(punto.cents) / 100))
+                                .foregroundStyle(Color.shalevChartPalette[0].opacity(0.45))
+                            AreaMark(x: .value("Mes", punto.label),
+                                     y: .value("Costo CUP", Double(punto.cost) / 100))
+                                .foregroundStyle(Color.shalevChartPalette[1].opacity(0.45))
+                        }
+                    }
+                    .frame(minHeight: 150)
+                    .chartYAxis(.hidden)
+                    .chartXAxis(.hidden)
+                    .chartLegend(.hidden)
+                    .accessibilityLabel("Ventas y costos por mes. Total vendido \(Cup(cents: revenue).formatted), costo \(Cup(cents: cost).formatted).")
+                    Text("Área clara: ventas. Área oscura: costo. La diferencia es la ganancia.")
+                        .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
+                }
                 Text("\(periodSales.count) operaciones registradas en \(period.rawValue.lowercased()).")
                     .font(.shalev(12))
                     .foregroundStyle(Color.shalevSecondaryText)
@@ -554,6 +577,74 @@ struct HomeView: View {
                          key: "top_profit", items: topProfit, detail: { "Ganancia \(Cup(cents: $0.profit).formatted)" },
                          amount: { Cup(cents: $0.profit).formatted })
         }
+        // Las listas que faltaban frente a Inicio de Android (topPersonas y los servicios).
+        if !serviciosMasVendidos.isEmpty {
+            topAccordion(title: "Servicios más vendidos", value: serviciosMasVendidos.first?.name ?? "Sin ventas",
+                         key: "top_service_sold", items: serviciosMasVendidos,
+                         detail: { "\(NumberPresentation.groupedInteger($0.units)) u · \(Cup(cents: $0.cents).formatted)" },
+                         amount: { Cup(cents: $0.cents).formatted })
+            topAccordion(title: "Servicios menos vendidos", value: serviciosMenosVendidos.first?.name ?? "Sin ventas",
+                         key: "top_service_slow", items: serviciosMenosVendidos,
+                         detail: { "\(NumberPresentation.groupedInteger($0.units)) u vendidas" },
+                         amount: { Cup(cents: $0.cents).formatted })
+        }
+        if !clientesDelPeriodo.isEmpty {
+            personAccordion(title: "Clientes", key: "top_customers", items: Array(clientesDelPeriodo.prefix(3)),
+                            singular: "compra", plural: "compras") { $0.cents }
+        }
+        // Ventas por local: la última lista de Inicio de Android (1.0.6), con la ganancia junto a las ventas (1.0.7).
+        if localesDelPeriodo.count > 1 {
+            personAccordion(title: "Ventas por local", key: "top_locations", items: localesDelPeriodo,
+                            singular: "venta", plural: "ventas") { $0.cents }
+        }
+    }
+
+    private var serviciosMasVendidos: [RankedItem] {
+        Array(serviciosVendidos.sorted {
+            if $0.units != $1.units { return $0.units > $1.units }
+            return $0.cents > $1.cents
+        }.prefix(3))
+    }
+
+    private var serviciosMenosVendidos: [RankedItem] {
+        Array(serviciosVendidos.sorted {
+            if $0.units != $1.units { return $0.units < $1.units }
+            return $0.cents < $1.cents
+        }.prefix(3))
+    }
+
+    /// Ranking de personas/locales con «N ventas» e importe, como `topPersonas` de Android: en el ranking de
+    /// locales, junto al número de ventas va la ganancia bruta del local.
+    private func personAccordion(title: String, key: String, items: [PersonRank],
+                                 singular: String, plural: String,
+                                 amount: (PersonRank) -> Int64) -> some View {
+        accordion(title: title, value: items.first.map { $0.name } ?? "Sin ventas", key: key) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("En \(period.rawValue.lowercased())")
+                    .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    let apilar = dynamicTypeSize >= .xxxLarge
+                    HStack(spacing: 11) {
+                        medal(position: index + 1)
+                        ShalevFilaAdaptable(espaciadoHorizontal: 6, espaciadoVertical: 3) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name).font(.shalev(13, weight: .medium))
+                                    .foregroundStyle(Color.shalevText).lineLimit(apilar ? nil : 1)
+                                Text("\(NumberPresentation.groupedInteger(item.operations)) \(item.operations == 1 ? singular : plural)"
+                                     + (item.profit.map { " · Ganancia \(Cup(cents: $0).formatted)" } ?? ""))
+                                    .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
+                                    .lineLimit(apilar ? nil : 2)
+                            }
+                        } valor: {
+                            Text(Cup(cents: amount(item)).formatted)
+                                .font(.shalev(12, weight: .semibold))
+                                .foregroundStyle(Color.shalevText)
+                                .lineLimit(apilar ? nil : 1).minimumScaleFactor(0.8)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private func topAccordion(title: String, value: String, key: String, items: [RankedItem],
@@ -672,6 +763,77 @@ struct HomeView: View {
         }.prefix(3))
     }
 
+    /// Ranking de locales: ventas por local en el período, con la ganancia bruta (1.0.6–1.0.7 de Android).
+    /// Android usa `topPersonas(TipoTop.LOCAL, …)`; aquí se cuenta por `localName` de cada venta.
+    private var localesDelPeriodo: [PersonRank] {
+        // No se usa `periodSales`: ese arreglo se limita al local activo y el ranking compara TODOS los locales
+        // (Android: `topPersonas(TipoTop.LOCAL, …)` recibe el resumen del negocio entero).
+        var porLocal: [String: (ops: Int, cents: Int64, profit: Int64)] = [:]
+        for sale in ventasDeTodosLosLocales where !sale.isCancelled {
+            let nombre = sale.localName?.isEmpty == false ? sale.localName! : store.activeLocationName
+            var entrada = porLocal[nombre] ?? (ops: 0, cents: 0, profit: 0)
+            entrada.ops += 1
+            entrada.cents += sale.totalCents
+            entrada.profit += sale.profitCents
+            porLocal[nombre] = entrada
+        }
+        return porLocal.map { PersonRank(name: $0.key, operations: $0.value.ops, cents: $0.value.cents, profit: $0.value.profit) }
+            .sorted { $0.profit > $1.profit }
+    }
+
+    /// Ventas de todos los locales en el período elegido (mismo filtro temporal que `periodSales`, sin el de local).
+    private var ventasDeTodosLosLocales: [Sale] {
+        let base: [Sale]
+        if let stats = period.statsPeriod {
+            let calendario = Calendar.current
+            let ahora = Date()
+            base = store.data.sales.filter { venta in
+                guard !venta.isCancelled else { return false }
+                switch stats {
+                case .today: return calendario.isDate(venta.date, inSameDayAs: ahora)
+                case .week: return calendario.isDate(venta.date, equalTo: ahora, toGranularity: .weekOfYear)
+                case .month: return calendario.isDate(venta.date, equalTo: ahora, toGranularity: .month)
+                case .year: return calendario.isDate(venta.date, equalTo: ahora, toGranularity: .year)
+                case .all: return true
+                }
+            }
+        } else if let shift = referenceShift {
+            base = store.data.sales.filter { $0.shiftID == shift.id && !$0.isCancelled }
+        } else {
+            base = []
+        }
+        return base.filter { $0.isService ? canViewServices : canViewSales }
+    }
+
+    /// Ranking de clientes fijos: compras del período por cliente (Android: `TipoTop.CLIENTE`).
+    private var clientesDelPeriodo: [PersonRank] {
+        var porCliente: [String: (ops: Int, cents: Int64)] = [:]
+        for sale in periodSales where !sale.isCancelled {
+            guard let cliente = sale.customer else { continue }
+            var entrada = porCliente[cliente.name] ?? (ops: 0, cents: 0)
+            entrada.ops += 1
+            entrada.cents += sale.totalCents
+            porCliente[cliente.name] = entrada
+        }
+        return porCliente.map { PersonRank(name: $0.key, operations: $0.value.ops, cents: $0.value.cents, profit: nil) }
+            .sorted { $0.cents > $1.cents }
+    }
+
+    /// Servicios vendidos en el período, para los dos rankings de servicios de Android.
+    private var serviciosVendidos: [RankedItem] {
+        var totales: [String: (units: Int, cents: Int64, profit: Int64)] = [:]
+        for sale in periodSales where !sale.isCancelled {
+            for linea in sale.lines where sale.isService {
+                var entrada = totales[linea.name] ?? (units: 0, cents: 0, profit: 0)
+                entrada.units += linea.quantity
+                entrada.cents += linea.subtotalCents
+                entrada.profit += linea.subtotalCents - linea.costCents
+                totales[linea.name] = entrada
+            }
+        }
+        return totales.map { RankedItem(name: $0.key, units: $0.value.units, cents: $0.value.cents, profit: $0.value.profit) }
+    }
+
     private var topProfit: [RankedItem] {
         Array(rankedItems.sorted { $0.profit > $1.profit }.prefix(3))
     }
@@ -689,6 +851,16 @@ struct HomeView: View {
         let count = store.data.settings.priceAdjustments.filter(\.active).count
         return count == 0 ? "Sin ajustes activos" : "\(count) ajuste\(count == 1 ? "" : "s") activo\(count == 1 ? "" : "s")"
     }
+}
+
+/// Fila de un ranking de personas o locales: operaciones del período, importe y (en locales) ganancia bruta.
+/// Equivale a `TopPersona` de Android (`Android/domain/.../Estadisticas.kt`).
+struct PersonRank: Identifiable {
+    var name: String
+    var operations: Int
+    var cents: Int64
+    var profit: Int64?
+    var id: String { name }
 }
 
 private struct RankedItem: Identifiable {

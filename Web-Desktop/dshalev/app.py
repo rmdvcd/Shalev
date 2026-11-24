@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -31,6 +31,7 @@ from .cost_export import export_sheet as export_cost_to_catalog
 from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
 from .inventory import format_milli, record_movement, record_retirement
+from . import preajustes
 from .licencia import motivo_activacion_deshabilitada
 from .licencia.config_licencia import configuracion
 from .security import csrf_token, hash_password, valid_csrf, verify_password
@@ -2109,6 +2110,98 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         for item in items:
             writer.writerow([csv_text(item["name"]), csv_text(item["category"]), csv_text(item["unit"]), format_milli(item["stock_milli"]), f"{item['sale_price_cents']/100:.2f}", f"{item['cost_cents']/100:.2f}", format_milli(item["low_stock_milli"]), format_milli(item["critical_stock_milli"])])
         return Response("\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="inventario.csv"'})
+
+    # ---- Preajustes de precios (paridad con Android; antes solo existían en el teléfono) ----
+
+    def _preajustes_catalogo(conn) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Productos e insumos activos y servicios sincronizados, para elegir el alcance de un preajuste."""
+        productos = [dict(row) for row in conn.execute(
+            "SELECT id,name,category,sale_price_cents FROM items WHERE active=1 ORDER BY name COLLATE NOCASE LIMIT 1000")]
+        servicios = [dict(row) for row in conn.execute(
+            "SELECT service_id,name,price_cents FROM sync_services ORDER BY name COLLATE NOCASE LIMIT 1000")]
+        return productos, servicios
+
+    def _leer_preajuste(data: dict[str, str], productos: list[dict[str, Any]], servicios: list[dict[str, Any]]) -> dict[str, Any]:
+        """Valida y normaliza el formulario. Lanza ValueError con el texto que se muestra a la persona."""
+        nombre = preajustes.validar_nombre(data.get("name", ""))
+        puntos = preajustes.validar_puntos(data.get("basis_points", ""))
+        productos_ids = sorted({int(v) for v in data.get("productos", "").replace(" ", "").split(",") if v.isdigit()})
+        servicios_ids = sorted({int(v) for v in data.get("servicios", "").replace(" ", "").split(",") if v.isdigit()})
+        # Solo se aceptan artículos que existan: un identificador inventado dejaría un preajuste que no ajusta nada.
+        validos_productos = {item["id"] for item in productos}
+        validos_servicios = {item["service_id"] for item in servicios}
+        if any(i not in validos_productos for i in productos_ids):
+            raise ValueError("Alguno de los productos elegidos no existe en el inventario.")
+        if any(i not in validos_servicios for i in servicios_ids):
+            raise ValueError("Alguno de los servicios elegidos no existe.")
+        if not productos_ids and not servicios_ids:
+            raise ValueError("Elige al menos un producto o un servicio al que aplicar el ajuste.")
+        metodo = (data.get("payment_method") or "").strip() or None
+        if metodo is not None and metodo not in preajustes.METODOS_PAGO:
+            raise ValueError("Elige un método de pago válido.")
+        tipo = (data.get("customer_type") or "").strip() or None
+        if tipo is not None and tipo not in preajustes.TIPOS_CLIENTE:
+            raise ValueError("Elige un tipo de cliente válido.")
+        volumen_texto = (data.get("volume_minimum") or "").strip()
+        volumen = None
+        if volumen_texto:
+            volumen = integer(volumen_texto, minimum=1, maximum=100000)
+        # Una sola condición activa, como `CondicionPreajuste` en Android: se rechaza la combinación.
+        condiciones = [c for c in (metodo, volumen, tipo) if c is not None]
+        if len(condiciones) > 1:
+            raise ValueError("Un preajuste se activa por una sola condición: método de pago, volumen o tipo de cliente.")
+        return {"nombre": nombre, "puntos": puntos, "productos": productos_ids, "servicios": servicios_ids,
+                "metodo": metodo, "volumen": volumen, "tipo": tipo}
+
+    @app.get("/herramientas/precios", response_class=HTMLResponse)
+    async def price_presets_page(request: Request):
+        user = require_admin(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            guardados = preajustes.cargar(conn)
+            productos, servicios = _preajustes_catalogo(conn)
+        return templates.TemplateResponse(request, "preajustes.html", context(
+            request, user=user, section="herramientas", preajustes_guardados=guardados, productos=productos,
+            servicios=servicios, metodos=preajustes.METODOS_PAGO, tipos=preajustes.TIPOS_CLIENTE,
+            rango=(preajustes.PUNTOS_MIN, preajustes.PUNTOS_MAX),
+        ))
+
+    @app.post("/herramientas/precios/nuevo")
+    async def create_price_preset(request: Request):
+        if not require_admin(request):
+            return redirect("/entrar")
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        with db.connect() as conn:
+            productos, servicios = _preajustes_catalogo(conn)
+        try:
+            limpio = _leer_preajuste(data, productos, servicios)
+        except (ValueError, HTTPException) as exc:
+            return flash_redirect(request, "/herramientas/precios", str(exc), field="basis_points")
+        with db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO presets(name,basis_points,product_ids_json,service_ids_json,payment_method,minimum_cents,active,"
+                "volume_minimum,customer_type) VALUES(?,?,?,?,?,NULL,1,?,?)",
+                (limpio["nombre"], limpio["puntos"], json.dumps(limpio["productos"]), json.dumps(limpio["servicios"]),
+                 limpio["metodo"], limpio["volumen"], limpio["tipo"]),
+            )
+        return flash_redirect(request, "/herramientas/precios", "Preajuste creado.", kind="success")
+
+    @app.post("/herramientas/precios/{preset_id}/estado")
+    async def toggle_price_preset(request: Request, preset_id: int):
+        if not require_admin(request):
+            return redirect("/entrar")
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        with db.transaction() as conn:
+            fila = conn.execute("SELECT active FROM presets WHERE id=?", (preset_id,)).fetchone()
+            if not fila:
+                return flash_redirect(request, "/herramientas/precios", "El preajuste ya no existe.")
+            conn.execute("UPDATE presets SET active=? WHERE id=?", (0 if fila[0] else 1, preset_id))
+        return flash_redirect(request, "/herramientas/precios", "Preajuste actualizado.", kind="success")
 
     @app.get("/equipo", response_class=HTMLResponse)
     async def team_page(request: Request):

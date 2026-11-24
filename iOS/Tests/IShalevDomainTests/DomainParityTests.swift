@@ -436,10 +436,12 @@ final class CSVSpreadsheetSafetyTests: XCTestCase {
         // El formato amplio anterior (5–20 alfanuméricos) ya no se acepta: era lo que iOS pedía en el perfil.
         XCTAssertFalse(validCI("ABC12"))
         XCTAssertFalse(validCI("85010112345".dropLast().description))
-        // Una fecha de nacimiento posterior a «hoy» se rechaza aunque el formato sea correcto.
-        let hace10dias = Date(timeIntervalSince1970: 1_800_000_000 - 10 * 86_400)
-        XCTAssertFalse(validCI("26010112345", hoy: hace10dias))
-        XCTAssertTrue(validCI("26010112345", hoy: Date(timeIntervalSince1970: 1_800_000_000)))
+        // Una fecha de nacimiento posterior a «hoy» se rechaza aunque el formato sea correcto. Ojo con el 7.º dígito:
+        // «26010112345» es 1926 (siglo XX), no 2026; el nacimiento del 2027-01-20 se escribe «27012062345».
+        let hace10dias = Date(timeIntervalSince1970: 1_800_000_000 - 10 * 86_400) // 2027-01-05
+        XCTAssertFalse(validCI("27012062345", hoy: hace10dias))
+        XCTAssertTrue(validCI("27012062345", hoy: Date(timeIntervalSince1970: 1_800_000_000)))
+        XCTAssertTrue(validCI("26010112345"), "1926: pasado, aunque el siglo se lea mal a simple vista")
     }
 
     func testIdentityCardBirthDateIsDecoded() {
