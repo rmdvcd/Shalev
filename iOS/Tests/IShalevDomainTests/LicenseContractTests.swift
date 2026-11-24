@@ -45,8 +45,12 @@ final class LicenseContractTests: XCTestCase {
         }
     }
 
+    @MainActor
     func testTransferenciaValidationAndTxFlag() {
-        XCTAssertFalse(GLLicenseManager.ENVIAR_TX_EN_SOLICITUD)
+        // `ENVIAR_TX_EN_SOLICITUD` vive en `GLLicenseManager`, que es `@MainActor`: la prueba lo respeta en vez
+        // de leerlo desde una autoclosura nonisolated (eso no compila).
+        let enviarTx = GLLicenseManager.ENVIAR_TX_EN_SOLICITUD
+        XCTAssertFalse(enviarTx)
         let pattern = "^[A-Za-z0-9-]{4,30}$"
         XCTAssertNotNil("BR601ADLM8997".range(of: pattern, options: .regularExpression))
         XCTAssertNotNil("TX-123456".range(of: pattern, options: .regularExpression))
