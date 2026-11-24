@@ -118,8 +118,11 @@ Los siguientes defectos han sido identificados en el código de referencia de An
 
 ## 4. Correcciones aplicadas en la verificación de paridad (2026-11-24)
 
-Referencia: `main@5ce64ef` (PR #153, tareas T1–T5). Todas las líneas siguientes son correcciones **estáticas**:
-en este entorno no hay Gradle, Android SDK ni Xcode, así que ninguna se ha confirmado por compilación.
+Referencia: `main@5ce64ef` (PR #153, tareas T1–T5). Las correcciones se revisaron primero por lectura (en el
+entorno de trabajo no hay Gradle, Android SDK ni Xcode) y después se confirmaron en CI: el commit `fe3d75a` deja
+`CI` en verde (API mínima 26, manifiesto, Lint, Tests JVM, Release/APK) y `Compilación iOS de IShalev` en verde
+desde `bb7cab3` (pruebas del dominio, app, IPA y simulador). Ver §4.9 para los defectos que solo se vieron al
+compilar.
 
 ### 4.1 Canje comercial (T4) — estaba cerrado en las tres plataformas
 
@@ -221,3 +224,21 @@ pierde la rotación dinámica y el canje (que exige base y clave de canje del di
 2. Origen del interruptor: `BuildConfig` (Android), `Info.plist` (iOS), `config_licencia` (DShalev).
 3. Copia al portapapeles y SMS/WhatsApp nativos: solo en apps nativas; DShalev usa enlaces `wa.me` y el botón Copiar.
 4. DShalev no refresca el directorio en el arranque (no bloquea el panel); Android e iOS sí lo hacen en segundo plano.
+
+### 4.9 Defectos que solo aparecieron al compilar (CI)
+
+La revisión estática daba por buenos tres puntos que el compilador y las pruebas rechazaron. Se listan porque
+son lecciones del contrato, no ruido de entorno:
+
+1. **`DeviceIdProvider` es una clase, no una interfaz.** `VerificadorPermisoSecundariaTest` usaba
+   `object : DeviceIdProvider { override val deviceId = … }` y el compilador pedía el `context` del constructor.
+   La prueba JVM pasa un `ContextWrapper(null)`: `deviceId` está sobrescrito y la propiedad real (que lee
+   `Settings.Secure`) nunca se evalúa. En instrumentadas el patrón correcto sigue siendo el contexto real
+   (`RespaldoRoomTest.kt:190`).
+2. **`org.json` del `android.jar` de pruebas unitarias es un stub.** Con `unitTests.isReturnDefaultValues = true`
+   los métodos devuelven `null` y las pruebas de anclaje fallaban por NPE, no por lógica. Se añadió
+   `org.json:json` como `testImplementation` de `:data`; no entra en el APK ni cambia el código de producción.
+3. **Defecto real de D1 en el anclaje de canje:** `verificarAnclajeCanje` exigía siempre una capa interna
+   `{license, sig}`, mientras el sobre del canje llega tal cual (`{v, alg, kid, license, sig}`, la misma forma que
+   valida DShalev en `_validar_sobre`). El flujo legítimo se bloqueaba. Ahora se elige la capa que trae contenido
+   **y** firma; sin ninguna, falla por firma ausente en lugar de por NPE.

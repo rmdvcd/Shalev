@@ -52,11 +52,24 @@
   `LicenseTrustTest.unDirectorioEfectivoNoPierdeLasFirmasHistoricasDentroDeSuIntervalo`,
   `test_app.test_el_arranque_registra_el_directorio_de_confianza` y la comprobación del importe en
   `test_licencia_pago.test_tarjeta_pago_en_solicitar_web`.
-- **Verificado aquí:** Web `pytest` 267/267, `tools/verificacion` 31/31, `botones.py` sin incumplimientos y
+- **Verificado en local:** Web `pytest` 267/267, `tools/verificacion` 31/31, `botones.py` sin incumplimientos y
   `ramplint` sin hallazgos (26 plantillas);
   parseo de los cuatro directorios con el parser real de DShalev (seq 1, 8 claves, base y appIds correctos, y las
-  firmas históricas cubriendo su intervalo). **No verificado:** compilación Gradle/Kotlin, pruebas
-  instrumentadas, compilación Xcode/swift test, canje real contra GL, DPAPI/EXE en Windows físico.
+  firmas históricas cubriendo su intervalo).
+- **Verificado en CI (commit `fe3d75a`):** `CI` en verde — `API mínima 26`, `Permisos del manifiesto fusionado`,
+  `Lint (baseline)`, `Tests JVM y compilación de instrumentados` y `Release (R8) y APK debug` en `success`;
+  `Compilación iOS de IShalev` en verde desde `bb7cab3` (pruebas del dominio, app, IPA y simulador). Los
+  instrumentados siguen en `skipped` en el runner. **No verificado:** canje real contra GL, DPAPI/EXE en Windows
+  físico y firma con credenciales de Apple (los pasos de firma se omiten sin ellas).
+- **Defectos que solo aparecieron al compilar** (la revisión estática no los veía):
+  - `VerificadorPermisoSecundariaTest` trataba `DeviceIdProvider` como interfaz, pero es una clase con `Context`
+    inyectado; la prueba pasa un `ContextWrapper(null)` porque solo consume el `deviceId` sobrescrito.
+  - `org.json` del `android.jar` de pruebas unitarias es un **stub** (`unitTests.isReturnDefaultValues`): las
+    pruebas de anclaje devolvían `null` y fallaban por NPE. Se añadió `org.json:json` como `testImplementation` de
+    `:data` (no entra en el APK).
+  - `verificarAnclajeCanje` exigía siempre una capa interna `{license, sig}` y el sobre del canje llega tal cual
+    (`{v, alg, kid, license, sig}`). Ahora elige la capa que trae contenido **y** firma; si ninguna, falla por
+    firma ausente en vez de por NPE. Este era un defecto real de la corrección D1, no de la prueba.
 
 ## Encargo complementario: ventana de 7 días, instrucciones de pago, transferencia y canje habilitado (2026-11-22, versión de trabajo 1.0.9)
 
