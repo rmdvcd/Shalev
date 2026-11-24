@@ -438,9 +438,12 @@ final class CSVSpreadsheetSafetyTests: XCTestCase {
         XCTAssertFalse(validCI("85010112345".dropLast().description))
         // Una fecha de nacimiento posterior a «hoy» se rechaza aunque el formato sea correcto. Ojo con el 7.º dígito:
         // «26010112345» es 1926 (siglo XX), no 2026; el nacimiento del 2027-01-20 se escribe «27012062345».
+        // «hace10dias» es 2027-01-05, anterior al nacimiento (2027-01-20): se rechaza. Con «en10dias» (2027-01-25),
+        // la misma persona ya nació: se acepta. La referencia es la misma fecha en los dos lados de la prueba.
         let hace10dias = Date(timeIntervalSince1970: 1_800_000_000 - 10 * 86_400) // 2027-01-05
+        let en10dias = Date(timeIntervalSince1970: 1_800_000_000 + 10 * 86_400) // 2027-01-25
         XCTAssertFalse(validCI("27012062345", hoy: hace10dias))
-        XCTAssertTrue(validCI("27012062345", hoy: Date(timeIntervalSince1970: 1_800_000_000)))
+        XCTAssertTrue(validCI("27012062345", hoy: en10dias))
         XCTAssertTrue(validCI("26010112345"), "1926: pasado, aunque el siglo se lea mal a simple vista")
     }
 
