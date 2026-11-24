@@ -875,11 +875,37 @@ func validName(_ source: String) -> Bool {
     return value.allSatisfy { $0.isLetter || $0 == " " || $0 == "'" || $0 == "-" }
 }
 
-func validCI(_ source: String) -> Bool {
+/// Carné de identidad cubano (Decreto-Ley 248/2007): 11 dígitos donde los 6 primeros son la fecha de nacimiento
+/// AAMMDD y el séptimo el siglo (9 → 1800; 0–5 → 1900; 6–8 → 2000). Igual que `Validators.carneCubano` de Android
+/// y `solicitud.validar_carne_cubano` de DShalev: se exige una fecha real y no futura, no un alfabético cualquiera.
+func validCI(_ source: String, hoy: Date = Date()) -> Bool {
+    guard let fecha = fechaCarne(source) else { return false }
+    return fecha <= hoy
+}
+
+/// Fecha de nacimiento codificada en el carné, o `nil` si el número no tiene ese formato o la fecha no existe.
+func fechaCarne(_ source: String) -> Date? {
     let value = source.trimmingCharacters(in: .whitespacesAndNewlines)
-    return (5...20).contains(value.count) && value.unicodeScalars.allSatisfy {
-        (65...90).contains(Int($0.value)) || (97...122).contains(Int($0.value)) || (48...57).contains(Int($0.value))
+    guard value.count == 11, value.allSatisfy(\.isASCII), value.allSatisfy({ $0.isNumber }) else { return nil }
+    let siglo: Int
+    switch value[value.index(value.startIndex, offsetBy: 6)] {
+    case "9": siglo = 1800
+    case "0", "1", "2", "3", "4", "5": siglo = 1900
+    default: siglo = 2000
     }
+    guard let anio = Int(value.prefix(2)), let mes = Int(value.dropFirst(2).prefix(2)),
+          let dia = Int(value.dropFirst(4).prefix(2)) else { return nil }
+    var calendario = Calendar(identifier: .gregorian)
+    calendario.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+    var componentes = DateComponents()
+    componentes.year = siglo + anio
+    componentes.month = mes
+    componentes.day = dia
+    guard let fecha = calendario.date(from: componentes) else { return nil }
+    // `Calendar` normaliza el 31 de abril al 1 de mayo: se comprueba que la fecha vuelta coincida con la escrita.
+    let devueltos = calendario.dateComponents([.year, .month, .day], from: fecha)
+    guard devueltos.year == siglo + anio, devueltos.month == mes, devueltos.day == dia else { return nil }
+    return fecha
 }
 
 func normalizePhone(_ source: String) -> String? {

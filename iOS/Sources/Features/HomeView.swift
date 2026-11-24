@@ -450,6 +450,34 @@ struct HomeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Valor del inventario por categoría, al costo (existencias × costo unitario), como `porcionesUi` de Android.
+    /// Se ordena de mayor a menor y se agrupan en «Otras» las categorías por debajo de 1 % del total.
+    private var categoriasInventario: [ShalevDonutSlice] {
+        var porCategoria: [String: Int64] = [:]
+        for product in store.activeProducts {
+            let mileSimas = max(0, product.stockMilli)
+            // stockMilli está en milésimas: costo unitario × milésimas / 1000 = céntimos de CUP.
+            let valor = product.costCents * mileSimas / 1_000
+            guard valor > 0 else { continue }
+            porCategoria[product.category.isEmpty ? "Otros" : product.category, default: 0] += valor
+        }
+        let ordenadas = porCategoria.sorted { $0.value > $1.value }
+        let total = ordenadas.reduce(Int64(0)) { $0 + $1.value }
+        guard total > 0 else { return [] }
+        let umbral = total / 100
+        var vistas: [ShalevDonutSlice] = []
+        var otras: Int64 = 0
+        for (indice, entrada) in ordenadas.enumerated() {
+            if vistas.count < 5 && entrada.value >= umbral {
+                vistas.append(ShalevDonutSlice(id: indice, etiqueta: entrada.key, valor: entrada.value))
+            } else {
+                otras += entrada.value
+            }
+        }
+        if otras > 0 { vistas.append(ShalevDonutSlice(id: 99, etiqueta: "Otras", valor: otras)) }
+        return vistas
+    }
+
     private var inventoryAccordion: some View {
         accordion(title: "Inventario", value: "\(store.activeProducts.count) artículos", key: "inventory") {
             VStack(alignment: .leading, spacing: 10) {
@@ -466,6 +494,20 @@ struct HomeView: View {
                 .chartLegend(.hidden)
                 Text("Recuento del catálogo por tipo de artículo.")
                     .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
+                // Android reparte el inventario por CATEGORÍA con valor al costo (ShalevDonutChart de Inicio);
+                // el gráfico de barras de arriba es por tipo, así que las dos vistas no se repiten.
+                if !categoriasInventario.isEmpty {
+                    Divider().padding(.vertical, 2)
+                    Text("Existencias por categoría (valor al costo)")
+                        .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
+                    ShalevDonutChart(
+                        slices: categoriasInventario,
+                        centerText: Cup(cents: categoriasInventario.reduce(0) { $0 + $1.valor }).formatted,
+                        descripcion: "Inventario por categorías: " + categoriasInventario.map {
+                            "\($0.etiqueta) \(Cup(cents: $0.valor).formatted)"
+                        }.joined(separator: ", ")
+                    )
+                }
             }
         }
     }
@@ -473,12 +515,28 @@ struct HomeView: View {
     private var paymentAccordion: some View {
         let cash = periodSales.filter { $0.paymentMethod == .cash }
         let transfer = periodSales.filter { $0.paymentMethod == .transfer }
+        let efectivoCents = cash.reduce(0) { $0 + $1.totalCents }
+        let transferenciaCents = transfer.reduce(0) { $0 + $1.totalCents }
+        let slices = [
+            ShalevDonutSlice(id: 0, etiqueta: "Efectivo", valor: efectivoCents),
+            ShalevDonutSlice(id: 1, etiqueta: "Transferencias", valor: transferenciaCents),
+        ].filter { $0.valor > 0 }
         return accordion(title: "Métodos de pago",
                          value: "\(cash.count) en efectivo · \(transfer.count) transferencias",
                          key: "payments") {
-            VStack(spacing: 8) {
-                summaryRow("Efectivo", amount: Cup(cents: cash.reduce(0) { $0 + $1.totalCents }).formatted)
-                summaryRow("Transferencias", amount: Cup(cents: transfer.reduce(0) { $0 + $1.totalCents }).formatted)
+            VStack(spacing: 12) {
+                // Mismo gráfico que la tarjeta «Métodos de pago» de Android (ShalevDonutChart).
+                if slices.isEmpty {
+                    Text("Sin pagos en el período")
+                        .font(.shalev(12)).foregroundStyle(Color.shalevSecondaryText)
+                } else {
+                    ShalevDonutChart(slices: slices,
+                                     descripcion: "Métodos de pago: " + slices.map {
+                                        "\($0.etiqueta) \(Cup(cents: $0.valor).formatted)"
+                                     }.joined(separator: ", "))
+                }
+                summaryRow("Efectivo", amount: Cup(cents: efectivoCents).formatted)
+                summaryRow("Transferencias", amount: Cup(cents: transferenciaCents).formatted)
             }
         }
     }

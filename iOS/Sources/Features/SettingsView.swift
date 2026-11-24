@@ -350,7 +350,8 @@ private struct ProfileSettingsView: View {
 
     private var identificationError: String? {
         let value = trimmed(identification)
-        return value.isEmpty || validCI(value) ? nil : "Entre 5 y 20 letras o números"
+        // Mismo contrato que la solicitud de licencia y que Android/DShalev: carné cubano de 11 dígitos.
+        return value.isEmpty || validCI(value) ? nil : "11 dígitos: empieza por tu fecha de nacimiento (AAMMDD)"
     }
 
     private var hasErrors: Bool { nameError != nil || lastNameError != nil || identificationError != nil }
@@ -376,7 +377,7 @@ private struct ProfileSettingsView: View {
                                      focus: .lastName, submit: .next) { focusedField = .ci }
                         profileField("Carnet de identidad (CI)", text: $identification, placeholder: "85010112345",
                                      error: showErrors ? identificationError : nil, capitalization: .characters,
-                                     focus: .ci, submit: .done) { focusedField = nil }
+                                     filtro: .ci, focus: .ci, submit: .done) { focusedField = nil }
                         Text("Solo se envía al pedir la licencia")
                             .font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                         Button { save() } label: {
@@ -424,6 +425,7 @@ private struct ProfileSettingsView: View {
 
     private func profileField(_ title: String, text: Binding<String>, placeholder: String,
                               error: String?, capitalization: TextInputAutocapitalization = .never,
+                              filtro: ShalevInputFilter = .text(),
                               focus: ProfileFocus, submit: SubmitLabel,
                               onSubmit: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -431,6 +433,7 @@ private struct ProfileSettingsView: View {
             TextField(placeholder, text: text)
                 .textInputAutocapitalization(capitalization)
                 .autocorrectionDisabled()
+                .shalevInputFilter(filtro, text: text)
                 .focused($focusedField, equals: focus)
                 .submitLabel(submit)
                 .onSubmit(onSubmit)

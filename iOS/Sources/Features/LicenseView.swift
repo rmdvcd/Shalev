@@ -414,12 +414,13 @@ struct LicenseView: View {
             inputField("Apellidos", text: $lastName, placeholder: "Apellidos",
                        isError: showErrors && !validName(lastName), errorText: "Solo letras, 2 a 80",
                        capitalization: .words, focus: .lastName, submit: .next) { focusedField = .ci }
-            inputField("Carné de identidad", text: $identification, placeholder: "5–20 letras o dígitos",
-                       isError: showErrors && !validCI(identification), errorText: "5 a 20 letras o dígitos",
-                       keyboard: .asciiCapable, capitalization: .characters, focus: .ci, submit: .done) { focusedField = nil }
+            // 11 dígitos con fecha real (AAMMDD + siglo), igual que Android y DShalev.
+            inputField("Carné de identidad", text: $identification, placeholder: "85010112345",
+                       isError: showErrors && !validCI(identification), errorText: "11 dígitos con fecha real",
+                       filtro: .ci, keyboard: .numberPad, capitalization: .characters, focus: .ci, submit: .done) { focusedField = nil }
             inputField("Teléfono", text: $phone, placeholder: "5XXXXXXX",
                        isError: showErrors && normalizePhone(phone) == nil, errorText: "Número no válido",
-                       keyboard: .phonePad)
+                       filtro: .phone, keyboard: .phonePad)
             if !profilePhones.isEmpty {
                 Text("Tus teléfonos")
                     .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
@@ -858,6 +859,7 @@ struct LicenseView: View {
 
     private func inputField(_ title: String, text: Binding<String>, placeholder: String,
                             isError: Bool = false, errorText: String? = nil,
+                            filtro: ShalevInputFilter = .text(),
                             keyboard: UIKeyboardType = .default,
                             capitalization: TextInputAutocapitalization = .never,
                             focus: LicenseFocus? = nil, submit: SubmitLabel = .done,
@@ -872,6 +874,9 @@ struct LicenseView: View {
                     .focused($focusedField, equals: focus)
                     .submitLabel(submit)
                     .onSubmit { onSubmit?() }
+                    // Misma prevención que Android: el carné solo admite 11 dígitos con fecha plausible y el
+                    // teléfono 8 cifras (al pegar «+53 …» se descarta el prefijo).
+                    .shalevInputFilter(filtro, text: text)
                     .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
                     .font(.shalev(14))
                     .padding(11)

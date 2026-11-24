@@ -419,4 +419,61 @@ final class CSVSpreadsheetSafetyTests: XCTestCase {
             XCTAssertEqual(CSVSpreadsheetSafety.text(value), value)
         }
     }
+
+    /// El carné de identidad sigue el Decreto-Ley 248/2007 igual que `Validators.carneCubano` (Android) y
+    /// `solicitud.validar_carne_cubano` (DShalev): 11 dígitos, fecha real y no futura.
+    func testCubanIdentityCardMatchesAndroidAndDesktopRule() {
+        // Válidos: siglo 1900 (dígito 7 en 0–5), 2000 (6–8) y 1800 (9), con 29 de febrero bisiesto.
+        for carne in ["85010112345", "91040922502", "00022965432", "10123167890", "84022912345"] {
+            XCTAssertTrue(validCI(carne), "debe aceptar \(carne)")
+        }
+        // Inválidos: longitud, letras, mes y día imposibles, fecha futura y 29 de febrero no bisiesto.
+        let hoy = Date(timeIntervalSince1970: 1_800_000_000) // 2027-01-15
+        for carne in ["123", "123456789012", "8501011234A", "85130112345", "85013212345",
+                      "01022912345", "27012062345"] {
+            XCTAssertFalse(validCI(carne, hoy: hoy), "debe rechazar \(carne)")
+        }
+        // El formato amplio anterior (5–20 alfanuméricos) ya no se acepta: era lo que iOS pedía en el perfil.
+        XCTAssertFalse(validCI("ABC12"))
+        XCTAssertFalse(validCI("85010112345".dropLast().description))
+        // Una fecha de nacimiento posterior a «hoy» se rechaza aunque el formato sea correcto.
+        let hace10dias = Date(timeIntervalSince1970: 1_800_000_000 - 10 * 86_400)
+        XCTAssertFalse(validCI("26010112345", hoy: hace10dias))
+        XCTAssertTrue(validCI("26010112345", hoy: Date(timeIntervalSince1970: 1_800_000_000)))
+    }
+
+    func testIdentityCardBirthDateIsDecoded() {
+        let calendario = Calendar(identifier: .gregorian)
+        let fecha = fechaCarne("85010112345")
+        XCTAssertNotNil(fecha)
+        let partes = calendario.dateComponents([.year, .month, .day], from: fecha ?? Date())
+        XCTAssertEqual(partes.year, 1985)
+        XCTAssertEqual(partes.month, 1)
+        XCTAssertEqual(partes.day, 1)
+        XCTAssertNil(fechaCarne("85130112345"), "mes 13 no existe")
+        XCTAssertNil(fechaCarne("85013212345"), "día 32 no existe")
+    }
+
+    /// El ciclo de ordenación de las listas es el mismo que `ModoOrden.siguiente()` de Android, y el orden se aplica
+    /// a la lista ya filtrada conservando el orden de entrada cuando hay empates (orden estable).
+    func testListOrderingCyclesLikeAndroidAndIsStable() {
+        XCTAssertEqual(ModoOrden.cronologico.siguiente, .alfabetico)
+        XCTAssertEqual(ModoOrden.alfabetico.siguiente, .importeDesc)
+        XCTAssertEqual(ModoOrden.importeDesc.siguiente, .importeAsc)
+        XCTAssertEqual(ModoOrden.importeAsc.siguiente, .cronologico)
+        XCTAssertEqual(ModoOrden.allCases.count, 4)
+
+        struct Fila { let nombre: String; let precio: Int64 }
+        let filas = [Fila(nombre: "Café", precio: 300), Fila(nombre: "azúcar", precio: 100),
+                     Fila(nombre: "Bomba", precio: 300), Fila(nombre: "Arroz", precio: 200)]
+
+        XCTAssertEqual(ModoOrden.cronologico.aplicar(filas, nombre: { $0.nombre }, precio: { $0.precio }).map(\.nombre),
+                       ["Café", "azúcar", "Bomba", "Arroz"], "cronológico respeta el orden de entrada")
+        XCTAssertEqual(ModoOrden.alfabetico.aplicar(filas, nombre: { $0.nombre }, precio: { $0.precio }).map(\.nombre),
+                       ["Arroz", "azúcar", "Bomba", "Café"], "alfabético ignora mayúsculas y tildes")
+        XCTAssertEqual(ModoOrden.importeDesc.aplicar(filas, nombre: { $0.nombre }, precio: { $0.precio }).map(\.nombre),
+                       ["Café", "Bomba", "Arroz", "azúcar"], "empate de precio: se conserva el orden de entrada")
+        XCTAssertEqual(ModoOrden.importeAsc.aplicar(filas, nombre: { $0.nombre }, precio: { $0.precio }).map(\.nombre),
+                       ["azúcar", "Arroz", "Café", "Bomba"], "empate de precio: se conserva el orden de entrada")
+    }
 }
