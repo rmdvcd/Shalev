@@ -1,3 +1,34 @@
+## Cierre de las carencias de §5: carné, ordenación, gráficos y preajustes (2026-11-24)
+
+- **Objetivo:** corregir lo que §5 marcó como defecto o carencia con solución clara, dejando documentado lo que
+  sigue siendo decisión de producto. Auditoría en `docs/PARIDAD_ANDROID.md` §5.
+- **Carné cubano (defecto, no carencia).** `validCI` de iOS aceptaba **5–20 alfanuméricos** en el perfil y en toda la
+  solicitud de licencia (`License.swift:516`), mientras Android (`Validators.carneCubano`) y DShalev
+  (`validar_carne_cubano`) exigen **11 dígitos con fecha real y no futura**. Ahora las tres usan la misma regla
+  (día/mes reales, siglo por el 7.º dígito: 9 → 1800, 0–5 → 1900, 6–8 → 2000). Añadida `fechaCarne` y actualizados
+  el placeholder, el teclado y el mensaje de error de `LicenseView` y `SettingsView`.
+- **Filtro de entrada del carné.** `ShalevInputFilter.ci` de iOS aceptaba letras y 20 caracteres; ahora solo dígitos,
+  máximo 11 y rechazo progresivo de mes/día imposibles (`fechaParcialCarne`, igual que `FiltroEntrada.CARNE`). Se
+  aplica de verdad en los dos formularios (antes el filtro no se usaba en ninguna vista), y el teléfono usa `.phone`.
+- **Ordenación de listas.** `ModoOrden` con el ciclo de cuatro modos de Android (recientes → A–Z → mayor → menor) y
+  orden **estable** en Inventario y Servicios de iOS. DShalev mantiene búsqueda simple: se documenta como diferencia.
+- **Gráficos de Inicio (iOS).** Añadidos el **área de dos series** venta/costo, el **donut de métodos de pago**, el
+  **donut de existencias por categoría** (valor al costo) y las listas que faltaban: servicios más y menos vendidos,
+  clientes y **ventas por local** (con ganancia, como 1.0.7). `ShalevDonutChart` usa la paleta `L_CHART`/`D_CHART`
+  de Android (mismos seis colores y mismo orden) y expone una descripción textual a VoiceOver.
+- **Hallazgo al probar el ranking de locales:** `periodSales` se limita al local activo, así que un ranking por local
+  habría tenido una sola fila. Se añadió `ventasDeTodosLosLocales`, con el mismo filtro temporal y de permisos.
+- **DShalev: preajustes de precios (carencia funcional).** Android los aplica al cobrar; el escritorio solo los
+  reenviaba al teléfono. Nuevo módulo `dshalev/preajustes.py` (aritmética en puntos básicos, una sola condición por
+  preajuste, suma de preajustes coincidentes), rutas `/herramientas/precios` (alta y pausa) y plantilla. El esquema
+  pasa a la versión 11 con `volume_minimum` y `customer_type`; `minimum_cents` se conserva solo para respaldos viejos.
+  El escritorio **edita** los preajustes, no recalcula precios de venta por su cuenta: eso lo dice la propia página.
+- **Verificado aquí:** `pytest` de Web **283/283** (16 pruebas nuevas en `tests/test_preajustes.py`, incluidas la
+  aritmética contra un oráculo decimal y las rutas con CSRF y permisos). Los vectores del carné se comprobaron con un
+  script equivalente antes de fijarlos; uno de ellos era erróneo («26010112345» es 1926, no 2026) y se corrigió.
+- **No verificado aquí:** compilación Swift, Xcode y Swift Charts (CI macOS); queda el run de CI de este commit.
+  Los gráficos y el filtro nuevo necesitan una pasada visual en simulador y en un iPhone real.
+
 ## Auditoría de ejes transversales: módulos, iconos, recorridos, listas, entrada y gráficos (2026-11-24)
 
 - **Objetivo:** comprobar, además de la paridad funcional de §1, que iOS y DShalev tienen los mismos **módulos**,

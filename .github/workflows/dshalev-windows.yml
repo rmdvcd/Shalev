@@ -29,7 +29,26 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r Web-Desktop/requirements-dev.txt
-          python -m pytest Web-Desktop/tests -q
+          python -m pytest Web-Desktop/tests -q --junitxml=junit.xml
+      - name: Publicar los fallos de las pruebas como anotaciones
+        if: failure()
+        shell: pwsh
+        run: |
+          # Los registros de este job no siempre se pueden descargar; las anotaciones sí se leen por la API, así que
+          # cada prueba fallida se publica como un error con archivo y línea. Sin esto, un fallo en Windows es opaco.
+          if (-not (Test-Path junit.xml)) { Write-Host '::error::pytest no escribió junit.xml (¿falló la colección?)'; exit 0 }
+          [xml]$junit = Get-Content junit.xml
+          $fallos = $junit.SelectNodes('//testcase[failure or error]')
+          Write-Host "Pruebas fallidas: $($fallos.Count)"
+          $n = 0
+          foreach ($caso in $fallos) {
+            if ($n -ge 20) { Write-Host "::error::Hay más de 20 pruebas fallidas; revisa junit.xml"; break }
+            $detalle = if ($caso.failure) { $caso.failure.message } else { $caso.error.message }
+            $primera = ($detalle -split "`n" | Where-Object { $_ -match '\S' } | Select-Object -First 1)
+            $primera = ($primera -replace '%', '%25' -replace "`r", '%0D' -replace "`n", '%0A')
+            Write-Host "::error file=Web-Desktop/tests/$($caso.classname).py::$($caso.name): $primera"
+            $n += 1
+          }
       - name: Accesibilidad de las plantillas (ramplint)
         shell: pwsh
         run: ramplint --no-django Web-Desktop/dshalev/templates
