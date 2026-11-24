@@ -6,7 +6,11 @@ final class LicenseContractTests: XCTestCase {
     func testPinnedGLKeysParseAndMatchTheirFingerprints() {
         XCTAssertTrue(GLTrust.canValidate)
         XCTAssertTrue(GLTrust.canRequest)
-        XCTAssertEqual(GLTrust.signingPublicKeys.count, 5)
+        // Son seis: la firma vigente y cinco rotaciones anteriores que siguen validando licencias ya emitidas
+        // (las mismas que `LicenseTrust.SIGN_KEYS` en Android). Si se añade o retira una rotación, se actualiza
+        // aquí y en el directorio: las dos listas deben quedarse iguales.
+        XCTAssertEqual(GLTrust.signingPublicKeys.count, GLTrust.signatures.count)
+        XCTAssertEqual(GLTrust.signingPublicKeys.count, 6)
         XCTAssertNotNil(GLTrust.ecdhPublicKey)
     }
 
