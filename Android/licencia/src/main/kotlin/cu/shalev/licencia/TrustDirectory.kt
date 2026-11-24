@@ -290,7 +290,8 @@ object TrustDirectoryManager {
             conn.instanceFollowRedirects = true
             conn.connect()
             if (conn.responseCode != 200) return false
-            val bytes = conn.inputStream.use { it.readNBytes(TrustDirectory.MAX_SIZE_BYTES + 1) }
+            // `readNBytes` es API 33: se lee a mano para que la app siga funcionando desde API 26.
+            val bytes = conn.inputStream.use { leerComoMaximo(it, TrustDirectory.MAX_SIZE_BYTES + 1) }
             if (bytes.size > TrustDirectory.MAX_SIZE_BYTES) return false
             val text = String(bytes, Charsets.UTF_8)
             val nuevo = TrustDirectory.parseAndVerify(text)
@@ -308,5 +309,19 @@ object TrustDirectoryManager {
         } catch (_: Exception) {
             return false
         }
+    }
+
+    /** Lee como máximo `limite` bytes del flujo (equivalente a `InputStream.readNBytes`, disponible desde API 33). */
+    private fun leerComoMaximo(entrada: java.io.InputStream, limite: Int): ByteArray {
+        val salida = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        var total = 0
+        while (total < limite) {
+            val leidos = entrada.read(buffer, 0, minOf(buffer.size, limite - total))
+            if (leidos <= 0) break
+            salida.write(buffer, 0, leidos)
+            total += leidos
+        }
+        return salida.toByteArray()
     }
 }

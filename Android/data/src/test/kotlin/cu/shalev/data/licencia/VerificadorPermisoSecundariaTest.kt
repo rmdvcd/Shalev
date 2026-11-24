@@ -43,25 +43,24 @@ class VerificadorPermisoSecundariaTest {
 
     @Before
     fun setUp() {
+        // El contrato real del directorio es (v, seq, emitidaEn, claves, endpointBase, appIds): no hay `id`,
+        // `alg` ni `validaHasta`, y `desde` es obligatorio.
         val claveDirectorio = TrustDirectory.Clave(
-            id = "gl-redeem-v1",
             kid = "gl-redeem-v1",
             uso = "canje",
-            alg = "ECIES-P256",
             spkiDer = glRedeemKey.public.encoded,
-            sha256 = EcP256.fingerprint(glRedeemKey.public.encoded),
-            desde = null,
+            huella = EcP256.fingerprint(glRedeemKey.public.encoded),
+            desde = 1_700_000_000,
             hasta = null,
-            estado = "vigente"
+            estado = "vigente",
         )
         val dir = TrustDirectory.Directorio(
             v = 1,
-            secuencia = 1,
-            actualizadaEn = "2026-11-20T00:00:00Z",
-            validaHasta = "2026-12-20T00:00:00Z",
-            endpointBase = "https://example.com",
+            seq = 1,
+            emitidaEn = 1_763_668_800,
             claves = listOf(claveDirectorio),
-            appIds = emptyMap()
+            endpointBase = "https://example.com",
+            appIds = emptyMap(),
         )
         TrustDirectory.effectiveDirectory = dir
     }

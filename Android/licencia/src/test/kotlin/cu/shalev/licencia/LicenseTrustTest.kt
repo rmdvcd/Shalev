@@ -55,12 +55,11 @@ class LicenseTrustTest {
     @Test fun cuandoDirectorioEfectivoExisteSusClavesMandanInclusoSiVacias() {
         val dirVacio = TrustDirectory.Directorio(
             v = 1,
-            secuencia = 1,
-            actualizadaEn = "2026-11-20T00:00:00Z",
-            validaHasta = "2026-12-20T00:00:00Z",
-            endpointBase = "https://example.com",
+            seq = 1,
+            emitidaEn = 1_763_668_800,
             claves = emptyList(),
-            appIds = emptyMap()
+            endpointBase = "https://example.com",
+            appIds = emptyMap(),
         )
         TrustDirectory.effectiveDirectory = dirVacio
         try {
