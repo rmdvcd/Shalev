@@ -85,7 +85,7 @@ struct SyncLicense: Codable, Equatable {
                 deviceID: deviceID,
                 now: now,
                 isKeyCompromised: { spki in
-                    TrustDirectory.effectiveDirectory?.isKeyCompromised(spki) == true
+                    TrustDirectory.effectiveDirectory?.isCompromised(der: spki) == true
                 }
               ),
               ranura == nil || ranura == permission.slot,

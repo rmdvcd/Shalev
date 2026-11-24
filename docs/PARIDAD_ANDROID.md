@@ -113,3 +113,249 @@ Los siguientes defectos han sido identificados en el código de referencia de An
 4. **C1 — Incompatibilidad de solicitud con alfabeto GSM-7:**  
    En Android, `MensajesLicencia.kt` utiliza palabras con tilde como `"envíala"` y `"Amplía"`, que no pertenecen al alfabeto estándar GSM-7 (7 bits). Esto obliga a los operadores de telecomunicaciones a codificar el mensaje en UCS-2 (16 bits), disparando el número de partes de SMS de 5 a 12 fragmentos, encareciendo y aumentando el riesgo de corte en el envío en Cuba.  
    *Solución:* Normalizar las palabras legibles a `"enviala"` y `"Amplia"`, y retirar acentos/ñ en las líneas informativas legibles manteniendo el payload cifrado intacto.
+
+---
+
+## 4. Correcciones aplicadas en la verificación de paridad (2026-11-24)
+
+Referencia: `main@5ce64ef` (PR #153, tareas T1–T5). Las correcciones se revisaron primero por lectura (en el
+entorno de trabajo no hay Gradle, Android SDK ni Xcode) y después se confirmaron en CI: el commit `fe3d75a` deja
+`CI` en verde (API mínima 26, manifiesto, Lint, Tests JVM, Release/APK) y `Compilación iOS de IShalev` en verde
+desde `bb7cab3` (pruebas del dominio, app, IPA y simulador). Ver §4.9 para los defectos que solo se vieron al
+compilar.
+
+### 4.1 Canje comercial (T4) — estaba cerrado en las tres plataformas
+
+El contrato del directorio admite un bloque opcional `canje: { endpoint_base, app_ids }` y claves con
+`uso == "canje"`, pero **ningún directorio del repo lo publicaba** y **nadie cargaba el directorio al arrancar**.
+Resultado: `TrustDirectory.effectiveDirectory` / `Directory.effectiveDirectory` / `configuracion()` quedaban
+vacíos y el canje se mostraba como «Aún no disponible en esta edición» en APK, IPA y DShalev.
+
+| Pieza | Android | iOS | DShalev |
+|---|---|---|---|
+| Carga al arrancar | `ShalevApplication.onCreate` → `TrustDirectoryManager.cacheFile` + `loadEffective()` | `IShalevApp.init` → `TrustDirectoryManager.cacheURL` + `loadEffective()` | `create_app.lifespan` → `_cargar_directorio_confianza()` |
+| Actualización remota | hilo daemon `directorio-confianza` | `Task.detached(priority: .utility)` | no se hace en el arranque (decisión: el panel no bloquea) |
+| Regla única de apertura | `RedeemContract.canjeActivo(...)` | `RedeemClient.make(...)` | `ConfiguracionLicencia.comercial_habilitada` |
+| Base sin barras finales | `RedeemContract.endpointBase(...)` | `RedeemClient.normalizedBase(...)` | `_validar_endpoint` + `BASE_PUBLICA_AUTORIZADA` |
+| appId del producto | `BuildConfig.CANJE_APP_ID` = `SHALEV-ANDROID` | `Info.plist` `CANJE_APP_ID` = `SHALEV-IOS` | `config_licencia` = `DSHALEV` |
+
+Detalles que corregían defectos reales:
+
+- `LicenciaRepositoryImpl.redeemClientLocked()` memorizaba el cliente **aunque estuviera cerrado**, de modo que
+  una actualización del directorio no abría el canje hasta reiniciar. Ahora solo se memoriza si `canjeActivo`.
+- `LicenseView.isCanjeActive` recalculaba la regla por su cuenta (y con `CANJE_HABILITADO` por defecto `true`);
+  ahora delega en `RedeemClient.configured().canRedeem`, la misma que usa el envío real.
+- La pantalla Android (`LicenciaScreen`, paso ACTIVAR) y el repositorio usaban dos copias de la regla; ahora ambas
+  llaman a `RedeemContract.canjeActivo`.
+
+### 4.2 C1 (alfabeto GSM-7) — seguía abierto en la referencia
+
+`docs/PARIDAD_ANDROID.md` §3.4 documenta la solución (`"enviala"`, `"Amplia"`, sin tildes), y DShalev la aplica
+(`normalizar_gsm7` en `licencia/solicitud.py`), pero Android seguía emitiendo `Carné de identidad:`, `Teléfono:`
+y `Amplía:` en `SolicitudCifrada.solicitud/ampliacion/recuperacion`, lo que fuerza UCS-2 y multiplica las partes
+del SMS. Se alineó Android a la solución ya documentada y se ajustaron las expectativas de `LicenseFlowTest`
+(líneas 59-60 y 253). El payload cifrado no cambia.
+
+### 4.3 Panel de pago en DShalev
+
+`license_solicitar.html` mostraba «Cómo pagar» con métodos de cobro pero **sin importe**, mientras APK e IPA
+muestran el precio.
+
+- Se añadió `importe_pagar` con un único helper `app._importe_pagar` (tarifas canónicas de
+  `solicitud.calcular_precio` / `calcular_precio_ampliacion`), usado tanto en el GET como en el POST; antes el POST
+  tenía su propia copia del cálculo.
+- La advertencia se sirve desde la constante `FRASE_PAGA_SOLO` (`frase_paga_solo`) y ahora se muestra **siempre**
+  en la tarjeta; antes era un literal en la plantilla y desaparecía cuando no había métodos de cobro configurados.
+- El script `actualizarCalculoPrecio` mantiene el desglose existente y sincroniza el nuevo `#importe-pagar`, para
+  que la tarjeta y el desglose no discrepen mientras se edita el plan o las secundarias.
+
+### 4.4 Directorio de prueba con canje
+
+`tools/licencia/generar_vectores_directorio.py` ahora firma un vector con `gl-redeem-vector` (`uso: "canje"`,
+escalar determinista `0x43…`), el bloque `canje` con base `https://gl-redeem.example.test` y los tres `app_ids`,
+y las cinco firmas históricas (ver §4.5). La firma ECDSA se fija en `FIRMA_V1` porque `ec.ECDSA` usa nonce
+aleatorio: sin fijarla, cada ejecución produciría un vector distinto y los tres bootstrap dejarían de coincidir.
+Se regeneraron `docs/vectores/directorio-v1.json` y los tres `directorio-bootstrap.json`
+(`Android/licencia/src/main/resources`, `iOS/Resources`, `iOS/Sources/Domain`). Es un vector de **prueba**:
+la base no es producción y la clave privada solo la tendría GL.
+
+> Consecuencia esperada y deliberada: al haber ahora claves `uso == "canje"` en el directorio, DShalev autoriza
+> **solo** ese kid (`config_licencia.definir` prioriza las claves de canje). Las pruebas `test_licencia_cliente`
+> y `test_licencia_directorio` se actualizaron en consecuencia (8 claves, `gl-redeem-vector` autorizado,
+> `gl-sign-vigente` no autorizado como kid de canje).
+
+### 4.5 Riesgo que abrió la carga del directorio: firmas históricas (D2)
+
+`LicenseTrust.signSpkis()` (Android) y `GLTrust.signingPublicKeys` (iOS) son autoritativos en cuanto existe
+directorio efectivo (es la mitigación del defecto D2: sin respaldo ciego a las claves fijadas). Pero las claves
+fijadas del build son **seis** (la vigente y cinco rotaciones anteriores que aún validan licencias ya emitidas),
+mientras el vector solo publicaba una. Al empezar a cargarse el directorio, las licencias antiguas habrían
+dejado de verificar en el siguiente arranque.
+
+Solución en los datos, no en el código: el vector publica las cinco firmas históricas con `estado: "retirada"` y
+`hasta` = fecha de retirada. Así:
+
+- una licencia emitida dentro de su intervalo sigue verificando (`signKeysFor(emitidaEn)` devuelve 6 claves);
+- pasada la retirada solo queda la vigente (1 clave), de modo que ninguna licencia nueva se firma con ellas.
+
+Pruebas: `LicenseTrustTest.unDirectorioEfectivoNoPierdeLasFirmasHistoricasDentroDeSuIntervalo` (Android),
+`LicenseContractTests.testBootstrapDirectoryNowPublishesRedeemBaseAndAppIDs` (iOS) y
+`test_vector_directorio_v1_valido` / `test_flujo_completo_canje_con_directorio_v1` (DShalev).
+
+### 4.6 Raíces de compilación vacías (D3) y degradación
+
+`TrustDirectory.RAIZ_A_SPKI` / `RAIZ_B_SPKI` (Android) y `rootASPKI` / `rootBSPKI` (iOS) siguen vacías en el
+repositorio, como exige D3 (las reales se inyectan al publicar y `tools/verificacion/verificar_raices_release.py`
+falla en modo release si faltan). Consecuencia esperada de la carga en el arranque: sin raíces, el bootstrap no
+verifica, `effectiveDirectory` queda en `null` y `LicenseTrust` usa las claves fijadas. La app **no** se rompe:
+pierde la rotación dinámica y el canje (que exige base y clave de canje del directorio), no la validación normal.
+
+### 4.7 Pruebas de la costura nueva
+
+- Web: `test_licencia_config.test_registrar_directorio_efectivo_habilita_la_configuracion_del_directorio`.
+- Android: `RedeemContractTest.canjeSeCierraSiFaltaBaseHttpsOClaveDeCanje` (regla pura, sin red).
+- iOS: `LicenseContractTests.testRedeemClientStaysClosedWithoutBuildFlagDirectoryBaseOrRedeemKey`,
+  `testEndpointBaseDropsTrailingSlashesWithoutBreakingTheScheme` y
+  `testBootstrapDirectoryNowPublishesRedeemBaseAndAppIDs` (parsea el bootstrap real del bundle).
+
+### 4.8 Diferencias de plataforma que se mantienen (no son defectos)
+
+1. `CANJE_APP_ID` distinto por producto (`SHALEV-ANDROID` / `SHALEV-IOS` / `DSHALEV`): el servicio emite por appId.
+2. Origen del interruptor: `BuildConfig` (Android), `Info.plist` (iOS), `config_licencia` (DShalev).
+3. Copia al portapapeles y SMS/WhatsApp nativos: solo en apps nativas; DShalev usa enlaces `wa.me` y el botón Copiar.
+4. DShalev no refresca el directorio en el arranque (no bloquea el panel); Android e iOS sí lo hacen en segundo plano.
+
+### 4.9 Defectos que solo aparecieron al compilar (CI)
+
+La revisión estática daba por buenos tres puntos que el compilador y las pruebas rechazaron. Se listan porque
+son lecciones del contrato, no ruido de entorno:
+
+1. **`DeviceIdProvider` es una clase, no una interfaz.** `VerificadorPermisoSecundariaTest` usaba
+   `object : DeviceIdProvider { override val deviceId = … }` y el compilador pedía el `context` del constructor.
+   La prueba JVM pasa un `ContextWrapper(null)`: `deviceId` está sobrescrito y la propiedad real (que lee
+   `Settings.Secure`) nunca se evalúa. En instrumentadas el patrón correcto sigue siendo el contexto real
+   (`RespaldoRoomTest.kt:190`).
+2. **`org.json` del `android.jar` de pruebas unitarias es un stub.** Con `unitTests.isReturnDefaultValues = true`
+   los métodos devuelven `null` y las pruebas de anclaje fallaban por NPE, no por lógica. Se añadió
+   `org.json:json` como `testImplementation` de `:data`; no entra en el APK ni cambia el código de producción.
+3. **Defecto real de D1 en el anclaje de canje:** `verificarAnclajeCanje` exigía siempre una capa interna
+   `{license, sig}`, mientras el sobre del canje llega tal cual (`{v, alg, kid, license, sig}`, la misma forma que
+   valida DShalev en `_validar_sobre`). El flujo legítimo se bloqueaba. Ahora se elige la capa que trae contenido
+   **y** firma; sin ninguna, falla por firma ausente en lugar de por NPE.
+
+---
+
+## 5. Auditoría de ejes transversales: módulos, iconos, recorridos, listas, entrada y gráficos (2026-11-24)
+
+Extiende la matriz de §1, que cubre módulos y funciones, a los seis ejes que el propietario pidió verificar por
+separado. **Método:** lectura dirigida del código de las tres plataformas y conteo de símbolos reales. En este
+entorno no hay Gradle, Xcode ni navegador, así que nada de lo que sigue es una prueba de ejecución: es inventario
+verificado en el árbol. Los recuentos son reproducibles con los comandos que se citan.
+
+### 5.1 Módulos
+
+Los módulos del negocio son **tres** y se llaman igual en las tres plataformas (`VENTAS`, `INVENTARIO`,
+`SERVICIOS`), con la misma regla de arrastre (VENTAS activa INVENTARIO).
+
+| Aspecto | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Definición | `Modulo.kt:12` (`etiqueta` + `detalle`) | `SettingsView.swift` (`moduleRow`) con los mismos textos | Sin selector: el módulo es implícito (todo visible) | Igual en Android/iOS; **Falta en DShalev** el selector |
+| Regla de arrastre | `Modulo.alternar/normalizar` (VENTAS↔INVENTARIO) | `toggleSales`/`toggleInventory`/`toggleServices` | — | Igual en Android/iOS |
+| Efecto en navegación | `topLevelVisibles()` filtra Inventario/Servicios | `visibleSections` en `AppRoot.swift:347-356` | El rail de `base.html` muestra todo siempre | **Falta en DShalev** |
+| Persistencia | DataStore (`OnboardingPreferences`) | `@AppStorage("shalev.module.*")` | — | Igual en Android/iOS |
+| Pestañas de la barra | 5: Inicio, Inventario, Servicios, Registros, Ajustes | **6**: las 5 + **Herramientas** (`MainSection.tools`, `AppRoot.swift:66`) | **14** enlaces en el rail (`base.html:18-31`) | **Diferencia de plataforma (aprobada)** en iOS: Herramientas agrupa fichas de costo y ajustes de precio. **Falta en DShalev**: módulos |
+
+Conclusión del eje: los módulos y su efecto están alineados en las dos apps nativas; DShalev no tiene el concepto
+de módulo (muestra todo el rail), lo que es una diferencia de producto pendiente de decisión, no un defecto de
+implementación.
+
+### 5.2 Iconos
+
+| Aspecto | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Catálogo propio | `ShalevIcons.kt`: **184** trazados `ImageVector` | **7** `imageset` con el SVG exacto de Android (`ShalevHome`, `ShalevInventory2`, `ShalevManoRecibe`, `ShalevHistory`, `ShalevBuild`, `ShalevSettings`, `ShalevLogo`) | **14** SVG en línea, todos en `base.html` | Diferencia de plataforma (aprobada) |
+| Iconos de la barra | `TopLevel` usa `ShalevIcons.*` | `MainSection.iconAsset` usa los `imageset` (mismo trazado) | SVG con los mismos `path` (Inicio, Inventario, Servicios…) | **Igual** en los 6 de navegación |
+| Resto de la interfaz | 184 trazados reutilizables | **32** símbolos SF (`systemName:`) | Sin iconos fuera del rail | Diferencia de plataforma |
+
+Evidencia de la igualdad de los iconos de navegación: el `path` de `ShalevHome.imageset/icon.svg` es
+`M 10 20 v -6 h 4 v 6 h 5 v -8 h 3 L 12 3 2 12 h 3 v 8 z`, idéntico al de `base.html:18` y al `Home` de
+`ShalevIcons`. No hay discrepancia de pictograma en la navegación principal; sí en la densidad (iOS usa SF
+Symbols donde Android usa su catálogo).
+
+### 5.3 Recorridos (walkthrough)
+
+| Aspecto | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Recorridos guiados | **51** `Recorrido` en `Recorridos.kt:197` (pestañas, formularios y ventanas), con **127** claves de objetivo (`ObjetivosRecorrido`) y persistencia `*_tour_shown` | **Ninguno**: no hay coach marks ni overlay de pasos | **Ninguno** | **Falta en iOS** y **Falta en DShalev** |
+| Asistente de bienvenida | `OnboardingLogic.kt:16`: 8 pasos (`BIENVENIDA`, `TIPO_APP`, `ACCESO_CLAVE`, `OBJETIVO`, `EMPLEADOS`, `DATOS`, `ALERTAS`, `PRUEBA`) | `OnboardingView.swift:71-78`: 7 pasos (sin `ACCESO_CLAVE` como paso aparte; el bloqueo se ofrece en Ajustes y en un `Toggle` del propio asistente) | `setup.html` (primer inicio, sin pasos guiados) | Diferencia de plataforma (aprobada) en el asistente |
+| Ayuda por pantalla | `PestanaAyuda` (9 pestañas) + 10 `AyudaVentana` con pasos numerados | Un solo manual con 13 `HelpTopic` agrupados por sección | `/ayuda` con guía y atajos | Diferencia de plataforma (aprobada) |
+
+El walkthrough es la carencia más grande de esta auditoría: Android guía paso a paso 51 flujos (incluidas las
+ventanas), mientras iOS y DShalev solo ofrecen el asistente inicial y un manual de lectura. No es un defecto de
+implementación de iOS/DShalev, sino una funcionalidad que no se trasladó.
+
+### 5.4 Listas
+
+| Aspecto | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Búsqueda | `TextosInventario.BUSCAR`, en Inventario, Servicios y Registros | `ShalevSearchField` en Inventario (`:119`), Servicios, Registros y Venta | Buscador en `/inventario`, `/ventas`, `/clientes` | Igual |
+| Filtro | `InventarioFiltros` (tipo + alerta + categoría), `Ventana.FILTRO_*` | `InventoryFilterSheet` (tipo + alerta), `RecordsFilterState` (fechas, importe, pago) | `?q=&categoria=` y filtros de fecha en reportes | Igual, con menos dimensiones en DShalev |
+| **Ordenación** | `ModoOrden` con **4 modos** ciclables (`CRONOLOGICO → ALFABETICO → IMPORTE_DESC → IMPORTE_ASC`), botón `InventarioTags.ORDENAR` | **Corregido en Inventario y Servicios:** `ModoOrden` + `aplicar` en el dominio (`Domain.swift:972`), con orden estable y botón «Ordenar: …» accesible | Orden fijo por servidor | **Falta en DShalev** y en el resto de listas de iOS (Registros mantiene su orden por fecha/nombre) |
+| Selección múltiple | Casillas + barra «N seleccionados» con exportar/borrar | Selección por pulsación larga (`InventoryView.swift:281-318`) | Formularios de una fila | Diferencia de plataforma (aprobada) |
+| Exportación de la lista | `FormatoSalida`: PDF, Excel, **Imagen (lista de precios)**, **Tarjetas promocionales** | XLSX, CSV, PDF, **PNG de precios** y **tarjetas PNG** (`ExportService.swift:418-435`) | Solo **XLSX** (`/inventario.xlsx`); sin PDF, imagen ni tarjetas | **Falta en DShalev** |
+| Exportación de registros | PDF/Excel con selección | XLSX/CSV/PDF | `/reportes/ventas.xlsx` | Igual salvo CSV extra en iOS |
+
+### 5.5 Prevención de errores de entrada
+
+Android centraliza la política en `FiltrosEntrada.kt`: un `enum` con **teclado + longitud máxima + filtro** por
+campo (`TELEFONO`, `TARJETA`, `CARNE`, `ENTERO`, `DECIMAL`, `CANTIDAD`, `DINERO`, `PORCENTAJE`, `TRANSACCION`…), y
+`aceptar(anterior, escrito)` que **rechaza el estado inválido mientras se escribe** (no solo al guardar), incluida
+`fechaParcialCarne` para que el carné no admita un mes 13.
+
+| Campo | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Carné de identidad (licencia y perfil) | `FiltroEntrada.CARNE` (11 dígitos, fecha AAMMDD progresiva) + `Validators.carneCubano` (fecha real, no futura) | **Corregido:** `License.swift validCI`/`fechaCarne`, 11 dígitos con siglo y fecha real no futura, usado en la solicitud y en el perfil; `ShalevInputFilter.ci` filtra mientras se escribe (`fechaParcialCarne`) | `solicitud.validar_carne_cubano`: 11 dígitos, siglo y fecha real, no futura | **Igual en las tres**; evidencia en `DomainParityTests.testCubanIdentityCardMatchesAndroidAndDesktopRule` |
+| Nombre | `NOMBRE` (letras Unicode, apóstrofo, guion, 2–80) | `validName` (`License.swift:870`), equivalente | `validar_nombre`, equivalente | Igual |
+| Teléfono | `FiltroEntrada.TELEFONO` (8 dígitos, empieza por 5 o 6) + `Phone.esMovilCubano` | `CustomerValidator.normalizedPhone` (8→+53); sin comprobación de móvil 5/6 para SMS | `normalizedPhone` equivalente | Diferencia menor: iOS no distingue fijo de móvil cubano |
+| Importes y cantidades | `DINERO` (2 decimales), `DECIMAL`/`CANTIDAD` (3), `PORCENTAJE` (0–100) con rechazo progresivo | `Decimal(string:)` + `.numberPad` por campo; validación al guardar | `decimal_quantity_milli` en servidor | Igual en el resultado, distinto en el momento de avisar |
+| N.º de transferencia | `^[A-Za-z0-9-]{4,30}$` en `LicenciaForm` | `validTransactionNumber` (6–30) | `_RE_TX` (4–30) | **Discrepancia menor** iOS (6–30 frente a 4–30); sin corregir: ampliar el rango afloja una validación, se decide con el propietario |
+
+### 5.6 Gráficos
+
+| Gráfico de Android | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Ventas por período | `ShalevBarChart` (`Charts.kt:139`) | `Chart { BarMark …}` (`HomeView.swift:397`) | `<progress>` por día (`dashboard.html:10`) | Igual en intención |
+| Ganancia (venta vs costo) | `ShalevAreaChart` con **dos series** (`InicioScreen.kt:858`) | **Corregido:** área de dos series con `AreaMark` en el acordeón de ganancia (`HomeView.swift`, «Área clara: ventas») | No hay | Igual Android/iOS (pendiente de pasada visual en simulador) |
+| Inventario por categorías | `ShalevDonutChart` con centro y leyenda | **Corregido:** `ShalevDonutChart` de existencias por categoría, valor al costo (`HomeView.swift`, `categoriasInventario`) | No hay | Igual Android/iOS |
+| Métodos de pago | `ShalevDonutChart` | **Corregido:** donut en `paymentAccordion` (`HomeView.swift`) | No hay | Igual Android/iOS |
+| Rankings (Top 3, servicios, empleados, clientes, locales) | 8 listas con medalla oro/plata/bronce (`InicioScreen.kt:905-968`) | **6**: más vendido, lento movimiento, rentabilidad, servicios ×2, clientes y ventas por local (con ganancia) | Top 3 en el panel | **Falta en iOS** solo el ranking de empleados; DShalev conserva 1 de 8 |
+| Períodos | 5: `TURNO, HOY, SEMANA, MES, ANIO` (`Estadisticas.kt:19`) | 5 equivalentes (`HomePeriod`, `HomeView.swift:6`) | Fechas libres | Igual Android/iOS |
+| Accesibilidad del gráfico | Descripción textual por gráfico (`descripcionDona`, `description`) | `chartYAxis(.hidden)` + texto explicativo y `descripcion` en `ShalevDonutChart` (VoiceOver lee una sola frase) | `aria-label` en cada barra | Igual |
+
+Los gráficos eran el segundo hueco. Tras el cierre de 2026-11-24, iOS tiene los tres gráficos de Android (barras,
+área de dos series y donuts) con la **misma paleta** de seis tonos (`Color.shalevChartPalette` copia `L_CHART`/`D_CHART`,
+incluido el gris reservado a «Otras»), y conserva un solo ranking pendiente (empleados). DShalev sigue con `progress`
+por día: sus gráficos son una decisión de producto pendiente, no un defecto.
+
+### 5.7 Resumen de carencias por plataforma
+
+Estado tras el cierre del 2026-11-24 (lo corregido se marca con la evidencia; lo demás sigue abierto):
+
+1. **iOS, abierto:** recorridos guiados (0 de 51) y el ranking de empleados. **Corregido:** ordenación de inventario
+   y servicios (`ModoOrden` + `aplicar`, prueba `testListOrderingCyclesLikeAndroidAndIsStable`), carné (11 dígitos
+   con fecha real, dos pruebas), área de dos series y los dos donuts (`ShalevDonutChart`), listas de servicios,
+   clientes y ventas por local.
+2. **DShalev, abierto:** selector de módulos y su efecto en la navegación, exportación de inventario a
+   PDF/imagen/tarjetas (solo hay XLSX/CSV), gráficos (solo `progress`) y recorridos guiados. **Corregido:** preajustes
+   de precios editables (`dshalev/preajustes.py`, `/herramientas/precios`, 16 pruebas), que antes solo existían en el
+   teléfono.
+3. **Discrepancia menor sin tocar:** el nº de transferencia sigue en 6–30 en iOS y 4–30 en Android/DShalev; ampliar el
+   rango afloja una validación y se decide con el propietario.
+4. **Diferencia de producto, no defecto:** DShalev no tiene módulos y su rail muestra siempre las 14 secciones; iOS
+   añade una sexta pestaña «Herramientas» que Android no tiene.
+
+Verificado en local: `pytest` de Web **284/284**, `ramplint` (27 plantillas) y `npm test` del punto de venta (6/6).
+Verificado en CI (run de `5426846`): Android completo (JVM, instrumentados compilados, API 26, Lint, Release/R8), iOS
+(pruebas del dominio, compilación de simulador e IPA sin firma) y «DShalev Windows portable» (pytest, accesibilidad,
+punto de venta, EXE y arranque del EXE). Los gráficos y el filtro nuevos **no** se han visto en un simulador ni en un
+iPhone real: es la primera revisión manual pendiente.

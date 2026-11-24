@@ -30,14 +30,19 @@ struct ServicesView: View {
     @State private var showFilterSheet = false
     @State private var showOcrSheet = false
     @State private var ocrMessage: String?
+    /// Mismo ciclo de ordenación que Android (recientes → A–Z → mayor → menor precio).
+    @State private var orden: ModoOrden = .cronologico
+    @Environment(\.accessibilityReduceMotion) private var reducirMovimiento
 
     private var types: [String] { Array(Set(store.activeServices.map(\.type))).sorted() }
     private var services: [ServiceItem] {
-        store.activeServices.filter { service in
+        let filtrados = store.activeServices.filter { service in
             (typeFilter == nil || service.type == typeFilter)
                 && (search.isEmpty || service.name.localizedCaseInsensitiveContains(search)
                     || service.type.localizedCaseInsensitiveContains(search))
         }
+        // Igual que en Inventario: el orden se aplica después del filtro.
+        return orden.aplicar(filtrados, nombre: { $0.name }, precio: { $0.priceCents })
     }
 
     var body: some View {
@@ -83,6 +88,18 @@ struct ServicesView: View {
             HStack(spacing: 8) {
                 Text("\(services.count) \(services.count == 1 ? "servicio" : "servicios")")
                     .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
+                Button { withAnimation(ShalevMotion.cambio(reducirMovimiento, duracion: ShalevMotion.muyCorta)) { orden = orden.siguiente } } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.arrow.down").font(.shalev(9, weight: .bold))
+                        Text(orden.rawValue).font(.shalev(11, weight: .semibold)).lineLimit(1)
+                    }
+                    .foregroundStyle(Color.shalevSecondaryText)
+                    .padding(.horizontal, 9).frame(minHeight: 26)
+                    .background(Color.shalevSurfaceVariant, in: Capsule())
+                    .shalevToque()
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(orden.etiquetaAccesible)
                 if let typeFilter {
                     Button { self.typeFilter = nil } label: {
                         HStack(spacing: 4) {

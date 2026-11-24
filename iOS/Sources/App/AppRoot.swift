@@ -9,6 +9,24 @@ struct IShalevApp: App {
     @StateObject private var sync: SyncManager
 
     init() {
+        // Fase 1.3: cargar el directorio de confianza (bootstrap del bundle + caché anti-retroceso) ANTES de
+        // construir el motor de licencias; si no, `GLTrust` cae a las claves fijadas y el canje queda cerrado.
+        // La actualización remota se hace en segundo plano y nunca bloquea el arranque.
+        let soporte = (try? FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+        ))?.appendingPathComponent("Shalev", isDirectory: true)
+        if let soporte {
+            try? FileManager.default.createDirectory(at: soporte, withIntermediateDirectories: true)
+            TrustDirectoryManager.shared.cacheURL = soporte.appendingPathComponent("directorio.json")
+        }
+        _ = TrustDirectoryManager.shared.loadEffective()
+        // `Task {}` hereda el actor de `init` (@MainActor): la descarga no bloquea porque `updateFromNetwork`
+        // es asíncrona y todo el trabajo de red ocurre en `await URLSession`. Se evita `Task.detached` para no
+        // capturar un tipo no `Sendable` fuera del actor.
+        Task(priority: .utility) {
+            _ = await TrustDirectoryManager.shared.updateFromNetwork()
+        }
+
         let store = ShalevStore()
         let license = GLLicenseManager()
         _store = StateObject(wrappedValue: store)

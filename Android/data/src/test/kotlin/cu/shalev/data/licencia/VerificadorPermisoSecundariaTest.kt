@@ -1,5 +1,6 @@
 package cu.shalev.data.licencia
 
+import android.content.ContextWrapper
 import cu.shalev.data.sync.LicenciaDto
 import cu.shalev.domain.model.LicenciaPrincipal
 import cu.shalev.licencia.TrustDirectory
@@ -8,7 +9,6 @@ import cu.shalev.licencia.crypto.EcP256
 import cu.shalev.licencia.redeem.RedeemContract
 import cu.shalev.licencia.secondary.FirmanteLicencia
 import cu.shalev.licencia.secondary.SubToken
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -26,9 +26,13 @@ import java.time.Instant
 class VerificadorPermisoSecundariaTest {
 
     private val ahora = Instant.parse("2026-11-20T12:00:00Z")
-    private val clock = { ahora }
+    // `Clock` es la interfaz de `cu.shalev.core.time`, no un lambda: el verificador llama a `clock.now()`.
+    private val clock = cu.shalev.core.time.Clock { ahora }
     private val deviceIdSecundaria = "SPVI:secundaria01"
-    private val deviceIds = object : DeviceIdProvider {
+    // `DeviceIdProvider` es una clase con `Context` inyectado (no una interfaz). En la prueba JVM sobra el
+    // contexto: se pasa un `ContextWrapper` vacío y se sobrescribe `deviceId`, lo único que consume el
+    // verificador, así que la propiedad real (que lee `Settings.Secure`) nunca se evalúa.
+    private val deviceIds = object : DeviceIdProvider(ContextWrapper(null)) {
         override val deviceId: String = deviceIdSecundaria
     }
 
@@ -43,25 +47,24 @@ class VerificadorPermisoSecundariaTest {
 
     @Before
     fun setUp() {
+        // El contrato real del directorio es (v, seq, emitidaEn, claves, endpointBase, appIds): no hay `id`,
+        // `alg` ni `validaHasta`, y `desde` es obligatorio.
         val claveDirectorio = TrustDirectory.Clave(
-            id = "gl-redeem-v1",
             kid = "gl-redeem-v1",
             uso = "canje",
-            alg = "ECIES-P256",
             spkiDer = glRedeemKey.public.encoded,
-            sha256 = EcP256.fingerprint(glRedeemKey.public.encoded),
-            desde = null,
+            huella = EcP256.fingerprint(glRedeemKey.public.encoded),
+            desde = 1_700_000_000,
             hasta = null,
-            estado = "vigente"
+            estado = "vigente",
         )
         val dir = TrustDirectory.Directorio(
             v = 1,
-            secuencia = 1,
-            actualizadaEn = "2026-11-20T00:00:00Z",
-            validaHasta = "2026-12-20T00:00:00Z",
-            endpointBase = "https://example.com",
+            seq = 1,
+            emitidaEn = 1_763_668_800,
             claves = listOf(claveDirectorio),
-            appIds = emptyMap()
+            endpointBase = "https://example.com",
+            appIds = emptyMap(),
         )
         TrustDirectory.effectiveDirectory = dir
     }
@@ -95,27 +98,23 @@ class VerificadorPermisoSecundariaTest {
 
         val sig = B64.enc(EcP256.sign(glRedeemKey.private, transcript))
 
-        val licObj = JSONObject().apply {
-            put("v", 1)
-            put("id", licenseId)
-            put("appId", "SHALEV-ANDROID")
-            put("type", "MENSUAL")
-            put("status", "ACTIVA")
-            put("issuedAt", "2026-11-20T12:00:00Z")
-            put("expiresAt", "2026-12-20T12:00:00Z")
-            put("deviceThumbprint", thumbprint)
-            put("redemptionId", "redem-123")
-            put("secundarias", secundarias)
-            put("devicePublicKey", spkiB64)
-        }
-
-        val envelope = JSONObject().apply {
-            put("kid", "gl-redeem-v1")
-            put("sig", sig)
-            put("license", licObj)
-        }
-
-        return envelope.toString()
+        // El contrato del canje es un sobre JSON plano `{v, alg, kid, license, sig}`: el contenido lleva números
+        // donde el contrato los define y la firma va sobre el transcript canónico ya calculado.
+        val contenido = "{" +
+            "\"v\":1," +
+            "\"id\":\"$licenseId\"," +
+            "\"appId\":\"SHALEV-ANDROID\"," +
+            "\"type\":\"MENSUAL\"," +
+            "\"status\":\"ACTIVA\"," +
+            "\"issuedAt\":\"2026-11-20T12:00:00Z\"," +
+            "\"expiresAt\":\"2026-12-20T12:00:00Z\"," +
+            "\"deviceThumbprint\":\"$thumbprint\"," +
+            "\"redemptionId\":\"redem-123\"," +
+            "\"secundarias\":$secundarias," +
+            "\"devicePublicKey\":\"$spkiB64\"" +
+            "}"
+        return "{\"v\":1,\"alg\":\"ECDSA_P256_SHA256\",\"kid\":\"gl-redeem-v1\"," +
+            "\"license\":$contenido,\"sig\":\"$sig\"}"
     }
 
     @Test

@@ -1,0 +1,104 @@
+{% extends 'base.html' %}{% block title %}Preajustes de precios{% endblock %}{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">PRECIOS POR CONDICIÓN</p>
+    <h1>Preajustes de precios</h1>
+    <p class="muted">Un ajuste porcentual que se aplica a los artículos elegidos cuando se da una condición: el método de pago, el volumen de la venta o el tipo de cliente.</p>
+  </div>
+  <a class="secondary-button" href="/herramientas">Volver a Herramientas</a>
+</div>
+
+{% if notice %}<div class="notice {{ notice_kind or 'info' }}" role="{% if notice_kind == 'error' %}alert{% else %}status{% endif %}">{{ notice }}</div>{% endif %}
+
+<div class="content-grid inventory-grid">
+  <section class="panel">
+    <div class="panel-heading">
+      <div><p class="eyebrow">NUEVO PREAJUSTE</p><h2>Ajuste de precios</h2></div>
+      <span class="icon-tile">%</span>
+    </div>
+    <form method="post" action="/herramientas/precios/nuevo" class="form-stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label>Nombre del preajuste
+        <input name="name" required minlength="3" maxlength="60" placeholder="Ej. Mayorista 12 unidades" aria-describedby="ayuda-nombre">
+        <small class="tiny" id="ayuda-nombre">De 3 a 60 caracteres.</small>
+      </label>
+      <label>Porcentaje
+        <input name="basis_points" required inputmode="decimal" placeholder="Ej. 10 o -5,5" aria-describedby="ayuda-puntos">
+        <small class="tiny" id="ayuda-puntos">Entre -100 y 100. Acepta coma o punto y hasta dos decimales; un negativo rebaja el precio.</small>
+      </label>
+      <label>Productos incluidos
+        <input name="productos" placeholder="Identificadores separados por coma" aria-describedby="ayuda-productos">
+        <small class="tiny" id="ayuda-productos">Opcional si eliges servicios. Ej. {{ productos[:3]|map(attribute='id')|join(', ') or '1, 2' }}.</small>
+      </label>
+      <label>Servicios incluidos
+        <input name="servicios" placeholder="Identificadores separados por coma" aria-describedby="ayuda-servicios">
+        <small class="tiny" id="ayuda-servicios">Opcional si eliges productos. Ej. {{ servicios[:3]|map(attribute='service_id')|join(', ') or '1' }}.</small>
+      </label>
+      <label>Condición: método de pago
+        <select name="payment_method">
+          <option value="">Cualquier método</option>
+          {% for clave, etiqueta in metodos.items() %}<option value="{{ clave }}">{{ etiqueta }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Condición: volumen mínimo de unidades
+        <input name="volume_minimum" type="number" min="1" max="100000" step="1" placeholder="Sin mínimo">
+      </label>
+      <label>Condición: tipo de cliente
+        <select name="customer_type">
+          <option value="">Cualquier cliente</option>
+          {% for clave, etiqueta in tipos.items() %}<option value="{{ clave }}">{{ etiqueta }}</option>{% endfor %}
+        </select>
+      </label>
+      <small class="tiny">Un preajuste se activa por una sola condición: si eliges método de pago, deja el volumen y el tipo de cliente en blanco. Varios preajustes que coincidan sobre el mismo artículo se suman.</small>
+      <button class="primary-button full" type="submit">Guardar preajuste</button>
+    </form>
+  </section>
+
+  <section class="panel table-panel">
+    <div class="panel-heading">
+      <div><p class="eyebrow">GUARDADOS</p><h2>{{ preajustes_guardados|length }} preajustes</h2></div>
+    </div>
+    {% if preajustes_guardados %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Preajuste</th><th class="numeric">Ajuste</th><th>Se activa con</th><th>Alcance</th><th>Estado</th><th>Acción</th></tr></thead>
+        <tbody>
+          {% for p in preajustes_guardados %}
+          <tr>
+            <td data-label="Preajuste"><strong>{{ p.nombre }}</strong></td>
+            <td data-label="Ajuste" class="numeric">{{ '%+.2f' % p.porcentaje }} %</td>
+            <td data-label="Se activa con">{{ p.condicion_texto }}</td>
+            <td data-label="Alcance">{{ p.alcance_texto }}</td>
+            <td data-label="Estado">{% if p.activo %}<span class="stock-badge ok">Activo</span>{% else %}<span class="stock-badge low">Pausado</span>{% endif %}</td>
+            <td data-label="Acción">
+              <form method="post" action="/herramientas/precios/{{ p.id }}/estado" class="inline-form">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <button class="quiet-button" type="submit">{% if p.activo %}Pausar{% else %}Activar{% endif %}</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><span class="empty-icon">%</span><strong>Todavía no hay preajustes</strong><p>Crea el primero con el formulario de la izquierda.</p></div>
+    {% endif %}
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Artículos disponibles</h2>
+  <p class="muted">Identificadores que puedes usar en «Productos incluidos» y «Servicios incluidos».</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Identificador</th><th>Artículo</th><th>Tipo</th><th class="numeric">Precio actual</th></tr></thead>
+      <tbody>
+        {% for item in productos %}<tr><td>{{ item.id }}</td><td>{{ item.name }}</td><td>{{ item.category }}</td><td class="numeric">{{ item.sale_price_cents|cup }}</td></tr>{% endfor %}
+        {% for item in servicios %}<tr><td>{{ item.service_id }}</td><td>{{ item.name }}</td><td>Servicio móvil</td><td class="numeric">{{ item.price_cents|cup }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<p class="tiny">El escritorio edita los preajustes que el teléfono aplica al cobrar; no recalcula precios de venta por su cuenta. Los preajustes de servicios móviles viajan en la instantánea de sincronización.</p>
+{% endblock %}

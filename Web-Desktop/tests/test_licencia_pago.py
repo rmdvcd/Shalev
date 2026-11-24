@@ -58,7 +58,10 @@ def test_textos_cobro_gsm7():
 @pytest.fixture(autouse=True)
 def _permitir_identidad_dev(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setenv("DSHALEV_ALLOW_DEV_IDENTITY", "1")
+    # El ancla sale de la carpeta de datos: en Windows usa LOCALAPPDATA y en el resto XDG_DATA_HOME. Se aíslan las
+    # dos, o en Windows las pruebas leerían el ancla real del usuario (y con ella una licencia de otro «equipo»).
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "localappdata"))
 
 
 @pytest.fixture
@@ -105,11 +108,16 @@ def client(tmp_path: Path):
 
 def test_tarjeta_pago_en_solicitar_web(client: TestClient, monkeypatch):
     """T2: La tarjeta 'Cómo pagar' se muestra antes del envío y se oculta en recuperación."""
-    # 1. Sin métodos de cobro configurados: muestra texto alternativo
+    # 1. Sin métodos de cobro configurados: muestra texto alternativo. La advertencia de pagar solo a los
+    # datos de esta pantalla se muestra siempre (antes solo aparecía cuando había métodos configurados).
     res = client.get("/licencia/solicitar")
     assert res.status_code == 200
     assert TITULO_PAGO in res.text
     assert AVISO_SIN_METODOS in res.text
+    assert FRASE_PAGA_SOLO in res.text
+    # Paridad con Android e iOS: la tarjeta lleva el importe con las tarifas canónicas (mensual sin secundarias).
+    assert 'id="importe-pagar"' in res.text
+    assert "6,000.00 CUP" in res.text
 
     # 2. Con métodos de cobro configurados: muestra frase y destino con botón Copiar
     metodos_test = (

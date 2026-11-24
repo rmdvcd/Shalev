@@ -62,6 +62,53 @@ final class RedeemClient {
         self.endpointStatus = endpointStatus
     }
 
+    /// T4: cliente configurado desde el build (`Info.plist`) y el directorio de confianza efectivo.
+    ///
+    /// El canje queda cerrado (endpoints `nil` → `RedeemError.disabled`) salvo que se cumplan las cuatro
+    /// condiciones, igual que en Android y DShalev: build habilitado, `appId` no vacío, base HTTPS publicada
+    /// por el directorio efectivo y al menos una clave de `uso == "canje"` vigente.
+    ///
+    /// `nonisolated` porque las vistas `@MainActor` (por ejemplo `LicenseView`) la consultan; el cuerpo solo toca
+    /// valores `Sendable` (la lectura del directorio va protegida por `NSLock`).
+    nonisolated static func configured(
+        bundle: Bundle = .main,
+        directory: TrustDirectory.Directory? = TrustDirectory.effectiveDirectory
+    ) -> RedeemClient {
+        let appID = (bundle.object(forInfoDictionaryKey: "CANJE_APP_ID") as? String)
+            ?? RedeemContract.defaultAppID
+        let enabled = (bundle.object(forInfoDictionaryKey: "CANJE_HABILITADO") as? Bool) ?? false
+        return make(
+            appID: appID,
+            enabled: enabled,
+            endpointBase: directory?.endpointBase ?? "",
+            hasActiveRedeemKey: directory?.hasActiveRedeemKey ?? false
+        )
+    }
+
+    /// Variante pura (sin `Bundle`) para poder probarla en `swift test`.
+    ///
+    /// La regla es la misma que `RedeemContract.canjeActivo(...)` en Android y que
+    /// `ConfiguracionLicencia.comercial_habilitada` en DShalev: build habilitado, `appId` del producto,
+    /// base HTTPS publicada en el directorio y al menos una clave vigente con `uso == "canje"`.
+    static func make(
+        appID: String,
+        enabled: Bool,
+        endpointBase: String,
+        hasActiveRedeemKey: Bool
+    ) -> RedeemClient {
+        let base = normalizedBase(endpointBase)
+        let usable = enabled && !appID.isEmpty && hasActiveRedeemKey && base.hasPrefix("https://")
+        let redeem = usable ? URL(string: base + "/v1/redeem") : nil
+        let status = usable ? URL(string: base + "/v1/status") : nil
+        return RedeemClient(appID: appID, endpointRedeem: redeem, endpointStatus: status)
+    }
+
+    /// Quita solo las barras finales: recortar el conjunto `"/"` borraría el `//` del esquema.
+    static func normalizedBase(_ endpointBase: String) -> String {
+        endpointBase.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "/+$", with: "", options: .regularExpression)
+    }
+
     var canRedeem: Bool {
         endpointRedeem != nil && endpointRedeem?.scheme == "https" && !appID.isEmpty
     }
@@ -70,6 +117,7 @@ final class RedeemClient {
         endpointStatus != nil && endpointStatus?.scheme == "https" && !appID.isEmpty
     }
 
+    @MainActor
     func redeem(code: String, identity: GLIdentity, manager: GLLicenseManager, now: Date = Date()) async throws -> GLActivationResult {
         guard canRedeem, let url = endpointRedeem else {
             throw RedeemError.disabled
@@ -109,7 +157,12 @@ final class RedeemClient {
 
         // Reintento automático ante CLOCK_SKEW (máximo 1 reintento con hora del servidor)
         if statusCode == 400 {
-            if let serverTime = parseServerTime(from: data) ?? (await fetchTime(from: url)) {
+            // `??` con un operando `async` no compila: la autoclosura no soporta concurrencia.
+            var serverTime: Date? = parseServerTime(from: data)
+            if serverTime == nil {
+                serverTime = await fetchTime(from: url)
+            }
+            if let serverTime {
                 manager.recoverClock(serverTime: serverTime)
                 requestedAt = GLDateParser.formatUTC(serverTime)
                 nonce = (0..<16).map { _ in UInt8.random(in: 0...255) }
@@ -136,9 +189,7 @@ final class RedeemClient {
                     "proof": signature
                 ]
 
-                let retryResult = try await sendPost(url: url, payload: payload)
-                data = retryResult.0
-                statusCode = retryResult.1
+                (data, statusCode) = try await sendPost(url: url, payload: payload)
             } else {
                 throw RedeemError.clockSkew(now)
             }
@@ -260,6 +311,7 @@ final class RedeemClient {
         )
     }
 
+    @MainActor
     func status(identity: GLIdentity, manager: GLLicenseManager, licenseIDManual: String? = nil, now: Date = Date()) async throws -> GLActivationResult {
         guard canCheckStatus, let url = endpointStatus else {
             throw RedeemError.disabled
@@ -300,7 +352,12 @@ final class RedeemClient {
 
         // Reintento automático ante CLOCK_SKEW
         if statusCode == 400 {
-            if let serverTime = parseServerTime(from: data) ?? (await fetchTime(from: url)) {
+            // `??` con un operando `async` no compila: la autoclosura no soporta concurrencia.
+            var serverTime: Date? = parseServerTime(from: data)
+            if serverTime == nil {
+                serverTime = await fetchTime(from: url)
+            }
+            if let serverTime {
                 manager.recoverClock(serverTime: serverTime)
                 requestedAt = GLDateParser.formatUTC(serverTime)
                 nonce = (0..<16).map { _ in UInt8.random(in: 0...255) }
@@ -327,9 +384,7 @@ final class RedeemClient {
                     "proof": signature
                 ]
 
-                let retryResult = try await sendPost(url: url, payload: payload)
-                data = retryResult.0
-                statusCode = retryResult.1
+                (data, statusCode) = try await sendPost(url: url, payload: payload)
             } else {
                 throw RedeemError.clockSkew(now)
             }
@@ -393,8 +448,8 @@ final class RedeemClient {
         )
 
         let kid = (statusObj["kid"] as? String) ?? "gl-redeem-v1"
+        // Sin respaldo por "primera clave de canje": el kid exacto es la única autorización, igual que en Android.
         let redeemKey = TrustDirectory.effectiveDirectory?.redeemKey(kid: kid)
-            ?? TrustDirectory.effectiveDirectory?.canjeKeys().first
 
         guard let redeemKey else {
             throw RedeemError.serverError(code: "UNKNOWN_KID", message: "Clave pública del servicio no autorizada para kid: \(kid)")

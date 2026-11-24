@@ -1,5 +1,22 @@
 # Shalev — Verificación real
 
+## Paridad Android → iOS/DShalev tras PR #153 (2026-11-24)
+
+**Rama:** `arena/cc986ebb-shalev`, basada en `5ce64efa186c1e8aa3d8ed057b94afa04435e1dd`. Matriz de paridad en
+`docs/PARIDAD_ANDROID.md` §4 y detalle del cambio en `docs/HISTORIAL_DESARROLLO.md`.
+
+| Comprobación | Resultado observado |
+|---|---|
+| CI `CI` (commit `81ae65f`) | **Verde**: `API mínima 26`, `Permisos del manifiesto fusionado`, `Lint (baseline)`, `Tests JVM y compilación de instrumentados` y `Release (R8) y APK debug` en `success`. `Tests instrumentados (emulador)` en `skipped`. |
+| CI `Compilación iOS de IShalev` (commit `bb7cab3`, sin cambios en `iOS/**` después) | **Verde**: pruebas del dominio (`swift test`), compilación de la app, IPA y build de simulador. Los pasos de firma se omiten (`skipped`) por falta de credenciales de Apple. |
+| Pruebas Web (`Web-Desktop`) | **Verde**: `pytest` 267/267 (`/tmp/venv`). Sin cambios en `Web-Desktop` después de la última corrida. |
+| `tools/verificacion` | 31/31; `botones.py` sin incumplimientos; `ramplint` 26 plantillas sin hallazgos; `verificar_raices_release.py` en modo desarrollo informa y no bloquea. |
+| Defectos que solo destapó la compilación | `DeviceIdProvider` es clase con `Context` (no interfaz), `org.json` del `android.jar` de pruebas es un stub y `verificarAnclajeCanje` exigía una capa `{license, sig}` inexistente en el sobre del canje. Detalle en `PARIDAD_ANDROID.md` §4.9. |
+| No verificado aquí | Canje real contra GL, DPAPI/EXE en Windows físico, firma con credenciales de Apple y ejecución de los instrumentados en emulador. |
+
+**Conclusión:** Android e iOS compilan y sus pruebas pasan en CI para este árbol. El canje queda probado con
+vectores de prueba (`gl-redeem.example.test`), no contra el servicio real.
+
 ## Miniaturas de tarjetas redondeadas y visibilidad con teclado (1.0.8) — revisión estática 2026-11-18
 
 **Rama:** `arena/cb2f89c4-shalev`, basada en `94df0bae8dc9a46d63d97f63ca757c83605ba5fb`.

@@ -42,12 +42,23 @@ object TrustDirectory {
         val estado: String,
     )
 
+    /**
+     * Bloque opcional de canje del directorio (Anexo A / B). Solo contiene datos públicos:
+     * la base HTTPS autorizada del servicio GL y el mapa de `appId` por producto.
+     */
+    @Serializable
+    data class CanjeDto(
+        val endpoint_base: String = "",
+        val app_ids: Map<String, String> = emptyMap(),
+    )
+
     @Serializable
     data class DatosDto(
         val v: Int,
         val seq: Int,
         val emitidaEn: Long,
         val claves: List<ClaveDto>,
+        val canje: CanjeDto? = null,
     )
 
     data class Clave(
@@ -82,6 +93,10 @@ object TrustDirectory {
         val seq: Int,
         val emitidaEn: Long,
         val claves: List<Clave>,
+        /** Base HTTPS autorizada del servicio de canje (`canje.endpoint_base`); vacía = canje cerrado. */
+        val endpointBase: String = "",
+        /** `appId` autorizados por producto (`canje.app_ids`). Vacío = usar el del build. */
+        val appIds: Map<String, String> = emptyMap(),
     ) {
         fun signKeysFor(emitidaEn: Instant?): List<ByteArray> {
             val seg = emitidaEn?.epochSecond ?: Instant.now().epochSecond
@@ -208,6 +223,8 @@ object TrustDirectory {
             seq = datos.seq,
             emitidaEn = datos.emitidaEn,
             claves = claves,
+            endpointBase = datos.canje?.endpoint_base.orEmpty().trimEnd('/'),
+            appIds = datos.canje?.app_ids.orEmpty(),
         )
     }
 
@@ -273,7 +290,8 @@ object TrustDirectoryManager {
             conn.instanceFollowRedirects = true
             conn.connect()
             if (conn.responseCode != 200) return false
-            val bytes = conn.inputStream.use { it.readNBytes(TrustDirectory.MAX_SIZE_BYTES + 1) }
+            // `readNBytes` es API 33: se lee a mano para que la app siga funcionando desde API 26.
+            val bytes = conn.inputStream.use { leerComoMaximo(it, TrustDirectory.MAX_SIZE_BYTES + 1) }
             if (bytes.size > TrustDirectory.MAX_SIZE_BYTES) return false
             val text = String(bytes, Charsets.UTF_8)
             val nuevo = TrustDirectory.parseAndVerify(text)
@@ -291,5 +309,19 @@ object TrustDirectoryManager {
         } catch (_: Exception) {
             return false
         }
+    }
+
+    /** Lee como máximo `limite` bytes del flujo (equivalente a `InputStream.readNBytes`, disponible desde API 33). */
+    private fun leerComoMaximo(entrada: java.io.InputStream, limite: Int): ByteArray {
+        val salida = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        var total = 0
+        while (total < limite) {
+            val leidos = entrada.read(buffer, 0, minOf(buffer.size, limite - total))
+            if (leidos <= 0) break
+            salida.write(buffer, 0, leidos)
+            total += leidos
+        }
+        return salida.toByteArray()
     }
 }

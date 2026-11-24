@@ -19,7 +19,25 @@ Claves fijas deterministas utilizadas para la suite de pruebas unitarias en Andr
 ## Archivos de Vectores
 
 - `directorio-v1.json`: Directorio válido con `v=1`, `seq=1`, firmado por la Raíz A de prueba.
-  Contiene la clave ECDH vigente de PR #148 y la clave de firma vigente de PR #148.
+  Contiene la clave ECDH vigente de PR #148, la clave de firma vigente de PR #148 y una clave de canje
+  de prueba (`gl-redeem-vector`, escalar determinista `0x43` repetido 32 veces).
+  El bloque `canje` publica `endpoint_base = https://gl-redeem.example.test` (dominio reservado de pruebas,
+  no es el servicio real) y `app_ids` para `SHALEV-ANDROID`, `SHALEV-IOS` y `DSHALEV`.
+
+### Firmas históricas
+
+El directorio publica también las cinco firmas que `LicenseTrust` (Android) y `GLTrust` (iOS) tienen fijadas de
+rotaciones anteriores (`gl-sign-1022`, `gl-sign-1005`, `gl-sign-1015a`, `gl-sign-1015b`, `gl-sign-0930`), con
+`estado: retirada` y `hasta` = fecha de retirada. Es necesario porque, en cuanto existe un directorio efectivo,
+este es autoritativo (defecto D2): si solo figurara la firma vigente, las licencias ya emitidas dejarían de
+verificar al arrancar. Con `hasta` acotado siguen validando las licencias antiguas y ninguna nueva se puede
+firmar con ellas.
+
+### Por qué el vector lleva canje
+
+Sin una clave `uso: "canje"` y una `endpoint_base` HTTPS, APK, IPA y DShalev no pueden ejercitar el canje:
+la regla de apertura es la misma en las tres plataformas y falla cerrada. El vector permite probar el camino
+completo sin publicar credenciales reales; en producción el directorio lo firma el servicio con sus propias claves.
 
 ## Nota de Verificación Cruzada
 Generado conforme al Anexo A de `IMPLEMENTACION_SHALEV.md`. La verificación cruzada con el CLI oficial de GL queda registrada como pendiente de ejecución cuando el CLI remoto esté accesible.

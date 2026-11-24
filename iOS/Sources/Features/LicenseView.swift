@@ -414,12 +414,13 @@ struct LicenseView: View {
             inputField("Apellidos", text: $lastName, placeholder: "Apellidos",
                        isError: showErrors && !validName(lastName), errorText: "Solo letras, 2 a 80",
                        capitalization: .words, focus: .lastName, submit: .next) { focusedField = .ci }
-            inputField("Carné de identidad", text: $identification, placeholder: "5–20 letras o dígitos",
-                       isError: showErrors && !validCI(identification), errorText: "5 a 20 letras o dígitos",
-                       keyboard: .asciiCapable, capitalization: .characters, focus: .ci, submit: .done) { focusedField = nil }
+            // 11 dígitos con fecha real (AAMMDD + siglo), igual que Android y DShalev.
+            inputField("Carné de identidad", text: $identification, placeholder: "85010112345",
+                       isError: showErrors && !validCI(identification), errorText: "11 dígitos con fecha real",
+                       filtro: .ci, keyboard: .numberPad, capitalization: .characters, focus: .ci, submit: .done) { focusedField = nil }
             inputField("Teléfono", text: $phone, placeholder: "5XXXXXXX",
                        isError: showErrors && normalizePhone(phone) == nil, errorText: "Número no válido",
-                       keyboard: .phonePad)
+                       filtro: .phone, keyboard: .phonePad)
             if !profilePhones.isEmpty {
                 Text("Tus teléfonos")
                     .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
@@ -586,14 +587,16 @@ struct LicenseView: View {
                                     .font(.shalev(13, weight: .medium))
                                     .foregroundStyle(Color.shalevPrimary)
 
+                                // La advertencia se muestra siempre, igual que en Android y DShalev: antes solo
+                                // aparecía cuando había métodos de cobro configurados.
+                                Text(PaymentInstructions.frasePagaSolo)
+                                    .font(.shalev(12))
+                                    .foregroundStyle(Color.shalevSecondaryText)
                                 if PaymentInstructions.metodos.isEmpty {
                                     Text(PaymentInstructions.avisoSinMetodos)
                                         .font(.shalev(12))
                                         .foregroundStyle(Color.shalevSecondaryText)
                                 } else {
-                                    Text(PaymentInstructions.frasePagaSolo)
-                                        .font(.shalev(12))
-                                        .foregroundStyle(Color.shalevSecondaryText)
                                     ForEach(PaymentInstructions.metodos, id: \.self) { metodo in
                                         HStack {
                                             VStack(alignment: .leading, spacing: 2) {
@@ -620,7 +623,7 @@ struct LicenseView: View {
                                 }
                             }
                             .padding(12)
-                            .background(Color.shalevCardBackground)
+                            .background(Color.shalevSurfaceVariant)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
 
@@ -703,13 +706,9 @@ struct LicenseView: View {
 
     // MARK: - Paso 3 · activación
 
+    /// Misma regla que `RedeemClient.configured()`: si no hay endpoints, el canje está cerrado.
     private var isCanjeActive: Bool {
-        let dir = TrustDirectory.effectiveDirectory
-        let hasCanjeKey = dir?.claves.contains(where: { $0.uso == "canje" && $0.activa }) ?? false
-        let hasBase = dir?.endpointBase.hasPrefix("https://") ?? false
-        let appId = Bundle.main.object(forInfoDictionaryKey: "CANJE_APP_ID") as? String ?? RedeemContract.defaultAppID
-        let enabled = Bundle.main.object(forInfoDictionaryKey: "CANJE_HABILITADO") as? Bool ?? true
-        return enabled && !appId.isEmpty && hasCanjeKey && hasBase
+        RedeemClient.configured().canRedeem
     }
 
     private var redeemCard: some View {
@@ -860,6 +859,7 @@ struct LicenseView: View {
 
     private func inputField(_ title: String, text: Binding<String>, placeholder: String,
                             isError: Bool = false, errorText: String? = nil,
+                            filtro: ShalevInputFilter = .text(),
                             keyboard: UIKeyboardType = .default,
                             capitalization: TextInputAutocapitalization = .never,
                             focus: LicenseFocus? = nil, submit: SubmitLabel = .done,
@@ -874,6 +874,9 @@ struct LicenseView: View {
                     .focused($focusedField, equals: focus)
                     .submitLabel(submit)
                     .onSubmit { onSubmit?() }
+                    // Misma prevención que Android: el carné solo admite 11 dígitos con fecha plausible y el
+                    // teléfono 8 cifras (al pegar «+53 …» se descarta el prefijo).
+                    .shalevInputFilter(filtro, text: text)
                     .textContentType(keyboard == .phonePad ? .telephoneNumber : nil)
                     .font(.shalev(14))
                     .padding(11)
@@ -988,12 +991,8 @@ struct LicenseView: View {
         defer { isBusy = false }
         do {
             let identity = try GLIdentity.deviceIdentity()
-            let client = RedeemClient(
-                appID: RedeemContract.defaultAppID,
-                endpointRedeem: nil,
-                endpointStatus: nil
-            )
-            let result = try await client.redeem(code: redeemCode, identity: identity, manager: license)
+            let result = try await RedeemClient.configured()
+                .redeem(code: redeemCode, identity: identity, manager: license)
             redeemCode = ""
             await license.refresh()
             switch result {
@@ -1031,12 +1030,8 @@ struct LicenseView: View {
         defer { isBusy = false }
         do {
             let identity = try GLIdentity.deviceIdentity()
-            let client = RedeemClient(
-                appID: RedeemContract.defaultAppID,
-                endpointRedeem: nil,
-                endpointStatus: nil
-            )
-            _ = try await client.status(identity: identity, manager: license)
+            _ = try await RedeemClient.configured()
+                .status(identity: identity, manager: license)
             await license.refresh()
             alertMessage = "Estado comprobado con el servicio."
         } catch let err as RedeemError {

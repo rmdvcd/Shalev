@@ -40,6 +40,17 @@ extension Color {
     static let shalevSuccess = adaptive(light: 0x2E7D32, dark: 0x81C784)
     static let shalevChartBlue = adaptive(light: 0x2B4FA3, dark: 0x66D1EF)
     static let shalevChartOrange = adaptive(light: 0xB4541A, dark: 0xF6A15C)
+
+    /// Paleta de los gráficos, copiada de `ColorTokens.L_CHART` / `D_CHART` de Android: el mismo orden y los mismos
+    /// seis tonos, para que un donut de iOS y su equivalente en Android repartan el mismo color a la misma categoría.
+    static let shalevChartPalette: [Color] = [
+        adaptive(light: 0x2B4FA3, dark: 0x66D1EF), // 1 azul (NAVY / SKY)
+        adaptive(light: 0xB4541A, dark: 0xF6A15C), // 2 naranja
+        adaptive(light: 0x8B5E34, dark: 0xD4A373), // 3 caramelo
+        adaptive(light: 0xA23B72, dark: 0xF48FB1), // 4 magenta
+        adaptive(light: 0x6B6B00, dark: 0xC5C56A), // 5 oliva
+        adaptive(light: 0x80868D, dark: 0x9E9E9E), // 6 «Otras»
+    ]
 }
 
 // MARK: - Dynamic Type
@@ -735,7 +746,12 @@ enum ShalevInputFilter {
             if digits.count > 8 && digits.hasPrefix("53") { digits = String(digits.dropFirst(2)) }
             return String(digits.prefix(15))
         case .ci:
-            return String(input.filter { ($0 >= "0" && $0 <= "9") || ($0 >= "A" && $0 <= "Z") || ($0 >= "a" && $0 <= "z") }.uppercased().prefix(20))
+            // Carné cubano: 11 dígitos (Decreto-Ley 248/2007), igual que `FiltroEntrada.CARNE` de Android.
+            let digits = String(input.filter { $0 >= "0" && $0 <= "9" }.prefix(11))
+            // Se rechaza un mes o un día imposible mientras se escribe, sin bloquear el borrado:
+            // si el texto nuevo es más corto que el anterior, siempre se acepta.
+            if digits.count < input.filter({ $0 >= "0" && $0 <= "9" }).count { return digits }
+            return Self.fechaParcialCarne(digits) ? digits : String(digits.dropLast())
         case .card:
             return String(input.filter { $0 >= "0" && $0 <= "9" }.prefix(20))
         case .transaction:
@@ -745,6 +761,17 @@ enum ShalevInputFilter {
             if let v = Int(digits), v > 100 { return "100" }
             return digits
         }
+    }
+
+    /// Lo escrito del carné encaja con una fecha AAMMDD: mes 01–12 y día 01–31 (el resto lo comprueba `validCI`).
+    /// Es la misma comprobación progresiva que `FiltroEntrada.fechaParcialCarne` de Android.
+    static func fechaParcialCarne(_ d: String) -> Bool {
+        let c = Array(d)
+        if c.count >= 3, !(c[2] == "0" || c[2] == "1") { return false }
+        if c.count >= 4, let mes = Int(String(c[2...3])), !(1...12).contains(mes) { return false }
+        if c.count >= 5, !(c[4] == "0" || c[4] == "1" || c[4] == "2" || c[4] == "3") { return false }
+        if c.count >= 6, let dia = Int(String(c[4...5])), !(1...31).contains(dia) { return false }
+        return true
     }
 
     private static func sanitizeDecimal(_ raw: String, maxDecimals: Int, allowSign: Bool, maxLength: Int) -> String {
@@ -790,3 +817,96 @@ extension View {
     }
 }
 
+
+// MARK: - Gráfico de dona
+
+/// Un sector del donut: valor y etiqueta ya formateada (el color se asigna por posición con la paleta de Android).
+struct ShalevDonutSlice: Identifiable, Equatable {
+    let id: Int
+    let etiqueta: String
+    let valor: Int64
+}
+
+/// Donut con centro y leyenda, equivalente a `ShalevDonutChart` de Android (`Charts.kt:323`).
+///
+/// Reproduce lo que el gráfico de Android comunica: la proporción de cada sector, el total en el centro y una
+/// leyenda con el importe. VoiceOver recibe la misma descripción textual que Android genera con `descripcionDona`,
+/// de modo que el gráfico no queda como una imagen muda.
+struct ShalevDonutChart: View {
+    let slices: [ShalevDonutSlice]
+    var centerText: String? = nil
+    var descripcion: String
+    @Environment(\.accessibilityReduceMotion) private var reducirMovimiento
+    @State private var progreso: Double = 0
+
+    private var total: Int64 { slices.reduce(0) { $0 + max(0, $1.valor) } }
+
+    /// Ángulos acumulados (0…1) de cada sector, recortados a valores no negativos.
+    private var fracciones: [Double] {
+        guard total > 0 else { return [] }
+        var acumulado = 0.0
+        return slices.map { slice in
+            let valor = Double(max(0, slice.valor)) / Double(total)
+            acumulado += valor
+            return acumulado
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .stroke(Color.shalevSurfaceVariant, lineWidth: 22)
+                if total > 0 {
+                    ForEach(Array(slices.enumerated()), id: \.element.id) { indice, _ in
+                        let inicio = indice == 0 ? 0.0 : fracciones[indice - 1]
+                        let fin = fracciones[indice]
+                        Circle()
+                            .trim(from: inicio * progreso, to: fin * progreso)
+                            .stroke(Color.shalevChartPalette[indice % Color.shalevChartPalette.count],
+                                    style: StrokeStyle(lineWidth: 22, lineCap: .butt))
+                            .rotationEffect(.degrees(-90))
+                    }
+                }
+                if let centerText {
+                    Text(centerText)
+                        .font(.shalev(13, weight: .semibold))
+                        .foregroundStyle(Color.shalevText)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 34)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(2)
+                }
+            }
+            .frame(width: 150, height: 150)
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(slices.enumerated()), id: \.element.id) { indice, slice in
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(Color.shalevChartPalette[indice % Color.shalevChartPalette.count])
+                            .frame(width: 10, height: 10)
+                        Text(slice.etiqueta)
+                            .font(.shalev(12))
+                            .foregroundStyle(Color.shalevText)
+                            .lineLimit(1)
+                        Spacer(minLength: 6)
+                        Text(Cup(cents: slice.valor).formatted)
+                            .font(.shalev(12, weight: .semibold))
+                            .foregroundStyle(Color.shalevSecondaryText)
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(descripcion)
+        .onAppear {
+            if reducirMovimiento {
+                progreso = 1
+            } else {
+                withAnimation(.easeOut(duration: 0.45)) { progreso = 1 }
+            }
+        }
+    }
+}

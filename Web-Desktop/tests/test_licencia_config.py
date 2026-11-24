@@ -250,3 +250,49 @@ def test_configuracion_desde_directorio_sin_endpoint_falla_cerrado():
     assert conf.comercial_habilitada is False
     assert "Falta" in conf.motivo_deshabilitada()
 
+
+
+def test_registrar_directorio_efectivo_habilita_la_configuracion_del_directorio():
+    """El arranque de DShalev debe derivar la configuración del directorio, no quedarse con la fija."""
+    from dshalev.licencia.config_licencia import (
+        configuracion,
+        directorio_efectivo,
+        registrar_directorio_efectivo,
+    )
+    from dshalev.licencia.directorio import ClaveDirectorio, DirectorioConfianza
+
+    clave = ec.generate_private_key(ec.SECP256R1())
+    spki = clave.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    directorio = DirectorioConfianza(
+        v=1,
+        seq=1,
+        emitida_en=1776470400,
+        claves=[
+            ClaveDirectorio(
+                kid="gl-redeem-v1",
+                uso="canje",
+                spki_b64=base64.b64encode(spki).decode(),
+                spki_der=spki,
+                huella="sha256:3333:...",
+                desde=1700000000,
+                hasta=None,
+                estado="vigente",
+            )
+        ],
+        endpoint_base="https://licencias.ejemplo.test",
+        app_ids={"DSHALEV": "DSHALEV"},
+    )
+
+    anterior = configuracion()
+    try:
+        conf = registrar_directorio_efectivo(directorio)
+        assert directorio_efectivo() is directorio
+        assert configuracion() is conf
+        assert conf.comercial_habilitada is True
+        assert conf.endpoint_redeem == "https://licencias.ejemplo.test/v1/redeem"
+        assert conf.kid_autorizado("gl-redeem-v1") == spki
+    finally:
+        registrar_directorio_efectivo(None)
+        assert configuracion().comercial_habilitada is anterior.comercial_habilitada

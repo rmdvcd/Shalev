@@ -108,8 +108,12 @@ final class SyncProtocolTests: XCTestCase {
             .perpetual(id: "principal", secondaries: 3))
         license.ranura = 1 // El campo exterior no puede contradecir al firmado.
         XCTAssertEqual(license.validated(deviceID: expected.deviceID, now: now).clase, "BLOQUEADA")
+        // D1: sin sub-token no hay permiso verificable y la secundaria se bloquea (fail-closed), igual que en
+        // Android (`VerificadorPermisoSecundariaTest.ataque2_permisoQuitadoEsBloqueado`). Una principal antigua sin
+        // sub-token no es una excepción: si valiera, quitar el permiso sería la forma trivial de saltarse el anclaje.
         let old = SyncLicense(clase: "PERPETUA", permitidas: 3)
-        XCTAssertEqual(old.validated(deviceID: "otro", now: now), old, "Una principal anterior sin sub-token sigue siendo compatible")
+        XCTAssertEqual(old.validated(deviceID: "otro", now: now).clase, "BLOQUEADA",
+                       "Sin sub-token no hay permiso: la secundaria se bloquea")
 
         let expired = try SyncSubToken.issue(licenseID: "licencia-prueba", deviceID: expected.deviceID,
             slot: 1, allowed: 1, expiresAt: now.addingTimeInterval(-1), signer: signer)

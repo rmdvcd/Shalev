@@ -55,12 +55,11 @@ class LicenseTrustTest {
     @Test fun cuandoDirectorioEfectivoExisteSusClavesMandanInclusoSiVacias() {
         val dirVacio = TrustDirectory.Directorio(
             v = 1,
-            secuencia = 1,
-            actualizadaEn = "2026-11-20T00:00:00Z",
-            validaHasta = "2026-12-20T00:00:00Z",
-            endpointBase = "https://example.com",
+            seq = 1,
+            emitidaEn = 1_763_668_800,
             claves = emptyList(),
-            appIds = emptyMap()
+            endpointBase = "https://example.com",
+            appIds = emptyMap(),
         )
         TrustDirectory.effectiveDirectory = dirVacio
         try {
@@ -74,5 +73,49 @@ class LicenseTrustTest {
         assertTrue(LicenseTrust.signSpkis().isNotEmpty())
         assertNotNull(LicenseTrust.ecdhSpki())
         assertTrue(LicenseTrust.canValidate)
+    }
+
+    /**
+     * Fase 1.3: al cargarse el directorio (antes no se cargaba nunca), este pasa a ser autoritativo (D2). Si solo
+     * publicara la firma vigente, las licencias ya emitidas dejarían de verificar. Las firmas históricas deben
+     * figurar en el directorio con `hasta` acotado: validan lo antiguo y no sirven para emitir de nuevo.
+     */
+    @Test fun unDirectorioEfectivoNoPierdeLasFirmasHistoricasDentroDeSuIntervalo() {
+        val historica = LicenseTrust.SIGN_KEYS[1]
+        val vigente = LicenseTrust.SIGN_KEYS[0]
+        val dir = TrustDirectory.Directorio(
+            v = 1,
+            seq = 2,
+            emitidaEn = 1_776_470_400,
+            claves = listOf(
+                TrustDirectory.Clave(
+                    kid = "gl-sign-vigente",
+                    uso = "firma",
+                    spkiDer = java.util.Base64.getDecoder().decode(vigente.spkiB64),
+                    huella = vigente.sha256,
+                    desde = 1_700_000_000,
+                    hasta = null,
+                    estado = "vigente",
+                ),
+                TrustDirectory.Clave(
+                    kid = "gl-sign-1022",
+                    uso = "firma",
+                    spkiDer = java.util.Base64.getDecoder().decode(historica.spkiB64),
+                    huella = historica.sha256,
+                    desde = 1_700_000_000,
+                    hasta = 1_761_177_600,
+                    estado = "retirada",
+                ),
+            ),
+        )
+        TrustDirectory.effectiveDirectory = dir
+        try {
+            val dentroDelIntervalo = LicenseTrust.signSpkis(java.time.Instant.ofEpochSecond(1_759_622_400))
+            assertEquals("La licencia antigua debe seguir verificando con su firma histórica", 2, dentroDelIntervalo.size)
+            val fueraDelIntervalo = LicenseTrust.signSpkis(java.time.Instant.ofEpochSecond(1_761_177_601))
+            assertEquals("Pasada la retirada, solo queda la firma vigente", 1, fueraDelIntervalo.size)
+        } finally {
+            TrustDirectory.effectiveDirectory = null
+        }
     }
 }

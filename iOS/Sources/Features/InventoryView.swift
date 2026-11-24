@@ -84,11 +84,13 @@ struct InventoryView: View {
     @State private var shareFileURL: URL?
     @State private var showShareSheet = false
     @State private var message: String?
+    /// Mismo ciclo de ordenación que `ModoOrden` de Android (recientes → A–Z → mayor → menor precio).
+    @State private var orden: ModoOrden = .cronologico
 
     private var filteredProducts: [Product] {
         let today = Calendar.current.startOfDay(for: Date())
         let limit = Calendar.current.date(byAdding: .day, value: 7, to: today) ?? today
-        return store.activeProducts.filter { product in
+        let filtrados = store.activeProducts.filter { product in
             guard filter.kind.includes(product) else { return false }
             switch filter.alert {
             case .none: break
@@ -109,6 +111,8 @@ struct InventoryView: View {
                 || product.category.localizedCaseInsensitiveContains(search)
                 || product.description.localizedCaseInsensitiveContains(search)
         }
+        // El orden se aplica después del filtro y de la búsqueda: nunca mezcla artículos ocultos.
+        return orden.aplicar(filtrados, nombre: { $0.name }, precio: { $0.priceCents })
     }
 
     private var visibleSelection: [Product] { filteredProducts.filter { selection.contains($0.id) } }
@@ -246,6 +250,19 @@ struct InventoryView: View {
             Text(counterText)
                 .font(.shalev(12, weight: .medium))
                 .foregroundStyle(Color.shalevSecondaryText)
+            Button { withAnimation(ShalevMotion.cambio(reducirMovimiento, duracion: ShalevMotion.muyCorta)) { orden = orden.siguiente } } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.arrow.down").font(.shalev(9, weight: .bold))
+                    Text(orden.rawValue).font(.shalev(11, weight: .semibold)).lineLimit(1)
+                }
+                .foregroundStyle(Color.shalevSecondaryText)
+                .padding(.horizontal, 9)
+                .frame(minHeight: 26)
+                .background(Color.shalevSurfaceVariant, in: Capsule())
+                .shalevToque()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(orden.etiquetaAccesible)
             if filter.isActive {
                 Button { withAnimation(ShalevMotion.cambio(reducirMovimiento, duracion: ShalevMotion.muyCorta)) { filter = InventoryFilterState() } } label: {
                     HStack(spacing: 4) {

@@ -22,9 +22,11 @@ PATRONES='^e: |^error: |: error: |(Error|Warning): |Unresolved reference|Permiss
   if [ ! -s "$LOG" ]; then
     printf '\nEl log `%s` no existe o está vacío (¿el fallo ocurrió antes de ejecutar el comando?).\n' "$LOG"
   else
-    if grep -q '^What went wrong' "$LOG"; then
+    # Gradle imprime el título con asterisco («* What went wrong:») y el script lo buscaba sin él: por eso los
+    # fallos sin `e:`/`FAILED` visibles (p. ej. lint) llegaban a la API sin su causa.
+    if grep -qE '^\*? *What went wrong' "$LOG"; then
       printf '\n### Qué fue mal (Gradle)\n\n```\n'
-      grep -A 30 -m1 '^What went wrong' "$LOG" || true
+      grep -A 30 -m1 -E '^\*? *What went wrong' "$LOG" || true
       printf '```\n'
     fi
     if grep -qE "$PATRONES" "$LOG"; then
@@ -110,7 +112,7 @@ anotar() {
   done
 }
 {
-  grep -A 10 -m1 '^What went wrong' "$LOG" 2>/dev/null | head -10 || true
+  grep -A 10 -m1 -E '^\*? *What went wrong' "$LOG" 2>/dev/null | head -10 || true
   grep -E '^e: |^error: |: error: |Unresolved reference|Permission denied|Execution failed for task' "$LOG" 2>/dev/null | head -8 || true
   grep -E '^> Task .* FAILED| FAILED$' "$LOG" 2>/dev/null | head -4 || true
   tail -n 2 "$LOG" 2>/dev/null || true

@@ -150,11 +150,16 @@ class LicenciaRepositoryImpl @Inject constructor(
     private suspend fun redeemClientLocked(): cu.shalev.licencia.redeem.RedeemClient {
         redeemClient?.let { return it }
         val m = managerLocked()
+        // El canje comercial solo existe si el build lo habilita Y el directorio de confianza efectivo
+        // publica la base HTTPS autorizada y al menos una clave con `uso == "canje"` vigente.
         val dir = cu.shalev.licencia.TrustDirectory.effectiveDirectory
-        val baseUrl = dir?.endpointBase.orEmpty()
-        val canjeActivo = cu.shalev.data.BuildConfig.CANJE_HABILITADO &&
-            baseUrl.startsWith("https://") &&
-            dir?.claves?.any { it.uso == "canje" && it.activa } == true
+        val baseUrl = cu.shalev.licencia.redeem.RedeemContract.endpointBase(dir?.endpointBase.orEmpty())
+        val canjeActivo = cu.shalev.licencia.redeem.RedeemContract.canjeActivo(
+            habilitado = cu.shalev.data.BuildConfig.CANJE_HABILITADO,
+            appId = cu.shalev.data.BuildConfig.CANJE_APP_ID,
+            endpointBase = baseUrl,
+            tieneClaveCanje = dir?.claves?.any { it.uso == "canje" && it.activa } == true,
+        )
         val endpointRedeem = if (canjeActivo) "$baseUrl/v1/redeem" else ""
         val endpointStatus = if (canjeActivo) "$baseUrl/v1/status" else ""
         return cu.shalev.licencia.redeem.RedeemClient(
@@ -164,7 +169,11 @@ class LicenciaRepositoryImpl @Inject constructor(
             appId = cu.shalev.data.BuildConfig.CANJE_APP_ID,
             endpointRedeem = endpointRedeem,
             endpointStatus = endpointStatus,
-        ).also { redeemClient = it }
+        ).also {
+            // Solo se memoriza el cliente ya habilitado: uno cerrado debe reevaluarse, porque el directorio
+            // de confianza puede llegar después (actualización remota al arrancar) sin reiniciar la app.
+            if (canjeActivo) redeemClient = it
+        }
     }
 
     override suspend fun canjearCodigo(codigo: String): cu.shalev.licencia.redeem.RedeemResult = withContext(io) {

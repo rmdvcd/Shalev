@@ -31,11 +31,18 @@ enum TrustDirectory {
         let estado: String
     }
 
+    /// Bloque opcional de canje (Anexo A / B). Solo datos públicos: base HTTPS autorizada y `appId` por producto.
+    struct CanjeDTO: Codable {
+        let endpoint_base: String?
+        let app_ids: [String: String]?
+    }
+
     struct DataDTO: Codable {
         let v: Int
         let seq: Int
         let emitidaEn: Int64
         let claves: [KeyDTO]
+        let canje: CanjeDTO?
     }
 
     struct Key: Equatable {
@@ -62,6 +69,10 @@ enum TrustDirectory {
         let seq: Int
         let issuedAt: Int64
         let keys: [Key]
+        /// Base HTTPS autorizada del servicio de canje; vacía = canje cerrado.
+        var endpointBase: String = ""
+        /// `appId` autorizados por producto (`canje.app_ids`). Vacío = usar el del build.
+        var appIds: [String: String] = [:]
 
         func signKeys(issuedAt: Date? = nil) -> [P256.Signing.PublicKey] {
             let seconds = Int64((issuedAt ?? Date()).timeIntervalSince1970)
@@ -80,6 +91,16 @@ enum TrustDirectory {
             return try? P256.Signing.PublicKey(derRepresentation: key.spkiDER)
         }
 
+        /// true si hay al menos una clave de canje utilizable (no comprometida).
+        var hasActiveRedeemKey: Bool {
+            keys.contains { $0.usage == "canje" && $0.isActive }
+        }
+
+        /// Todas las claves de canje vigentes.
+        ///
+        /// Su uso legítimo es el mismo que en Android: cuando el ancla de un permiso de secundaria llega sin `kid`
+        /// utilizable, se prueban las claves de canje publicadas (`VerificadorPermisoSecundaria.kt`). No sirve como
+        /// respaldo para abrir una licencia emitida: eso exige el `kid` exacto.
         func canjeKeys() -> [P256.Signing.PublicKey] {
             keys.filter { $0.usage == "canje" && $0.isActive }
                 .compactMap { try? P256.Signing.PublicKey(derRepresentation: $0.spkiDER) }
@@ -208,7 +229,15 @@ enum TrustDirectory {
             ))
         }
 
-        return Directory(v: dto.v, seq: dto.seq, issuedAt: dto.emitidaEn, keys: keys)
+        return Directory(
+            v: dto.v,
+            seq: dto.seq,
+            issuedAt: dto.emitidaEn,
+            keys: keys,
+            endpointBase: ((dto.canje?.endpoint_base ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
+                .replacingOccurrences(of: "/+$", with: "", options: .regularExpression),
+            appIds: dto.canje?.app_ids ?? [:]
+        )
     }
 
     static func applyAntiRollback(current: Directory?, next: Directory) throws -> Directory {
@@ -231,8 +260,11 @@ final class TrustDirectoryManager {
     func loadEffective(cache: URL? = nil) -> TrustDirectory.Directory? {
         let urlToUse = cache ?? cacheURL
         let bootstrap: TrustDirectory.Directory? = {
+            // Primero el bundle de la app; si la clase vive en un paquete (pruebas, utilidades compartidas),
+            // `Bundle(for:)` es el que contiene el recurso `.process("directorio-bootstrap.json")`.
             let bundleURL = Bundle.main.url(forResource: "directorio-bootstrap", withExtension: "json")
-                ?? Bundle(for: TrustDirectoryManager.self).url(forResource: "directorio-bootstrap", withExtension: "json")
+                ?? bundleDirectoryURL(in: Bundle(for: TrustDirectoryManager.self))
+                ?? bundleDirectoryURL(in: .main)
             if let bundleURL, let data = try? Data(contentsOf: bundleURL) {
                 return try? TrustDirectory.parseAndVerify(data)
             }
@@ -253,6 +285,18 @@ final class TrustDirectoryManager {
         }
         TrustDirectory.effectiveDirectory = effective
         return effective
+    }
+
+    /// Localiza `directorio-bootstrap.json` en un bundle, probando también el subdirectorio del paquete.
+    ///
+    /// SwiftPM copia los recursos procesados a `Contents/Resources/` dentro del bundle del paquete y en Xcode
+    /// quedan en la raíz del bundle de la app; `url(forResource:withExtension:)` no cubre ambos casos.
+    func bundleDirectoryURL(in bundle: Bundle) -> URL? {
+        if let directo = bundle.url(forResource: "directorio-bootstrap", withExtension: "json") {
+            return directo
+        }
+        let candidato = bundle.bundleURL.appendingPathComponent("Contents/Resources/directorio-bootstrap.json")
+        return FileManager.default.fileExists(atPath: candidato.path) ? candidato : nil
     }
 
     func updateFromNetwork(cache: URL? = nil) async -> Bool {

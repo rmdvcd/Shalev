@@ -965,6 +965,59 @@ enum EmployeePIN {
 
 // MARK: - Validación compartida con los flujos de venta y clientes
 
+/// Modos de ordenación de listas, con el mismo ciclo que `ModoOrden` de Android
+/// (`Android/domain/src/main/kotlin/cu/shalev/domain/model/ModoOrden.kt`): cronológico → alfabético →
+/// importe descendente → importe ascendente → cronológico. El cronológico deja el orden natural del repositorio
+/// (más reciente primero), que es el que ya usaban Inventario y Servicios.
+enum ModoOrden: String, CaseIterable, Identifiable {
+    case cronologico = "Recientes"
+    case alfabetico = "A–Z"
+    case importeDesc = "Mayor precio"
+    case importeAsc = "Menor precio"
+
+    var id: String { rawValue }
+
+    var siguiente: ModoOrden {
+        switch self {
+        case .cronologico: .alfabetico
+        case .alfabetico: .importeDesc
+        case .importeDesc: .importeAsc
+        case .importeAsc: .cronologico
+        }
+    }
+
+    /// Nombre del modo tal como lo anuncia el botón (se lee en voz alta con VoiceOver).
+    var etiquetaAccesible: String { "Ordenar: \(rawValue). Toca para cambiar" }
+}
+
+extension ModoOrden {
+    /// Aplica el modo a una lista ya filtrada. `precio` es el importe en céntimos y `nombre` el texto visible.
+    /// El orden es **estable**: con precios o nombres iguales se conserva el orden de entrada (el más reciente),
+    /// igual que `sortedByDescending { it.creadoEn }` en Android.
+    func aplicar<T>(_ items: [T], nombre: (T) -> String, precio: (T) -> Int64) -> [T] {
+        switch self {
+        case .cronologico:
+            return items
+        case .alfabetico:
+            return items.enumerated().sorted { lhs, rhs in
+                let comparacion = nombre(lhs.element).localizedCaseInsensitiveCompare(nombre(rhs.element))
+                if comparacion == .orderedSame { return lhs.offset < rhs.offset }
+                return comparacion == .orderedAscending
+            }.map(\.element)
+        case .importeDesc:
+            return items.enumerated().sorted { lhs, rhs in
+                if precio(lhs.element) == precio(rhs.element) { return lhs.offset < rhs.offset }
+                return precio(lhs.element) > precio(rhs.element)
+            }.map(\.element)
+        case .importeAsc:
+            return items.enumerated().sorted { lhs, rhs in
+                if precio(lhs.element) == precio(rhs.element) { return lhs.offset < rhs.offset }
+                return precio(lhs.element) < precio(rhs.element)
+            }.map(\.element)
+        }
+    }
+}
+
 enum CustomerValidator {
     static func normalizedName(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines).split(whereSeparator: \.isWhitespace).joined(separator: " ")

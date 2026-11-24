@@ -793,7 +793,7 @@ extension AndroidBackupCodec {
         let correction = optionalString(row["corrigeUuid"]).flatMap(UUID.init(uuidString:))
             ?? optionalInt64(row["corrigeVentaId"]).map { AndroidID.uuid("sale", $0) }
         return Sale(id: globalID, shiftID: AndroidID.uuid("shift", int64(row["turnoId"])),
-            date: date(int64(row["fecha"])), paymentMethod: string(row["metodoPago"]) == "TRANSFERENCIA" ? .transfer : .cash,
+            date: date(int64(row["fecha"])), paymentMethod: string(row["metodoPago"]) == "TRANSFERENCIA" ? PaymentMethod.transfer : PaymentMethod.cash,
             lines: details, transactionNumber: transaction, customer: customer, customerIsFixed: fixed,
             paymentCard: card, paymentPhone: phone, isCancelled: optionalInt64(row["anuladaEn"]) != nil,
             cancelledAt: optionalInt64(row["anuladaEn"]).map(date), cancellationReason: optionalString(row["motivoAnulacion"]),
