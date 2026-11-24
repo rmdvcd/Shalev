@@ -778,7 +778,8 @@ struct HomeView: View {
             porLocal[nombre] = entrada
         }
         return porLocal.map { PersonRank(name: $0.key, operations: $0.value.ops, cents: $0.value.cents, profit: $0.value.profit) }
-            .sorted { $0.profit > $1.profit }
+            // `profit` es opcional en `PersonRank` (los clientes no lo usan): se compara con el valor por defecto 0.
+            .sorted { ($0.profit ?? 0) > ($1.profit ?? 0) }
     }
 
     /// Ventas de todos los locales en el período elegido (mismo filtro temporal que `periodSales`, sin el de local).

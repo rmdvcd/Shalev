@@ -32,3 +32,26 @@ def test_rechaza_identificadores_de_local_inseguros(tmp_path, name):
     with pytest.raises(ValueError):
         load_config(tmp_path, local=name)
     assert not (tmp_path / 'fuera').exists()
+
+
+def test_dos_locales_de_la_misma_instalacion_comparten_una_sola_identidad(tmp_path, monkeypatch):
+    """La identidad y la licencia son de la instalación, no del local: dos locales no crean dos identidades.
+
+    El escritorio guarda la identidad fuera de la carpeta del local. La prueba fija dónde vive para comprobar que
+    los dos locales comparten un solo archivo y que el segundo no lo reemplaza.
+    """
+    monkeypatch.setenv("DSHALEV_ALLOW_DEV_IDENTITY", "1")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "localappdata"))
+
+    from dshalev.licencia.identidad import cargar_o_crear_identidad, ruta_identidad
+
+    a, b = load_config(tmp_path, local="centro"), load_config(tmp_path, local="norte-2")
+    ruta = ruta_identidad(tmp_path)
+    primera = cargar_o_crear_identidad(ruta)
+    segunda = cargar_o_crear_identidad(ruta)
+    assert primera.huella == segunda.huella
+    # La ruta está en la raíz de la instalación, no dentro de la carpeta de ningún local.
+    assert ruta == tmp_path / "DShalevData" / "licencia" / ruta.name
+    assert "locales" not in ruta.parts
+    assert a.data_dir != b.data_dir
