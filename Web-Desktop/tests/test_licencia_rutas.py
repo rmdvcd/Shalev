@@ -235,8 +235,11 @@ def test_flujo_completo_activar_licencia_y_comprobar_banner(tmp_path: Path):
         follow_redirects=True,
     )
     assert res_act.status_code == 200
-    print("NOTICE IN RES_ACT:", re.findall(r'<div class="notice [^>]+>(.*?)</div>', res_act.text, re.DOTALL))
-    assert "Licencia activada con éxito." in res_act.text
+    avisos = re.findall(r'<div class="notice [^>]+>(.*?)</div>', res_act.text, re.DOTALL)
+    # El mensaje se incluye en la aserción: si la activación falla en CI (Windows), el error que publica el job
+    # trae el motivo real en vez de solo «no aparece el texto esperado».
+    assert "Licencia activada con éxito." in res_act.text, f"avisos tras activar: {avisos!r}"
+    print("NOTICE IN RES_ACT:", avisos)
     assert "MENSUAL" in res_act.text
     assert "Plazas secundarias autorizadas:</strong> 2" in res_act.text
     # Comprobar banner C5

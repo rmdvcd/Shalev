@@ -44,7 +44,9 @@ jobs:
           foreach ($caso in $fallos) {
             if ($n -ge 20) { Write-Host "::error::Hay más de 20 pruebas fallidas; revisa junit.xml"; break }
             $detalle = if ($caso.failure) { $caso.failure.message } else { $caso.error.message }
-            $primera = ($detalle -split "`n" | Where-Object { $_ -match '\S' } | Select-Object -First 1)
+            # Se publican las primeras líneas del mensaje: la causa suele estar en la aserción, no en el título.
+            $primera = ((($detalle -split "`n") | Where-Object { $_ -match '\S' } | Select-Object -First 3) -join ' / ')
+            if ($primera.Length -gt 600) { $primera = $primera.Substring(0, 600) }
             $primera = ($primera -replace '%', '%25' -replace "`r", '%0D' -replace "`n", '%0A')
             Write-Host "::error file=Web-Desktop/tests/$($caso.classname).py::$($caso.name): $primera"
             $n += 1
