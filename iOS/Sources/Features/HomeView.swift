@@ -617,7 +617,7 @@ struct HomeView: View {
     /// locales, junto al número de ventas va la ganancia bruta del local.
     private func personAccordion(title: String, key: String, items: [PersonRank],
                                  singular: String, plural: String,
-                                 amount: (PersonRank) -> Int64) -> some View {
+                                 amount: @escaping (PersonRank) -> Int64) -> some View {
         accordion(title: title, value: items.first.map { $0.name } ?? "Sin ventas", key: key) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("En \(period.rawValue.lowercased())")
