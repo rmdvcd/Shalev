@@ -106,7 +106,13 @@ class VerificadorPermisoSecundaria @Inject constructor(
 
     private fun verificarAnclajeCanje(licenciaJson: String, firmaPubDto: String?): ClaveAnclada? = runCatching {
         val root = JSONObject(licenciaJson)
-        val envelope = if (root.has("license") && root.get("license") is JSONObject) root.getJSONObject("license") else root
+        // El sobre llega tal cual (`{v, alg, kid, license, sig}`) o envuelto en la respuesta del canje
+        // (`{..., license: {license, sig}}`). Se elige la capa que trae a la vez el contenido y la firma;
+        // si ninguna lo hace, se usa la primera con contenido para fallar por firma ausente, nunca por NPE.
+        val capas = listOfNotNull(root, root.optJSONObject("license"))
+        val envelope = capas.firstOrNull { it.optJSONObject("license") != null && !it.optString("sig").isNullOrBlank() }
+            ?: capas.firstOrNull { it.optJSONObject("license") != null }
+            ?: return null
         val licData = envelope.getJSONObject("license")
         val sigB64 = envelope.getString("sig")
         val kid = envelope.optString("kid", "gl-redeem-v1")
