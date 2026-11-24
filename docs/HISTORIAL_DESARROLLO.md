@@ -23,11 +23,23 @@
   preajuste, suma de preajustes coincidentes), rutas `/herramientas/precios` (alta y pausa) y plantilla. El esquema
   pasa a la versión 11 con `volume_minimum` y `customer_type`; `minimum_cents` se conserva solo para respaldos viejos.
   El escritorio **edita** los preajustes, no recalcula precios de venta por su cuenta: eso lo dice la propia página.
-- **Verificado aquí:** `pytest` de Web **283/283** (16 pruebas nuevas en `tests/test_preajustes.py`, incluidas la
-  aritmética contra un oráculo decimal y las rutas con CSRF y permisos). Los vectores del carné se comprobaron con un
-  script equivalente antes de fijarlos; uno de ellos era erróneo («26010112345» es 1926, no 2026) y se corrigió.
-- **No verificado aquí:** compilación Swift, Xcode y Swift Charts (CI macOS); queda el run de CI de este commit.
-  Los gráficos y el filtro nuevo necesitan una pasada visual en simulador y en un iPhone real.
+- **Fallo de Windows que no era mío y se arregló igual:** el job «DShalev Windows portable» llevaba dos commits
+  fallando en el paso de `pytest`, pero sus registros no se pueden descargar desde este entorno. Se hizo que el job
+  publique cada prueba fallida como anotación (`::error file=…`) con las primeras líneas del mensaje, y con eso el
+  diagnóstico fue inmediato: las pruebas de licencia aislaban `XDG_DATA_HOME`, que solo existe en Unix, así que en
+  Windows el «ancla» se leía del `LOCALAPPDATA` real del usuario y la activación fallaba. Ahora se aíslan las dos
+  variables y el recorrido completo de activación pasa también en Windows.
+- **Errores de compilación que cazó el CI y se corrigieron:** `PersonRank.profit` es opcional y la ordenación no lo
+  desenvolvía; `personAccordion` capturaba un cierre no `@escaping`; y una aserción de la prueba del carné estaba
+  invertida (comparaba un nacimiento de 2027 contra una referencia anterior a él).
+- **Verificado aquí:** `pytest` de Web **284/284**, `ramplint` en las 27 plantillas, `npm test` del punto de venta
+  **6/6**, y los vectores del carné con un script equivalente (tres vectores inventados se corrigieron antes de
+  fijarlos: `99022912345`, `35010112345` y el caso «futuro»). 16 pruebas nuevas en `tests/test_preajustes.py`.
+- **Verificado en CI (run de `5426846`):** Android (JVM, instrumentados compilados, API 26, Lint, Release/R8),
+  iOS (pruebas del dominio + compilación para simulador + IPA sin firma) y DShalev Windows portable (pytest,
+  accesibilidad, punto de venta, EXE y arranque del EXE). Los tests instrumentados de Android siguen en *skipped*.
+- **No verificado:** los gráficos y el filtro nuevo **no** se han visto en un simulador ni en un iPhone real: es la
+  primera revisión manual pendiente. Tampoco se probó el EXE de Windows a mano (solo `/healthz` y la pantalla inicial).
 
 ## Auditoría de ejes transversales: módulos, iconos, recorridos, listas, entrada y gráficos (2026-11-24)
 

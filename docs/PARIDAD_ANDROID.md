@@ -354,5 +354,8 @@ Estado tras el cierre del 2026-11-24 (lo corregido se marca con la evidencia; lo
 4. **Diferencia de producto, no defecto:** DShalev no tiene módulos y su rail muestra siempre las 14 secciones; iOS
    añade una sexta pestaña «Herramientas» que Android no tiene.
 
-Verificado en local: `pytest` de Web **283/283**. En CI: la compilación iOS y los jobs de Android de este cambio.
-Los gráficos y el filtro nuevos **no** se han visto en un simulador aquí: es lo primero que hay que revisar a mano.
+Verificado en local: `pytest` de Web **284/284**, `ramplint` (27 plantillas) y `npm test` del punto de venta (6/6).
+Verificado en CI (run de `5426846`): Android completo (JVM, instrumentados compilados, API 26, Lint, Release/R8), iOS
+(pruebas del dominio, compilación de simulador e IPA sin firma) y «DShalev Windows portable» (pytest, accesibilidad,
+punto de venta, EXE y arranque del EXE). Los gráficos y el filtro nuevos **no** se han visto en un simulador ni en un
+iPhone real: es la primera revisión manual pendiente.
