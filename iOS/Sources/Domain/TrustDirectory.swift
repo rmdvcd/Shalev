@@ -96,6 +96,11 @@ enum TrustDirectory {
             keys.contains { $0.usage == "canje" && $0.isActive }
         }
 
+        /// Todas las claves de canje vigentes.
+        ///
+        /// Su uso legítimo es el mismo que en Android: cuando el ancla de un permiso de secundaria llega sin `kid`
+        /// utilizable, se prueban las claves de canje publicadas (`VerificadorPermisoSecundaria.kt`). No sirve como
+        /// respaldo para abrir una licencia emitida: eso exige el `kid` exacto.
         func canjeKeys() -> [P256.Signing.PublicKey] {
             keys.filter { $0.usage == "canje" && $0.isActive }
                 .compactMap { try? P256.Signing.PublicKey(derRepresentation: $0.spkiDER) }

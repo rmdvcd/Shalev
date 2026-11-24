@@ -189,9 +189,7 @@ final class RedeemClient {
                     "proof": signature
                 ]
 
-                let retryResult = try await sendPost(url: url, payload: payload)
-                data = retryResult.0
-                statusCode = retryResult.1
+                (data, statusCode) = try await sendPost(url: url, payload: payload)
             } else {
                 throw RedeemError.clockSkew(now)
             }
@@ -354,7 +352,12 @@ final class RedeemClient {
 
         // Reintento automático ante CLOCK_SKEW
         if statusCode == 400 {
-            if let serverTime = parseServerTime(from: data) ?? (await fetchTime(from: url)) {
+            // `??` con un operando `async` no compila: la autoclosura no soporta concurrencia.
+            var serverTime: Date? = parseServerTime(from: data)
+            if serverTime == nil {
+                serverTime = await fetchTime(from: url)
+            }
+            if let serverTime {
                 manager.recoverClock(serverTime: serverTime)
                 requestedAt = GLDateParser.formatUTC(serverTime)
                 nonce = (0..<16).map { _ in UInt8.random(in: 0...255) }
@@ -381,9 +384,7 @@ final class RedeemClient {
                     "proof": signature
                 ]
 
-                let retryResult = try await sendPost(url: url, payload: payload)
-                data = retryResult.0
-                statusCode = retryResult.1
+                (data, statusCode) = try await sendPost(url: url, payload: payload)
             } else {
                 throw RedeemError.clockSkew(now)
             }
@@ -447,8 +448,8 @@ final class RedeemClient {
         )
 
         let kid = (statusObj["kid"] as? String) ?? "gl-redeem-v1"
+        // Sin respaldo por "primera clave de canje": el kid exacto es la única autorización, igual que en Android.
         let redeemKey = TrustDirectory.effectiveDirectory?.redeemKey(kid: kid)
-            ?? TrustDirectory.effectiveDirectory?.canjeKeys().first
 
         guard let redeemKey else {
             throw RedeemError.serverError(code: "UNKNOWN_KID", message: "Clave pública del servicio no autorizada para kid: \(kid)")

@@ -842,7 +842,7 @@ private extension GLLicenseType {
     }
 }
 
-private enum Base64URL {
+enum Base64URL {
     static func encode(_ data: Data) -> String {
         data.base64EncodedString().replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
@@ -965,7 +965,7 @@ private func isRevoked(id: String, in data: Data) -> Bool {
     return revoked.contains(fingerprint)
 }
 
-private enum SignatureFormat {
+enum SignatureFormat {
     static func der(fromRaw raw: Data) -> Data? {
         guard raw.count == 64 else { return nil }
         func integer(_ source: Data) -> Data {
