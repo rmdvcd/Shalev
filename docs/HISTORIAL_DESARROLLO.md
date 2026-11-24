@@ -1,3 +1,36 @@
+## Auditoría de ejes transversales: módulos, iconos, recorridos, listas, entrada y gráficos (2026-11-24)
+
+- **Objetivo:** comprobar, además de la paridad funcional de §1, que iOS y DShalev tienen los mismos **módulos**,
+  **iconos**, **recorridos guiados**, **listas**, **prevención de errores de entrada** y **gráficos** que Android.
+  Matriz completa, con evidencia archivo+símbolo y recuentos reproducibles, en `docs/PARIDAD_ANDROID.md` §5.
+- **Método:** lectura dirigida del árbol y conteo de símbolos reales. Sin Gradle, Xcode ni navegador en este
+  entorno: es inventario verificado en código, no una prueba de ejecución.
+- **Módulos:** los tres (`VENTAS`, `INVENTARIO`, `SERVICIOS`) coinciden en nombre, textos y regla de arrastre
+  (`Modulo.alternar` / `toggleSales`) en Android e iOS, y ocultan pestañas de la misma forma. DShalev **no tiene
+  concepto de módulo**: su rail (`base.html:18-31`, 14 enlaces) muestra todo siempre. Diferencia de producto
+  pendiente de decisión, no defecto.
+- **Iconos:** los 6 de navegación son el **mismo trazado** en las tres plataformas (el `path` de
+  `ShalevHome.imageset/icon.svg` es idéntico al de `base.html:18`). La densidad difiere: Android tiene 184
+  `ImageVector` propios, iOS 7 `imageset` + 32 símbolos SF, DShalev 14 SVG en línea.
+- **Recorridos (la carencia mayor):** Android tiene **51** `Recorrido` con **127** claves de objetivo (pestañas,
+  formularios y ventanas emergentes) y persistencia `*_tour_shown`. **iOS y DShalev no tienen ninguno**; solo
+  conservan el asistente inicial (7 y 0 pasos) y un manual de lectura (`HelpTopic` ×13 en iOS, `/ayuda` en web).
+- **Listas:** búsqueda, filtro y selección múltiple están en las tres. Falta la **ordenación cíclica de 4 modos**
+  (`ModoOrden`: cronológico, alfabético, importe ↑, importe ↓) en iOS y DShalev, y en DShalev la exportación de
+  inventario a PDF/PNG/tarjetas (solo existe `/inventario.xlsx`).
+- **Prevención de entrada:** Android centraliza teclado + máximo + filtro + rechazo progresivo en `FiltrosEntrada`
+  (incluida `fechaParcialCarne`). **Hallazgo:** iOS valida el carné de identidad del perfil con
+  `validCI` = **5–20 alfanuméricos** (`License.swift:878`, usado en `SettingsView.swift:353`), mientras la licencia
+  y DShalev (`validar_carne_cubano`) exigen **11 dígitos con fecha real no futura**. Discrepancia menor: el nº de
+  transferencia es 4–30 en Android/DShalev y 6–30 en iOS.
+- **Gráficos:** iOS usa Swift Charts para barras de ventas e inventario por tipo, pero **no tiene** el donut de
+  categorías, el donut de métodos de pago ni el **área de dos series** (venta vs costo) de Android, y le faltan
+  **5 de las 8 listas de ranking** (servicios, empleados, clientes y **locales**, añadidas en 1.0.6–1.0.7).
+  DShalev solo tiene barras `<progress>` de ventas por día.
+- **Alcance:** no se cambió código en esta auditoría. Las correcciones dependen de una decisión del propietario,
+  porque varias carencias son diferencias de producto (DShalev sin módulos, iOS con perspectiva de app personal).
+- **Verificado aquí:** `pytest` de Web **267/267** tras el cambio (solo documentación).
+
 ## Verificación de paridad Android → iOS/DShalev tras PR #153 (2026-11-24)
 
 - **Objetivo:** Comprobar que lo entregado en el PR #153 (T1–T5) está igual en IShalev y DShalev, corrigiendo

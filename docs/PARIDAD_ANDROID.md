@@ -242,3 +242,110 @@ son lecciones del contrato, no ruido de entorno:
    `{license, sig}`, mientras el sobre del canje llega tal cual (`{v, alg, kid, license, sig}`, la misma forma que
    valida DShalev en `_validar_sobre`). El flujo legítimo se bloqueaba. Ahora se elige la capa que trae contenido
    **y** firma; sin ninguna, falla por firma ausente en lugar de por NPE.
+
+---
+
+## 5. Auditoría de ejes transversales: módulos, iconos, recorridos, listas, entrada y gráficos (2026-11-24)
+
+Extiende la matriz de §1, que cubre módulos y funciones, a los seis ejes que el propietario pidió verificar por
+separado. **Método:** lectura dirigida del código de las tres plataformas y conteo de símbolos reales. En este
+entorno no hay Gradle, Xcode ni navegador, así que nada de lo que sigue es una prueba de ejecución: es inventario
+verificado en el árbol. Los recuentos son reproducibles con los comandos que se citan.
+
+### 5.1 Módulos
+
+Los módulos del negocio son **tres** y se llaman igual en las tres plataformas (`VENTAS`, `INVENTARIO`,
+`SERVICIOS`), con la misma regla de arrastre (VENTAS activa INVENTARIO).
+
+| Aspecto | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Definición | `Modulo.kt:12` (`etiqueta` + `detalle`) | `SettingsView.swift` (`moduleRow`) con los mismos textos | Sin selector: el módulo es implícito (todo visible) | Igual en Android/iOS; **Falta en DShalev** el selector |
+| Regla de arrastre | `Modulo.alternar/normalizar` (VENTAS↔INVENTARIO) | `toggleSales`/`toggleInventory`/`toggleServices` | — | Igual en Android/iOS |
+| Efecto en navegación | `topLevelVisibles()` filtra Inventario/Servicios | `visibleSections` en `AppRoot.swift:347-356` | El rail de `base.html` muestra todo siempre | **Falta en DShalev** |
+| Persistencia | DataStore (`OnboardingPreferences`) | `@AppStorage("shalev.module.*")` | — | Igual en Android/iOS |
+| Pestañas de la barra | 5: Inicio, Inventario, Servicios, Registros, Ajustes | **6**: las 5 + **Herramientas** (`MainSection.tools`, `AppRoot.swift:66`) | **14** enlaces en el rail (`base.html:18-31`) | **Diferencia de plataforma (aprobada)** en iOS: Herramientas agrupa fichas de costo y ajustes de precio. **Falta en DShalev**: módulos |
+
+Conclusión del eje: los módulos y su efecto están alineados en las dos apps nativas; DShalev no tiene el concepto
+de módulo (muestra todo el rail), lo que es una diferencia de producto pendiente de decisión, no un defecto de
+implementación.
+
+### 5.2 Iconos
+
+| Aspecto | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Catálogo propio | `ShalevIcons.kt`: **184** trazados `ImageVector` | **7** `imageset` con el SVG exacto de Android (`ShalevHome`, `ShalevInventory2`, `ShalevManoRecibe`, `ShalevHistory`, `ShalevBuild`, `ShalevSettings`, `ShalevLogo`) | **14** SVG en línea, todos en `base.html` | Diferencia de plataforma (aprobada) |
+| Iconos de la barra | `TopLevel` usa `ShalevIcons.*` | `MainSection.iconAsset` usa los `imageset` (mismo trazado) | SVG con los mismos `path` (Inicio, Inventario, Servicios…) | **Igual** en los 6 de navegación |
+| Resto de la interfaz | 184 trazados reutilizables | **32** símbolos SF (`systemName:`) | Sin iconos fuera del rail | Diferencia de plataforma |
+
+Evidencia de la igualdad de los iconos de navegación: el `path` de `ShalevHome.imageset/icon.svg` es
+`M 10 20 v -6 h 4 v 6 h 5 v -8 h 3 L 12 3 2 12 h 3 v 8 z`, idéntico al de `base.html:18` y al `Home` de
+`ShalevIcons`. No hay discrepancia de pictograma en la navegación principal; sí en la densidad (iOS usa SF
+Symbols donde Android usa su catálogo).
+
+### 5.3 Recorridos (walkthrough)
+
+| Aspecto | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Recorridos guiados | **51** `Recorrido` en `Recorridos.kt:197` (pestañas, formularios y ventanas), con **127** claves de objetivo (`ObjetivosRecorrido`) y persistencia `*_tour_shown` | **Ninguno**: no hay coach marks ni overlay de pasos | **Ninguno** | **Falta en iOS** y **Falta en DShalev** |
+| Asistente de bienvenida | `OnboardingLogic.kt:16`: 8 pasos (`BIENVENIDA`, `TIPO_APP`, `ACCESO_CLAVE`, `OBJETIVO`, `EMPLEADOS`, `DATOS`, `ALERTAS`, `PRUEBA`) | `OnboardingView.swift:71-78`: 7 pasos (sin `ACCESO_CLAVE` como paso aparte; el bloqueo se ofrece en Ajustes y en un `Toggle` del propio asistente) | `setup.html` (primer inicio, sin pasos guiados) | Diferencia de plataforma (aprobada) en el asistente |
+| Ayuda por pantalla | `PestanaAyuda` (9 pestañas) + 10 `AyudaVentana` con pasos numerados | Un solo manual con 13 `HelpTopic` agrupados por sección | `/ayuda` con guía y atajos | Diferencia de plataforma (aprobada) |
+
+El walkthrough es la carencia más grande de esta auditoría: Android guía paso a paso 51 flujos (incluidas las
+ventanas), mientras iOS y DShalev solo ofrecen el asistente inicial y un manual de lectura. No es un defecto de
+implementación de iOS/DShalev, sino una funcionalidad que no se trasladó.
+
+### 5.4 Listas
+
+| Aspecto | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Búsqueda | `TextosInventario.BUSCAR`, en Inventario, Servicios y Registros | `ShalevSearchField` en Inventario (`:119`), Servicios, Registros y Venta | Buscador en `/inventario`, `/ventas`, `/clientes` | Igual |
+| Filtro | `InventarioFiltros` (tipo + alerta + categoría), `Ventana.FILTRO_*` | `InventoryFilterSheet` (tipo + alerta), `RecordsFilterState` (fechas, importe, pago) | `?q=&categoria=` y filtros de fecha en reportes | Igual, con menos dimensiones en DShalev |
+| **Ordenación** | `ModoOrden` con **4 modos** ciclables (`CRONOLOGICO → ALFABETICO → IMPORTE_DESC → IMPORTE_ASC`), botón `InventarioTags.ORDENAR` | **No existe**: las listas se ordenan fijas por fecha (`RecordsView.swift:135`) o por nombre (`:161`) | Orden fijo por servidor | **Falta en iOS** y **Falta en DShalev** |
+| Selección múltiple | Casillas + barra «N seleccionados» con exportar/borrar | Selección por pulsación larga (`InventoryView.swift:281-318`) | Formularios de una fila | Diferencia de plataforma (aprobada) |
+| Exportación de la lista | `FormatoSalida`: PDF, Excel, **Imagen (lista de precios)**, **Tarjetas promocionales** | XLSX, CSV, PDF, **PNG de precios** y **tarjetas PNG** (`ExportService.swift:418-435`) | Solo **XLSX** (`/inventario.xlsx`); sin PDF, imagen ni tarjetas | **Falta en DShalev** |
+| Exportación de registros | PDF/Excel con selección | XLSX/CSV/PDF | `/reportes/ventas.xlsx` | Igual salvo CSV extra en iOS |
+
+### 5.5 Prevención de errores de entrada
+
+Android centraliza la política en `FiltrosEntrada.kt`: un `enum` con **teclado + longitud máxima + filtro** por
+campo (`TELEFONO`, `TARJETA`, `CARNE`, `ENTERO`, `DECIMAL`, `CANTIDAD`, `DINERO`, `PORCENTAJE`, `TRANSACCION`…), y
+`aceptar(anterior, escrito)` que **rechaza el estado inválido mientras se escribe** (no solo al guardar), incluida
+`fechaParcialCarne` para que el carné no admita un mes 13.
+
+| Campo | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Carné de identidad (licencia y perfil) | `FiltroEntrada.CARNE` (11 dígitos, fecha AAMMDD progresiva) + `Validators.carneCubano` (fecha real, no futura) | `License.swift:878 validCI`: **5–20 alfanuméricos**; en el perfil, `SettingsView.swift:353` usa la misma regla laxa. El cliente fijo sí exige 11 dígitos (`CustomerValidator`) | `solicitud.validar_carne_cubano`: 11 dígitos, siglo y fecha real, no futura | **Falta en iOS**: dos validadores de carné distintos y el del perfil acepta lo que la licencia y DShalev rechazan |
+| Nombre | `NOMBRE` (letras Unicode, apóstrofo, guion, 2–80) | `validName` (`License.swift:870`), equivalente | `validar_nombre`, equivalente | Igual |
+| Teléfono | `FiltroEntrada.TELEFONO` (8 dígitos, empieza por 5 o 6) + `Phone.esMovilCubano` | `CustomerValidator.normalizedPhone` (8→+53); sin comprobación de móvil 5/6 para SMS | `normalizedPhone` equivalente | Diferencia menor: iOS no distingue fijo de móvil cubano |
+| Importes y cantidades | `DINERO` (2 decimales), `DECIMAL`/`CANTIDAD` (3), `PORCENTAJE` (0–100) con rechazo progresivo | `Decimal(string:)` + `.numberPad` por campo; validación al guardar | `decimal_quantity_milli` en servidor | Igual en el resultado, distinto en el momento de avisar |
+| N.º de transferencia | `^[A-Za-z0-9-]{4,30}$` en `LicenciaForm` | `validTransactionNumber` (6–30) | `_RE_TX` (4–30) | **Discrepancia menor** iOS (6–30 frente a 4–30) |
+
+### 5.6 Gráficos
+
+| Gráfico de Android | Android | iOS | DShalev | Estado |
+|---|---|---|---|---|
+| Ventas por período | `ShalevBarChart` (`Charts.kt:139`) | `Chart { BarMark …}` (`HomeView.swift:397`) | `<progress>` por día (`dashboard.html:10`) | Igual en intención |
+| Ganancia (venta vs costo) | `ShalevAreaChart` con **dos series** (`InicioScreen.kt:858`) | **No hay**: solo bloques de texto Costo/Ganancia (`HomeView.swift:451-476`, `metricBlock`) | No hay | **Falta en iOS**: el área de dos series no existe; iOS muestra los importes sin gráfico |
+| Inventario por categorías | `ShalevDonutChart` con centro y leyenda | **No hay**: barras por tipo de artículo (`HomeView.swift:456`) | No hay | **Falta en iOS** el desglose por categoría (usa tipo, no categoría) |
+| Métodos de pago | `ShalevDonutChart` | **No hay**: dos filas de texto (`paymentAccordion`) | No hay | **Falta en iOS** |
+| Rankings (Top 3, servicios, empleados, clientes, locales) | 8 listas con medalla oro/plata/bronce (`InicioScreen.kt:905-968`) | 3 (`Más vendido`, `Lento movimiento`, `Rentabilidad`) | Top 3 en el panel | **Falta en iOS**: servicios, empleados, clientes y **ranking de locales** (`topPersonas(TipoTop.LOCAL, …)`) |
+| Períodos | 5: `TURNO, HOY, SEMANA, MES, ANIO` (`Estadisticas.kt:19`) | 5 equivalentes (`HomePeriod`, `HomeView.swift:6`) | Fechas libres | Igual Android/iOS |
+| Accesibilidad del gráfico | Descripción textual por gráfico (`descripcionDona`, `description`) | `chartYAxis(.hidden)` + texto explicativo | `aria-label` en cada barra | Igual |
+
+Los gráficos son el segundo hueco: iOS y DShalev **no tienen donut** ni el área de dos series, y a iOS le faltan
+cinco de las ocho listas de ranking, entre ellas el ranking de locales que Android añadió en 1.0.6–1.0.7.
+
+### 5.7 Resumen de carencias por plataforma
+
+Prioridad alta (funcionalidad ausente que el usuario nota):
+
+1. **iOS:** recorridos guiados (0 de 51), ordenación de listas (0 de 4 modos), gráfico de área de ganancia, donuts
+   de inventario y métodos de pago, y 5 listas de ranking (servicios, empleados, clientes, locales).
+2. **DShalev:** selector de módulos y su efecto en la navegación, exportación de inventario a PDF/imagen/tarjetas
+   (solo hay XLSX), ajuste masivo de precios (no existe) y recorridos guiados.
+3. **iOS (corrección, no carencia):** el validador de carné del perfil acepta 5–20 alfanuméricos donde la licencia
+   y DShalev exigen 11 dígitos con fecha real.
+
+No se ha cambiado código en esta auditoría: es un inventario con evidencia. Cualquier corrección de los puntos
+anteriores debe decidirse con el propietario, porque varios son diferencias de producto (DShalev sin módulos) y no
+defectos.
