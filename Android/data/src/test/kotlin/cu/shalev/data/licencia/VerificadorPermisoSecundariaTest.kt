@@ -9,7 +9,6 @@ import cu.shalev.licencia.crypto.EcP256
 import cu.shalev.licencia.redeem.RedeemContract
 import cu.shalev.licencia.secondary.FirmanteLicencia
 import cu.shalev.licencia.secondary.SubToken
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -99,27 +98,23 @@ class VerificadorPermisoSecundariaTest {
 
         val sig = B64.enc(EcP256.sign(glRedeemKey.private, transcript))
 
-        val licObj = JSONObject().apply {
-            put("v", 1)
-            put("id", licenseId)
-            put("appId", "SHALEV-ANDROID")
-            put("type", "MENSUAL")
-            put("status", "ACTIVA")
-            put("issuedAt", "2026-11-20T12:00:00Z")
-            put("expiresAt", "2026-12-20T12:00:00Z")
-            put("deviceThumbprint", thumbprint)
-            put("redemptionId", "redem-123")
-            put("secundarias", secundarias)
-            put("devicePublicKey", spkiB64)
-        }
-
-        val envelope = JSONObject().apply {
-            put("kid", "gl-redeem-v1")
-            put("sig", sig)
-            put("license", licObj)
-        }
-
-        return envelope.toString()
+        // El contrato del canje es un sobre JSON plano `{v, alg, kid, license, sig}`: el contenido lleva números
+        // donde el contrato los define y la firma va sobre el transcript canónico ya calculado.
+        val contenido = "{" +
+            "\"v\":1," +
+            "\"id\":\"$licenseId\"," +
+            "\"appId\":\"SHALEV-ANDROID\"," +
+            "\"type\":\"MENSUAL\"," +
+            "\"status\":\"ACTIVA\"," +
+            "\"issuedAt\":\"2026-11-20T12:00:00Z\"," +
+            "\"expiresAt\":\"2026-12-20T12:00:00Z\"," +
+            "\"deviceThumbprint\":\"$thumbprint\"," +
+            "\"redemptionId\":\"redem-123\"," +
+            "\"secundarias\":$secundarias," +
+            "\"devicePublicKey\":\"$spkiB64\"" +
+            "}"
+        return "{\"v\":1,\"alg\":\"ECDSA_P256_SHA256\",\"kid\":\"gl-redeem-v1\"," +
+            "\"license\":$contenido,\"sig\":\"$sig\"}"
     }
 
     @Test

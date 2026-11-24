@@ -77,7 +77,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
-    // `org.json` real en la JVM: el android.jar de las pruebas unitarias solo trae stubs.
+    // `org.json` real en la JVM: el android.jar de las pruebas unitarias solo trae stubs y la verificación del
+    // anclaje de canje parsea JSON (JSONObject devolvería null). Es solo de pruebas: no entra en el APK.
     testImplementation(libs.json)
 
     androidTestImplementation(libs.androidx.test.core)

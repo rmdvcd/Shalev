@@ -33,7 +33,7 @@ fastexcel = "0.18.4"
 zxing = "3.5.3"
 # --- Test ---
 junit = "4.13.2"
-# Implementacion real de org.json para las pruebas JVM: el android.jar de los tests unitarios solo tiene stubs
+# Implementacion real de org.json para las pruebas JVM: el android.jar de los tests unitarios solo trae stubs
 # (unitTests.isReturnDefaultValues) y JSONObject devolveria null. Misma version que usa Robolectric.
 json = "20240303"
 androidxTestCore = "1.6.1"
