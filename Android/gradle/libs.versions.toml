@@ -33,6 +33,9 @@ fastexcel = "0.18.4"
 zxing = "3.5.3"
 # --- Test ---
 junit = "4.13.2"
+# Implementacion real de org.json para las pruebas JVM: el android.jar de los tests unitarios solo tiene stubs
+# (unitTests.isReturnDefaultValues) y JSONObject devolveria null. Misma version que usa Robolectric.
+json = "20240303"
 androidxTestCore = "1.6.1"
 androidxTestRunner = "1.6.2"
 androidxTestEspresso = "3.7.0"
@@ -101,6 +104,7 @@ zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 # Test
 junit = { module = "junit:junit", version.ref = "junit" }
+json = { module = "org.json:json", version.ref = "json" }
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidxTestCore" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
 androidx-test-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidxTestEspresso" }

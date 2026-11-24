@@ -77,6 +77,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
+    // `org.json` real en la JVM: el android.jar de las pruebas unitarias solo trae stubs.
+    testImplementation(libs.json)
 
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.ext.junit)
