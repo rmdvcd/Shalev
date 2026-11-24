@@ -42,12 +42,23 @@ object TrustDirectory {
         val estado: String,
     )
 
+    /**
+     * Bloque opcional de canje del directorio (Anexo A / B). Solo contiene datos públicos:
+     * la base HTTPS autorizada del servicio GL y el mapa de `appId` por producto.
+     */
+    @Serializable
+    data class CanjeDto(
+        val endpoint_base: String = "",
+        val app_ids: Map<String, String> = emptyMap(),
+    )
+
     @Serializable
     data class DatosDto(
         val v: Int,
         val seq: Int,
         val emitidaEn: Long,
         val claves: List<ClaveDto>,
+        val canje: CanjeDto? = null,
     )
 
     data class Clave(
@@ -82,6 +93,10 @@ object TrustDirectory {
         val seq: Int,
         val emitidaEn: Long,
         val claves: List<Clave>,
+        /** Base HTTPS autorizada del servicio de canje (`canje.endpoint_base`); vacía = canje cerrado. */
+        val endpointBase: String = "",
+        /** `appId` autorizados por producto (`canje.app_ids`). Vacío = usar el del build. */
+        val appIds: Map<String, String> = emptyMap(),
     ) {
         fun signKeysFor(emitidaEn: Instant?): List<ByteArray> {
             val seg = emitidaEn?.epochSecond ?: Instant.now().epochSecond
@@ -208,6 +223,8 @@ object TrustDirectory {
             seq = datos.seq,
             emitidaEn = datos.emitidaEn,
             claves = claves,
+            endpointBase = datos.canje?.endpoint_base.orEmpty().trimEnd('/'),
+            appIds = datos.canje?.app_ids.orEmpty(),
         )
     }
 

@@ -703,13 +703,9 @@ struct LicenseView: View {
 
     // MARK: - Paso 3 · activación
 
+    /// Misma regla que `RedeemClient.configured()`: si no hay endpoints, el canje está cerrado.
     private var isCanjeActive: Bool {
-        let dir = TrustDirectory.effectiveDirectory
-        let hasCanjeKey = dir?.claves.contains(where: { $0.uso == "canje" && $0.activa }) ?? false
-        let hasBase = dir?.endpointBase.hasPrefix("https://") ?? false
-        let appId = Bundle.main.object(forInfoDictionaryKey: "CANJE_APP_ID") as? String ?? RedeemContract.defaultAppID
-        let enabled = Bundle.main.object(forInfoDictionaryKey: "CANJE_HABILITADO") as? Bool ?? true
-        return enabled && !appId.isEmpty && hasCanjeKey && hasBase
+        RedeemClient.configured().canRedeem
     }
 
     private var redeemCard: some View {
@@ -988,12 +984,8 @@ struct LicenseView: View {
         defer { isBusy = false }
         do {
             let identity = try GLIdentity.deviceIdentity()
-            let client = RedeemClient(
-                appID: RedeemContract.defaultAppID,
-                endpointRedeem: nil,
-                endpointStatus: nil
-            )
-            let result = try await client.redeem(code: redeemCode, identity: identity, manager: license)
+            let result = try await RedeemClient.configured()
+                .redeem(code: redeemCode, identity: identity, manager: license)
             redeemCode = ""
             await license.refresh()
             switch result {
@@ -1031,12 +1023,8 @@ struct LicenseView: View {
         defer { isBusy = false }
         do {
             let identity = try GLIdentity.deviceIdentity()
-            let client = RedeemClient(
-                appID: RedeemContract.defaultAppID,
-                endpointRedeem: nil,
-                endpointStatus: nil
-            )
-            _ = try await client.status(identity: identity, manager: license)
+            _ = try await RedeemClient.configured()
+                .status(identity: identity, manager: license)
             await license.refresh()
             alertMessage = "Estado comprobado con el servicio."
         } catch let err as RedeemError {

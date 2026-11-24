@@ -138,6 +138,22 @@ object RedeemContract {
         )
     )
 
+    /**
+     * Fase 1.3: regla única que decide si el canje comercial está abierto.
+     *
+     * Deben cumplirse las cuatro condiciones: build habilitado, `appId` del producto, base HTTPS publicada
+     * en el directorio de confianza y al menos una clave vigente con `uso == "canje"`. La usan la pantalla
+     * (para mostrar u ocultar el campo de código) y el repositorio (para construir el cliente), de modo que
+     * nunca discrepen. iOS aplica la misma regla en `RedeemClient.make(...)` y DShalev en
+     * `ConfiguracionLicencia.comercial_habilitada`.
+     */
+    fun canjeActivo(habilitado: Boolean, appId: String, endpointBase: String, tieneClaveCanje: Boolean): Boolean =
+        habilitado && appId.isNotBlank() && tieneClaveCanje && endpointBase.trimEnd('/').startsWith("https://")
+
+    /** Base de canje normalizada (sin barras finales) o cadena vacía si el directorio no publica una válida. */
+    fun endpointBase(endpointBase: String): String =
+        endpointBase.trim().trimEnd('/').takeIf { it.startsWith("https://") } ?: ""
+
     /** Bytes firmados por el emisor GL sobre el contenido del estado. */
     fun bytesFirmaEstado(
         v: Int,

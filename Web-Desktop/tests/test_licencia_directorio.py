@@ -52,11 +52,19 @@ def test_vector_directorio_v1_valido():
     assert d.v == 1
     assert d.seq == 1
     assert d.emitida_en == 1776470400
-    assert len(d.claves) == 2
+    # Fase 1.3: ecdh + firma vigente + 5 firmas históricas (retiradas) + una clave de canje.
+    assert len(d.claves) == 8
     assert d.ecdh_vigente() is not None
-    # Comprobar sign keys
+    # En la fecha de emisión del directorio solo la firma vigente está en su intervalo.
     sign_keys = d.sign_keys_for(1776470400)
     assert len(sign_keys) == 1
+    # Pero una licencia emitida antes de la rotación sigue verificando con su firma histórica.
+    assert len(d.sign_keys_for(1759622400)) == 6
+    assert len(d.sign_keys_for(1761177601)) == 1
+    # El bloque `canje` publica la base autorizada y los appIds de los tres productos.
+    assert d.endpoint_base == "https://gl-redeem.example.test"
+    assert set(d.app_ids) == {"SHALEV-ANDROID", "SHALEV-IOS", "DSHALEV"}
+    assert [c.kid for c in d.claves if c.uso == "canje"] == ["gl-redeem-vector"]
 
 
 def test_firmado_con_raiz_b():

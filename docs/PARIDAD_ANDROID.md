@@ -113,3 +113,111 @@ Los siguientes defectos han sido identificados en el código de referencia de An
 4. **C1 — Incompatibilidad de solicitud con alfabeto GSM-7:**  
    En Android, `MensajesLicencia.kt` utiliza palabras con tilde como `"envíala"` y `"Amplía"`, que no pertenecen al alfabeto estándar GSM-7 (7 bits). Esto obliga a los operadores de telecomunicaciones a codificar el mensaje en UCS-2 (16 bits), disparando el número de partes de SMS de 5 a 12 fragmentos, encareciendo y aumentando el riesgo de corte en el envío en Cuba.  
    *Solución:* Normalizar las palabras legibles a `"enviala"` y `"Amplia"`, y retirar acentos/ñ en las líneas informativas legibles manteniendo el payload cifrado intacto.
+
+---
+
+## 4. Correcciones aplicadas en la verificación de paridad (2026-11-24)
+
+Referencia: `main@5ce64ef` (PR #153, tareas T1–T5). Todas las líneas siguientes son correcciones **estáticas**:
+en este entorno no hay Gradle, Android SDK ni Xcode, así que ninguna se ha confirmado por compilación.
+
+### 4.1 Canje comercial (T4) — estaba cerrado en las tres plataformas
+
+El contrato del directorio admite un bloque opcional `canje: { endpoint_base, app_ids }` y claves con
+`uso == "canje"`, pero **ningún directorio del repo lo publicaba** y **nadie cargaba el directorio al arrancar**.
+Resultado: `TrustDirectory.effectiveDirectory` / `Directory.effectiveDirectory` / `configuracion()` quedaban
+vacíos y el canje se mostraba como «Aún no disponible en esta edición» en APK, IPA y DShalev.
+
+| Pieza | Android | iOS | DShalev |
+|---|---|---|---|
+| Carga al arrancar | `ShalevApplication.onCreate` → `TrustDirectoryManager.cacheFile` + `loadEffective()` | `IShalevApp.init` → `TrustDirectoryManager.cacheURL` + `loadEffective()` | `create_app.lifespan` → `_cargar_directorio_confianza()` |
+| Actualización remota | hilo daemon `directorio-confianza` | `Task.detached(priority: .utility)` | no se hace en el arranque (decisión: el panel no bloquea) |
+| Regla única de apertura | `RedeemContract.canjeActivo(...)` | `RedeemClient.make(...)` | `ConfiguracionLicencia.comercial_habilitada` |
+| Base sin barras finales | `RedeemContract.endpointBase(...)` | `RedeemClient.normalizedBase(...)` | `_validar_endpoint` + `BASE_PUBLICA_AUTORIZADA` |
+| appId del producto | `BuildConfig.CANJE_APP_ID` = `SHALEV-ANDROID` | `Info.plist` `CANJE_APP_ID` = `SHALEV-IOS` | `config_licencia` = `DSHALEV` |
+
+Detalles que corregían defectos reales:
+
+- `LicenciaRepositoryImpl.redeemClientLocked()` memorizaba el cliente **aunque estuviera cerrado**, de modo que
+  una actualización del directorio no abría el canje hasta reiniciar. Ahora solo se memoriza si `canjeActivo`.
+- `LicenseView.isCanjeActive` recalculaba la regla por su cuenta (y con `CANJE_HABILITADO` por defecto `true`);
+  ahora delega en `RedeemClient.configured().canRedeem`, la misma que usa el envío real.
+- La pantalla Android (`LicenciaScreen`, paso ACTIVAR) y el repositorio usaban dos copias de la regla; ahora ambas
+  llaman a `RedeemContract.canjeActivo`.
+
+### 4.2 C1 (alfabeto GSM-7) — seguía abierto en la referencia
+
+`docs/PARIDAD_ANDROID.md` §3.4 documenta la solución (`"enviala"`, `"Amplia"`, sin tildes), y DShalev la aplica
+(`normalizar_gsm7` en `licencia/solicitud.py`), pero Android seguía emitiendo `Carné de identidad:`, `Teléfono:`
+y `Amplía:` en `SolicitudCifrada.solicitud/ampliacion/recuperacion`, lo que fuerza UCS-2 y multiplica las partes
+del SMS. Se alineó Android a la solución ya documentada y se ajustaron las expectativas de `LicenseFlowTest`
+(líneas 59-60 y 253). El payload cifrado no cambia.
+
+### 4.3 Panel de pago en DShalev
+
+`license_solicitar.html` mostraba «Cómo pagar» con métodos de cobro pero **sin importe**, mientras APK e IPA
+muestran el precio.
+
+- Se añadió `importe_pagar` con un único helper `app._importe_pagar` (tarifas canónicas de
+  `solicitud.calcular_precio` / `calcular_precio_ampliacion`), usado tanto en el GET como en el POST; antes el POST
+  tenía su propia copia del cálculo.
+- La advertencia se sirve desde la constante `FRASE_PAGA_SOLO` (`frase_paga_solo`) y ahora se muestra **siempre**
+  en la tarjeta; antes era un literal en la plantilla y desaparecía cuando no había métodos de cobro configurados.
+- El script `actualizarCalculoPrecio` mantiene el desglose existente y sincroniza el nuevo `#importe-pagar`, para
+  que la tarjeta y el desglose no discrepen mientras se edita el plan o las secundarias.
+
+### 4.4 Directorio de prueba con canje
+
+`tools/licencia/generar_vectores_directorio.py` ahora firma un vector con `gl-redeem-vector` (`uso: "canje"`,
+escalar determinista `0x43…`), el bloque `canje` con base `https://gl-redeem.example.test` y los tres `app_ids`,
+y las cinco firmas históricas (ver §4.5). La firma ECDSA se fija en `FIRMA_V1` porque `ec.ECDSA` usa nonce
+aleatorio: sin fijarla, cada ejecución produciría un vector distinto y los tres bootstrap dejarían de coincidir.
+Se regeneraron `docs/vectores/directorio-v1.json` y los tres `directorio-bootstrap.json`
+(`Android/licencia/src/main/resources`, `iOS/Resources`, `iOS/Sources/Domain`). Es un vector de **prueba**:
+la base no es producción y la clave privada solo la tendría GL.
+
+> Consecuencia esperada y deliberada: al haber ahora claves `uso == "canje"` en el directorio, DShalev autoriza
+> **solo** ese kid (`config_licencia.definir` prioriza las claves de canje). Las pruebas `test_licencia_cliente`
+> y `test_licencia_directorio` se actualizaron en consecuencia (8 claves, `gl-redeem-vector` autorizado,
+> `gl-sign-vigente` no autorizado como kid de canje).
+
+### 4.5 Riesgo que abrió la carga del directorio: firmas históricas (D2)
+
+`LicenseTrust.signSpkis()` (Android) y `GLTrust.signingPublicKeys` (iOS) son autoritativos en cuanto existe
+directorio efectivo (es la mitigación del defecto D2: sin respaldo ciego a las claves fijadas). Pero las claves
+fijadas del build son **seis** (la vigente y cinco rotaciones anteriores que aún validan licencias ya emitidas),
+mientras el vector solo publicaba una. Al empezar a cargarse el directorio, las licencias antiguas habrían
+dejado de verificar en el siguiente arranque.
+
+Solución en los datos, no en el código: el vector publica las cinco firmas históricas con `estado: "retirada"` y
+`hasta` = fecha de retirada. Así:
+
+- una licencia emitida dentro de su intervalo sigue verificando (`signKeysFor(emitidaEn)` devuelve 6 claves);
+- pasada la retirada solo queda la vigente (1 clave), de modo que ninguna licencia nueva se firma con ellas.
+
+Pruebas: `LicenseTrustTest.unDirectorioEfectivoNoPierdeLasFirmasHistoricasDentroDeSuIntervalo` (Android),
+`LicenseContractTests.testBootstrapDirectoryNowPublishesRedeemBaseAndAppIDs` (iOS) y
+`test_vector_directorio_v1_valido` / `test_flujo_completo_canje_con_directorio_v1` (DShalev).
+
+### 4.6 Raíces de compilación vacías (D3) y degradación
+
+`TrustDirectory.RAIZ_A_SPKI` / `RAIZ_B_SPKI` (Android) y `rootASPKI` / `rootBSPKI` (iOS) siguen vacías en el
+repositorio, como exige D3 (las reales se inyectan al publicar y `tools/verificacion/verificar_raices_release.py`
+falla en modo release si faltan). Consecuencia esperada de la carga en el arranque: sin raíces, el bootstrap no
+verifica, `effectiveDirectory` queda en `null` y `LicenseTrust` usa las claves fijadas. La app **no** se rompe:
+pierde la rotación dinámica y el canje (que exige base y clave de canje del directorio), no la validación normal.
+
+### 4.7 Pruebas de la costura nueva
+
+- Web: `test_licencia_config.test_registrar_directorio_efectivo_habilita_la_configuracion_del_directorio`.
+- Android: `RedeemContractTest.canjeSeCierraSiFaltaBaseHttpsOClaveDeCanje` (regla pura, sin red).
+- iOS: `LicenseContractTests.testRedeemClientStaysClosedWithoutBuildFlagDirectoryBaseOrRedeemKey`,
+  `testEndpointBaseDropsTrailingSlashesWithoutBreakingTheScheme` y
+  `testBootstrapDirectoryNowPublishesRedeemBaseAndAppIDs` (parsea el bootstrap real del bundle).
+
+### 4.8 Diferencias de plataforma que se mantienen (no son defectos)
+
+1. `CANJE_APP_ID` distinto por producto (`SHALEV-ANDROID` / `SHALEV-IOS` / `DSHALEV`): el servicio emite por appId.
+2. Origen del interruptor: `BuildConfig` (Android), `Info.plist` (iOS), `config_licencia` (DShalev).
+3. Copia al portapapeles y SMS/WhatsApp nativos: solo en apps nativas; DShalev usa enlaces `wa.me` y el botón Copiar.
+4. DShalev no refresca el directorio en el arranque (no bloquea el panel); Android e iOS sí lo hacen en segundo plano.

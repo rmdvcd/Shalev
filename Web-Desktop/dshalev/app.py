@@ -81,6 +81,29 @@ def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def _importe_pagar(
+    tipo: str,
+    secundarias_previas: int,
+    *,
+    secundarias_seleccionadas: int,
+    amplia: bool,
+    recupera: bool,
+) -> str:
+    """Importe mostrado en la tarjeta «Cómo pagar», con las tarifas canónicas.
+
+    Paridad con Android (`LicenciaScreen`) e iOS (`LicenseView`): en recuperación no se paga;
+    al ampliar solo se cobran las secundarias añadidas; en cualquier otro caso, plan + secundarias.
+    """
+    from .licencia.solicitud import calcular_precio, calcular_precio_ampliacion, formatear_cup
+
+    if recupera:
+        return "0.00 CUP (Gratis)"
+    if amplia:
+        adicionales = max(1, secundarias_seleccionadas - max(0, secundarias_previas))
+        return formatear_cup(calcular_precio_ampliacion(tipo, adicionales))
+    return formatear_cup(calcular_precio(tipo, secundarias_seleccionadas))
+
+
 class FieldError(ValueError):
     """Error de validación ligado al nombre del campo del formulario: la plantilla lo marca junto al input."""
 
@@ -108,8 +131,26 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
     templates.env.filters["cup"] = format_cup
     templates.env.filters["qty"] = lambda value: f"{float(value):.3f}".rstrip("0").rstrip(".")
 
+    def _cargar_directorio_confianza() -> None:
+        """S6: deja el directorio de confianza efectivo antes de servir /licencia.
+
+        Equivale al arranque de Android e iOS: bootstrap firmado + caché local anti-retroceso.
+        Si no hay claves raíz válidas o el bootstrap no verifica, se sigue sirviendo el panel con
+        la configuración fija del build (fail-closed, sin canje). La descarga remota no se hace aquí.
+        """
+        from .licencia.config_licencia import registrar_directorio_efectivo
+        from .licencia.directorio import GestorDirectorio
+
+        try:
+            gestor = GestorDirectorio(ruta_cache=config.database_path.parent / "directorio.json")
+            registrar_directorio_efectivo(gestor.inicializar())
+        except Exception:
+            logging.getLogger("dshalev.licencia").exception("No se pudo cargar el directorio de confianza")
+            registrar_directorio_efectivo(None)
+
     @asynccontextmanager
     async def lifespan(live_app):
+        _cargar_directorio_confianza()
         sync_server = None
         live_app.state.sync_server = None
         live_app.state.sync_server_error = None
@@ -690,6 +731,11 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 titulo_pago=TITULO_PAGO,
                 frase_paga_solo=FRASE_PAGA_SOLO,
                 aviso_sin_metodos=AVISO_SIN_METODOS,
+                importe_pagar=_importe_pagar(
+                    tipo_defecto, int(secundarias_previas or 0),
+                    secundarias_seleccionadas=(secundarias_previas + 1 if amplia else 0),
+                    amplia=bool(amplia), recupera=bool(recupera),
+                ),
             ),
         )
 
@@ -705,14 +751,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         raiz_app = config.database_path.parent.parent
         from .licencia.identidad import cargar_o_crear_identidad, ruta_identidad
         from .licencia.pago import AVISO_SIN_METODOS, FRASE_PAGA_SOLO, METODOS_COBRO, TITULO_PAGO
-        from .licencia.solicitud import (
-            AVISO_FRESCURA,
-            SolicitudError,
-            calcular_precio,
-            calcular_precio_ampliacion,
-            formatear_cup,
-            generar_solicitud,
-        )
+        from .licencia.solicitud import AVISO_FRESCURA, SolicitudError, generar_solicitud
 
         nombre = (data.get("nombre") or "").strip()
         apellidos = (data.get("apellidos") or "").strip()
@@ -766,13 +805,12 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         except Exception:
             return flash_redirect(request, "/licencia/solicitar", "No se pudo generar la solicitud de licencia.", kind="error")
 
-        if recupera:
-            precio_cup = "0.00 CUP (Gratis)"
-        elif amplia:
-            adic = max(1, secundarias - secundarias_previas)
-            precio_cup = formatear_cup(calcular_precio_ampliacion(tipo, adic))
-        else:
-            precio_cup = formatear_cup(calcular_precio(tipo, secundarias))
+        # Una sola regla de importe para el texto del mensaje y para la tarjeta «Cómo pagar».
+        precio_cup = _importe_pagar(
+            tipo, secundarias_previas,
+            secundarias_seleccionadas=secundarias,
+            amplia=bool(amplia), recupera=bool(recupera),
+        )
 
         from urllib.parse import quote
         tel_soporte = "5351815604"
@@ -801,6 +839,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 titulo_pago=TITULO_PAGO,
                 frase_paga_solo=FRASE_PAGA_SOLO,
                 aviso_sin_metodos=AVISO_SIN_METODOS,
+                importe_pagar=precio_cup,
             ),
         )
 

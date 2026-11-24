@@ -259,3 +259,58 @@ def test_post_estado_exige_autenticacion_y_csrf(tmp_path, monkeypatch):
     assert resp2.status_code == 200
     assert "deshabilitada" in resp2.text
 
+
+
+def test_el_arranque_registra_el_directorio_de_confianza(tmp_path, monkeypatch):
+    """S6: el `lifespan` debe dejar el directorio efectivo cargado antes de servir /licencia.
+
+    Sin esto, `configuracion()` nunca ve las claves `uso: canje` ni la base autorizada y el panel queda cerrado
+    aunque el directorio sea válido (es el mismo defecto que tenían Android e iOS por no llamar a la carga).
+    """
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.hazmat.primitives import serialization
+    from dshalev.licencia import config_licencia as conf_mod
+    from dshalev.licencia.directorio import ClaveDirectorio, DirectorioConfianza
+
+    clave = ec.generate_private_key(ec.SECP256R1())
+    spki = clave.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    directorio = DirectorioConfianza(
+        v=1,
+        seq=7,
+        emitida_en=1776470400,
+        claves=[
+            ClaveDirectorio(
+                kid="gl-redeem-v1", uso="canje", spki_b64="", spki_der=spki,
+                huella="sha256:4444:...", desde=1700000000, hasta=None, estado="vigente",
+            )
+        ],
+        endpoint_base="https://licencias.ejemplo.test",
+        app_ids={"DSHALEV": "DSHALEV"},
+    )
+
+    class GestorFalso:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def inicializar(self):
+            return directorio
+
+    monkeypatch.setattr("dshalev.licencia.directorio.GestorDirectorio", GestorFalso)
+    monkeypatch.setattr(conf_mod, "_CONFIGURACION", None)
+    monkeypatch.setattr(conf_mod, "_DIRECTORIO_EFECTIVO", None)
+
+    with TestClient(create_app(
+        AppConfig(
+            data_dir=tmp_path / "DShalevData",
+            settings_path=tmp_path / "DShalevData" / "portable-settings.json",
+            database_path=tmp_path / "DShalevData" / "test.sqlite3",
+            secret_key="test-session-secret-not-for-production-000000000000",
+        ),
+        Database(tmp_path / "DShalevData" / "test.sqlite3"),
+    )):
+        assert conf_mod.directorio_efectivo() is directorio
+        actual = conf_mod.configuracion()
+        assert actual.comercial_habilitada is True
+        assert actual.endpoint_redeem == "https://licencias.ejemplo.test/v1/redeem"

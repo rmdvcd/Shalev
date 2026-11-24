@@ -363,9 +363,8 @@ private struct GLRequestPayload: Encodable {
         try container.encodeIfPresent(renueva, forKey: .renueva)
         try container.encodeIfPresent(recupera, forKey: .recupera)
         try container.encodeIfPresent(amplia, forKey: .amplia)
-        if GLLicenseManager.ENVIAR_TX_EN_SOLICITUD {
-            try container.encodeIfPresent(tx, forKey: .tx)
-        }
+        // T3: la bandera la resuelve `buildRequest` antes de codificar; aquí solo se omite si no hay valor.
+        try container.encodeIfPresent(tx, forKey: .tx)
     }
 }
 
@@ -560,7 +559,8 @@ final class GLLicenseManager: ObservableObject {
             renueva: (normalizedRecovery == nil && extensionID == nil) ? renewableLicenseID : nil,
             recupera: normalizedRecovery?.lowercased(),
             amplia: extensionID,
-            tx: cleanTx
+            // T3: si la bandera está desactivada, `tx` viaja solo en el texto legible, nunca en el sobre cifrado.
+            tx: GLLicenseManager.ENVIAR_TX_EN_SOLICITUD ? cleanTx : nil
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = []
@@ -775,8 +775,8 @@ final class GLLicenseManager: ObservableObject {
         var lines = [
             header,
             "Nombre: \(payload.nombre) \(payload.apellidos)",
-            "Carné de identidad: \(payload.ci)",
-            "Teléfono: \(payload.telefono)"
+            "Carne de identidad: \(payload.ci)",
+            "Telefono: \(payload.telefono)"
         ]
         if let recovery = payload.recupera {
             lines.append("Licencia anterior: \(recovery)")
@@ -788,7 +788,7 @@ final class GLLicenseManager: ObservableObject {
             lines.append("Secundarias adicionales: \(added)")
             lines.append("Apps secundarias: \(payload.secundarias)")
             lines.append("Precio: \(Cup(cents: payload.tipo.extensionPriceCents(addedSecondaries: added)).formatted)")
-            lines.append("Amplía: \(extensionID)")
+            lines.append("Amplia: \(extensionID)")
         } else {
             lines.append("Tipo: \(payload.tipo.title)")
             lines.append("Apps secundarias: \(payload.secundarias)")

@@ -162,7 +162,7 @@ class RedeemClient(
             val transferredFrom = licenseContent["transferredFrom"]?.jsonPrimitive?.contentOrNull
             val secundarias = licenseContent["secundarias"]?.jsonPrimitive?.intOrNull ?: 0
             if (secundarias > 0) {
-                return RedeemResult.Failure(RedeemContract.MENSAJE_CODIGO_INVALIDO_O_USADO)
+                return RedeemResult.Error("INVALID_CODE", RedeemContract.MENSAJE_CODIGO_INVALIDO_O_USADO)
             }
             val devicePublicKey = licenseContent["devicePublicKey"]?.jsonPrimitive?.contentOrNull
 
@@ -212,9 +212,13 @@ class RedeemClient(
             if (tipoEnum != TipoLicencia.PERPETUA && expiresAt.isNullOrBlank()) {
                 return RedeemResult.Error("INVALID_EXPIRES", "Fecha de vencimiento requerida para licencia temporal")
             }
+            val vencimiento = expiresAt?.takeIf { it.isNotBlank() }?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            if (tipoEnum != TipoLicencia.PERPETUA && vencimiento == null) {
+                return RedeemResult.Error("INVALID_EXPIRES", "Fecha de vencimiento no tiene formato ISO-8601")
+            }
             val state = when (tipoEnum) {
                 TipoLicencia.PERPETUA -> LicenseState.Perpetual(licenseId, secundarias)
-                else -> LicenseState.Active(tipoEnum, Instant.parse(expiresAt), licenseId, secundarias)
+                else -> LicenseState.Active(tipoEnum, vencimiento!!, licenseId, secundarias)
             }
 
             when (val actRes = licenseManager.activarDirecta(licenseId, issuedAt, expiresAt, tipoEnum, secundarias, responseText)) {
@@ -363,7 +367,6 @@ class RedeemClient(
             val kid = statusObj["kid"]?.jsonPrimitive?.contentOrNull ?: "gl-redeem-v1"
             val redeemSpki = TrustDirectory.effectiveDirectory?.redeemKey(kid)
                 ?: TrustDirectory.effectiveRedeemKey(kid)
-                ?: TrustDirectory.effectiveDirectory?.canjeKeys()?.firstOrNull()
 
             if (redeemSpki == null) {
                 return RedeemResult.Error("UNKNOWN_KID", "Clave pública del servicio no autorizada para kid: $kid")
@@ -388,11 +391,20 @@ class RedeemClient(
             val tipoEnum = when (type) {
                 "PERPETUA" -> TipoLicencia.PERPETUA
                 "ANUAL" -> TipoLicencia.ANUAL
-                else -> TipoLicencia.MENSUAL
+                "SEMESTRAL" -> TipoLicencia.SEMESTRAL
+                "MENSUAL" -> TipoLicencia.MENSUAL
+                else -> return RedeemResult.Error("INVALID_TYPE", "Tipo de licencia no admitido: $type")
+            }
+            if (tipoEnum != TipoLicencia.PERPETUA && expiresAt.isNullOrBlank()) {
+                return RedeemResult.Error("INVALID_EXPIRES", "Fecha de vencimiento requerida para licencia temporal")
+            }
+            val vencimiento = expiresAt?.takeIf { it.isNotBlank() }?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            if (tipoEnum != TipoLicencia.PERPETUA && vencimiento == null) {
+                return RedeemResult.Error("INVALID_EXPIRES", "Fecha de vencimiento no tiene formato ISO-8601")
             }
             val state = when (tipoEnum) {
                 TipoLicencia.PERPETUA -> LicenseState.Perpetual(licenseId, secundarias)
-                else -> LicenseState.Active(tipoEnum, Instant.parse(expiresAt!!), licenseId, secundarias)
+                else -> LicenseState.Active(tipoEnum, vencimiento!!, licenseId, secundarias)
             }
             RedeemResult.Success(state)
         } catch (e: Exception) {

@@ -3,6 +3,7 @@ package cu.shalev.licencia
 import cu.shalev.licencia.contract.MensajesLicencia
 import cu.shalev.licencia.contract.RequestPayload
 import cu.shalev.licencia.contract.TipoLicencia
+import cu.shalev.licencia.contract.Via
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -36,12 +37,14 @@ class SolicitudFrescuraTest {
             nombre = "Juan",
             apellidos = "Perez",
             ci = "90010112345",
+            via = Via.WHATSAPP,
             telefono = "+5351234567",
             tipo = TipoLicencia.MENSUAL,
             secundarias = 1,
             deviceId = "SPVI:testdevice123",
+            solicitadaEn = "2026-11-20T12:00:00Z",
+            nonce = "abc123nonce",
             devicePub = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...",
-            requestedAt = "2026-11-20T12:00:00Z",
         )
 
         // 1. Solicitud

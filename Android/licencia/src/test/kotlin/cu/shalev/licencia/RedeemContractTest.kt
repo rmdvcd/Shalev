@@ -4,6 +4,8 @@ import cu.shalev.licencia.crypto.B64
 import cu.shalev.licencia.redeem.RedeemContract
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -69,3 +71,26 @@ class RedeemContractTest {
         )
     }
 }
+
+    /**
+     * Fase 1.3: la base de canje publicada en el directorio es la única fuente del endpoint. Se valida la
+     * regla pura que usan el repositorio y la pantalla, sin red ni claves reales.
+     */
+    @Test
+    fun canjeSeCierraSiFaltaBaseHttpsOClaveDeCanje() {
+        assertTrue(cu.shalev.licencia.redeem.RedeemContract.canjeActivo(
+            habilitado = true, appId = "SHALEV-ANDROID", endpointBase = "https://licencias.ejemplo.test", tieneClaveCanje = true,
+        ))
+        assertFalse(cu.shalev.licencia.redeem.RedeemContract.canjeActivo(
+            habilitado = false, appId = "SHALEV-ANDROID", endpointBase = "https://licencias.ejemplo.test", tieneClaveCanje = true,
+        ))
+        assertFalse(cu.shalev.licencia.redeem.RedeemContract.canjeActivo(
+            habilitado = true, appId = "", endpointBase = "https://licencias.ejemplo.test", tieneClaveCanje = true,
+        ))
+        assertFalse(cu.shalev.licencia.redeem.RedeemContract.canjeActivo(
+            habilitado = true, appId = "SHALEV-ANDROID", endpointBase = "https://licencias.ejemplo.test", tieneClaveCanje = false,
+        ))
+        assertFalse(cu.shalev.licencia.redeem.RedeemContract.canjeActivo(
+            habilitado = true, appId = "SHALEV-ANDROID", endpointBase = "http://licencias.ejemplo.test", tieneClaveCanje = true,
+        ))
+    }

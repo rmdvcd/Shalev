@@ -31,11 +31,18 @@ enum TrustDirectory {
         let estado: String
     }
 
+    /// Bloque opcional de canje (Anexo A / B). Solo datos públicos: base HTTPS autorizada y `appId` por producto.
+    struct CanjeDTO: Codable {
+        let endpoint_base: String?
+        let app_ids: [String: String]?
+    }
+
     struct DataDTO: Codable {
         let v: Int
         let seq: Int
         let emitidaEn: Int64
         let claves: [KeyDTO]
+        let canje: CanjeDTO?
     }
 
     struct Key: Equatable {
@@ -62,6 +69,10 @@ enum TrustDirectory {
         let seq: Int
         let issuedAt: Int64
         let keys: [Key]
+        /// Base HTTPS autorizada del servicio de canje; vacía = canje cerrado.
+        var endpointBase: String = ""
+        /// `appId` autorizados por producto (`canje.app_ids`). Vacío = usar el del build.
+        var appIds: [String: String] = [:]
 
         func signKeys(issuedAt: Date? = nil) -> [P256.Signing.PublicKey] {
             let seconds = Int64((issuedAt ?? Date()).timeIntervalSince1970)
@@ -78,6 +89,11 @@ enum TrustDirectory {
         func redeemKey(kid: String) -> P256.Signing.PublicKey? {
             guard let key = keys.first(where: { $0.usage == "canje" && $0.kid == kid && $0.isActive }) else { return nil }
             return try? P256.Signing.PublicKey(derRepresentation: key.spkiDER)
+        }
+
+        /// true si hay al menos una clave de canje utilizable (no comprometida).
+        var hasActiveRedeemKey: Bool {
+            keys.contains { $0.usage == "canje" && $0.isActive }
         }
 
         func canjeKeys() -> [P256.Signing.PublicKey] {
@@ -208,7 +224,15 @@ enum TrustDirectory {
             ))
         }
 
-        return Directory(v: dto.v, seq: dto.seq, issuedAt: dto.emitidaEn, keys: keys)
+        return Directory(
+            v: dto.v,
+            seq: dto.seq,
+            issuedAt: dto.emitidaEn,
+            keys: keys,
+            endpointBase: ((dto.canje?.endpoint_base ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
+                .replacingOccurrences(of: "/+$", with: "", options: .regularExpression),
+            appIds: dto.canje?.app_ids ?? [:]
+        )
     }
 
     static func applyAntiRollback(current: Directory?, next: Directory) throws -> Directory {

@@ -62,6 +62,53 @@ final class RedeemClient {
         self.endpointStatus = endpointStatus
     }
 
+    /// T4: cliente configurado desde el build (`Info.plist`) y el directorio de confianza efectivo.
+    ///
+    /// El canje queda cerrado (endpoints `nil` → `RedeemError.disabled`) salvo que se cumplan las cuatro
+    /// condiciones, igual que en Android y DShalev: build habilitado, `appId` no vacío, base HTTPS publicada
+    /// por el directorio efectivo y al menos una clave de `uso == "canje"` vigente.
+    ///
+    /// `nonisolated` porque las vistas `@MainActor` (por ejemplo `LicenseView`) la consultan; el cuerpo solo toca
+    /// valores `Sendable` (la lectura del directorio va protegida por `NSLock`).
+    nonisolated static func configured(
+        bundle: Bundle = .main,
+        directory: TrustDirectory.Directory? = TrustDirectory.effectiveDirectory
+    ) -> RedeemClient {
+        let appID = (bundle.object(forInfoDictionaryKey: "CANJE_APP_ID") as? String)
+            ?? RedeemContract.defaultAppID
+        let enabled = (bundle.object(forInfoDictionaryKey: "CANJE_HABILITADO") as? Bool) ?? false
+        return make(
+            appID: appID,
+            enabled: enabled,
+            endpointBase: directory?.endpointBase ?? "",
+            hasActiveRedeemKey: directory?.hasActiveRedeemKey ?? false
+        )
+    }
+
+    /// Variante pura (sin `Bundle`) para poder probarla en `swift test`.
+    ///
+    /// La regla es la misma que `RedeemContract.canjeActivo(...)` en Android y que
+    /// `ConfiguracionLicencia.comercial_habilitada` en DShalev: build habilitado, `appId` del producto,
+    /// base HTTPS publicada en el directorio y al menos una clave vigente con `uso == "canje"`.
+    static func make(
+        appID: String,
+        enabled: Bool,
+        endpointBase: String,
+        hasActiveRedeemKey: Bool
+    ) -> RedeemClient {
+        let base = normalizedBase(endpointBase)
+        let usable = enabled && !appID.isEmpty && hasActiveRedeemKey && base.hasPrefix("https://")
+        let redeem = usable ? URL(string: base + "/v1/redeem") : nil
+        let status = usable ? URL(string: base + "/v1/status") : nil
+        return RedeemClient(appID: appID, endpointRedeem: redeem, endpointStatus: status)
+    }
+
+    /// Quita solo las barras finales: recortar el conjunto `"/"` borraría el `//` del esquema.
+    static func normalizedBase(_ endpointBase: String) -> String {
+        endpointBase.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "/+$", with: "", options: .regularExpression)
+    }
+
     var canRedeem: Bool {
         endpointRedeem != nil && endpointRedeem?.scheme == "https" && !appID.isEmpty
     }

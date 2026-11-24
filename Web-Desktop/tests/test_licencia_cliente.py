@@ -623,12 +623,14 @@ def test_flujo_completo_canje_con_directorio_v1(escenario):
         directorio=directorio,
     )
     assert conf.comercial_habilitada is True
-    assert "gl-sign-vigente" in conf.kids_spki
+    # Fase 1.3: cuando el directorio publica claves `uso == "canje"`, solo esas quedan autorizadas para
+    # abrir la licencia emitida (la clave `firma` del directorio no sirve como kid de canje).
+    assert "gl-redeem-vector" in conf.kids_spki
+    assert "gl-sign-vigente" not in conf.kids_spki
 
-    # En este escenario, firmamos la licencia con la clave de servicio vigente de PR #148
-    # o verificamos que el kid de directorio sea reconocido.
-    kid_vigente = "gl-sign-vigente"
-    assert conf.kid_autorizado(kid_vigente) is not None
+    kid_canje = "gl-redeem-vector"
+    assert conf.kid_autorizado(kid_canje) is not None
+    assert conf.kid_autorizado("gl-sign-vigente") is None
 
 
 def test_clock_skew_reintenta_automaticamente_con_server_time_y_mismo_request_id(escenario):

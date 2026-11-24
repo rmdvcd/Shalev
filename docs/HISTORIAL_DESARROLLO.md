@@ -1,3 +1,63 @@
+## Verificación de paridad Android → iOS/DShalev tras PR #153 (2026-11-24)
+
+- **Objetivo:** Comprobar que lo entregado en el PR #153 (T1–T5) está igual en IShalev y DShalev, corrigiendo
+  solo lo que es defecto y documentando lo que es diferencia legítima de plataforma. Matriz completa en
+  `docs/PARIDAD_ANDROID.md` §4.
+- **Hallazgo principal — el canje estaba inerte en las tres plataformas:** el contrato del directorio admite
+  `canje: { endpoint_base, app_ids }` y claves `uso == "canje"`, pero ningún directorio del repo los publicaba y
+  **nadie ejecutaba la carga del directorio al arrancar** (`TrustDirectoryManager.loadEffective` / `gestor.inicializar`
+  existían sin llamadas). Por eso `effectiveDirectory` quedaba vacío y APK, IPA y DShalev mostraban «Aún no disponible
+  en esta edición» aunque el build tuviera `CANJE_HABILITADO=true`.
+  - Android: `ShalevApplication.onCreate` fija `TrustDirectoryManager.cacheFile` (`filesDir/licencia/directorio.json`),
+    llama a `loadEffective()` y actualiza en un hilo daemon `directorio-confianza`.
+  - iOS: `IShalevApp.init` fija `TrustDirectoryManager.shared.cacheURL` (Application Support/Shalev/directorio.json),
+    llama a `loadEffective()` y actualiza en `Task.detached(priority: .utility)`, **antes** de construir `GLLicenseManager`.
+  - DShalev: `create_app.lifespan` llama a `_cargar_directorio_confianza()`, que construye `GestorDirectorio` con
+    caché junto a la base de datos y registra el resultado con `config_licencia.registrar_directorio_efectivo`.
+    Falla cerrado: si el bootstrap no verifica, se sirve el panel con la configuración fija del build, sin canje.
+- **Regla única de apertura del canje:** `RedeemContract.canjeActivo(...)` (Android), `RedeemClient.make(...)` (iOS) y
+  `ConfiguracionLicencia.comercial_habilitada` (DShalev) exigen lo mismo: build habilitado, `appId` del producto, base
+  HTTPS y al menos una clave vigente de `uso == "canje"`. Antes la pantalla Android y el repositorio tenían copias
+  distintas de la regla, e iOS la recalculaba en `LicenseView.isCanjeActive` con `CANJE_HABILITADO` por defecto `true`.
+- **Defecto corregido en Android:** `LicenciaRepositoryImpl.redeemClientLocked()` memorizaba el `RedeemClient` incluso
+  cuando estaba cerrado, así que una actualización del directorio no abría el canje hasta reiniciar; ahora solo se
+  memoriza si `canjeActivo`.
+- **C1 (GSM-7) seguía abierto en la referencia:** Android emitía `Carné de identidad:`, `Teléfono:` y `Amplía:`, que
+  fuerzan UCS-2 y multiplican las partes del SMS (la solución estaba documentada en `PARIDAD_ANDROID` §3.4 y aplicada
+  en DShalev con `normalizar_gsm7`). Se alineó `SolicitudCifrada.solicitud/ampliacion/recuperacion` a `Carne de
+  identidad`, `Telefono` y `Amplia`, con `LicenseFlowTest` (líneas 59-60 y 253) actualizado. El sobre `SPVIR1:` no cambia.
+- **Panel de pago de DShalev:** la tarjeta «Cómo pagar» no mostraba importe; se añadió `importe_pagar` calculado con
+  las tarifas canónicas (`app._importe_pagar` → `calcular_precio` / `calcular_precio_ampliacion`), un único helper
+  para GET y POST. La advertencia `FRASE_PAGA_SOLO`, que era un literal de la plantilla y desaparecía sin métodos de
+  cobro configurados, ahora se muestra siempre desde la constante; el script del desglose sincroniza el importe.
+- **Firmas históricas (riesgo D2 que abrió esta carga):** las claves fijadas del build son seis (la vigente y cinco
+  rotaciones que siguen validando licencias ya emitidas), pero el directorio solo publicaba una. Como el directorio
+  efectivo es autoritativo, cargarlo habría invalidado las licencias antiguas al siguiente arranque. El vector publica
+  ahora las cinco históricas con `estado: "retirada"` y `hasta` = fecha de retirada: validan lo emitido dentro de su
+  intervalo (6 claves) y no sirven para emitir después (1 clave). Pruebas: `LicenseTrustTest`
+  (`unDirectorioEfectivoNoPierdeLasFirmasHistoricasDentroDeSuIntervalo`), `LicenseContractTests` y las de DShalev.
+- **Raíces de compilación vacías (D3):** siguen vacías a propósito; `verificar_raices_release.py` es quien falla en
+  release. Sin raíces el bootstrap no verifica y `effectiveDirectory` queda en `null`: la app degrada a las claves
+  fijadas (sin rotación dinámica ni canje), no se rompe.
+- **Directorio de prueba con canje:** `tools/licencia/generar_vectores_directorio.py` firma ahora `gl-redeem-vector`
+  (P-256 determinista, escalar `0x43…`) y el bloque `canje` con base `https://gl-redeem.example.test` y los `app_ids`
+  `SHALEV-ANDROID`, `SHALEV-IOS`, `DSHALEV`. Regenerados `docs/vectores/directorio-v1.json` y los tres
+  `directorio-bootstrap.json`. Es material de prueba: la base no es producción y GL conserva la clave privada.
+- **Efecto asumido:** al publicar claves de canje, DShalev autoriza solo esos `kid`; `gl-sign-vigente` deja de valer
+  como kid de canje. Se actualizaron `test_licencia_directorio` y `test_licencia_cliente` en lugar de relajar la regla.
+- **Pruebas nuevas:** `test_licencia_config.test_registrar_directorio_efectivo_habilita_la_configuracion_del_directorio`,
+  `RedeemContractTest.canjeSeCierraSiFaltaBaseHttpsOClaveDeCanje`,
+  `LicenseContractTests.testRedeemClientStaysClosedWithoutBuildFlagDirectoryBaseOrRedeemKey`,
+  `testEndpointBaseDropsTrailingSlashesWithoutBreakingTheScheme`, `testBootstrapDirectoryNowPublishesRedeemBaseAndAppIDs`,
+  `LicenseTrustTest.unDirectorioEfectivoNoPierdeLasFirmasHistoricasDentroDeSuIntervalo`,
+  `test_app.test_el_arranque_registra_el_directorio_de_confianza` y la comprobación del importe en
+  `test_licencia_pago.test_tarjeta_pago_en_solicitar_web`.
+- **Verificado aquí:** Web `pytest` 267/267, `tools/verificacion` 31/31, `botones.py` sin incumplimientos y
+  `ramplint` sin hallazgos (26 plantillas);
+  parseo de los cuatro directorios con el parser real de DShalev (seq 1, 8 claves, base y appIds correctos, y las
+  firmas históricas cubriendo su intervalo). **No verificado:** compilación Gradle/Kotlin, pruebas
+  instrumentadas, compilación Xcode/swift test, canje real contra GL, DPAPI/EXE en Windows físico.
+
 ## Encargo complementario: ventana de 7 días, instrucciones de pago, transferencia y canje habilitado (2026-11-22, versión de trabajo 1.0.9)
 
 - **Objetivo:** Cumplir el encargo complementario en las tres plataformas (Android, iOS y DShalev):

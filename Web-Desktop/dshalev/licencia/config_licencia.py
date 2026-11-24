@@ -233,6 +233,25 @@ def configuracion_desde_directorio(directorio: Any) -> ConfiguracionLicencia:
 
 
 _CONFIGURACION: ConfiguracionLicencia | None = None
+_DIRECTORIO_EFECTIVO: Any | None = None
+
+
+def registrar_directorio_efectivo(directorio: Any | None) -> ConfiguracionLicencia:
+    """Fija el directorio de confianza cargado en el arranque y deriva de él la configuración (S6).
+
+    Es la contraparte de `TrustDirectoryManager.loadEffective()` en Android y iOS: sin este paso,
+    `configuracion()` nunca vería las claves de `uso == "canje"` ni la base autorizada, y el panel
+    /licencia quedaría cerrado aunque el directorio fuese válido.
+    """
+    global _CONFIGURACION, _DIRECTORIO_EFECTIVO
+    _DIRECTORIO_EFECTIVO = directorio
+    _CONFIGURACION = definir(directorio=directorio) if directorio is not None else definir()
+    return _CONFIGURACION
+
+
+def directorio_efectivo() -> Any | None:
+    """Directorio de confianza cargado en el arranque (None = no hay ninguno verificable)."""
+    return _DIRECTORIO_EFECTIVO
 
 
 def configuracion() -> ConfiguracionLicencia:

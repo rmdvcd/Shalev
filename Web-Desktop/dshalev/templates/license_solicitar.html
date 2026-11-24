@@ -149,7 +149,10 @@
       {% if not recupera %}
       <div class="panel" style="margin-top: 1rem; padding: 1rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px;">
         <h3 style="margin-top: 0;">{{ titulo_pago }}</h3>
-        <p><strong>Paga solo a los datos que muestra esta pantalla</strong></p>
+        {# Paridad con Android e iOS: el importe sale de las tarifas canónicas del servidor y se recalcula en
+           vivo con la misma tabla mientras se edita el plan o las secundarias. #}
+        {% if importe_pagar %}<p><strong>Importe a pagar: <span id="importe-pagar">{{ importe_pagar }}</span></strong></p>{% endif %}
+        <p><strong>{{ frase_paga_solo }}</strong></p>
         {% if metodos_cobro %}
           {% for metodo in metodos_cobro %}
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding: 0.5rem; background: var(--surface-bg, #f8fafc); border-radius: 6px;">
@@ -229,10 +232,16 @@ function actualizarCalculoPrecio() {
     'PERPETUA': 17000
   };
 
+  const cup = (valor) => valor.toLocaleString('es-CU', {minimumFractionDigits: 2}) + ' CUP';
+  // Paridad con Android e iOS: el importe de la tarjeta de pago repite el del desglose. La cifra definitiva
+  // la calcula el servidor al generar la solicitud; esto solo evita que discrepen en pantalla.
+  const tarjeta = document.getElementById('importe-pagar');
+
   if (esRecupera) {
     document.getElementById('precio-base-calc').textContent = '0.00 CUP';
     document.getElementById('precio-sec-calc').textContent = '0.00 CUP';
     document.getElementById('precio-total-calc').textContent = '0.00 CUP (Gratis)';
+    if (tarjeta) tarjeta.textContent = '0.00 CUP (Gratis)';
     return;
   }
 
@@ -240,8 +249,9 @@ function actualizarCalculoPrecio() {
     const adic = Math.max(0, sec - secPrevias);
     const totalSec = adic * (preciosSec[tipo] || 0);
     document.getElementById('precio-base-calc').textContent = '0.00 CUP (Ya activa)';
-    document.getElementById('precio-sec-calc').textContent = totalSec.toLocaleString('es-CU', {minimumFractionDigits: 2}) + ' CUP';
-    document.getElementById('precio-total-calc').textContent = totalSec.toLocaleString('es-CU', {minimumFractionDigits: 2}) + ' CUP';
+    document.getElementById('precio-sec-calc').textContent = cup(totalSec);
+    document.getElementById('precio-total-calc').textContent = cup(totalSec);
+    if (tarjeta) tarjeta.textContent = cup(totalSec);
     return;
   }
 
@@ -249,9 +259,10 @@ function actualizarCalculoPrecio() {
   const secTotal = Math.max(0, sec) * (preciosSec[tipo] || 0);
   const total = base + secTotal;
 
-  document.getElementById('precio-base-calc').textContent = base.toLocaleString('es-CU', {minimumFractionDigits: 2}) + ' CUP';
-  document.getElementById('precio-sec-calc').textContent = secTotal.toLocaleString('es-CU', {minimumFractionDigits: 2}) + ' CUP';
-  document.getElementById('precio-total-calc').textContent = total.toLocaleString('es-CU', {minimumFractionDigits: 2}) + ' CUP';
+  document.getElementById('precio-base-calc').textContent = cup(base);
+  document.getElementById('precio-sec-calc').textContent = cup(secTotal);
+  document.getElementById('precio-total-calc').textContent = cup(total);
+  if (tarjeta) tarjeta.textContent = cup(total);
 }
 window.addEventListener('DOMContentLoaded', actualizarCalculoPrecio);
 </script>

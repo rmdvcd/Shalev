@@ -34,6 +34,16 @@ class ShalevApplication : Application() {
                 Class.forName("cu.shalev.app.DebugMasterKey").getMethod("instalar").invoke(null)
             }
         }
+        // Fase 1.3: el directorio de confianza (bootstrap del APK + caché local anti-retroceso) debe quedar
+        // efectivo antes de tocar la licencia. Sin él, `LicenseTrust` cae a las claves fijadas y el canje
+        // comercial queda cerrado; con él, las claves y la base de canje se resuelven dinámicamente.
+        // La descarga remota (GitHub Releases) nunca bloquea el arranque: si falla, se conserva el bootstrap.
+        cu.shalev.licencia.TrustDirectoryManager.cacheFile =
+            java.io.File(filesDir, "licencia/directorio.json")
+        runCatching { cu.shalev.licencia.TrustDirectoryManager.loadEffective() }
+        Thread {
+            runCatching { cu.shalev.licencia.TrustDirectoryManager.updateFromNetwork() }
+        }.apply { isDaemon = true; name = "directorio-confianza" }.start()
         avisoTurno.iniciar(this)
         avisoSync.iniciar()
         notificadorOperaciones.iniciar()

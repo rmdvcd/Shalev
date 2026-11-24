@@ -480,23 +480,20 @@ fun LicenciaContent(
                                     ShalevSecondaryText(PaymentInstructions.FRASE_PAGA_SOLO)
                                     val clipboard = LocalClipboardManager.current
                                     PaymentInstructions.METODOS.forEach { metodo ->
-                                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ShalevSpacing.xxs)) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    ShalevSecondaryText(metodo.nombre)
-                                                    ShalevSecondaryText(metodo.destino)
-                                                    metodo.nota?.let { ShalevSecondaryText(it) }
-                                                }
-                                                ShalevSecondaryButton(
-                                                    text = "Copiar",
-                                                    icon = ShalevIcons.Copiar,
-                                                    onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(metodo.destino)) },
-                                                )
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                                                ShalevSecondaryText(metodo.nombre)
+                                                ShalevSecondaryText(metodo.destino)
+                                                metodo.nota?.let { ShalevSecondaryText(it) }
                                             }
+                                            ShalevSecondaryButton(
+                                                text = "Copiar",
+                                                icon = ShalevIcons.Copiar,
+                                                onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(metodo.destino)) },
+                                            )
                                         }
                                     }
                                 }
@@ -518,10 +515,12 @@ fun LicenciaContent(
             }
             PasoLicencia.ACTIVAR -> {
                 val dirCanje = cu.shalev.licencia.TrustDirectory.effectiveDirectory
-                val canjeActivo = cu.shalev.app.BuildConfig.CANJE_HABILITADO &&
-                    cu.shalev.app.BuildConfig.CANJE_APP_ID.isNotBlank() &&
-                    dirCanje?.claves?.any { it.uso == "canje" && it.activa } == true &&
-                    dirCanje?.endpointBase?.startsWith("https://") == true
+                val canjeActivo = cu.shalev.licencia.redeem.RedeemContract.canjeActivo(
+                    habilitado = cu.shalev.app.BuildConfig.CANJE_HABILITADO,
+                    appId = cu.shalev.app.BuildConfig.CANJE_APP_ID,
+                    endpointBase = dirCanje?.endpointBase.orEmpty(),
+                    tieneClaveCanje = dirCanje?.claves?.any { it.uso == "canje" && it.activa } == true,
+                )
 
                 ShalevCard(title = if (lic.instalada != null) "Renovar con código" else "Tengo un código") {
                     if (!canjeActivo) {

@@ -104,8 +104,8 @@ object MensajesLicencia {
         else -> buildString {
             appendLine("Solicitud de licencia Shalev")
             appendLine("Nombre: ${p.nombre} ${p.apellidos}")
-            appendLine("Carné de identidad: ${p.ci}")
-            appendLine("Teléfono: ${p.telefono}")
+            appendLine("Carne de identidad: ${p.ci}")
+            appendLine("Telefono: ${p.telefono}")
             appendLine("Tipo: ${p.tipo.etiqueta}")
             appendLine("Apps secundarias: ${p.secundarias}")
             appendLine("Precio: ${Money.cup(p.tipo.precio(p.secundarias))}")
@@ -124,14 +124,14 @@ object MensajesLicencia {
         return buildString {
             appendLine("Ampliar secundarias Shalev")
             appendLine("Nombre: ${p.nombre} ${p.apellidos}")
-            appendLine("Carné de identidad: ${p.ci}")
-            appendLine("Teléfono: ${p.telefono}")
+            appendLine("Carne de identidad: ${p.ci}")
+            appendLine("Telefono: ${p.telefono}")
             appendLine("Tipo: ${p.tipo.etiqueta}")
             appendLine("Apps secundarias actuales: $previas")
             appendLine("Secundarias adicionales: $adicionales")
             appendLine("Apps secundarias: ${p.secundarias}")
             appendLine("Precio: ${Money.cup(p.tipo.precioAmpliacion(adicionales))}")
-            appendLine("Amplía: ${p.amplia}")
+            appendLine("Amplia: ${p.amplia}")
             p.tx?.takeIf { it.isNotBlank() }?.let { appendLine("Transferencia: $it") }
             appendLine(AVISO_FRESCURA)
             appendLine()
@@ -143,8 +143,8 @@ object MensajesLicencia {
     fun recuperacion(p: RequestPayload, codigo: String): String = buildString {
         appendLine("Recuperar licencia Shalev")
         appendLine("Nombre: ${p.nombre} ${p.apellidos}")
-        appendLine("Carné de identidad: ${p.ci}")
-        appendLine("Teléfono: ${p.telefono}")
+        appendLine("Carne de identidad: ${p.ci}")
+        appendLine("Telefono: ${p.telefono}")
         appendLine("Licencia anterior: ${p.recupera}")
         p.tx?.takeIf { it.isNotBlank() }?.let { appendLine("Transferencia: $it") }
         appendLine(AVISO_FRESCURA)
