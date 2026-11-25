@@ -1,0 +1,42 @@
+{% extends 'base.html' %}{% block title %}Módulos{% endblock %}{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">PARA QUÉ USA EL NEGOCIO SHALEV</p>
+    <h1>Módulos</h1>
+    <p class="muted">Lo que no marques desaparece de la barra lateral, pero <strong>no se borra</strong>: al volver a marcarlo reaparece con sus datos.</p>
+  </div>
+  <a class="secondary-button" href="/herramientas">Volver a Herramientas</a>
+</div>
+
+{% if notice %}<div class="notice {{ notice_kind or 'info' }}" role="{% if notice_kind == 'error' %}alert{% else %}status{% endif %}">{{ notice }}</div>{% endif %}
+
+<section class="panel">
+  <div class="panel-heading">
+    <div><p class="eyebrow">SELECCIÓN</p><h2>Módulos activos</h2></div>
+  </div>
+  <form method="post" action="/modulos" class="form-stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for modulo in catalogo %}
+    <label>
+      <input type="checkbox" name="modulo_{{ modulo.clave }}" value="1" {% if modulo.clave in seleccion %}checked{% endif %}>
+      <strong>{{ modulo.etiqueta }}</strong> — {{ modulo.detalle }}
+    </label>
+    {% endfor %}
+    <small class="tiny">
+      Ventas necesita el inventario: al marcarlo se marca también Inventario. Al desmarcar Inventario se desmarca Ventas.
+      Debe quedar al menos un módulo activo.
+    </small>
+    <button class="primary-button" type="submit">Guardar módulos</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Qué se verá en la navegación</h2>
+  <ul class="muted">
+    <li><strong>Ventas</strong> (punto de venta): {% if nav.punto_de_venta %}visible{% else %}oculto{% endif %}.</li>
+    <li><strong>Inventario</strong>: {% if nav.inventario %}visible{% else %}oculto{% endif %} (se muestra también con Ventas activo).</li>
+    <li><strong>Servicios</strong>: {% if nav.servicios %}visible{% else %}oculto{% endif %}.</li>
+  </ul>
+  <p class="tiny">El resto de la barra lateral (turnos, reportes, clientes, equipo, respaldo…) se mantiene siempre: son herramientas del negocio, no módulos de venta.</p>
+</section>
+{% endblock %}

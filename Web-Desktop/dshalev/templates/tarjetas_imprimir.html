@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tarjetas · {{ negocio }}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <style>
+    /* Vista de impresión: una página por grupo de hasta 6 tarjetas, como los PNG de Android. */
+    .tarjetas-hoja { background: #f8f9fa; padding: 24px; }
+    .tarjetas-grupo { display: grid; grid-template-columns: 1fr; gap: 16px; margin: 0 auto 24px; max-width: 720px; }
+    .tarjetas-grupo.multiple { grid-template-columns: repeat(2, 1fr); }
+    .tarjeta-articulo { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+    .tarjeta-articulo .categoria { color: var(--text-muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+    .tarjeta-articulo .nombre { font-size: 1.15rem; font-weight: 600; margin: 6px 0 10px; }
+    .tarjeta-articulo .precio { color: var(--accent); font-size: 1.35rem; font-weight: 700; }
+    .tarjeta-comentario { max-width: 720px; margin: 0 auto 18px; color: var(--accent); font-weight: 600; }
+    .tarjeta-negocio { max-width: 720px; margin: 0 auto 18px; color: var(--teal); font-weight: 700; }
+    @media print {
+      .no-print { display: none !important; }
+      .tarjetas-hoja { background: #fff; padding: 0; }
+      .tarjetas-grupo { page-break-after: always; }
+      .tarjetas-grupo:last-child { page-break-after: auto; }
+      .tarjeta-articulo { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<main class="tarjetas-hoja">
+  <p class="no-print tiny"><a href="/inventario/tarjetas">Volver a las tarjetas</a> · Usa la impresión del navegador y elige «Guardar como PDF».</p>
+  {% if paginas %}
+    {% for pagina in paginas %}
+    <section class="tarjetas-grupo{% if pagina|length > 1 %} multiple{% endif %}" aria-label="Página {{ loop.index }}">
+      {% if comentario %}<p class="tarjeta-comentario">{{ comentario }}</p>{% endif %}
+      <p class="tarjeta-negocio">{{ negocio }}</p>
+      {% for tarjeta in pagina %}
+      <article class="tarjeta-articulo">
+        <p class="categoria">{{ tarjeta.categoria }}</p>
+        <p class="nombre">{{ tarjeta.nombre }}</p>
+        <p class="precio">{{ tarjeta.precio_cents|cup }}{% if tarjeta.unidad and tarjeta.unidad != 'u' %} <small class="tiny">por {{ tarjeta.unidad }}</small>{% endif %}</p>
+      </article>
+      {% endfor %}
+    </section>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state"><strong>No hay artículos para las tarjetas</strong><p>Elige al menos uno en la pantalla anterior.</p></div>
+  {% endif %}
+</main>
+</body>
+</html>

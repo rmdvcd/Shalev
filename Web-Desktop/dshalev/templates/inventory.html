@@ -7,13 +7,15 @@
     <h1>Inventario</h1>
     <p class="muted">Gestiona artículos, precios y existencias.</p>
   </div>
-  <nav class="inventory-heading-actions" aria-label="Acciones de inventario">
+  <nav class="inventory-heading-actions" aria-label="Acciones de inventario" id="inventario-exportar">
     {% if user and user.role == 'admin' %}
     <a class="quiet-button" href="/inventario/movimientos">Movimientos</a>
     <a class="quiet-button" href="/inventario/movimientos.csv">Historial CSV</a>
     {% endif %}
     <a class="quiet-button" href="/inventario.csv">CSV</a>
     <a class="quiet-button" href="/inventario.xlsx">Excel</a>
+    <a class="quiet-button" href="/inventario/lista-precios">Lista de precios</a>
+    <a class="quiet-button" href="/inventario/tarjetas">Tarjetas</a>
   </nav>
 </div>
 
@@ -23,7 +25,7 @@
       <div><p class="eyebrow">ALTA RÁPIDA</p><h2>Nuevo artículo</h2></div>
       <span class="icon-tile">＋</span>
     </div>
-    <form method="post" action="/inventario/nuevo" class="form-stack">
+    <form method="post" action="/inventario/nuevo" class="form-stack" id="inventario-agregar">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <label>Nombre<input name="name" required minlength="3" maxlength="80" placeholder="Ej. Café molido" aria-describedby="ayuda-nombre{{ ' error-name' if flash_field == 'name' }}"{% if flash_field == 'name' %} aria-invalid="true"{% endif %}><small class="tiny" id="ayuda-nombre">De 3 a 80 caracteres.</small>{% if flash_field == 'name' %}<p class="campo-error" id="error-name" role="alert">⚠ {{ notice }}</p>{% endif %}</label>
       <div class="form-row">
@@ -44,10 +46,10 @@
     </form>
   </section>
 
-  <section class="panel table-panel">
+  <section class="panel table-panel" id="inventario-lista">
     <div class="panel-heading">
       <div><p class="eyebrow">EXISTENCIAS</p><h2>{{ items|length }} artículos</h2></div>
-      <form method="get" action="/inventario" class="search-form">
+      <form method="get" action="/inventario" class="search-form" id="inventario-buscar">
         <input name="q" value="{{ query }}" placeholder="Buscar artículo" aria-label="Buscar artículo">
         <button class="quiet-button" type="submit">Buscar</button>
       </form>

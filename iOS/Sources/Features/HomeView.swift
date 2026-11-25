@@ -588,6 +588,11 @@ struct HomeView: View {
                          detail: { "\(NumberPresentation.groupedInteger($0.units)) u vendidas" },
                          amount: { Cup(cents: $0.cents).formatted })
         }
+        // Android: TipoTop.EMPLEADO va antes de cliente y local. Importe vendido ↓, empate alfabético.
+        if !empleadosDelPeriodo.isEmpty {
+            personAccordion(title: "Empleado", key: "top_employees", items: Array(empleadosDelPeriodo.prefix(3)),
+                            singular: "venta", plural: "ventas") { $0.cents }
+        }
         if !clientesDelPeriodo.isEmpty {
             personAccordion(title: "Clientes", key: "top_customers", items: Array(clientesDelPeriodo.prefix(3)),
                             singular: "compra", plural: "compras") { $0.cents }
@@ -804,6 +809,26 @@ struct HomeView: View {
             base = []
         }
         return base.filter { $0.isService ? canViewServices : canViewSales }
+    }
+
+    /// Ranking de empleados: importe vendido por vendedor en el período (Android: `Estadisticas.topEmpleados`).
+    /// Se usa el nombre congelado de la venta (`sellerName`), no el empleado actual: si se renombró o se retiró, la
+    /// venta antigua conserva a quién la hizo. Sin vendedor registrado (ventas del dueño) no hay fila.
+    private var empleadosDelPeriodo: [PersonRank] {
+        var porEmpleado: [String: (ops: Int, cents: Int64)] = [:]
+        for sale in periodSales where !sale.isCancelled {
+            guard let vendedor = sale.sellerName?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !vendedor.isEmpty else { continue }
+            var entrada = porEmpleado[vendedor] ?? (ops: 0, cents: 0)
+            entrada.ops += 1
+            entrada.cents += sale.totalCents
+            porEmpleado[vendedor] = entrada
+        }
+        return porEmpleado.map { PersonRank(name: $0.key, operations: $0.value.ops, cents: $0.value.cents, profit: nil) }
+            .sorted {
+                if $0.cents != $1.cents { return $0.cents > $1.cents }
+                return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
     }
 
     /// Ranking de clientes fijos: compras del período por cliente (Android: `TipoTop.CLIENTE`).

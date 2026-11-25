@@ -1,0 +1,38 @@
+{% extends 'base.html' %}{% block title %}Tarjetas promocionales{% endblock %}{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">PARA CLIENTES</p>
+    <h1>Tarjetas promocionales</h1>
+    <p class="muted">Foto, nombre y precio para redes y mensajería. Nunca costo ni existencias: es material para clientes.</p>
+  </div>
+  <nav class="inventory-heading-actions" aria-label="Acciones de las tarjetas">
+    <a class="quiet-button" href="/inventario">Volver al inventario</a>
+    <a class="quiet-button" href="/inventario/lista-precios">Lista de precios</a>
+  </nav>
+</div>
+
+<section class="panel">
+  <div class="panel-heading">
+    <div><p class="eyebrow">ELIGE EL MATERIAL</p><h2>Artículos y comentario</h2></div>
+  </div>
+  <form method="get" action="/inventario/tarjetas.pdf" target="_blank" rel="noopener" class="form-stack">
+    <label>Comentario que encabeza las tarjetas (opcional)
+      <input name="comentario" maxlength="{{ max_comentario }}" value="{{ comentario }}" placeholder="Ej. Ofertas de esta semana">
+      <small class="tiny">Hasta {{ max_comentario }} caracteres. Aparece en todas las páginas.</small>
+    </label>
+    <fieldset class="form-stack">
+      <legend class="tiny">Artículos (si no marcas ninguno, van todos)</legend>
+      {% for articulo in articulos %}
+      <label class="tiny">
+        <input type="checkbox" name="seleccion" value="{{ articulo.name }}">
+        {{ articulo.name }} · {{ articulo.category }} · {{ articulo.sale_price_cents|cup }}
+      </label>
+      {% endfor %}
+    </fieldset>
+    {% if not articulos %}<p class="tiny">No hay artículos activos en el catálogo.</p>{% endif %}
+    <small class="tiny">Seis tarjetas por página, como en el teléfono. El navegador abre una vista lista para imprimir o guardar como PDF.</small>
+    <button class="primary-button" type="submit" {% if not articulos %}disabled{% endif %}>Ver tarjetas para imprimir</button>
+  </form>
+</section>
+<p class="tiny">El teléfono genera estas tarjetas como imagen (Android: <em>Tarjetas promocionales</em>); aquí se generan como página imprimible para no añadir dependencias de imagen al escritorio.</p>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'base.html' %}{% block title %}Lista de precios{% endblock %}{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">PARA CLIENTES</p>
+    <h1>Lista de precios</h1>
+    <p class="muted">Solo nombre, categoría y precio: es la hoja que se comparte fuera del negocio, así que no lleva costo ni existencias.</p>
+  </div>
+  <nav class="inventory-heading-actions" aria-label="Acciones de la lista de precios">
+    <a class="quiet-button" href="/inventario">Volver al inventario</a>
+    <a class="quiet-button" href="/inventario/tarjetas">Tarjetas</a>
+  </nav>
+</div>
+
+<section class="panel">
+  <div class="panel-heading">
+    <div><p class="eyebrow">{{ negocio }}</p><h2>{{ filas|length }} artículo{% if filas|length != 1 %}s{% endif %}</h2></div>
+    <p class="tiny">Generada el {{ generado }}</p>
+  </div>
+  {% if filas %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Categoría</th><th>Producto</th><th class="numeric">Precio</th></tr></thead>
+      <tbody>
+        {% for fila in filas %}
+        <tr>
+          <td data-label="Categoría">{{ fila.categoria }}</td>
+          <td data-label="Producto"><strong>{{ fila.nombre }}</strong></td>
+          <td data-label="Precio" class="numeric">{{ fila.precio_cents|cup }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><span class="empty-icon">▦</span><strong>No hay artículos activos</strong><p>Añade artículos al inventario para generar la lista.</p></div>
+  {% endif %}
+</section>
+<p class="tiny">Para guardarla o enviarla: usa la impresión del navegador y elige «Guardar como PDF». El teléfono genera el mismo contenido como imagen (Android: <em>Lista de precios en imagen</em>).</p>
+{% endblock %}

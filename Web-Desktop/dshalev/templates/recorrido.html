@@ -1,0 +1,22 @@
+{% extends 'base.html' %}{% block title %}Recorrido: {{ titulo }}{% endblock %}{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">GUÍA PASO A PASO</p>
+    <h1>Recorrido: {{ titulo }}</h1>
+    <p class="muted">Repite la explicación de esta pantalla cuando quieras. Puedes cerrarla con <kbd>Esc</kbd> o «Saltar».</p>
+  </div>
+  <nav class="inventory-heading-actions" aria-label="Acciones del recorrido">
+    <a class="quiet-button" href="{{ destino }}">Ir a {{ titulo }}</a>
+    <a class="quiet-button" href="/ayuda">Volver a Ayuda</a>
+  </nav>
+</div>
+<section class="panel">
+  <div class="panel-heading"><div><p class="eyebrow">RESUMEN</p><h2>{{ recorrido.pasos|length }} pasos</h2></div></div>
+  <ol class="address-list">
+    {% for paso in recorrido.pasos %}
+    <li><strong>{{ paso.titulo }}</strong> — {{ paso.frase }}</li>
+    {% endfor %}
+  </ol>
+  <p class="tiny">El recorrido se muestra solo la primera vez en su pantalla. Aquí puedes leerlo siempre, y el botón «Ir a {{ titulo }}» lo vuelve a mostrar sobre la pantalla real.</p>
+</section>
+{% endblock %}

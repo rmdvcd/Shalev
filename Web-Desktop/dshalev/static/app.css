@@ -1945,3 +1945,62 @@ html[data-theme="oscuro"] .primary-button:hover{
 }
 
 
+
+/* Recorrido guiado (paridad con el coach-mark de Android).
+   Capa transparente que no bloquea la página; el elemento del paso se resalta por encima con un contorno. */
+.recorrido-capa{
+  position:fixed;
+  inset:0;
+  z-index:60;
+  pointer-events:none;
+}
+
+.recorrido-tarjeta{
+  pointer-events:auto;
+  width:min(340px, calc(100vw - 24px));
+  background:var(--surface);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-left:4px solid var(--accent);
+  border-radius:var(--radius-md);
+  padding:var(--space-4);
+  box-shadow:var(--shadow-floating);
+}
+
+.recorrido-paso{
+  margin:0 0 4px;
+  font-size:.75rem;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:var(--text-muted);
+}
+
+.recorrido-titulo{
+  margin:0 0 6px;
+  font-size:1.05rem;
+}
+
+.recorrido-frase{
+  margin:0 0 12px;
+  font-size:.9rem;
+  line-height:1.4;
+}
+
+.recorrido-acciones{
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+}
+
+.recorrido-resaltado{
+  outline:3px solid var(--accent);
+  outline-offset:3px;
+  border-radius:var(--radius-sm);
+  position:relative;
+  z-index:61;
+  scroll-margin:120px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .recorrido-resaltado{ outline-offset:2px; }
+}
