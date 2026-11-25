@@ -300,22 +300,25 @@ struct ShalevRootView: View {
                          isEmployeeSession: !sync.isSecondary && !isAdministrator, onSwitchToOwner: switchToOwner,
                          recorridos: recorridos)
             case .inventory:
-                InventoryView(store: store, sync: sync, onSell: { saleMode = .products }, canEdit: canEditInventory, canSell: canSellProducts, canExport: canExport, recorridos: recorridos)
+                InventoryView(store: store, sync: sync, onSell: { saleMode = .products }, canEdit: canEditInventory, canSell: canSellProducts, canExport: canExport,
+                              recorridos: recorridos)
             case .services:
-                ServicesView(store: store, sync: sync, onSell: { saleMode = .services }, canEdit: canEditInventory, canSell: canSellServices, recorridos: recorridos)
+                ServicesView(store: store, sync: sync, onSell: { saleMode = .services }, canEdit: canEditInventory, canSell: canSellServices,
+                             recorridos: recorridos)
             case .records:
-                RecordsView(store: store, recorridos: recorridos, canExport: canExport, canCorrectSales: canCorrectSales,
+                RecordsView(store: store, canExport: canExport, canCorrectSales: canCorrectSales,
                             canManageCash: canManageCash, canViewInventory: canViewInventory,
-                            canViewSales: effectiveSales, canViewServices: effectiveServices)
+                            canViewSales: effectiveSales, canViewServices: effectiveServices,
+                            recorridos: recorridos)
             case .tools:
                 ToolsView(store: store, recorridos: recorridos)
             case .settings:
                 SettingsView(store: store, licenseManager: licenseManager, sync: sync, selectedOperatorID: $selectedOperatorID,
-                             recorridos: recorridos,
                              isAdministrator: isAdministrator, onBack: { selectedSection = .home },
                              canChangePrices: canChangePrices, canExport: canExport,
                              canExportInventory: effectiveSales || effectiveInventory,
-                             canExportServices: effectiveServices, canExportSales: effectiveSales)
+                             canExportServices: effectiveServices, canExportSales: effectiveSales,
+                             recorridos: recorridos)
             }
         }
         .frame(maxWidth: 700)

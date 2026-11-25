@@ -65,14 +65,15 @@ private enum InventorySheet: Identifiable {
 
 @MainActor
 struct InventoryView: View {
-    /// Recorridos guiados: publica los objetivos de esta pantalla y ofrece su recorrido.
-    var recorridos: RecorridosModelo? = nil
     @ObservedObject var store: ShalevStore
     @ObservedObject var sync: SyncManager
     let onSell: () -> Void
     var canEdit = true
     var canSell = true
     var canExport = true
+
+    /// Recorridos guiados: publica los objetivos de esta pantalla y abre el suyo.
+    var recorridos: RecorridosModelo? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reducirMovimiento
     @State private var search = ""

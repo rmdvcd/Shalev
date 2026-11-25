@@ -241,8 +241,15 @@ private struct GloboRecorrido: View {
         // El globo es su propia región: VoiceOver lee título, frase y progreso, y no recorre la pantalla de fondo.
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Recorrido, \(paso.titulo), \(estado.progreso)")
-        // Escape con teclado y la acción de VoiceOver cierran, como el botón «Omitir» de Android.
-        .onExitCommand { modelo.finalizar() }
+        // Dos dedos hacia abajo (como los modales del sistema) y la acción de VoiceOver cierran el recorrido.
+        // `onExitCommand` (Escape) no existe en iOS: aquí no hay teclado que garantice Escape.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 30).onEnded { gesto in
+                if gesto.translation.height > 60 && abs(gesto.translation.width) < 80 {
+                    modelo.finalizar()
+                }
+            }
+        )
         .accessibilityAction(named: "Cerrar recorrido") { modelo.finalizar() }
     }
 }
