@@ -12,7 +12,6 @@
 		000000000000000000000120 /* BankThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002F /* BankThumbnail.swift */; };
 		000000000000000000000104 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000014 /* HomeView.swift */; };
 		0000000000000000000000D2 /* CoachMarks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D1 /* CoachMarks.swift */; };
-		0000000000000000000000F2 /* RecorridoVista.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F1 /* RecorridoVista.swift */; };
 		0000000000000000000000F4 /* RecorridosAyudaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F3 /* RecorridosAyudaView.swift */; };
 		000000000000000000000105 /* InventoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000015 /* InventoryView.swift */; };
 		000000000000000000000106 /* SaleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000016 /* SaleView.swift */; };
@@ -78,7 +77,6 @@
 		000000000000000000000025 /* Orbitron-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Orbitron-Bold.ttf"; sourceTree = "<group>"; };
 		00000000000000000000002F /* BankThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankThumbnail.swift; sourceTree = "<group>"; };
 		0000000000000000000000D1 /* CoachMarks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachMarks.swift; sourceTree = "<group>"; };
-		0000000000000000000000F1 /* RecorridoVista.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorridoVista.swift; sourceTree = "<group>"; };
 		0000000000000000000000F3 /* RecorridosAyudaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorridosAyudaView.swift; sourceTree = "<group>"; };
 		000000000000000000000026 /* IShalev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IShalev.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0000000000000000000000B1 /* TrustDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustDirectory.swift; sourceTree = "<group>"; };
@@ -161,7 +159,6 @@
 				00000000000000000000002B /* SyncView.swift */,
 				00000000000000000000002D /* OcrImportView.swift */,
 				00000000000000000000002E /* ToolsView.swift */,
-				0000000000000000000000F1 /* RecorridoVista.swift */,
 				0000000000000000000000F3 /* RecorridosAyudaView.swift */,
 			);
 			path = Features;
@@ -253,7 +250,6 @@
 				000000000000000000000103 /* DesignSystem.swift in Sources */,
 				000000000000000000000120 /* BankThumbnail.swift in Sources */,
 				0000000000000000000000D2 /* CoachMarks.swift in Sources */,
-				0000000000000000000000F2 /* RecorridoVista.swift in Sources */,
 				0000000000000000000000F4 /* RecorridosAyudaView.swift in Sources */,
 				000000000000000000000104 /* HomeView.swift in Sources */,
 				000000000000000000000105 /* InventoryView.swift in Sources */,
