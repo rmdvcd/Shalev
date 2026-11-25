@@ -147,8 +147,9 @@ def normalizar_gsm7(texto: str) -> str:
 
 _RE_CI = re.compile(r"^\d{11}$")
 _RE_UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
-# 6–30: la regla más estricta de las tres plataformas (iOS ya la usaba). Estrechar rechaza números de 4–5
-# caracteres que ninguna transferencia real tiene, y deja las tres con el mismo mensaje.
+# 6–30, alfanumérico o con guiones: la MISMA regla en Android (`Validadores.NUM_TRANSACCION`), iOS
+# (`validTransactionNumber`) y aquí. Los guiones se aceptan porque los números copiados del SMS de Transfermóvil
+# llegan con ellos: rechazarlos obligaba a reescribirlos a mano.
 _RE_TX = re.compile(r"^[A-Za-z0-9-]{6,30}$")
 
 
@@ -160,7 +161,9 @@ def validar_transferencia(tx: str | None) -> str | None:
         return None
     if not _RE_TX.fullmatch(limpio):
         raise SolicitudError("El número de transferencia debe tener entre 6 y 30 caracteres alfanuméricos o guiones.")
-    return limpio
+    # En mayúsculas, igual que Android (`numeroTransaccion.trim().uppercase()`) e iOS (`uppercased()`): el mismo
+    # número escrito en minúsculas no puede parecer otro distinto en el respaldo ni en el texto compartido.
+    return limpio.upper()
 
 
 def validar_nombre(nombre: str) -> str:

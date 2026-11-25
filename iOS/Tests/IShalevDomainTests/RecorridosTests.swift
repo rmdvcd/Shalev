@@ -8,7 +8,11 @@ final class RecorridosTests: XCTestCase {
     // MARK: - Catálogo y textos
 
     func testCadaRecorridoTienePasosYClaveDeEstadoComoAndroid() {
-        XCTAssertEqual(RecorridoPantalla.allCases.count, 13, "13 recorridos: 6 pantallas y 7 formularios/ventanas")
+        // 9 recorridos: las 6 pantallas, la venta y los formularios de producto y servicio. Los recorridos de
+        // ventana de Android (turno, ajuste de precio, ficha de cliente, exportar) no existen aquí como pantalla
+        // aparte: se retiraron porque todos sus pasos se saltaban y el globo no llegaba a mostrarse. Lo comprueba
+        // `tools/verificacion/recorridos_ios.py`, que verifica que cada paso tiene su `.recorridoObjetivo`.
+        XCTAssertEqual(RecorridoPantalla.allCases.count, 9, "6 pantallas + venta + producto + servicio")
         for recorrido in RecorridoPantalla.allCases {
             XCTAssertFalse(recorrido.pasos.isEmpty, "\(recorrido.rawValue) sin pasos")
             // La clave es la de `OnboardingPreferences.clave`: `<clave>_tour_shown`.

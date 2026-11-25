@@ -58,14 +58,44 @@ def login(client: TestClient) -> None:
 # ---- Definición ----
 
 def test_every_tour_respects_android_text_limits() -> None:
-    assert len(recorridos.RECORRIDOS) == 6
+    # Las seis pantallas del rail más cinco de sus ventanas reales (turnos, clientes, módulos, respaldo, licencia).
+    assert len(recorridos.RECORRIDOS) == 11
     for recorrido in recorridos.RECORRIDOS:
         assert recorrido.pasos, recorrido.clave
+        assert recorrido.resumen, f"{recorrido.clave} sin frase para el índice de Ayuda"
         for paso in recorrido.pasos:
             assert len(paso.titulo) <= recorridos.TITULO_MAX, paso
             assert len(paso.frase) <= recorridos.FRASE_MAX, paso
             # Android: la frase empieza por la acción.
             assert paso.frase[0].isupper(), paso
+
+
+def test_every_step_target_exists_in_its_template() -> None:
+    """Un paso cuyo objetivo no está en la plantilla se salta solo: el recorrido quedaría vacío sin avisar.
+
+    Se comprueba contra los `id="..."` reales de las plantillas, no contra una lista copiada a mano.
+    """
+    plantillas = {
+        "inicio": "dashboard.html", "inventario": "inventory.html", "servicios": "services.html",
+        "ventas": "sales.html", "reportes": "reports.html", "herramientas": "tools.html",
+        "turnos": "shifts.html", "clientes": "customers.html", "modulos": "modulos.html",
+        "respaldo": "backup.html", "licencia": "license.html",
+    }
+    raiz = Path(__file__).resolve().parents[1] / "dshalev" / "templates"
+    assert set(plantillas) == {r.clave for r in recorridos.RECORRIDOS}, "hay un recorrido sin plantilla asignada"
+    for recorrido in recorridos.RECORRIDOS:
+        html = (raiz / plantillas[recorrido.clave]).read_text(encoding="utf-8")
+        for paso in recorrido.pasos:
+            assert f'id="{paso.objetivo}"' in html, f"{recorrido.clave}: sin objetivo {paso.objetivo!r} en {plantillas[recorrido.clave]}"
+
+
+def test_help_lists_every_tour_from_the_model(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    create_admin(client)
+    login(client)
+    html = client.get("/ayuda").text
+    for recorrido in recorridos.RECORRIDOS:
+        assert f'href="/recorrido/{recorrido.clave}"' in html, recorrido.clave
 
 
 def test_un_texto_demasiado_largo_falla_al_construir() -> None:

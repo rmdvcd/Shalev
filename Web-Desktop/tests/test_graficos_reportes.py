@@ -169,3 +169,37 @@ def test_rankings_ignore_cancelled_sales(tmp_path) -> None:
     for ident in ("inicio-lento", "inicio-rentabilidad"):
         cuerpo = panel.split(f'id="{ident}"', 1)[1].split("</article>", 1)[0]
         assert "Aún no hay ventas" in cuerpo, ident
+
+
+def test_dashboard_area_de_dos_series_y_donut_de_inventario(tmp_path) -> None:
+    """Android e iOS tienen área de venta/costo y donut de existencias en Inicio; el panel no tenía ninguno."""
+    client = setup_shop(tmp_path)
+    sell(client, "3", "EFECTIVO")  # 3 × 120 CUP, costo 40 cada uno
+    panel = client.get("/").text
+
+    # Área de dos series: una fila por día con la barra de venta y la de costo.
+    assert 'id="inicio-ganancia"' in panel
+    cuerpo = panel.split('id="inicio-ganancia"', 1)[1].split("</article>", 1)[0]
+    assert "chart-sale" in cuerpo and "chart-cost" in cuerpo
+    assert "Barra azul: venta. Barra clara: costo." in cuerpo
+    # El costo del día es 3 × 40 = 120 CUP y la venta 360 CUP: ambos salen con su aria-label.
+    assert "Costo del" in cuerpo and "120 CUP" in cuerpo
+
+    # Donut (barras de reparto) de existencias por categoría, valorado al costo.
+    assert 'id="inicio-inventario"' in panel
+    bloque = panel.split('id="inicio-inventario"', 1)[1].split("</article>", 1)[0]
+    assert "Producto" in bloque and "%" in bloque
+    assert "Los servicios no tienen existencia" in panel
+
+
+def test_el_costo_del_panel_no_se_cuela_en_las_salidas_del_cliente(tmp_path) -> None:
+    """El escritorio ya enseña costo en el panel; las salidas para clientes deben seguir sin él."""
+    client = setup_shop(tmp_path)
+    sell(client, "2", "EFECTIVO")
+    for ruta, marcador in (("/inventario/lista-precios.pdf", b"%PDF"),
+                           ("/inventario/tarjetas.pdf", b"%PDF"),
+                           ("/inventario/tarjetas.png", b"PK")):
+        respuesta = client.get(ruta)
+        assert respuesta.status_code == 200 and respuesta.content.startswith(marcador), ruta
+        # El costo del café sembrado es 40 CUP; en la lista de precios no puede aparecer.
+        assert b"40.00" not in respuesta.content, ruta

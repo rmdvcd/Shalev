@@ -14,8 +14,10 @@ import Foundation
 public enum RecorridoPantalla: String, CaseIterable, Identifiable, Sendable {
     // Pantallas
     case inicio, inventario, servicios, registros, herramientas, ajustes
-    // Ventanas y formularios
-    case venta, producto, servicio, turno, ajustePrecio, fichaCliente, exportar
+    // Ventanas y formularios que iOS tiene como pantalla propia. Los recorridos de ventana del teléfono
+    // (turno, ajuste de precio, ficha de cliente, exportar) no se copian: aquí no existen como pantalla aparte y
+    // un recorrido cuyos objetivos no están en ninguna vista se salta entero, así que no llegaría a verse.
+    case venta, producto, servicio
 
     public var id: String { rawValue }
 
@@ -33,10 +35,6 @@ public enum RecorridoPantalla: String, CaseIterable, Identifiable, Sendable {
         case .venta: "Nueva venta"
         case .producto: "Nuevo producto"
         case .servicio: "Nuevo servicio"
-        case .turno: "Turno de caja"
-        case .ajustePrecio: "Ajuste de precio"
-        case .fichaCliente: "Ficha del cliente"
-        case .exportar: "Exportar"
         }
     }
 
@@ -73,13 +71,12 @@ public enum RecorridoPantalla: String, CaseIterable, Identifiable, Sendable {
             ]
         case .herramientas:
             [
-                PasoRecorrido("herramientas_precios", "Ajustes de precio", "Crea un ajuste por volumen o tipo de cliente y actívalo cuando quieras."),
+                PasoRecorrido("herramientas_cambio", "Cambio CUP y USD", "Calcula a mano la tasa del día; no se consulta nada por internet."),
                 PasoRecorrido("herramientas_fichas", "Fichas de costo", "Calcula el costo de una receta o de un servicio antes de ponerle precio."),
-                PasoRecorrido("herramientas_importar", "Importar", "Trae artículos desde una foto o un documento; revisa antes de guardar."),
             ]
         case .ajustes:
             [
-                PasoRecorrido("ajustes_modulos", "Módulos", "Activa o desactiva Ventas, Inventario y Servicios. Lo oculto no se borra."),
+                PasoRecorrido("ajustes_perfil", "Tu negocio", "Aquí eliges qué módulos usas: Ventas, Inventario y Servicios. Lo oculto no se borra."),
                 PasoRecorrido("ajustes_empleados", "Empleados", "Crea empleados y decide qué puede hacer cada uno."),
                 PasoRecorrido("ajustes_licencia", "Licencia", "Consulta tu licencia, el ID de recuperación y el estado del periodo de prueba."),
                 PasoRecorrido("ajustes_respaldo", "Respaldo", "Guarda una copia de tus datos y restáurala cuando lo necesites."),
@@ -105,28 +102,6 @@ public enum RecorridoPantalla: String, CaseIterable, Identifiable, Sendable {
                 PasoRecorrido("servicio_nombre", "Nombre", "Escribe el nombre del servicio; de 3 a 80 caracteres."),
                 PasoRecorrido("servicio_precio", "Precio", "Pon el precio de venta. Los servicios no descuentan existencia."),
                 PasoRecorrido("servicio_guardar", "Guardar", "Toca Guardar para tenerlo disponible al cobrar."),
-            ]
-        case .turno:
-            [
-                PasoRecorrido("turno_fondo", "Fondo inicial", "Escribe el efectivo con el que empiezas el turno."),
-                PasoRecorrido("turno_movimiento", "Movimientos", "Anota el efectivo que entra o sale sin ser una venta."),
-                PasoRecorrido("turno_cerrar", "Cerrar", "Al terminar, cuenta el efectivo y cierra: se guarda el arqueo."),
-            ]
-        case .ajustePrecio:
-            [
-                PasoRecorrido("ajuste_condicion", "Condición", "Elige si el ajuste es por volumen o por tipo de cliente."),
-                PasoRecorrido("ajuste_lineas", "Artículos", "Marca los artículos a los que se aplica el ajuste."),
-                PasoRecorrido("ajuste_activar", "Activar", "Guarda el ajuste y actívalo; se aplica al cobrar."),
-            ]
-        case .fichaCliente:
-            [
-                PasoRecorrido("cliente_historial", "Historial", "Aquí ves todas las compras del cliente."),
-                PasoRecorrido("cliente_editar", "Editar", "Corrige nombre, carné o teléfono; se actualizan sus compras anteriores."),
-            ]
-        case .exportar:
-            [
-                PasoRecorrido("exportar_alcance", "Qué se exporta", "Elige la lista o el período que quieres compartir."),
-                PasoRecorrido("exportar_formato", "Formato", "Toca Excel, PDF o imagen para guardarlo o enviarlo."),
             ]
         }
     }

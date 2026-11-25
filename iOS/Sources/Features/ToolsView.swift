@@ -85,6 +85,7 @@ struct ToolsView: View {
             }
         }
         .background(Color.shalevBackground)
+        .recorridoAlAparecer(.herramientas, modelo: recorridos)
         .onAppear(perform: load)
         .sheet(item: $editingPart) { part in
             CostPartEditor(part: part) { updated in
@@ -159,6 +160,7 @@ struct ToolsView: View {
             }
         }
         .padding(15).background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 18))
+        .recorridoObjetivo("herramientas_fichas")
     }
 
     private var editor: some View {
@@ -197,6 +199,7 @@ struct ToolsView: View {
             Button { saveDraft() } label: { Label("Guardar ficha", systemImage: "checkmark.circle.fill").frame(maxWidth: .infinity) }
                 .buttonStyle(.borderedProminent).tint(Color.shalevPrimary)
             Button { showCurrencyCalculator = true } label: { Label("Calculadora de cambio", systemImage: "arrow.left.arrow.right") }
+                .recorridoObjetivo("herramientas_cambio")
         }
         .padding(15).background(Color.shalevSurface, in: RoundedRectangle(cornerRadius: 18))
     }

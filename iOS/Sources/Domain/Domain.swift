@@ -866,7 +866,7 @@ enum BusinessError: LocalizedError, Equatable {
         case .employeePINSetupFailed: "No se pudo configurar el PIN seguro. Inténtalo de nuevo."
         case .invalidCustomer: "Completa nombre y apellidos, un carné cubano de 11 dígitos y un teléfono válido."
         case .duplicateCustomer: "Ese carné ya pertenece a otro cliente fijo."
-        case .invalidTransactionNumber: "El número de transacción es obligatorio y debe tener de 6 a 30 letras o dígitos."
+        case .invalidTransactionNumber: "El número de transacción es obligatorio y debe tener de 6 a 30 letras, números o guiones."
         case .invalidPrice: "Revisa el precio: debe ser mayor que cero y superar el costo del artículo."
         case .invalidPriceAdjustment: "El ajuste necesita un nombre, un porcentaje entre −90 % y +100 % y al menos un artículo."
         case .invalidInventoryAlertDefaults: "Revisa los niveles: el crítico no puede superar el nivel bajo."
@@ -1050,8 +1050,11 @@ enum CustomerValidator {
 
     static func validTransactionNumber(_ value: String) -> String? {
         let number = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (6...30).contains(number.count), number.allSatisfy({ $0.isLetter || $0.isNumber }),
-              number.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) && $0.isASCII }) else { return nil }
+        // 1.0.9: admite guiones, como Android y DShalev: los números copiados del SMS de Transfermóvil llegan con ellos.
+        guard (6...30).contains(number.count), number.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }),
+              number.unicodeScalars.allSatisfy({
+                  (CharacterSet.alphanumerics.contains($0) || $0 == "-") && $0.isASCII
+              }) else { return nil }
         return number.uppercased()
     }
 

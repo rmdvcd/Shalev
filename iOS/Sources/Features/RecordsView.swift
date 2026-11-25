@@ -214,6 +214,7 @@ struct RecordsView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(filter.isActive ? "Filtrar registros. Filtros activos: \(filter.summary)" : "Filtrar por fecha e importe")
+                    .recorridoObjetivo("registros_filtro")
                     if canExport && selectedTab != .customers {
                         Menu {
                             Button("Excel (XLSX)", systemImage: "tablecells") { export(.xlsx) }
@@ -226,6 +227,7 @@ struct RecordsView: View {
                                 .shalevToque()
                         }
                         .accessibilityLabel("Exportar registros")
+                        .recorridoObjetivo("registros_exportar")
                     }
                 }
             }
@@ -241,8 +243,10 @@ struct RecordsView: View {
                 }
                 .padding(.horizontal, 17).padding(.vertical, 5)
             }
+            .recorridoObjetivo("registros_turnos")
             ShalevSearchField(text: $search, placeholder: "Buscar en registros")
                 .padding(.horizontal, 17).padding(.top, 9)
+                .recorridoObjetivo("registros_buscar")
             if filter.isActive {
                 Button { filter = RecordsFilterState() } label: {
                     HStack(spacing: 5) {
@@ -267,6 +271,7 @@ struct RecordsView: View {
                     Text(Cup(cents: salesTotal).formatted).font(.shalev(13, weight: .semibold)).foregroundStyle(Color.shalevText)
                 }
                 .padding(.horizontal, 20).padding(.vertical, 10)
+                .recorridoObjetivo("registros_resumen")
             } else {
                 Text(summaryCount)
                     .font(.shalev(12, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
@@ -310,8 +315,10 @@ struct RecordsView: View {
                 }
                 .padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 18)
             }
+            .recorridoObjetivo("registros_lista")
         }
         .background(Color.shalevBackground)
+        .recorridoAlAparecer(.registros, modelo: recorridos)
         .onAppear { if !visibleTabs.contains(selectedTab) { selectedTab = visibleTabs.first ?? .sales } }
         .onChange(of: visibleTabs) { _, tabs in
             if !tabs.contains(selectedTab) { selectedTab = tabs.first ?? .sales }

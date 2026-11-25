@@ -59,7 +59,11 @@ class ValidadoresTest {
         assertEquals(setOf("clienteCi"), campos(Validadores.cliente(DatosCliente("María Pérez", "85130112345", "51234567"))))
         assertEquals(setOf("clienteCi"), campos(Validadores.cliente(DatosCliente("María Pérez", "85043112345", "51234567"))))
         assertNull(Validadores.numeroTransaccion("TMW1234567"))
+        // 1.0.9: el guion se admite (los números copiados del SMS llegan con él) pero el mínimo son 6 caracteres.
+        assertNull(Validadores.numeroTransaccion("601-ADLM-8997"))
         assertEquals(Regla.FORMATO, Validadores.numeroTransaccion("12-34")!!.regla)
+        assertEquals(Regla.FORMATO, Validadores.numeroTransaccion("A1234")!!.regla)
+        assertEquals(Regla.FORMATO, Validadores.numeroTransaccion("A".repeat(31))!!.regla)
     }
 
     @Test fun `cuentas bancarias se normalizan`() {

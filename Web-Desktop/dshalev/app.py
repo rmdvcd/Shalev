@@ -341,6 +341,23 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 daily_map[row["day"]] = daily_map.get(row["day"], 0) + row["total"]
             days = [(today_date - timedelta(days=offset)).isoformat() for offset in range(6, -1, -1)]
             daily = [{"day": day, "total": daily_map.get(day, 0)} for day in days]
+            # Área de dos series (paridad con Inicio de Android e iOS): la venta y su costo del mismo día. El costo
+            # sale de `items.cost_cents` congelado en el momento de la consulta; si el artículo ya no existe, cuenta 0.
+            cost_rows = conn.execute("""SELECT date(s.created_at,'localtime') day,
+                    SUM(sl.quantity * COALESCE(i.cost_cents,0)) cost
+                FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id LEFT JOIN items i ON i.id=sl.item_id
+                WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
+                GROUP BY day""", (start, today)).fetchall()
+            cost_map = {row["day"]: row["cost"] for row in cost_rows}
+            daily_cost = [{"day": day, "cost": cost_map.get(day, 0)} for day in days]
+            # Donut de existencias por categoría, valoradas al costo (como `Estadisticas.inventarioPorCategoria`).
+            # Los servicios no tienen existencias y se excluyen; las categorías vacías tampoco entran.
+            categoria_rows = conn.execute("""SELECT category, COUNT(*) items,
+                    SUM(stock_milli * COALESCE(cost_cents,0) / 1000) valor
+                FROM items WHERE active=1 AND category!='Servicio' AND stock_milli > 0
+                GROUP BY category ORDER BY valor DESC, category COLLATE NOCASE""").fetchall()
+            inventario_por_categoria = [dict(row) for row in categoria_rows]
+            total_inventario = sum(row["valor"] or 0 for row in categoria_rows)
             top_items = conn.execute("""SELECT sl.item_id, MAX(sl.item_name) name, SUM(sl.quantity) quantity,
                 SUM(sl.quantity * sl.unit_price_cents) total FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id
                 WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
@@ -373,6 +390,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             today_total=format_cup(today_total), today_count=today_count,
             sales=[dict(r) for r in sales], network_label=mode_labels[mode], daily_sales=daily,
             chart_max=max(1, *(day["total"] for day in daily)),
+            daily_cost=daily_cost,
+            cost_max=max(1, *(row["cost"] for row in daily_cost)),
+            inventario_por_categoria=inventario_por_categoria,
+            total_inventario=total_inventario,
             top_items=[dict(row) for row in top_items],
             slow_items=[dict(row) for row in slow_items],
             profit_items=[dict(row) for row in profit_items],
@@ -996,7 +1017,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         user = current_user(request)
         if not user:
             return redirect("/entrar")
-        return templates.TemplateResponse(request, "ayuda.html", context(request, user=user, section="ayuda"))
+        # El índice de recorridos se genera desde el modelo, para que la lista no se quede corta al añadir uno.
+        return templates.TemplateResponse(request, "ayuda.html", context(
+            request, user=user, section="ayuda", recorridos=recorridos.RECORRIDOS,
+        ))
 
     @app.get("/inventario", response_class=HTMLResponse)
     async def inventory(request: Request):

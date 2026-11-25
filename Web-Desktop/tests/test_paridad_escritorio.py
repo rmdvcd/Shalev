@@ -56,7 +56,9 @@ def test_estadisticas_reales_de_escritorio_y_limites(tmp_path):
     assert '3 unidades · 6 CUP' in page and '1 unidades · 5 CUP' in page
     assert '40 unidades' not in page
     assert 'No incluye ventas móviles' in page
-    assert page.count('<progress ') == 7
+    # Siete días en «Ventas por día», siete ventas y siete costos en «Ganancia bruta» y una barra por categoría
+    # con existencia en el reparto del inventario (aquí, una: el café insumo).
+    assert page.count('<progress ') == 7 + 7 + 7 + 1
     assert '13.50 CUP' in page and '113.50 CUP' not in page
 
 

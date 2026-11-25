@@ -127,13 +127,13 @@ struct HomeView: View {
                     if canViewInventory { inventoryAlerts }
                     if canManageBusinessSettings || canChangePrices { accessTiles }
                     if canViewRecords {
-                        salesAccordion
+                        salesAccordion.recorridoObjetivo("inicio_ventas")
                         profitAccordion
                     }
                     if canViewInventory { inventoryAccordion }
                     if canViewRecords {
-                        paymentAccordion
-                        topAccordions
+                        paymentAccordion.recorridoObjetivo("inicio_metodos")
+                        topAccordions.recorridoObjetivo("inicio_top")
                     }
                 }
                 .padding(.horizontal, 16)
@@ -141,11 +141,13 @@ struct HomeView: View {
             }
         }
         .background(Color.shalevBackground)
+        .recorridoAlAparecer(.inicio, modelo: recorridos)
         .overlay(alignment: .bottom) {
             if store.openShift != nil, canSellProducts || canManageCash {
                 HStack(spacing: 12) {
                     if canSellProducts {
                         ShalevFloatingButton(title: "Nueva venta", symbol: "cart.fill", action: startSale)
+                            .recorridoObjetivo("inicio_nueva_venta")
                     }
                     Spacer(minLength: 0)
                     if canManageCash {
@@ -297,6 +299,7 @@ struct HomeView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Período: \(period.rawValue)")
+        .recorridoObjetivo("inicio_periodo")
     }
 
     private func licenseBannerView(_ text: String) -> some View {

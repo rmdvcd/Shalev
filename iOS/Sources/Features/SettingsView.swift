@@ -75,9 +75,11 @@ struct SettingsView: View {
                             settingsDivider
                         }
                         settingsRow("Perfil", subtitle: "Nombre, apellidos y carné", symbol: "person.crop.circle", sheet: .profile)
+                            .recorridoObjetivo("ajustes_perfil")
                         if isAdministrator {
                             settingsDivider
                             settingsRow("Licencia", subtitle: "Estado, solicitud y activación", symbol: "key.fill", sheet: .license)
+                                .recorridoObjetivo("ajustes_licencia")
                         }
                         settingsDivider
                         settingsRow("Apps vinculadas",
@@ -98,6 +100,7 @@ struct SettingsView: View {
                         if isAdministrator {
                             settingsDivider
                             settingsRow("Permisos", subtitle: "Perfiles locales y qué puede hacer cada empleado", symbol: "lock.fill", sheet: .employees)
+                                .recorridoObjetivo("ajustes_empleados")
                             settingsDivider
                             settingsRow("Locales", subtitle: "Productos, servicios y operaciones por establecimiento", symbol: "mappin.and.ellipse", sheet: .locations)
                             settingsDivider
@@ -106,6 +109,7 @@ struct SettingsView: View {
                         if isAdministrator {
                             settingsDivider
                             settingsRow("Respaldo", subtitle: "Copia cifrada de todo e importar", symbol: "externaldrive.fill", sheet: .backup)
+                                .recorridoObjetivo("ajustes_respaldo")
                         }
                         if canExport {
                             settingsDivider
@@ -117,6 +121,7 @@ struct SettingsView: View {
                         }
                         settingsDivider
                         settingsRow("Ayuda", subtitle: "Manual breve de uso", symbol: "questionmark.circle.fill", sheet: .help)
+                            .recorridoObjetivo("ajustes_ayuda")
                         settingsDivider
                         settingsRow("Soporte", subtitle: "Datos de contacto del desarrollador", symbol: "message.fill", sheet: .support)
                     }

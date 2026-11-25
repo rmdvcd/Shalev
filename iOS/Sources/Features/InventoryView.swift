@@ -271,6 +271,8 @@ struct InventoryView: View {
                 .background(Color.shalevSurfaceVariant, in: Capsule())
                 .shalevToque()
             }
+            .accessibilityLabel("Ordenar: \(orden.rawValue)")
+            .recorridoObjetivo("inventario_ordenar")
             .buttonStyle(.plain)
             .accessibilityLabel(orden.etiquetaAccesible)
             if filter.isActive {
@@ -977,6 +979,7 @@ private struct ProductEditorView: View {
                                       focus: .name, submit: .next) {
                                 focusedField = kind == .product ? .category : .description
                             }
+                            .recorridoObjetivo("producto_nombre")
                             VStack(alignment: .leading, spacing: 6) {
                                 fieldLabel("Tipo")
                                 Picker("Tipo", selection: $kind) {
@@ -1027,6 +1030,7 @@ private struct ProductEditorView: View {
                                           placeholder: "0", keyboard: .decimalPad,
                                           help: kind == .ingredient ? "Unidades que tienes" : "Unidades enteras que tienes")
                                     .shalevInputFilter(kind == .ingredient ? .quantity : .integer(maxDigits: 7), text: $stock)
+                                    .recorridoObjetivo("producto_stock")
                                 if kind == .ingredient {
                                     formField("Unidad de medida", text: $unit, placeholder: "kg, L, u…",
                                               focus: .unit, submit: .done) {
@@ -1060,6 +1064,7 @@ private struct ProductEditorView: View {
                                 .keyboardType(.decimalPad)
                                 .shalevInputFilter(.money, text: $price)
                                 .textFieldStyle(ShalevTextFieldStyle())
+                                .recorridoObjetivo("producto_precio")
                             Text("Por unidad").font(.shalev(11)).foregroundStyle(Color.shalevSecondaryText)
                             if kind != .prepared {
                                 fieldLabel("Precio de costo (CUP) *")
@@ -1099,7 +1104,11 @@ private struct ProductEditorView: View {
             .background(Color.shalevBackground)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Cancelar") { dismiss() }.foregroundStyle(Color.shalevSecondaryText) }
-                ToolbarItem(placement: .topBarTrailing) { Button("Guardar") { save() }.fontWeight(.semibold).foregroundStyle(Color.shalevPrimary).disabled(working) }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Guardar") { save() }
+                        .fontWeight(.semibold).foregroundStyle(Color.shalevPrimary).disabled(working)
+                        .recorridoObjetivo("producto_guardar")
+                }
             }
             .alert("Revisa los datos", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("Entendido", role: .cancel) { errorMessage = nil }

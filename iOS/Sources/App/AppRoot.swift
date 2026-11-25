@@ -333,7 +333,8 @@ struct ShalevRootView: View {
         // La venta ocupa toda la pantalla (como en Android), no una hoja parcial.
         .fullScreenCover(item: $saleMode) { mode in
             SaleComposerView(store: store, mode: mode, onOpenHome: { selectedSection = .home },
-                             onOpenSettings: { selectedSection = .settings }, canOpenSettings: canOpenSettings)
+                             onOpenSettings: { selectedSection = .settings }, canOpenSettings: canOpenSettings,
+                             recorridos: recorridos)
         }
         .sheet(isPresented: $showSyncSetup) {
             NavigationStack {

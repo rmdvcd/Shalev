@@ -287,7 +287,7 @@ Symbols donde Android usa su catálogo).
 
 | Aspecto | Android | iOS | DShalev | Estado |
 |---|---|---|---|---|
-| Recorridos guiados | **51** `Recorrido` en `Recorridos.kt:197` (pestañas, formularios y ventanas), con **127** claves de objetivo (`ObjetivosRecorrido`) y persistencia `*_tour_shown` | **13** de las 51 claves (`inicio`, `inventario`, `inventario-alta`, `servicios`, `ventas`, `ventas-cobro`, `registros`, `registros-ventas`, `herramientas`, `herramientas-costo`, `clientes`, `ajustes`, `ayuda`) en `iOS/Sources/Domain/Recorridos.swift` + `Design/CoachMarks.swift`; persistencia `<clave>_tour_shown` en `UserDefaults` y globo con velo al 50 % que no bloquea toques | **6** de las 51 claves (`inicio`, `inventario`, `servicios`, `ventas`, `reportes`, `herramientas`) en `dshalev/recorridos.py` + `static/recorrido.js`, con persistencia `<clave>_tour_shown` y los mismos límites de texto (28/120) | **Parcial en las dos** (iOS 13 de 51, DShalev 6 de 51) |
+| Recorridos guiados | **51** `Recorrido` en `Recorridos.kt:197` (pestañas, formularios y ventanas), con **127** claves de objetivo (`ObjetivosRecorrido`) y persistencia `*_tour_shown` | **9** recorridos y **36 pasos**, todos con ancla comprobada (`inicio`, `inventario`, `servicios`, `registros`, `herramientas`, `ajustes`, `venta`, `producto`, `servicio`) en `iOS/Sources/Domain/Recorridos.swift` + `Design/CoachMarks.swift`; persistencia `<clave>_tour_shown` en `UserDefaults` y globo con velo al 50 % que no bloquea toques. `tools/verificacion/recorridos_ios.py` falla si un paso no tiene `.recorridoObjetivo` | **11** recorridos (`inicio`, `inventario`, `servicios`, `ventas`, `reportes`, `herramientas`, `turnos`, `clientes`, `modulos`, `respaldo`, `licencia`) en `dshalev/recorridos.py` + `static/recorrido.js`, con persistencia `<clave>_tour_shown` y los mismos límites de texto (28/120) | **Parcial y aceptado** (iOS 9 de 51, DShalev 11 de 51) |
 | Asistente de bienvenida | `OnboardingLogic.kt:16`: 8 pasos (`BIENVENIDA`, `TIPO_APP`, `ACCESO_CLAVE`, `OBJETIVO`, `EMPLEADOS`, `DATOS`, `ALERTAS`, `PRUEBA`) | `OnboardingView.swift:71-78`: 7 pasos (sin `ACCESO_CLAVE` como paso aparte; el bloqueo se ofrece en Ajustes y en un `Toggle` del propio asistente) | `setup.html` (primer inicio, sin pasos guiados) | Diferencia de plataforma (aprobada) en el asistente |
 | Ayuda por pantalla | `PestanaAyuda` (9 pestañas) + 10 `AyudaVentana` con pasos numerados | Un solo manual con 13 `HelpTopic` agrupados por sección | `/ayuda` con guía y atajos | Diferencia de plataforma (aprobada) |
 
@@ -296,21 +296,25 @@ solo en cobertura. Las tres plataformas comparten la misma idea: un globo numera
 recorrido ya se vio (`<clave>_tour_shown`), salto de los pasos cuyo objetivo no está en pantalla y repetición
 explícita (Android desde Ayuda, iOS desde Ajustes ▸ Ayuda, DShalev desde `/ayuda` y `/recorrido/<clave>`).
 
-- **iOS: 13 de 51.** Los recorridos de iOS se **publican desde la vista** (`RecorridosModelo`), no desde una tabla de
-  objetivos separada: cada pantalla declara sus anclas y el modelo salta los pasos sin ancla visible, así que un
-  recorrido nunca señala un hueco. Como iOS no tiene teclado con Escape garantizado, el globo se cierra con el gesto
-  de dos dedos hacia abajo (y con la acción de VoiceOver «Cerrar recorrido»), que es el gesto de descarte de los
-  modales del sistema; Android usa Escape además del botón «Omitir».
-- **DShalev: 6 de 51.** Solo cubre las **6 pantallas de pestaña del escritorio**: los 45 recorridos restantes de
-  Android son formularios, ventanas secundarias y flujos del teléfono que el escritorio no tiene como pantalla
-  aparte. Los que sí existen (alta de artículo, cierre de caja, preajustes) ya se recorren desde su propio formulario
-  con el mismo `static/recorrido.js`.
+- **iOS: 9 recorridos, 36 pasos, todos anclados.** Los recorridos de iOS se **publican desde la vista**
+  (`RecorridosModelo`), no desde una tabla de objetivos separada: cada pantalla declara sus anclas y el modelo salta
+  los pasos sin ancla visible. Ese salto silencioso era el riesgo: una primera versión declaraba 47 pasos en 13
+  recorridos y solo 8 tenían ancla, así que la mayoría de recorridos abría con el globo vacío o no abría. Ahora
+  `tools/verificacion/recorridos_ios.py` compara los `PasoRecorrido(“…”)` con los `.recorridoObjetivo(“…”)`
+  y falla si queda un huérfano. Se retiraron los cuatro recorridos de ventana que iOS no tiene como pantalla propia
+  (turno, ajuste de precio, ficha de cliente, exportar): sus pasos no existían en ninguna vista. Como iOS no tiene
+  teclado con Escape garantizado, el globo se cierra con el gesto de dos dedos hacia abajo (y con la acción de
+  VoiceOver «Cerrar recorrido»); Android usa Escape además del botón «Omitir».
+- **DShalev: 11 recorridos.** Las **6 pantallas de pestaña** más cinco pantallas de trabajo que el escritorio sí tiene
+  (turnos, clientes, módulos, respaldo y licencia). Los 40 recorridos restantes de Android son formularios, ventanas
+  secundarias y flujos del teléfono que el escritorio no tiene como pantalla aparte. Los textos hablan como se usa un
+  navegador («Pulsa», no «Toca») y el alta de artículo sigue recorriéndose desde su propio formulario.
 
-Decisión documentada en lugar de copiar: **las 13 claves de iOS no son las 6 de DShalev**. iOS elige las pantallas
-que un usuario nuevo toca en un teléfono (alta de artículo, cobro, cierre de caja); DShalev elige las seis secciones
-del rail. Copiar la lista de Android entera habría metido recorridos de botones que solo existen en el teléfono, y el
-propio Android los salta cuando su objetivo no está: el resultado sería un recorrido vacío. La cobertura se amplía
-cuando se añada la pantalla, no antes.
+Decisión documentada en lugar de copiar: **las 9 claves de iOS no son las 11 de DShalev**. iOS elige las pantallas
+que un usuario nuevo toca en un teléfono (alta de artículo, cobro); DShalev elige las secciones del rail y sus
+pantallas de trabajo. Copiar la lista de Android entera habría metido recorridos de botones que solo existen en el
+teléfono, y el propio Android los salta cuando su objetivo no está: el resultado sería un recorrido vacío. La
+cobertura se amplía cuando se añada la pantalla, no antes.
 
 ### 5.4 Listas
 
@@ -348,8 +352,8 @@ campo (`TELEFONO`, `TARJETA`, `CARNE`, `ENTERO`, `DECIMAL`, `CANTIDAD`, `DINERO`
 | Gráfico de Android | Android | iOS | DShalev | Estado |
 |---|---|---|---|---|
 | Ventas por período | `ShalevBarChart` (`Charts.kt:139`) | `Chart { BarMark …}` (`HomeView.swift:397`) | `<progress>` por día (`dashboard.html`) y por día del período en Reportes (`reports.html`) | Igual en intención |
-| Ganancia (venta vs costo) | `ShalevAreaChart` con **dos series** (`InicioScreen.kt:858`) | **Corregido:** área de dos series con `AreaMark` en el acordeón de ganancia (`HomeView.swift`, «Área clara: ventas») | No hay: el escritorio no muestra la ganancia en Inicio | Igual Android/iOS (pendiente de pasada visual en simulador) |
-| Inventario por categorías | `ShalevDonutChart` con centro y leyenda | **Corregido:** `ShalevDonutChart` de existencias por categoría, valor al costo (`HomeView.swift`, `categoriasInventario`) | No hay; el reparto por categoría se ve en la tabla de Inventario | Igual Android/iOS; diferencia de plataforma en DShalev |
+| Ganancia (venta vs costo) | `ShalevAreaChart` con **dos series** (`InicioScreen.kt:858`) | **Corregido:** área de dos series con `AreaMark` en el acordeón de ganancia (`HomeView.swift`, «Área clara: ventas») | **Corregido:** panel «Ganancia bruta» con dos barras por día (venta y costo), `daily_cost` en el panel (`dashboard.html`, `app.py`) | Igual en intención (iOS pendiente de pasada visual en simulador) |
+| Inventario por categorías | `ShalevDonutChart` con centro y leyenda | **Corregido:** `ShalevDonutChart` de existencias por categoría, valor al costo (`HomeView.swift`, `categoriasInventario`) | **Corregido:** panel «Inventario por categoría» con barras de reparto y porcentaje, valorado al costo (`inventario_por_categoria`); el escritorio no usa SVG ni canvas, así que el reparto se dibuja con `<progress>` y `aria-label` | Igual en intención; diferencia de forma aceptada |
 | Métodos de pago | `ShalevDonutChart` | **Corregido:** donut en `paymentAccordion` (`HomeView.swift`) | **Corregido:** barras de reparto por forma de pago en Reportes (`share` en % sobre el total del período) | Igual en las tres |
 | Rankings (Top 3, servicios, empleados, clientes, locales) | 8 listas con medalla oro/plata/bronce (`InicioScreen.kt:905-968`), **orden por importe descendente y empate alfabético** (`Estadisticas.topPersonas`) | **8**: más vendido, lento movimiento, rentabilidad, servicios ×2, clientes, ventas por local y empleados (`empleadosDelPeriodo`) | **3**: más vendido, lento movimiento y rentabilidad (`top_items`, `slow_items`, `profit_items` en el panel) | **Parcial**: iOS completo; a DShalev le faltan locales (el escritorio no tiene tabla de locales: usa el `local_id` de `base.html`) y los de servicios, clientes y empleados |
 | Períodos | 5: `TURNO, HOY, SEMANA, MES, ANIO` (`Estadisticas.kt:19`) | 5 equivalentes (`HomePeriod`, `HomeView.swift:6`) | Fechas libres | Igual Android/iOS |
@@ -367,30 +371,35 @@ enseña costo, cosa que hoy solo hacen las apps móviles.
 
 Estado tras el cierre del 2026-11-24 (lo corregido se marca con la evidencia; lo demás sigue abierto):
 
-1. **iOS, abierto:** el ranking de ventas por local (falta) y 38 de los 51 recorridos. **Corregido:** ordenación de
+1. **iOS, abierto:** los recorridos de las ventanas que iOS no tiene como pantalla propia (turno, ajuste de precio,
+   ficha de cliente y exportar) y el ranking de ventas por local (falta). **Corregido:** ordenación de
    inventario y servicios (`ModoOrden` + `aplicar`, prueba `testListOrderingCyclesLikeAndroidAndIsStable`), carné
    (11 dígitos con fecha real, dos pruebas), área de dos series y los dos donuts (`ShalevDonutChart`), listas de
-   servicios, clientes y ventas por local, **ranking de empleados** (`empleadosDelPeriodo`), **13 recorridos
-   guiados** (`Recorridos.swift` + `CoachMarks.swift`) y el **ranking de locales ordenado por importe** con el desempate
+   servicios, clientes y ventas por local, **ranking de empleados** (`empleadosDelPeriodo`), **9 recorridos
+   guiados con 36 pasos anclados y verificados** (`Recorridos.swift` + `CoachMarks.swift` +
+   `tools/verificacion/recorridos_ios.py`) y el **ranking de locales ordenado por importe** con el desempate
    alfabético de Android (`localesDelPeriodo`); este último además dejó de partir en dos filas las dos grafías del
    mismo local, que el `ForEach` colapsaba después perdiendo ventas.
-2. **DShalev, abierto:** 45 de los 51 recorridos de Android (las 6 de pestaña ya están) y los rankings de servicios,
+2. **DShalev, abierto:** 40 de los 51 recorridos de Android (11 ya están: las 6 de pestaña y turnos, clientes,
+   módulos, respaldo y licencia) y los rankings de servicios,
    clientes, empleados y locales del panel (los locales no existen como tabla en el escritorio). **Corregido:**
    exportación de inventario a **PDF y PNG generados por el servidor** (`dshalev/exportacion.py` + `dshalev/png.py`,
    17 pruebas), **ordenación** de las cuatro listas (`dshalev/orden.py`), preajustes de precios editables
    (`dshalev/preajustes.py`, `/herramientas/precios`, 16 pruebas), **módulos y su efecto en el rail**
    (`dshalev/modulos.py`, 12 pruebas), **salidas para clientes** (`dshalev/catalogo_cliente.py`, 11 pruebas),
-   **recorridos guiados** (`dshalev/recorridos.py`, 12 pruebas), **gráficos de Reportes**
+   **recorridos guiados** (`dshalev/recorridos.py`, 11 recorridos, 14 pruebas), **gráficos de Reportes**
    (`test_graficos_reportes.py`) y los **tres rankings de Inicio** (más vendido, lento movimiento y rentabilidad).
-3. **Discrepancia menor sin tocar:** el nº de transferencia sigue en 6–30 en iOS y 4–30 en Android/DShalev; ampliar el
-   rango afloja una validación y estrecharlo rechazaría números que hoy se aceptan, así que se decide con el
-   propietario.
+3. **Nº de transferencia: cerrado el 2026-11-24.** Las tres plataformas usan la misma regla, `^[A-Za-z0-9-]{6,30}$`
+   (letras, números y guiones; se guarda en mayúsculas). Antes iOS pedía 6–30 sin guion y Android/DShalev 4–30. Los
+   mensajes y el `pattern` del formulario web dicen lo mismo; `test_licencia_spvi.py` cubre los bordes (5, 6, 30 y 31
+   caracteres, guion, minúsculas y espacios).
 4. **Diferencia de producto, no defecto:** iOS añade una sexta pestaña «Herramientas» que Android no tiene, y DShalev
    conserva un rail de hasta 14 secciones (filtrado por módulos) donde el teléfono usa pestañas.
 
-Verificado en local (`arena/d16022e9-shalev`): `pytest` de Web **353/353**, `ramplint` (32 ficheros) y `npm test`
-del punto de venta (6/6); los PDF se abrieron con PyMuPDF (2 y 1 páginas, acentos correctos) y el PNG se inspeccionó
-a ojo (1080×1080, RGB). Verificado en CI: «DShalev Windows portable» en verde y el resto de la rama según el último
+Verificado en local (`arena/d16022e9-shalev`): `pytest` de Web **368/368**, `ramplint` (33 ficheros),
+`npm test` del punto de venta (6/6) y `tools/verificacion/recorridos_ios.py` sin pasos huérfanos (9 recorridos, 36
+pasos); los PDF se abrieron con PyMuPDF (2 y 1 páginas, acentos correctos) y el PNG se inspeccionó a ojo (1080×1080,
+RGB). Verificado en CI: «DShalev Windows portable» en verde y el resto de la rama según el último
 run. **No verificado:** ninguna pasada visual en navegador real de los gráficos, los recorridos ni las salidas para
 clientes de DShalev; y de iOS nada se ha visto en un simulador ni en un iPhone, porque aquí no hay Xcode ni `swiftc`:
 los recorridos guiados y el ranking de locales solo los valida la compilación del CI, y un error de Swift únicamente

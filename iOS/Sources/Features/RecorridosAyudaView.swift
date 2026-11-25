@@ -18,15 +18,11 @@ struct RecorridosAyudaView: View {
         (.inventario, "Lista, búsqueda, orden, exportación y alta de artículos."),
         (.servicios, "Lista, búsqueda y alta de servicios."),
         (.registros, "Detalle de ventas, filtros, turnos y exportación."),
-        (.herramientas, "Ajustes de precio, fichas de costo e importación."),
-        (.ajustes, "Módulos, empleados, licencia, respaldo y ayuda."),
+        (.herramientas, "Fichas de costo y calculadora de cambio."),
+        (.ajustes, "Perfil, licencia, permisos, respaldo y ayuda."),
         (.venta, "Carrito, total, forma de pago y cobro."),
         (.producto, "Nombre, precio, existencia y guardado de un artículo."),
         (.servicio, "Nombre, precio y guardado de un servicio."),
-        (.turno, "Fondo inicial, movimientos y cierre de caja."),
-        (.ajustePrecio, "Condición, artículos y activación de un ajuste."),
-        (.fichaCliente, "Historial y edición de un cliente."),
-        (.exportar, "Qué se exporta y en qué formato."),
     ]
 
     var body: some View {

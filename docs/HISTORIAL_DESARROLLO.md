@@ -1,3 +1,31 @@
+## Cierre de las tres decisiones aprobadas: transferencia, recorridos y gráficos de Inicio (2026-11-24)
+
+- **Objetivo:** aplicar las tres decisiones que el usuario aprobó tras la auditoría de §5, sin declarar verificado
+  nada que no lo esté. Lo que no se puede compilar aquí (Swift y Kotlin) queda a la espera del CI.
+- **1) Número de transferencia unificado en 6–30.** La regla es la misma en las tres plataformas:
+  `^[A-Za-z0-9-]{6,30}$`, admite guiones (los bancos los usan), y se guarda en **mayúsculas**.
+  `Validadores.kt` (Android), `Domain.validTransactionNumber` (iOS) y `licencia/solicitud.py` (DShalev) la aplican; el
+  lector tolerante del SMS de Android acepta también el guion, y el campo de venta de Android ya no lo borra al
+  teclear. Los mensajes de error y el `pattern` del formulario web dicen lo mismo. Diez pruebas en
+  `test_licencia_spvi.py` cubren los bordes (5 y 31 caracteres, guion, minúsculas, espacios).
+- **2) Recorridos guiados: se mantiene la cobertura propia, no se copian las 51 claves.** DShalev pasó de 6 a 11
+  recorridos (añade turnos, clientes, módulos, respaldo y licencia, con sus anclas reales). iOS se midió con
+  `tools/verificacion/recorridos_ios.py` y el resultado fue malo: 47 pasos declarados en 13 recorridos con 8 anclas,
+  porque el modelo salta en silencio los pasos sin ancla y el recorrido abría vacío. Se anclaron 36 pasos en 9
+  recorridos y se retiraron los cuatro recorridos de ventana que iOS no tiene (turno, ajuste de precio, ficha de
+  cliente, exportar). El script queda en el repositorio y falla si vuelve a aparecer un paso huérfano.
+- **3) DShalev estrena el área de ganancia y el donut de Inicio.** La decisión aprobada permitía dejarlos fuera; al
+  revisarlo, los datos ya estaban (`items.cost_cents` y `sale_lines`), así que se añaden sin tablas nuevas: área de dos
+  series (venta del día y su costo) y reparto de existencias por categoría valorado al costo, dibujado con barras de
+  reparto en lugar de SVG (el escritorio no usa SVG ni canvas en sus gráficos y el color nunca es el único canal: cada
+  barra lleva su `aria-label`). Ninguno de los dos aparece en las salidas para clientes.
+- **Verificado aquí:** `pytest` de Web **368/368**, `ramplint` (33 ficheros), `npm test` **6/6**,
+  `tools/verificacion/recorridos_ios.py` con 9 recorridos y 36 pasos sin huérfanos, y los diez casos de
+  `test_licencia_spvi.py`. El `MANUAL_USUARIO.pdf` se regeneró con `tools/manual/generar_pdf.py` (33 páginas,
+  5.41 MB) y se comprobó su texto con PyMuPDF. **Verificado en CI:** pendiente de esta tanda. **No verificado:** nada
+  de Swift ni de Kotlin se compila en este entorno (sin Xcode ni Gradle), y los gráficos nuevos no se han visto en un
+  navegador real: solo se comprobó el HTML servido y sus pruebas.
+
 ## Ordenación, exportación PDF/PNG, recorridos y rankings de Inicio (2026-11-24)
 
 - **Objetivo:** seguir cerrando `docs/PARIDAD_ANDROID.md` §5 por los huecos que no dependen de una decisión de
@@ -21,9 +49,12 @@
   nombre exacto, así que dos grafías del mismo local producían dos filas que el `ForEach` colapsaba después por
   `PersonRank.id`, perdiendo las ventas de una de ellas en el total. Ahora agrupa por nombre normalizado y ordena por
   importe con desempate alfabético.
-- **Recorridos guiados en iOS (13 de las 51 claves de Android).** `iOS/Sources/Domain/Recorridos.swift` y
-  `iOS/Sources/Design/CoachMarks.swift`: cada vista publica sus anclas y el modelo salta los pasos sin ancla visible,
-  así que nunca señala un hueco. Estado en `UserDefaults` con la convención `<clave>_tour_shown`. Como iOS no tiene
+- **Recorridos guiados en iOS (9 recorridos y 36 pasos, todos anclados).** `iOS/Sources/Domain/Recorridos.swift` y
+  `iOS/Sources/Design/CoachMarks.swift`: cada vista publica sus anclas y el modelo salta los pasos sin ancla visible.
+  Ese salto es silencioso, así que se añadió `tools/verificacion/recorridos_ios.py`, que compara los pasos con los
+  `.recorridoObjetivo` y falla si uno queda huérfano. Al medirlo, 47 pasos de 13 recorridos daban solo 8 anclados:
+  la mayoría de recorridos abría vacía. Se anclaron 36 pasos en 9 recorridos y se retiraron cuatro recorridos de
+  ventana que iOS no tiene como pantalla propia (turno, ajuste de precio, ficha de cliente, exportar). Estado en `UserDefaults` con la convención `<clave>_tour_shown`. Como iOS no tiene
   Escape, el globo se cierra con el gesto de dos dedos hacia abajo y con la acción de VoiceOver; `onExitCommand` no
   compila en iOS y el CI lo cazó.
 - **Errores propios que cazó el CI (iOS).** `Recorridos.swift` no estaba registrado en el target (`cannot find type
@@ -31,7 +62,7 @@
   paquete. Después, `recorridos` se declaró antes de propiedades sin valor por defecto (**en Swift los parámetros con
   `default` van al final del struct**) y `onExitCommand` resultó ser de macOS/tvOS. Los tres fallos eran de
   compilación, no de lógica: sin Xcode aquí, solo se ven en el CI.
-- **Seed de depuración al día.** El sembrador de escritorio estrena módulos, los seis recorridos marcados como vistos,
+- **Seed de depuración al día.** El sembrador de escritorio estrena módulos, los once recorridos marcados como vistos,
   `schema_version` y dos preajustes; el de Android, preferencias del negocio (`PreferenciasDto` con los tres módulos)
   y dos preajustes con sus productos; `Sembrador.kt` escribe la fila de `configuracion_negocio` que antes faltaba. El
   seed de iOS tenía la **forma equivocada** del modelo y se reescribió contra `AppData`: `settings.profile` en lugar de
@@ -52,8 +83,8 @@
   activo —vacío significa todos—, VENTAS arrastra INVENTARIO, desmarcar INVENTARIO desmarca VENTAS) y persistencia en
   `app_meta` para que viaje en el respaldo. Página `/modulos` y `base.html` pintando el rail desde `nav.*`. Ocultar
   una sección **no** borra sus datos (`test_hiding_a_module_does_not_delete_its_data`).
-- **Recorridos guiados (6 de 51).** `dshalev/recorridos.py` y `static/recorrido.js`: coach mark con los textos de
-  Android, límites de 28/120 caracteres aplicados al construir, salto de los pasos cuyo objetivo no está en la
+- **Recorridos guiados (11 de 51).** `dshalev/recorridos.py` y `static/recorrido.js`: coach mark con los textos de
+  Android adaptados al navegador («Pulsa» en lugar de «Toca»), límites de 28/120 caracteres aplicados al construir, salto de los pasos cuyo objetivo no está en la
   página, cierre con Escape o «Saltar» y estado `<clave>_tour_shown` en `app_meta` (misma convención que
   `OnboardingPreferences.kt:65`). Se repiten a mano desde `/ayuda` y `/recorrido/<clave>`. En Ventas solo se ofrece
   con un turno abierto, porque sin turno no se puede vender.
