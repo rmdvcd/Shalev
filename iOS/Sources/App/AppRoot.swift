@@ -110,6 +110,8 @@ struct ShalevRootView: View {
     @State private var appUnlocked = false
     @State private var backgroundedAt: TimeInterval?
     @State private var operatorAuthError: String?
+    /// Recorridos guiados: estado de los objetivos en pantalla y del recorrido abierto.
+    @StateObject private var recorridos = RecorridosModelo()
 
     private var activeEmployee: LocalEmployee? {
         guard !selectedOperatorID.isEmpty else { return nil }
@@ -183,7 +185,7 @@ struct ShalevRootView: View {
                                         onUnlock: { authenticatedOperatorID = employee.id.uuidString },
                                         onSwitchToOwner: switchToOwner)
             } else {
-                appShell
+                CoachMarkHost(modelo: recorridos) { appShell }
             }
         }
         .task {
@@ -254,9 +256,34 @@ struct ShalevRootView: View {
         .onChange(of: dynamicTypeSize) { _, categoria in
             ShalevDynamicType.shared.actualizar(categoria)
         }
+        // Recorrido de la pestaña: solo la primera vez y con los objetivos que la pantalla haya publicado.
+        .onChange(of: selectedSection) { _, seccion in
+            abrirRecorridoDeSeccion(seccion)
+        }
+        .task(id: selectedSection) {
+            // El primer arranque no dispara `onChange`: se comprueba también aquí, tras dejar pintar la pantalla.
+            try? await Task.sleep(for: .milliseconds(350))
+            abrirRecorridoDeSeccion(selectedSection)
+        }
         .alert("No se pudo cambiar de operador", isPresented: Binding(get: { operatorAuthError != nil }, set: { if !$0 { operatorAuthError = nil } })) {
             Button("Entendido", role: .cancel) { operatorAuthError = nil }
         } message: { Text(operatorAuthError ?? "") }
+    }
+
+    /// Recorrido que corresponde a cada pestaña. Ajustes no está en la barra pero también tiene el suyo.
+    private func recorrido(de seccion: MainSection) -> RecorridoPantalla {
+        switch seccion {
+        case .home: .inicio
+        case .inventory: .inventario
+        case .services: .servicios
+        case .records: .registros
+        case .tools: .herramientas
+        case .settings: .ajustes
+        }
+    }
+
+    private func abrirRecorridoDeSeccion(_ seccion: MainSection) {
+        recorridos.abrirSiToca(recorrido(de: seccion))
     }
 
     private var appShell: some View {
@@ -270,19 +297,21 @@ struct ShalevRootView: View {
                          canManageCash: canManageCash, canViewInventory: canViewInventory,
                          canViewRecords: canViewRecords, canViewSales: effectiveSales, canViewServices: effectiveServices,
                          canManageBusinessSettings: isAdministrator, canChangePrices: canChangePrices,
-                         isEmployeeSession: !sync.isSecondary && !isAdministrator, onSwitchToOwner: switchToOwner)
+                         isEmployeeSession: !sync.isSecondary && !isAdministrator, onSwitchToOwner: switchToOwner,
+                         recorridos: recorridos)
             case .inventory:
-                InventoryView(store: store, sync: sync, onSell: { saleMode = .products }, canEdit: canEditInventory, canSell: canSellProducts, canExport: canExport)
+                InventoryView(store: store, sync: sync, onSell: { saleMode = .products }, canEdit: canEditInventory, canSell: canSellProducts, canExport: canExport, recorridos: recorridos)
             case .services:
-                ServicesView(store: store, sync: sync, onSell: { saleMode = .services }, canEdit: canEditInventory, canSell: canSellServices)
+                ServicesView(store: store, sync: sync, onSell: { saleMode = .services }, canEdit: canEditInventory, canSell: canSellServices, recorridos: recorridos)
             case .records:
-                RecordsView(store: store, canExport: canExport, canCorrectSales: canCorrectSales,
+                RecordsView(store: store, recorridos: recorridos, canExport: canExport, canCorrectSales: canCorrectSales,
                             canManageCash: canManageCash, canViewInventory: canViewInventory,
                             canViewSales: effectiveSales, canViewServices: effectiveServices)
             case .tools:
-                ToolsView(store: store)
+                ToolsView(store: store, recorridos: recorridos)
             case .settings:
                 SettingsView(store: store, licenseManager: licenseManager, sync: sync, selectedOperatorID: $selectedOperatorID,
+                             recorridos: recorridos,
                              isAdministrator: isAdministrator, onBack: { selectedSection = .home },
                              canChangePrices: canChangePrices, canExport: canExport,
                              canExportInventory: effectiveSales || effectiveInventory,

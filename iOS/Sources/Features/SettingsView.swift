@@ -39,6 +39,8 @@ struct SettingsView: View {
     let canExportInventory: Bool
     let canExportServices: Bool
     let canExportSales: Bool
+    /// Recorridos guiados (para el botón de Ajustes y la repetición desde Ayuda).
+    var recorridos: RecorridosModelo? = nil
     @AppStorage("shalev.lock.enabled") private var appLockEnabled = false
     @State private var sheet: SettingsSheet?
     @State private var showSetupWizard = false
@@ -168,7 +170,7 @@ struct SettingsView: View {
                         case .locations: LocationSettingsView(store: store, sync: sync)
                         case .sync: SyncView(sync: sync)
                         case .updates: UpdatesView()
-                        case .help: HelpView()
+                        case .help: HelpView(recorridos: recorridos)
                         case .support: SupportView()
                         case .about: AboutView()
                         }
@@ -1836,6 +1838,8 @@ private struct HelpTopic: Identifiable {
 }
 
 private struct HelpView: View {
+    var recorridos: RecorridosModelo? = nil
+    @State private var showRecorridos = false
     @AppStorage("shalev.module.sales") private var salesEnabled = true
     @AppStorage("shalev.module.inventory") private var inventoryEnabled = true
     @AppStorage("shalev.module.services") private var servicesEnabled = true
@@ -1965,6 +1969,30 @@ private struct HelpView: View {
                     .frame(maxWidth: .infinity)
                     .padding(14)
                     .background(Color.shalevSurfaceVariant, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                // Recorridos guiados: se repiten cuando quieras, también los que ya se vieron.
+                if let recorridos {
+                    ShalevCard {
+                        HStack(alignment: .top, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Recorridos guiados")
+                                    .font(.shalev(15, weight: .semibold))
+                                    .foregroundStyle(Color.shalevText)
+                                Text("Repite la explicación paso a paso de cada pantalla.")
+                                    .font(.shalev(12))
+                                    .foregroundStyle(Color.shalevSecondaryText)
+                            }
+                            Spacer(minLength: 8)
+                            Button("Ver") { showRecorridos = true }
+                                .buttonStyle(ShalevTonalButtonStyle())
+                                .accessibilityLabel("Ver los recorridos guiados")
+                                .recorridoObjetivo("ajustes_recorridos")
+                        }
+                    }
+                    .sheet(isPresented: $showRecorridos) {
+                        RecorridosAyudaView(modelo: recorridos)
+                    }
+                }
 
                 ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
                     HStack(alignment: .top, spacing: 10) {

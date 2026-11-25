@@ -53,6 +53,8 @@ private struct CostSheet: Codable, Identifiable, Equatable {
 
 @MainActor
 struct ToolsView: View {
+    /// Recorridos guiados: publica los objetivos de esta pantalla y ofrece su recorrido.
+    var recorridos: RecorridosModelo? = nil
     @ObservedObject var store: ShalevStore
     @AppStorage("shalev.costSheets") private var savedJSON = ""
     @State private var sheets: [CostSheet] = []

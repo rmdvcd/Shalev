@@ -65,6 +65,8 @@ private enum InventorySheet: Identifiable {
 
 @MainActor
 struct InventoryView: View {
+    /// Recorridos guiados: publica los objetivos de esta pantalla y ofrece su recorrido.
+    var recorridos: RecorridosModelo? = nil
     @ObservedObject var store: ShalevStore
     @ObservedObject var sync: SyncManager
     let onSell: () -> Void
@@ -122,19 +124,23 @@ struct InventoryView: View {
             header
             ShalevSearchField(text: $search, placeholder: "Buscar por nombre, categoría o descripción")
                 .padding(.horizontal, 16)
+                .recorridoObjetivo("inventario_buscar")
             counterRow
             if canEdit && selection.isEmpty && !filteredProducts.isEmpty {
                 selectionHint
             }
             if !selection.isEmpty { selectionBar }
             list
+                .recorridoObjetivo("inventario_lista")
         }
         .background(Color.shalevBackground)
+        .recorridoAlAparecer(.inventario, modelo: recorridos)
         .overlay(alignment: .bottomTrailing) {
             if canEdit && selection.isEmpty {
                 ShalevFloatingButton(title: "Agregar producto") { sheet = .create }
                     .padding(.trailing, 18)
                     .padding(.bottom, 15)
+                    .recorridoObjetivo("inventario_agregar")
             }
         }
         .sheet(isPresented: $showFilterSheet) {
@@ -206,6 +212,7 @@ struct InventoryView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Escanear o importar inventario")
+                    .recorridoObjetivo("inventario_importar")
                 }
                 Button { showFilterSheet = true } label: {
                     ZStack(alignment: .topTrailing) {
@@ -223,6 +230,7 @@ struct InventoryView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(filter.isActive ? "Filtrar inventario. Filtros activos: \(filter.summary)" : "Filtrar inventario")
+                .recorridoObjetivo("inventario_filtrar")
                 if canExport {
                     Button {
                         showExportSheet = true
@@ -237,6 +245,7 @@ struct InventoryView: View {
                     .disabled(filteredProducts.isEmpty && selection.isEmpty)
                     .opacity(filteredProducts.isEmpty && selection.isEmpty ? 0.4 : 1)
                     .accessibilityLabel("Exportar inventario")
+                    .recorridoObjetivo("inventario_exportar")
                 }
             }
         }

@@ -101,6 +101,8 @@ struct RecordsFilterState: Equatable {
 }
 
 struct RecordsView: View {
+    /// Recorridos guiados: publica los objetivos de esta pantalla y ofrece su recorrido.
+    var recorridos: RecorridosModelo? = nil
     @ObservedObject var store: ShalevStore
     var canExport = true
     var canCorrectSales = true

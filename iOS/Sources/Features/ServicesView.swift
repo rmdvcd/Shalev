@@ -19,6 +19,8 @@ private enum ServiceSheet: Identifiable {
 
 @MainActor
 struct ServicesView: View {
+    /// Recorridos guiados: publica los objetivos de esta pantalla y ofrece su recorrido.
+    var recorridos: RecorridosModelo? = nil
     @ObservedObject var store: ShalevStore
     @ObservedObject var sync: SyncManager
     let onSell: () -> Void

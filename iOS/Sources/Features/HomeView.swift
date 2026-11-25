@@ -44,6 +44,7 @@ struct HomeView: View {
     var canChangePrices = true
     var isEmployeeSession = false
     var onSwitchToOwner: () -> Void = { }
+    var recorridos: RecorridosModelo? = nil
 
     @State private var period: HomePeriod = .shift
     @State private var expandedCards: Set<String> = []
