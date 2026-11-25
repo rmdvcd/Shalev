@@ -1,3 +1,48 @@
+## Ordenación, exportación PDF/PNG, recorridos y rankings de Inicio (2026-11-24)
+
+- **Objetivo:** seguir cerrando `docs/PARIDAD_ANDROID.md` §5 por los huecos que no dependen de una decisión de
+  producto, y dejar el seed de depuración al día con todo lo añadido en la 1.0.9.
+- **Ordenación en DShalev.** `dshalev/orden.py` reproduce los cuatro modos de `ModoOrden`
+  (`CRONOLOGICO → ALFABETICO → IMPORTE_DESC → IMPORTE_ASC`) en Inventario, Servicios, Ventas y Clientes. El modo llega
+  por la URL y **se revalida en el servidor**: un valor desconocido cae en cronológico, nunca en un `ORDER BY`
+  construido con texto del cliente. El enlace «Ordenar: …» conserva los filtros activos, y el desempate es siempre
+  alfabético para que la lista no baile entre dos recargas.
+- **Exportación PDF y PNG de la lista de precios y las tarjetas.** `dshalev/exportacion.py` (PDF 1.4 escrito a mano,
+  Helvetica, Latin-1 directo) y `dshalev/png.py` (codificador PNG con `zlib` y una fuente de glifos 5×7). Se hizo así
+  para **no añadir `reportlab` ni `Pillow`** al ejecutable portable: son 32 MB de dependencias por cuatro páginas de
+  PDF. Rutas: `/inventario/lista-precios.pdf`, `/inventario/tarjetas.pdf` y `/inventario/tarjetas.png` (ZIP con un PNG
+  de 1080×1080 por artículo y un `LEEME.txt`). La vista HTML imprimible se movió a `/inventario/tarjetas/imprimir`,
+  porque `/inventario/tarjetas.pdf` había sido hasta ahora el HTML y FastAPI resuelve por orden de registro.
+- **Rankings de Inicio en DShalev.** `top_items`, `slow_items` y `profit_items` (LIMIT 3, empate por nombre con
+  `COLLATE NOCASE`) y tres paneles: más vendido, «Top 3 lento movimiento» y «Top 3 rentabilidad». La rentabilidad usa
+  precio − costo y **no** existencias; las ventas anuladas no entran en ninguno de los tres.
+- **Corrección en iOS: el ranking de locales.** `localesDelPeriodo` ordenaba por ganancia, mientras Android
+  (`Estadisticas.topPersonas`) ordena **por importe** y usa la ganancia solo como subtítulo. Además agrupaba por el
+  nombre exacto, así que dos grafías del mismo local producían dos filas que el `ForEach` colapsaba después por
+  `PersonRank.id`, perdiendo las ventas de una de ellas en el total. Ahora agrupa por nombre normalizado y ordena por
+  importe con desempate alfabético.
+- **Recorridos guiados en iOS (13 de las 51 claves de Android).** `iOS/Sources/Domain/Recorridos.swift` y
+  `iOS/Sources/Design/CoachMarks.swift`: cada vista publica sus anclas y el modelo salta los pasos sin ancla visible,
+  así que nunca señala un hueco. Estado en `UserDefaults` con la convención `<clave>_tour_shown`. Como iOS no tiene
+  Escape, el globo se cierra con el gesto de dos dedos hacia abajo y con la acción de VoiceOver; `onExitCommand` no
+  compila en iOS y el CI lo cazó.
+- **Errores propios que cazó el CI (iOS).** `Recorridos.swift` no estaba registrado en el target (`cannot find type
+  'RecorridoPantalla' in scope`): el target de la app compila las fuentes del dominio directamente, no enlaza el
+  paquete. Después, `recorridos` se declaró antes de propiedades sin valor por defecto (**en Swift los parámetros con
+  `default` van al final del struct**) y `onExitCommand` resultó ser de macOS/tvOS. Los tres fallos eran de
+  compilación, no de lógica: sin Xcode aquí, solo se ven en el CI.
+- **Seed de depuración al día.** El sembrador de escritorio estrena módulos, los seis recorridos marcados como vistos,
+  `schema_version` y dos preajustes; el de Android, preferencias del negocio (`PreferenciasDto` con los tres módulos)
+  y dos preajustes con sus productos; `Sembrador.kt` escribe la fila de `configuracion_negocio` que antes faltaba. El
+  seed de iOS tenía la **forma equivocada** del modelo y se reescribió contra `AppData`: `settings.profile` en lugar de
+  claves sueltas, `locations` sin `id` inventado (la identidad es el nombre), líneas de venta con
+  `sourceID`/`kind`/`unitCostCents`, métodos `Efectivo`/`Transferencia`, movimientos `Entrada`/`Salida`, servicios con
+  `type`/`description` y `uses`. Tal como estaba, no habría cargado.
+- **Verificado aquí:** `pytest` de Web **353/353**, `ramplint` en 32 ficheros y `npm test` **6/6**; el seed nuevo se
+  migró a v11 en una copia desechable y las 16 rutas principales respondieron 200. Los PDF se abrieron con PyMuPDF y
+  el PNG se revisó a ojo. **No verificado:** nada visual en navegador, ni una sola compilación de iOS en este
+  entorno; el seed de Android y el de iOS se validaron por su forma JSON/SQL, no ejecutándolos en un emulador.
+
 ## Módulos, recorridos, salidas para clientes y gráficos de Reportes en DShalev (2026-11-24)
 
 - **Objetivo:** cerrar los cuatro huecos que `docs/PARIDAD_ANDROID.md` §5 dejó abiertos para DShalev, más el ranking de

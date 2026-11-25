@@ -133,6 +133,8 @@ La primera vez que abres una pantalla o una ventana con varios controles, la pan
 
 El recorrido no vuelve a salir después de **Finalizar** u **Omitir**. Si cierras la app a mitad, saldrá de nuevo la próxima vez. Para repetirlo cuando quieras, toca **Ayuda** *(arriba a la izquierda)* y luego **Ver recorrido**.
 
+**Qué recorridos tiene cada versión.** Shalev (Android) es la referencia y guía también cada ventana y formulario. **IShalev (iPhone/iPad)** guía por ahora trece pantallas: Inicio, Inventario y su alta, Servicios, la venta y el cobro, Registros y sus ventas, Herramientas y las fichas de costo, Clientes, Ajustes y Ayuda; el resto de ventanas todavía no se guían. En **IShalev**, como el teléfono no siempre tiene teclado, el globo se cierra también **deslizando dos dedos hacia abajo**, el mismo gesto con el que se cierran las ventanas del sistema, y con la acción **Cerrar recorrido** de VoiceOver. **DShalev (PC)** guía las seis secciones de su menú (Inicio, Inventario, Servicios, Ventas, Reportes y Herramientas) y los formularios que tienen botón de ayuda; se repiten desde **Ayuda ▸ Ver recorrido**.
+
 Mientras una pantalla carga sus datos verás **huesos grises** con la forma aproximada de la lista, tarjeta o gráfico que aparecerá, en vez de una rueda de espera.
 
 #### Avisos de la app (la «isla» de abajo)
@@ -191,6 +193,7 @@ Debajo del banner fijo de licencia, con el turno abierto, aparecen los iconos de
   - **Inventario:** gráfico circular de distribución de tus existencias por categoría.
   - **Métodos de pago:** proporción cobrada en efectivo frente a transferencia en el **período elegido**.
   - **Rankings Top 3 con medallas de oro, plata y bronce:** productos más vendidos, artículos de lento movimiento, mayor rentabilidad, servicios más y menos vendidos, los **3 mejores vendedores (empleados)** y los **3 mejores clientes por transferencia**. Todos se calculan con las ventas del **período elegido** en **Período** (Turno, Hoy, 7 días, Este mes o Este año), igual que Métodos de pago; el período aparece debajo del título de cada uno. El gráfico **Inventario** muestra siempre las existencias actuales. Los **insumos con precio de venta** cuentan como productos en estos rankings (los de solo receta no).
+  - **En DShalev (PC)** el panel enseña tres de estas listas, sin medallas: **más vendido**, **Top 3 lento movimiento** (lo que menos sale y conviene revisar) y **Top 3 rentabilidad** (precio menos costo). Se calculan solo con las ventas de escritorio y las ventas anuladas no cuentan. El reparto de locales, servicios, clientes y empleados todavía no está en el panel del escritorio.
   - **Ventas por local:** la última lista. Ordena los locales del negocio **de mayor a menor** según lo vendido en el período elegido, con el importe, el número de ventas y la **ganancia bruta** de cada uno (medallas para los tres primeros). Es el único indicador que reúne las ventas de **todos los locales**; los demás rankings y gráficos muestran solo el local seleccionado. Si solo has vendido en un local durante el período, verás una sola fila.
 
 | <img src="promocion/capturas/shot_inicio_claro.png" alt="Pantalla de Inicio con barra inferior" width="240"/> | <img src="Android/app/capturas/claro/01j_inicio_acordeones_cerrados.png" alt="Inicio con turno abierto y alertas" width="240"/> |
@@ -722,6 +725,15 @@ En **Ventas**, una cuenta administradora puede anular una venta de escritorio re
 
 En Shalev e IShalev, cuando el carrito contiene artículos puedes volver al selector desde el icono de agregar de la barra inferior, sin desplazarte hasta el final de la lista. Al cancelar una venta con artículos se solicita confirmación; elige seguir vendiendo para conservarla. En IShalev, si las existencias cambian y la venta deja de ser válida, se muestra «No disponible» y debes revisar el carrito antes de continuar.
 
+
+### DShalev: descargar la lista de precios y las tarjetas
+
+En **DShalev (PC)** los documentos para el cliente no dependen de la impresora del navegador: el servidor los genera y el botón los descarga.
+
+- **Inventario ▸ Lista de precios:** botón **Descargar PDF**. Agrupa los artículos por categoría en una tabla de tres columnas y pagina sola en A4 (la cabecera de la tabla se repite en cada hoja), con el nombre del negocio, la fecha y el número de página («Página 1 de 2»). Al pie se recuerda que no incluye costos ni existencias.
+- **Inventario ▸ Tarjetas:** botón **Descargar PDF** para imprimir el pliego de tarjetas, o **Descargar imágenes (ZIP)** para un archivo comprimido con **una imagen de 1080×1080 por artículo** (lista para estados de WhatsApp o redes) más un `LEEME.txt` con esa misma aclaración. Si solo quieres verlas o imprimirlas desde el navegador, la vista de siempre sigue en la misma pantalla.
+- **Qué no sale nunca:** ni el costo ni las existencias, ni siquiera cuando entra la cuenta del dueño. Son folletos para el cliente, no un listado interno; para eso están el PDF/Excel de Inventario.
+- **Acentos y símbolos:** el PDF va en Latin-1, que cubre el español; un carácter fuera de esa tabla (por ejemplo un emoji en el nombre) se sustituye por `?` en lugar de romper el archivo.
 
 ### DShalev: servicios, estadísticas y apariencia
 
