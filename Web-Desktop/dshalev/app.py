@@ -31,7 +31,7 @@ from .cost_export import export_sheet as export_cost_to_catalog
 from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
 from .inventory import format_milli, record_movement, record_retirement
-from . import catalogo_cliente, modulos, orden, preajustes, recorridos
+from . import catalogo_cliente, exportacion, modulos, orden, preajustes, recorridos
 from .licencia import motivo_activacion_deshabilitada
 from .licencia.config_licencia import configuracion
 from .security import csrf_token, hash_password, valid_csrf, verify_password
@@ -1114,8 +1114,13 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             max_comentario=catalogo_cliente.COMENTARIO_MAX,
         ))
 
-    @app.get("/inventario/tarjetas.pdf", response_class=HTMLResponse)
+    @app.get("/inventario/tarjetas/imprimir", response_class=HTMLResponse)
     async def promo_cards_print(request: Request):
+        """Vista imprimible (HTML) de las tarjetas: el navegador la imprime o la guarda como PDF.
+
+        El fichero PDF generado por el servidor está en `/inventario/tarjetas.pdf`; esta vista sigue existiendo porque
+        imprime directamente desde el navegador, sin descargar nada.
+        """
         user = current_user(request)
         if not user:
             return redirect("/entrar")
@@ -1132,6 +1137,77 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             comentario=catalogo_cliente.comentario_limpio(request.query_params.get("comentario", "")),
             negocio=negocio["value"] if negocio else "DShalev",
         ))
+
+    def _cabecera_archivo(nombre: str) -> dict[str, str]:
+        """Cabecera de descarga con el nombre entre comillas: evita el `filename*` raro en navegadores viejos."""
+        return {"Content-Disposition": f'attachment; filename="{nombre}"'}
+
+    @app.get("/inventario/lista-precios.pdf")
+    async def price_list_pdf(request: Request):
+        """Lista de precios en PDF, generada en el servidor (Android: `FormatoSalida.PDF`). Sin costo ni existencias."""
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            articulos = _articulos_para_cliente(conn)
+            negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+        datos = exportacion.lista_precios_pdf(
+            catalogo_cliente.lista_precios(articulos),
+            negocio=negocio["value"] if negocio else "DShalev",
+        )
+        return Response(datos, media_type="application/pdf",
+                        headers=_cabecera_archivo("lista-de-precios.pdf"))
+
+    @app.get("/inventario/tarjetas.pdf")
+    async def promo_cards_pdf(request: Request):
+        """Tarjetas en PDF de seis en seis, con el comentario opcional y el mismo filtro que la vista imprimible."""
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            articulos = _articulos_para_cliente(conn)
+            negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+        por_nombre = {str(a["name"]): a for a in articulos}
+        elegidos = catalogo_cliente.texto_seleccion(
+            request.query_params.get("articulos"), list(por_nombre)) if request.query_params.get("articulos") else list(por_nombre)
+        seleccion = [por_nombre[n] for n in elegidos if n in por_nombre]
+        tarjetas = [t for pagina in catalogo_cliente.tarjetas(seleccion) for t in pagina]
+        datos = exportacion.tarjetas_pdf(
+            tarjetas,
+            negocio=negocio["value"] if negocio else "DShalev",
+            comentario=catalogo_cliente.comentario_limpio(request.query_params.get("comentario", "")),
+        )
+        return Response(datos, media_type="application/pdf",
+                        headers=_cabecera_archivo("tarjetas-promocionales.pdf"))
+
+    @app.get("/inventario/tarjetas.png")
+    async def promo_cards_png(request: Request):
+        """Un PNG por tarjeta, empaquetados en un ZIP para que sea una sola descarga (Android: `FormatoSalida.TARJETAS`)."""
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            articulos = _articulos_para_cliente(conn)
+            negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+        por_nombre = {str(a["name"]): a for a in articulos}
+        elegidos = catalogo_cliente.texto_seleccion(
+            request.query_params.get("articulos"), list(por_nombre)) if request.query_params.get("articulos") else list(por_nombre)
+        seleccion = [por_nombre[n] for n in elegidos if n in por_nombre]
+        tarjetas = [t for pagina in catalogo_cliente.tarjetas(seleccion) for t in pagina]
+        imagenes = exportacion.tarjetas_png(
+            tarjetas,
+            negocio=negocio["value"] if negocio else "DShalev",
+            comentario=catalogo_cliente.comentario_limpio(request.query_params.get("comentario", "")),
+        )
+        memoria = io.BytesIO()
+        with zipfile.ZipFile(memoria, "w", zipfile.ZIP_DEFLATED) as paquete:
+            for nombre, datos in imagenes:
+                paquete.writestr(nombre, datos)
+            paquete.writestr("LEEME.txt", "Tarjetas promocionales de DShalev.\n"
+                                          "Cada PNG es una tarjeta de 1080x1080 lista para enviar.\n"
+                                          "No incluyen costo ni existencias.\n")
+        return Response(memoria.getvalue(), media_type="application/zip",
+                        headers=_cabecera_archivo("tarjetas-promocionales.zip"))
 
     @app.get("/inventario/movimientos", response_class=HTMLResponse)
     async def inventory_movements_page(request: Request):
