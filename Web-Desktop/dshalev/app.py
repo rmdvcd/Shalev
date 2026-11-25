@@ -31,7 +31,7 @@ from .cost_export import export_sheet as export_cost_to_catalog
 from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
 from .inventory import format_milli, record_movement, record_retirement
-from . import preajustes
+from . import catalogo_cliente, modulos, preajustes, recorridos
 from .licencia import motivo_activacion_deshabilitada
 from .licencia.config_licencia import configuracion
 from .security import csrf_token, hash_password, valid_csrf, verify_password
@@ -226,6 +226,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                     values["flash_field"] = campo
         with db.connect() as conn:
             business = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+            fila_modulos = conn.execute("SELECT value FROM app_meta WHERE key=?", (modulos.CLAVE,)).fetchone()
+        # Módulos activos (0.21.0 de Android): lo no elegido no se ofrece en la navegación, pero no se borra nada.
+        seleccion_modulos = modulos.de_texto(fila_modulos["value"] if fila_modulos else None)
+        nav_visible = modulos.secciones_visibles(seleccion_modulos)
         if "license_banner" not in values and user is not None:
             try:
                 from .licencia.estado import obtener_info_licencia
@@ -234,10 +238,20 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                     values["license_banner"] = info_lic["banner"]
             except Exception:
                 pass
+        # Recorrido guiado de la sección (si hay uno definido): solo se ofrece si no se ha visto nunca.
+        recorrido_activo = None
+        if user is not None and section in recorridos.POR_CLAVE:
+            recorrido = recorridos.POR_CLAVE[section]
+            with db.connect() as conn:
+                visto = conn.execute("SELECT value FROM app_meta WHERE key=?", (recorrido.clave_estado,)).fetchone()
+            pedido = request.query_params.get("recorrido") == section
+            if pedido or not visto or visto["value"] != "1":
+                recorrido_activo = recorridos.a_diccionario(section)
         return {
             "request": request, "user": user, "csrf": csrf(request), "section": section,
+            "recorrido": recorrido_activo,
             "business_name": business["value"] if business else "DShalev", "local_id": config.local_id, "notice": None,
-            "flash_field": None,
+            "flash_field": None, "nav": nav_visible, "modulos_activos": seleccion_modulos,
             **values,
         }
 
@@ -978,6 +992,136 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 items = conn.execute("SELECT * FROM items WHERE active=1 ORDER BY name LIMIT 200").fetchall()
         return templates.TemplateResponse(request, "inventory.html", context(request, user=user, section="inventario", items=[dict(r) for r in items], query=query, notice=notice_text(request), notice_kind="success"))
 
+    # ---- Recorridos guiados (paridad con Recorrido de Android) ----
+
+    @app.post("/ayuda/recorrido-visto")
+    async def tour_mark_seen(request: Request):
+        """Marca `<clave>_tour_shown`, igual que `OnboardingPreferences` de Android."""
+        if not current_user(request):
+            return JSONResponse({"detail": "No autenticado"}, status_code=401)
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        clave = (data.get("clave") or "").strip()
+        claves_validas = {r.clave_estado for r in recorridos.RECORRIDOS}
+        if clave not in claves_validas:
+            return JSONResponse({"detail": "Recorrido desconocido"}, status_code=400)
+        with db.transaction() as conn:
+            conn.execute("INSERT INTO app_meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                         (clave, "1"))
+        return JSONResponse({"ok": True})
+
+    @app.get("/recorrido/{clave}", response_class=HTMLResponse)
+    async def tour_page(request: Request, clave: str):
+        """Página donde se repite un recorrido a mano (enlace desde Ayuda)."""
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        if clave not in recorridos.POR_CLAVE:
+            return flash_redirect(request, "/ayuda", "Ese recorrido no existe.")
+        recorrido = recorridos.POR_CLAVE[clave]
+        destino = {"inicio": "/", "inventario": "/inventario", "servicios": "/servicios",
+                   "ventas": "/ventas", "reportes": "/reportes", "herramientas": "/herramientas"}.get(clave, "/")
+        # `?recorrido=<clave>` fuerza el recorrido en su propia pantalla aunque ya se hubiera visto. La pantalla de
+        # Ventas decide si puede mostrarlo (hace falta un turno abierto).
+        destino_con_recorrido = f"{destino}?recorrido={clave}"
+        return templates.TemplateResponse(request, "recorrido.html", context(
+            request, user=user, section="ayuda", recorrido=recorridos.a_diccionario(clave),
+            titulo=recorrido.titulo, destino=destino_con_recorrido, clave=clave,
+        ))
+
+    # ---- Módulos del negocio (paridad con Modulo de Android y las variables shalev.module.* de iOS) ----
+
+    @app.get("/modulos", response_class=HTMLResponse)
+    async def modules_page(request: Request):
+        user = require_admin(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            fila = conn.execute("SELECT value FROM app_meta WHERE key=?", (modulos.CLAVE,)).fetchone()
+        seleccion = modulos.de_texto(fila["value"] if fila else None)
+        return templates.TemplateResponse(request, "modulos.html", context(
+            request, user=user, section="modulos", seleccion=seleccion, catalogo=modulos.MODULOS,
+        ))
+
+    @app.post("/modulos")
+    async def modules_save(request: Request):
+        if not require_admin(request):
+            return redirect("/entrar")
+        data = await form_data(request)
+        if not valid_csrf(request.session.get("csrf"), data.get("csrf")):
+            return JSONResponse({"detail": "Solicitud no válida"}, status_code=403)
+        # El formulario envía un campo por módulo marcado; lo no enviado se desmarca. La regla no depende del estado
+        # previo: se normaliza lo pedido y ya.
+        pedidos = {clave for clave in modulos.CLAVES if data.get(f"modulo_{clave}")}
+        if not pedidos:
+            # Misma regla que el perfil de Android: no se puede dejar la app sin ninguna sección.
+            return flash_redirect(request, "/modulos", "Debes dejar al menos un módulo activo.", field="modulos")
+        nuevo = modulos.normalizar(pedidos)
+        with db.transaction() as conn:
+            conn.execute("INSERT INTO app_meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                         (modulos.CLAVE, modulos.a_texto(nuevo)))
+        return flash_redirect(request, "/modulos", "Módulos actualizados.", kind="success")
+
+    # ---- Salidas para clientes: lista de precios y tarjetas (paridad con Android, FormatoSalida.IMAGEN/TARJETAS) ----
+
+    def _articulos_para_cliente(conn) -> list[dict[str, Any]]:
+        """Artículos activos con lo único que puede ver un cliente: nombre, categoría, unidad y precio de venta.
+
+        No se seleccionan `cost_cents` ni las columnas de existencias: así no pueden acabar en la salida por un
+        descuido de la plantilla.
+        """
+        return [dict(row) for row in conn.execute(
+            "SELECT name,category,unit,sale_price_cents FROM items WHERE active=1 ORDER BY name COLLATE NOCASE LIMIT 1000")]
+
+    @app.get("/inventario/lista-precios", response_class=HTMLResponse)
+    async def price_list(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            articulos = _articulos_para_cliente(conn)
+            negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+        filas = catalogo_cliente.lista_precios(articulos)
+        return templates.TemplateResponse(request, "lista_precios.html", context(
+            request, user=user, section="inventario", filas=filas,
+            negocio=negocio["value"] if negocio else "DShalev",
+            generado=datetime.now().strftime("%d/%m/%Y %H:%M"),
+        ))
+
+    @app.get("/inventario/tarjetas", response_class=HTMLResponse)
+    async def promo_cards_page(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            articulos = _articulos_para_cliente(conn)
+        return templates.TemplateResponse(request, "tarjetas.html", context(
+            request, user=user, section="inventario", articulos=articulos,
+            comentario=catalogo_cliente.comentario_limpio(request.query_params.get("comentario", "")),
+            maximo=catalogo_cliente.TARJETAS_POR_PAGINA,
+            max_comentario=catalogo_cliente.COMENTARIO_MAX,
+        ))
+
+    @app.get("/inventario/tarjetas.pdf", response_class=HTMLResponse)
+    async def promo_cards_print(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            articulos = _articulos_para_cliente(conn)
+            negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+        nombres_disponibles = [str(a["name"]) for a in articulos]
+        elegidos = catalogo_cliente.texto_seleccion(
+            request.query_params.get("articulos"), nombres_disponibles) if request.query_params.get("articulos") else nombres_disponibles
+        por_nombre = {str(a["name"]): a for a in articulos}
+        paginas = catalogo_cliente.tarjetas((por_nombre[n] for n in elegidos if n in por_nombre))
+        return templates.TemplateResponse(request, "tarjetas_imprimir.html", context(
+            request, user=user, section="inventario", paginas=paginas,
+            comentario=catalogo_cliente.comentario_limpio(request.query_params.get("comentario", "")),
+            negocio=negocio["value"] if negocio else "DShalev",
+        ))
+
     @app.get("/inventario/movimientos", response_class=HTMLResponse)
     async def inventory_movements_page(request: Request):
         user = require_admin(request)
@@ -1185,8 +1329,12 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             request.session["web_sale_key"] = sale_key
         completed_sale_key = request.session.get("last_completed_sale_key", "")
         reset_pos_key = bool(request.session.pop("pos_key_reset", False))
+        # El recorrido del punto de venta solo tiene sentido si se puede vender: con un turno abierto y artículos.
         with db.connect() as conn:
             shift = conn.execute("SELECT * FROM shifts WHERE closed_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
+        if request.query_params.get("recorrido") == "ventas" and shift is None:
+            return flash_redirect(request, "/turnos", "Abre un turno para ver el recorrido del punto de venta.")
+        with db.connect() as conn:
             if query:
                 items = conn.execute("SELECT id,name,category,stock,unit,sale_price_cents FROM items WHERE active=1 AND category!='Insumo' AND (category='Servicio' OR stock_milli>0) AND name LIKE ? ORDER BY name LIMIT 60", (f"%{query}%",)).fetchall()
             else:
@@ -2026,7 +2174,24 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         by_payment: dict[str, int] = {}
         for row in sales_rows:
             by_payment[row["pago"]] = by_payment.get(row["pago"], 0) + int(row["total_cents"])
-        return templates.TemplateResponse(request, "reports.html", context(request, user=user, section="reportes", sales=sales_rows, start=start, end=end, sales_total=total, payment_totals=by_payment, notice=notice_text(request), notice_kind="success"))
+        # Gráficos de Reportes: ventas por día del período y reparto por forma de pago. `progress` con `aria-label`
+        # en cada barra, igual que en Inicio: sin SVG ni canvas, legible con lector de pantalla.
+        by_day: dict[str, int] = {}
+        for row in sales_rows:
+            day = str(row["fecha"])[:10]
+            by_day[day] = by_day.get(day, 0) + int(row["total_cents"])
+        daily_chart = [{"day": day, "total": amount} for day, amount in sorted(by_day.items())]
+        # Con el período vacío no hay entradas: el máximo por defecto tiene que ir en una lista, no como argumento.
+        daily_max = max([1, *(entry["total"] for entry in daily_chart)])
+        payment_chart = [
+            {"label": label, "total": amount, "share": round(amount * 100 / total) if total else 0}
+            for label, amount in sorted(by_payment.items(), key=lambda pair: (-pair[1], pair[0]))
+        ]
+        return templates.TemplateResponse(request, "reports.html", context(
+            request, user=user, section="reportes", sales=sales_rows, start=start, end=end, sales_total=total,
+            payment_totals=by_payment, payment_chart=payment_chart, daily_chart=daily_chart, chart_max=daily_max,
+            notice=notice_text(request), notice_kind="success",
+        ))
 
     @app.get("/reportes/ventas.csv")
     async def sales_csv(request: Request):

@@ -4,7 +4,7 @@
 <div id="pos-app" class="pos-workspace" hidden data-shift="{{ shift.id }}" data-user="{{ user.id }}" data-sale-saved="{% if request.query_params.get('notice') == 'sale_saved' %}1{% else %}0{% endif %}" data-completed-sale-key="{{ completed_sale_key }}" data-pos-key-reset="{% if reset_pos_key %}1{% else %}0{% endif %}">
   <div class="pos-catalog">
     <label class="pos-label" for="pos-search">Buscar artículo</label>
-    <div class="pos-search"><input id="pos-search" type="search" maxlength="80" autocomplete="off" placeholder="Nombre del producto o servicio" aria-describedby="pos-search-help"><kbd>F2</kbd></div>
+    <div class="pos-search" id="ventas-agregar"><input id="pos-search" type="search" maxlength="80" autocomplete="off" placeholder="Nombre del producto o servicio" aria-describedby="pos-search-help"><kbd>F2</kbd></div>
     <p id="pos-search-help" class="tiny">Busca y agrega artículos sin perder el carrito. F2 vuelve a la búsqueda.</p>
     <p id="pos-results-status" class="pos-result-status" role="status" aria-live="polite"></p>
     <div id="pos-results" class="pos-results" role="region" aria-label="Resultados de artículos" aria-busy="false"></div>
@@ -14,12 +14,12 @@
     <div class="pos-cart-heading"><div><p class="eyebrow">VENTA ACTUAL</p><h3>Carrito</h3></div><button type="button" id="pos-clear" class="quiet-button">Vaciar</button></div>
     <p id="pos-empty" class="pos-empty">Agrega artículos desde la búsqueda.</p>
     <div id="pos-lines" class="pos-lines" aria-busy="false"></div>
-    <div class="pos-total"><span>Total estimado</span><strong id="pos-total">0 CUP</strong></div>
+    <div class="pos-total" id="ventas-total"><span>Total estimado</span><strong id="pos-total">0 CUP</strong></div>
     <p class="tiny">Si cambia un precio, deberás revisar el carrito. La existencia y el turno se comprueban al registrar; el carrito no reserva inventario.</p>
     <label class="pos-label">Cliente (opcional)<select name="customer_id"><option value="">Venta sin cliente</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.name }}</option>{% endfor %}</select></label>
-    <label class="pos-label">Forma de pago<select name="payment_method"><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option></select></label>
+    <label class="pos-label" id="ventas-metodo">Forma de pago<select name="payment_method"><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option></select></label>
     <p id="pos-error" class="pos-error" role="alert"></p>
-    <button id="pos-submit" class="primary-button full" type="submit" disabled>Registrar venta</button>
+    <span id="ventas-cobrar" class="pos-submit-wrap"><button id="pos-submit" class="primary-button full" type="submit" disabled>Registrar venta</button></span>
   </form>
 </div>
 <div id="pos-fallback"><form method="get" action="/ventas" class="search-form space-bottom"><input name="q" value="{{ query }}" placeholder="Filtra artículos para vender" aria-label="Filtrar artículos"><button class="quiet-button" type="submit">Buscar</button></form>

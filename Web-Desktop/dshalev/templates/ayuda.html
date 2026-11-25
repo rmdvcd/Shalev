@@ -1,6 +1,18 @@
 {% extends 'base.html' %}{% block title %}Ayuda{% endblock %}{% block content %}
 <div class="page-heading"><div><p class="eyebrow">GUÍA RÁPIDA</p><h1>Ayuda</h1><p class="muted">Atajos de teclado, punto de venta, respaldos y soporte.</p></div></div>
 <div class="content-grid">
+  <section class="panel" aria-labelledby="h-recorridos"><div class="panel-heading"><div><p class="eyebrow">GUÍAS</p><h2 id="h-recorridos">Recorridos de las pantallas</h2></div><span class="icon-tile">◎</span></div>
+    <p class="muted">La primera vez que abres una pantalla, DShalev resalta lo importante. Puedes repetir cada recorrido cuando quieras:</p>
+    <ul class="address-list">
+      <li><a class="text-link" href="/recorrido/inicio">Inicio</a> — resumen, ventas por día y accesos.</li>
+      <li><a class="text-link" href="/recorrido/inventario">Inventario</a> — lista, búsqueda, filtro, exportar y agregar.</li>
+      <li><a class="text-link" href="/recorrido/servicios">Servicios</a> — lista, búsqueda y alta de servicios.</li>
+      <li><a class="text-link" href="/recorrido/ventas">Punto de venta</a> — agregar, total, forma de pago y cobrar.</li>
+      <li><a class="text-link" href="/recorrido/reportes">Reportes</a> — período y exportación.</li>
+      <li><a class="text-link" href="/recorrido/herramientas">Herramientas</a> — módulos, preajustes y fichas de costo.</li>
+    </ul>
+    <p class="tiny">El teléfono tiene 51 recorridos, uno por pantalla y por ventana. Aquí están los de las seis pantallas del escritorio.</p>
+  </section>
   <section class="panel" aria-labelledby="h-atajos"><div class="panel-heading"><div><p class="eyebrow">TECLADO</p><h2 id="h-atajos">Atajos y navegación</h2></div><span class="icon-tile">⌨</span></div>
     <ul class="address-list">
       <li><code>Tab</code> / <code>Mayús+Tab</code> — avanza y retrocede por los controles; el elemento enfocado se marca con un anillo azul. El primer <code>Tab</code> muestra «Saltar al contenido».</li>
