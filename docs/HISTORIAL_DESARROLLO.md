@@ -1,3 +1,35 @@
+## Módulos, recorridos, salidas para clientes y gráficos de Reportes en DShalev (2026-11-24)
+
+- **Objetivo:** cerrar los cuatro huecos que `docs/PARIDAD_ANDROID.md` §5 dejó abiertos para DShalev, más el ranking de
+  empleados de iOS, sin copiar ningún defecto de la referencia Android.
+- **Módulos del negocio.** DShalev no tenía el concepto de módulo: su rail mostraba siempre las 14 secciones. Nuevo
+  `dshalev/modulos.py` con las tres claves de `Modulo.kt` y sus textos, las tres reglas de Android (al menos uno
+  activo —vacío significa todos—, VENTAS arrastra INVENTARIO, desmarcar INVENTARIO desmarca VENTAS) y persistencia en
+  `app_meta` para que viaje en el respaldo. Página `/modulos` y `base.html` pintando el rail desde `nav.*`. Ocultar
+  una sección **no** borra sus datos (`test_hiding_a_module_does_not_delete_its_data`).
+- **Recorridos guiados (6 de 51).** `dshalev/recorridos.py` y `static/recorrido.js`: coach mark con los textos de
+  Android, límites de 28/120 caracteres aplicados al construir, salto de los pasos cuyo objetivo no está en la
+  página, cierre con Escape o «Saltar» y estado `<clave>_tour_shown` en `app_meta` (misma convención que
+  `OnboardingPreferences.kt:65`). Se repiten a mano desde `/ayuda` y `/recorrido/<clave>`. En Ventas solo se ofrece
+  con un turno abierto, porque sin turno no se puede vender.
+- **Salidas para clientes.** `dshalev/catalogo_cliente.py` genera la lista de precios y las tarjetas, con la regla de
+  Android de **no incluir nunca costo ni existencias** y el mismo orden por *casefold* de categoría y nombre (el
+  vector real de Android pone `Agua` antes que `Refresco`).
+- **Gráficos de Reportes.** Barras por día del período y reparto por forma de pago, con `progress` y `aria-label` por
+  barra; sin SVG, sin canvas y sin usar el color como único canal. Al escribir las pruebas apareció un fallo real:
+  `max(1, *[])` rompía Reportes cuando el período no tenía ventas.
+- **iOS: ranking de empleados.** `empleadosDelPeriodo` y el acordeón «Empleado» con la misma métrica que
+  `Estadisticas.topEmpleados` (importe vendido, empate alfabético). Leído de `store.data.sales`, porque
+  `periodSales` filtra por local y habría dejado una sola fila.
+- **Errores propios que cazaron las pruebas nuevas:** un `id` de objetivo dentro de un bloque `{% if %}` que solo
+  existe con artículos (el `id` se movió al contenedor); un paso de «filtro» de Inventario que en el escritorio no
+  existe (se eliminó el paso en vez de fingir un control); y tres radios CSS en `px` y una sombra en `rgba` que
+  rompían la guía de diseño (`test_diseno_guia.py`), ahora con tokens.
+- **Verificado aquí:** `pytest` de Web **324/324** (33 pruebas nuevas), `ramplint` en las 32 plantillas, `npm test`
+  del punto de venta **6/6** y la sintaxis de `recorrido.js` con `node`.
+- **No verificado:** los recorridos y los gráficos de DShalev no se han abierto en un navegador real; el ranking de
+  empleados de iOS solo lo valida la compilación del CI (no hay Xcode en este entorno).
+
 ## Cierre de las carencias de §5: carné, ordenación, gráficos y preajustes (2026-11-24)
 
 - **Objetivo:** corregir lo que §5 marcó como defecto o carencia con solución clara, dejando documentado lo que
