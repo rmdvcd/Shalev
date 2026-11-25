@@ -1891,6 +1891,10 @@ button:disabled{
   margin-bottom:18px
 }
 
+.analytics-grid{
+  margin-bottom:18px
+}
+
 .chart-list{
   display:flex;
   flex-direction:column;

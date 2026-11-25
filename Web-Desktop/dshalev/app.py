@@ -2174,7 +2174,24 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         by_payment: dict[str, int] = {}
         for row in sales_rows:
             by_payment[row["pago"]] = by_payment.get(row["pago"], 0) + int(row["total_cents"])
-        return templates.TemplateResponse(request, "reports.html", context(request, user=user, section="reportes", sales=sales_rows, start=start, end=end, sales_total=total, payment_totals=by_payment, notice=notice_text(request), notice_kind="success"))
+        # Gráficos de Reportes: ventas por día del período y reparto por forma de pago. `progress` con `aria-label`
+        # en cada barra, igual que en Inicio: sin SVG ni canvas, legible con lector de pantalla.
+        by_day: dict[str, int] = {}
+        for row in sales_rows:
+            day = str(row["fecha"])[:10]
+            by_day[day] = by_day.get(day, 0) + int(row["total_cents"])
+        daily_chart = [{"day": day, "total": amount} for day, amount in sorted(by_day.items())]
+        # Con el período vacío no hay entradas: el máximo por defecto tiene que ir en una lista, no como argumento.
+        daily_max = max([1, *(entry["total"] for entry in daily_chart)])
+        payment_chart = [
+            {"label": label, "total": amount, "share": round(amount * 100 / total) if total else 0}
+            for label, amount in sorted(by_payment.items(), key=lambda pair: (-pair[1], pair[0]))
+        ]
+        return templates.TemplateResponse(request, "reports.html", context(
+            request, user=user, section="reportes", sales=sales_rows, start=start, end=end, sales_total=total,
+            payment_totals=by_payment, payment_chart=payment_chart, daily_chart=daily_chart, chart_max=daily_max,
+            notice=notice_text(request), notice_kind="success",
+        ))
 
     @app.get("/reportes/ventas.csv")
     async def sales_csv(request: Request):
