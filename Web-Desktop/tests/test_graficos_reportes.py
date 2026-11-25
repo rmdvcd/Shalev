@@ -138,3 +138,34 @@ def test_chart_is_reachable_by_the_reports_tour(tmp_path) -> None:
     response = client.get("/recorrido/reportes")
     assert response.status_code == 200
     assert "?recorrido=reportes" in response.text
+
+
+def test_dashboard_has_the_three_rankings_the_phone_shows(tmp_path) -> None:
+    """Android enseña Top 3 de más vendido, lento movimiento y rentabilidad; el panel solo tenía el primero."""
+    client = setup_shop(tmp_path)
+    sell(client, "3", "EFECTIVO")  # Café ×3 = 360 CUP, costo 40 → 120 de ganancia
+    panel = client.get("/")
+    assert panel.status_code == 200
+    for ident in ("inicio-resumen", "inicio-lento", "inicio-rentabilidad"):
+        assert f'id="{ident}"' in panel.text, ident
+    lento = bars(panel.text, "inicio-lento")
+    assert lento == []  # es un <ol>, no barras: se comprueba el contenido de texto
+    cuerpo_lento = panel.text.split('id="inicio-lento"', 1)[1].split("</article>", 1)[0]
+    assert "Café" in cuerpo_lento and "3 unidades" in cuerpo_lento
+    cuerpo_rent = panel.text.split('id="inicio-rentabilidad"', 1)[1].split("</article>", 1)[0]
+    # 3 × (120 − 40) = 240 CUP de ganancia.
+    assert "Café" in cuerpo_rent and "240 CUP" in cuerpo_rent
+
+
+def test_rankings_ignore_cancelled_sales(tmp_path) -> None:
+    client = setup_shop(tmp_path)
+    sell(client, "2", "EFECTIVO")
+    with client.app.state.db.connect() as conn:
+        sale_id = conn.execute("SELECT id FROM sales").fetchone()[0]
+    ventas = client.get("/ventas")
+    client.post(f"/ventas/{sale_id}/anular", data={"csrf": token(ventas), "reason": "Devolución completa"},
+                follow_redirects=True)
+    panel = client.get("/").text
+    for ident in ("inicio-lento", "inicio-rentabilidad"):
+        cuerpo = panel.split(f'id="{ident}"', 1)[1].split("</article>", 1)[0]
+        assert "Aún no hay ventas" in cuerpo, ident

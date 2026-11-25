@@ -345,6 +345,17 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 SUM(sl.quantity * sl.unit_price_cents) total FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id
                 WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
                 GROUP BY sl.item_id ORDER BY quantity DESC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
+            # Rankings del panel: los mismos tres de Android que faltaban (lento movimiento y rentabilidad), con el
+            # mismo desempate (importe, luego nombre) para que el orden sea reproducible.
+            slow_items = conn.execute("""SELECT sl.item_id, MAX(sl.item_name) name, SUM(sl.quantity) quantity,
+                SUM(sl.quantity * sl.unit_price_cents) total FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id
+                WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
+                GROUP BY sl.item_id ORDER BY quantity ASC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
+            profit_items = conn.execute("""SELECT sl.item_id, MAX(sl.item_name) name, SUM(sl.quantity) quantity,
+                SUM(sl.quantity * (sl.unit_price_cents - COALESCE(i.cost_cents,0))) profit
+                FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id LEFT JOIN items i ON i.id=sl.item_id
+                WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
+                GROUP BY sl.item_id ORDER BY profit DESC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
             expected_cash = 0
             cash_movements = []
             if shift:
@@ -361,7 +372,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             expected_cash=format_cup(expected_cash), cash_movements=[dict(r) for r in cash_movements],
             today_total=format_cup(today_total), today_count=today_count,
             sales=[dict(r) for r in sales], network_label=mode_labels[mode], daily_sales=daily,
-            chart_max=max(1, *(day["total"] for day in daily)), top_items=[dict(row) for row in top_items],
+            chart_max=max(1, *(day["total"] for day in daily)),
+            top_items=[dict(row) for row in top_items],
+            slow_items=[dict(row) for row in slow_items],
+            profit_items=[dict(row) for row in profit_items],
         ))
 
     @app.get("/configurar", response_class=HTMLResponse)
