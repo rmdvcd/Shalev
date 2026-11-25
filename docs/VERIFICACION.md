@@ -1,3 +1,17 @@
+## Módulos, recorridos, salidas para clientes y gráficos de Reportes (2026-11-24)
+
+**Rama:** `arena/62d7508c-shalev`, basada en `b063e0f0b649cba5d24503d46fc87c8fc27bd7fc` (PR #154 ya fusionado).
+Detalle en `docs/HISTORIAL_DESARROLLO.md`; matriz en `docs/PARIDAD_ANDROID.md` §5.
+
+| Comprobación | Resultado observado |
+|---|---|
+| CI `CI` (commit `4cae990`) | **Verde** en los cinco jobs: `API mínima 26`, `Permisos del manifiesto fusionado`, `Lint (baseline)`, `Tests JVM y compilación de instrumentados` y `Release (R8) y APK debug`. `Tests instrumentados (emulador)` en `skipped`. |
+| CI `Compilación iOS de IShalev` (commit `f70a303`, el que trae `HomeView.swift` con el ranking) | **Verde**: `Ejecutar pruebas unitarias del dominio iOS`, `Compilar sin firma para el simulador` y `Compilar sin firma para dispositivo iOS y empaquetar IShalev.ipa` en `success`; la firma queda `skipped` por falta de credenciales de Apple. |
+| CI `DShalev Windows portable` (commit `3ccd427`) | **Verde**: pytest, accesibilidad, punto de venta, EXE y arranque del EXE. |
+| Pruebas Web (`Web-Desktop`) | **Verde**: `pytest` 324/324 en `/tmp/venv2`; `ramplint` 32 plantillas sin hallazgos; `npm test` del punto de venta 6/6. 33 pruebas nuevas en `test_recorridos.py` (12), `test_graficos_reportes.py` (5), `test_modulos.py` (12 —contadas en el turno anterior—) y `test_catalogo_cliente.py` (11). |
+| Fallos que destaparon las pruebas nuevas | `max(1, *[])` rompía Reportes sin ventas; un `id` de objetivo dentro de un `{% if %}`; un paso de recorrido para un filtro que el escritorio no tiene; tres radios `px` y una sombra `rgba` que rompían `test_diseno_guia.py`. |
+| No verificado aquí | Los recorridos, las salidas para clientes y los gráficos de DShalev no se han abierto en un navegador real; el ranking de empleados de iOS no se ha visto en un simulador ni en un iPhone (solo lo valida la compilación). Sigue abierta la discrepancia 6–30 / 4–30 del nº de transferencia. |
+
 # Shalev — Verificación real
 
 ## Paridad Android → iOS/DShalev tras PR #153 (2026-11-24)
