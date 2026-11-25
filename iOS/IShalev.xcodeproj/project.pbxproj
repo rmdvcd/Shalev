@@ -8,6 +8,7 @@
 /* Begin PBXBuildFile section */
 		000000000000000000000101 /* AppRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* AppRoot.swift */; };
 		000000000000000000000102 /* Domain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000012 /* Domain.swift */; };
+		0000000000000000000000F6 /* Recorridos.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F5 /* Recorridos.swift */; };
 		000000000000000000000103 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000013 /* DesignSystem.swift */; };
 		000000000000000000000120 /* BankThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002F /* BankThumbnail.swift */; };
 		000000000000000000000104 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000014 /* HomeView.swift */; };
@@ -48,6 +49,7 @@
 		0000000000000000000000A1 /* directorio-bootstrap.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "directorio-bootstrap.json"; sourceTree = "<group>"; };
 		000000000000000000000011 /* AppRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoot.swift; sourceTree = "<group>"; };
 		000000000000000000000012 /* Domain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Domain.swift; sourceTree = "<group>"; };
+		0000000000000000000000F5 /* Recorridos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recorridos.swift; sourceTree = "<group>"; };
 		000000000000000000000013 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		000000000000000000000014 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		000000000000000000000015 /* InventoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventoryView.swift; sourceTree = "<group>"; };
@@ -124,7 +126,7 @@
 		};
 		000000000000000000000005 /* Domain */ = {
 			isa = PBXGroup;
-			children = (000000000000000000000012 /* Domain.swift */, 00000000000000000000001A /* License.swift */, 000000000000000000000022 /* AndroidBackup.swift */, 000000000000000000000027 /* SyncProtocol.swift */, 000000000000000000000028 /* SyncNetwork.swift */, 000000000000000000000029 /* SyncRepository.swift */, 00000000000000000000002A /* SyncManager.swift */, 00000000000000000000002C /* OcrDocumentParser.swift */, 0000000000000000000000B1 /* TrustDirectory.swift */, 0000000000000000000000B2 /* PaymentInstructions.swift */, 0000000000000000000000C7 /* Redeem */);
+			children = (000000000000000000000012 /* Domain.swift */, 0000000000000000000000F5 /* Recorridos.swift */, 00000000000000000000001A /* License.swift */, 000000000000000000000022 /* AndroidBackup.swift */, 000000000000000000000027 /* SyncProtocol.swift */, 000000000000000000000028 /* SyncNetwork.swift */, 000000000000000000000029 /* SyncRepository.swift */, 00000000000000000000002A /* SyncManager.swift */, 00000000000000000000002C /* OcrDocumentParser.swift */, 0000000000000000000000B1 /* TrustDirectory.swift */, 0000000000000000000000B2 /* PaymentInstructions.swift */, 0000000000000000000000C7 /* Redeem */);
 			path = Domain;
 			sourceTree = "<group>";
 		};
@@ -247,6 +249,7 @@
 			files = (
 				000000000000000000000101 /* AppRoot.swift in Sources */,
 				000000000000000000000102 /* Domain.swift in Sources */,
+				0000000000000000000000F6 /* Recorridos.swift in Sources */,
 				000000000000000000000103 /* DesignSystem.swift in Sources */,
 				000000000000000000000120 /* BankThumbnail.swift in Sources */,
 				0000000000000000000000D2 /* CoachMarks.swift in Sources */,
