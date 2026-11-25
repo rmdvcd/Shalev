@@ -387,7 +387,7 @@ def test_t3_campo_transferencia_validaciones_y_mensaje(tmp_path: Path, monkeypat
     assert validar_transferencia("  PAG-123456  ") == "PAG-123456"
 
     with pytest.raises(SolicitudError, match="El número de transferencia"):
-        validar_transferencia("A12")  # Menos de 4
+        validar_transferencia("A1234")  # 5 caracteres: menos del mínimo de 6
     with pytest.raises(SolicitudError, match="El número de transferencia"):
         validar_transferencia("A" * 31)  # Más de 30
     with pytest.raises(SolicitudError, match="El número de transferencia"):

@@ -31,7 +31,7 @@ from .cost_export import export_sheet as export_cost_to_catalog
 from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
 from .inventory import format_milli, record_movement, record_retirement
-from . import catalogo_cliente, modulos, preajustes, recorridos
+from . import catalogo_cliente, modulos, orden, preajustes, recorridos
 from .licencia import motivo_activacion_deshabilitada
 from .licencia.config_licencia import configuracion
 from .security import csrf_token, hash_password, valid_csrf, verify_password
@@ -455,9 +455,14 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             return redirect("/entrar")
         query = request.query_params.get("q", "").strip()[:80]
         pattern = "%" + query.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%"
+        modo = orden.modo_de(request.query_params.get("orden"))
         with db.connect() as conn:
-            items = conn.execute("SELECT * FROM items WHERE active=1 AND category='Servicio' AND name LIKE ? ESCAPE '!' ORDER BY name LIMIT 200", (pattern,)).fetchall()
-        return templates.TemplateResponse(request, "services.html", context(request, user=user, section="servicios", items=[dict(row) for row in items], query=query, notice=notice_text(request)))
+            rows = conn.execute("SELECT * FROM items WHERE active=1 AND category='Servicio' AND name LIKE ? ESCAPE '!' ORDER BY id DESC LIMIT 200", (pattern,)).fetchall()
+        items = modo.aplicar([dict(row) for row in rows], nombre=lambda fila: fila["name"], importe=lambda fila: fila["sale_price_cents"])
+        return templates.TemplateResponse(request, "services.html", context(
+            request, user=user, section="servicios", items=items, query=query, modo=modo,
+            enlace_orden=orden.enlace("/servicios", {"q": query, "orden": modo.siguiente}),
+            notice=notice_text(request)))
 
     @app.api_route("/herramientas", methods=["GET", "POST"], response_class=HTMLResponse)
     async def tools_page(request: Request):
@@ -985,12 +990,18 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         if not user:
             return redirect("/entrar")
         query = request.query_params.get("q", "").strip()[:80]
+        modo = orden.modo_de(request.query_params.get("orden"))
         with db.connect() as conn:
             if query:
-                items = conn.execute("SELECT * FROM items WHERE active=1 AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT 200", ("%" + query.replace("%", "\\%").replace("_", "\\_") + "%",)).fetchall()
+                rows = conn.execute("SELECT * FROM items WHERE active=1 AND name LIKE ? ESCAPE '\\' ORDER BY id DESC LIMIT 200", ("%" + query.replace("%", "\\%").replace("_", "\\_") + "%",)).fetchall()
             else:
-                items = conn.execute("SELECT * FROM items WHERE active=1 ORDER BY name LIMIT 200").fetchall()
-        return templates.TemplateResponse(request, "inventory.html", context(request, user=user, section="inventario", items=[dict(r) for r in items], query=query, notice=notice_text(request), notice_kind="success"))
+                rows = conn.execute("SELECT * FROM items WHERE active=1 ORDER BY id DESC LIMIT 200").fetchall()
+        # `recientes` es el orden de la consulta (id descendente = último creado primero), como `creadoEn` en Android.
+        items = modo.aplicar([dict(r) for r in rows], nombre=lambda fila: fila["name"], importe=lambda fila: fila["sale_price_cents"])
+        return templates.TemplateResponse(request, "inventory.html", context(
+            request, user=user, section="inventario", items=items, query=query, modo=modo,
+            enlace_orden=orden.enlace("/inventario", {"q": query, "orden": modo.siguiente}),
+            notice=notice_text(request), notice_kind="success"))
 
     # ---- Recorridos guiados (paridad con Recorrido de Android) ----
 

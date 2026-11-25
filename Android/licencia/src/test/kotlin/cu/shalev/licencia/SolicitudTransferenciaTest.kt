@@ -52,13 +52,13 @@ class SolicitudTransferenciaTest {
 
     @Test
     fun patronTransferenciaValidaCorrectamente() {
-        val regex = Regex("^[A-Za-z0-9-]{4,30}$")
+        val regex = Regex("^[A-Za-z0-9-]{6,30}$")
         assertTrue("BR601ADLM8997".matches(regex))
         assertTrue("TX-123456".matches(regex))
-        assertTrue("1234".matches(regex))
+        assertTrue("123456".matches(regex))
         assertTrue("A".repeat(30).matches(regex))
 
-        assertFalse("123".matches(regex)) // < 4
+        assertFalse("12345".matches(regex)) // < 6
         assertFalse("A".repeat(31).matches(regex)) // > 30
         assertFalse("TX@123".matches(regex)) // carácter inválido
     }

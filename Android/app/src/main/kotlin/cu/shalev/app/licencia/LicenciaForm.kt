@@ -44,7 +44,7 @@ data class LicenciaForm(
     val recupera: String = "",
     /** Solicitud de ampliación de apps secundarias sobre la licencia activa instalada (conservando vencimiento). */
     val ampliandoSecundarias: Boolean = false,
-    /** T3: Número opcional de comprobante o transferencia bancaria (4 a 30 caracteres alfanuméricos y guiones). */
+    /** T3: Número opcional de comprobante o transferencia bancaria (6 a 30 caracteres alfanuméricos y guiones). */
     val transferencia: String = "",
 ) {
     /** 0.21.0 (C4): precio total = base del tipo + importe por cada secundaria. */
@@ -60,7 +60,8 @@ data class LicenciaForm(
     val transferenciaOk: Boolean
         get() {
             val t = transferencia.trim()
-            return t.isEmpty() || t.matches(Regex("^[A-Za-z0-9-]{4,30}$"))
+            // 6–30: misma regla que iOS y DShalev (la más estricta de las tres).
+            return t.isEmpty() || t.matches(Regex("^[A-Za-z0-9-]{6,30}$"))
         }
     val valido: Boolean get() = nombreOk && apellidosOk && ciOk && telefonoOk && transferenciaOk
     /** ID canónico a recuperar (null = vacío o sin un ID reconocible). */

@@ -413,7 +413,7 @@ fun LicenciaContent(
                             label = "N.º de transferencia (opcional)",
                             supportingText = "Si ya pagaste, escribe el número de la transferencia para que te activen más rápido.",
                             isError = !form.transferenciaOk,
-                            errorText = "Escribe de 4 a 30 caracteres alfanuméricos o guiones.",
+                            errorText = "Escribe de 6 a 30 caracteres alfanuméricos o guiones.",
                             modifier = Modifier.testTag("licencia.transferencia"),
                         )
                         val clipboardTransfer = LocalClipboardManager.current

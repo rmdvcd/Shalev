@@ -713,6 +713,21 @@ tbody tr:last-child td{
   max-width:290px
 }
 
+/* Buscador + botón de orden: el modo activo va en texto, nunca solo en un icono. */
+.list-toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-end;
+  gap:var(--space-2);
+  min-width:0
+}
+
+.orden-boton{
+  white-space:nowrap;
+  min-height:var(--touch-target)
+}
+
 .search-form input{
   height:var(--touch-target)
 }

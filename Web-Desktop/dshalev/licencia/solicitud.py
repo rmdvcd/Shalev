@@ -147,7 +147,9 @@ def normalizar_gsm7(texto: str) -> str:
 
 _RE_CI = re.compile(r"^\d{11}$")
 _RE_UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
-_RE_TX = re.compile(r"^[A-Za-z0-9-]{4,30}$")
+# 6–30: la regla más estricta de las tres plataformas (iOS ya la usaba). Estrechar rechaza números de 4–5
+# caracteres que ninguna transferencia real tiene, y deja las tres con el mismo mensaje.
+_RE_TX = re.compile(r"^[A-Za-z0-9-]{6,30}$")
 
 
 def validar_transferencia(tx: str | None) -> str | None:
@@ -157,7 +159,7 @@ def validar_transferencia(tx: str | None) -> str | None:
     if not limpio:
         return None
     if not _RE_TX.fullmatch(limpio):
-        raise SolicitudError("El número de transferencia debe tener entre 4 y 30 caracteres alfanuméricos o guiones.")
+        raise SolicitudError("El número de transferencia debe tener entre 6 y 30 caracteres alfanuméricos o guiones.")
     return limpio
 
 
