@@ -21,10 +21,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Iterable, Sequence
+import zlib
 
 from .catalogo_cliente import FilaPrecio, TarjetaArticulo, TARJETAS_POR_PAGINA
 from .forms import format_cup
-from .png import Lienzo
+from .png import Lienzo, decodificar_png_rgb
 
 #: Márgenes y medidas de la hoja A4 en puntos (1 pt = 1/72 de pulgada).
 A4_ANCHO = 595.28
@@ -55,6 +56,16 @@ class _Pdf:
     def __init__(self) -> None:
         self.paginas: list[list[str]] = []
         self.actual: list[str] = []
+        self.imagenes: list[tuple[str, int, int, bytes]] = []
+
+    def imagen_png(self, datos: bytes, x: float, y: float, ancho: float, alto: float) -> None:
+        ancho_px, alto_px, rgb = decodificar_png_rgb(datos)
+        nombre = f"Im{len(self.imagenes) + 1}"
+        if self.imagenes and self.imagenes[0][3] == rgb:
+            nombre = self.imagenes[0][0]
+        else:
+            self.imagenes.append((nombre, ancho_px, alto_px, rgb))
+        self.actual.append(f"q {ancho:.2f} 0 0 {alto:.2f} {x:.2f} {y:.2f} cm /{nombre} Do Q")
 
     def nueva_pagina(self) -> None:
         if self.actual:
@@ -91,6 +102,8 @@ class _Pdf:
         # 1 catálogo, 2 árbol de páginas, 3 y 4 fuentes, luego una página y su contenido por hoja.
         total = len(self.paginas)
         ids_paginas = [5 + 2 * i for i in range(total)]
+        primer_id_imagen = 5 + 2 * total
+        ids_imagenes = {nombre: primer_id_imagen + i for i, (nombre, _, _, _) in enumerate(self.imagenes)}
         objetos.append(b"<< /Type /Catalog /Pages 2 0 R >>")
         kids = " ".join(f"{pid} 0 R" for pid in ids_paginas)
         objetos.append(f"<< /Type /Pages /Kids [{kids}] /Count {total} >>".encode("ascii"))
@@ -98,12 +111,21 @@ class _Pdf:
         objetos.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>")
         for indice, contenido in enumerate(self.paginas):
             flujo = "\n".join(contenido).encode("latin-1", errors="replace")
+            xobjects = " ".join(f"/{nombre} {objeto_id} 0 R" for nombre, objeto_id in ids_imagenes.items())
+            extra = f" /XObject << {xobjects} >>" if xobjects else ""
             objetos.append(
                 f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {A4_ANCHO:.2f} {A4_ALTO:.2f}] "
-                f"/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> "
+                f"/Resources << /Font << /F1 3 0 R /F2 4 0 R >>{extra} >> "
                 f"/Contents {ids_paginas[indice] + 1} 0 R >>".encode("ascii")
             )
             objetos.append(b"<< /Length " + str(len(flujo)).encode("ascii") + b" >>\nstream\n" + flujo + b"\nendstream")
+        for nombre, ancho, alto, rgb in self.imagenes:
+            flujo_imagen = zlib.compress(rgb, 9)
+            objetos.append(
+                f"<< /Type /XObject /Subtype /Image /Name /{nombre} /Width {ancho} /Height {alto} "
+                f"/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length {len(flujo_imagen)} >>\nstream\n".encode("ascii")
+                + flujo_imagen + b"\nendstream"
+            )
 
         salida = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
         posiciones: list[int] = []
@@ -121,9 +143,11 @@ class _Pdf:
         return bytes(salida)
 
 
-def _cabecera(pdf: _Pdf, negocio: str, titulo: str, subtitulo: str) -> float:
+def _cabecera(pdf: _Pdf, negocio: str, titulo: str, subtitulo: str, logo_png: bytes | None = None) -> float:
     """Cabecera de cada salida. Devuelve la coordenada Y donde puede empezar el contenido."""
     pdf.rectangulo(0, A4_ALTO - 96, A4_ANCHO, 96, AZUL)
+    if logo_png:
+        pdf.imagen_png(logo_png, A4_ANCHO - MARGEN - 42, A4_ALTO - 72, 36, 36)
     pdf.texto(MARGEN, A4_ALTO - 44, negocio[:70], tamano=17, color=(1, 1, 1), negrita=True)
     pdf.texto(MARGEN, A4_ALTO - 70, titulo, tamano=12, color=(0.85, 0.90, 1.0))
     pdf.texto(A4_ANCHO - MARGEN - 150, A4_ALTO - 70, subtitulo, tamano=8.5, color=(0.85, 0.90, 1.0))
@@ -137,23 +161,21 @@ def _pie(pdf: _Pdf, pagina: int, total: int, negocio: str) -> None:
 
 
 def lista_precios_pdf(filas: Sequence[FilaPrecio], *, negocio: str,
-                      generado: datetime | None = None) -> bytes:
+                      generado: datetime | None = None, logo_png: bytes | None = None) -> bytes:
     """PDF de la lista de precios: Categoría / Producto / Precio, agrupada por categoría.
 
     Se corta de página cuando no cabe otra fila; la cabecera de la tabla se repite en cada hoja.
     """
     momento = (generado or datetime.now()).strftime("%d/%m/%Y %H:%M")
     pdf = _Pdf()
-    y = _cabecera(pdf, negocio, "Lista de precios", f"Generada el {momento}")
-    pdf.nueva_pagina()
-    y = _cabecera(pdf, negocio, "Lista de precios", f"Generada el {momento}")
+    y = _cabecera(pdf, negocio, "Lista de precios", f"Generada el {momento}", logo_png)
     _cabecera_tabla(pdf, y)
     y -= 20
     categoria_anterior: str | None = None
     for fila in filas:
         if y < 80:
             pdf.nueva_pagina()
-            y = _cabecera(pdf, negocio, "Lista de precios", f"Generada el {momento}")
+            y = _cabecera(pdf, negocio, "Lista de precios", f"Generada el {momento}", logo_png)
             _cabecera_tabla(pdf, y)
             y -= 20
             categoria_anterior = None
@@ -209,16 +231,17 @@ def pdf_ancho_texto(texto: str, tamano: float) -> float:
 
 
 def tarjetas_pdf(tarjetas: Sequence[TarjetaArticulo], *, negocio: str, comentario: str = "",
-                 generado: datetime | None = None) -> bytes:
+                 generado: datetime | None = None, logo_png: bytes | None = None) -> bytes:
     """PDF de tarjetas promocionales: dos columnas y hasta seis por hoja (como `DisenoTarjetas`)."""
     momento = (generado or datetime.now()).strftime("%d/%m/%Y %H:%M")
     pdf = _Pdf()
     paginas = [tarjetas[i:i + TARJETAS_POR_PAGINA] for i in range(0, len(tarjetas), TARJETAS_POR_PAGINA)]
     if not paginas:
         paginas = [[]]
-    for grupo in paginas:
-        pdf.nueva_pagina()
-        y = _cabecera(pdf, negocio, "Tarjetas promocionales", f"Generadas el {momento}")
+    for grupo_indice, grupo in enumerate(paginas):
+        if grupo_indice:
+            pdf.nueva_pagina()
+        y = _cabecera(pdf, negocio, "Tarjetas promocionales", f"Generadas el {momento}", logo_png)
         if comentario:
             pdf.texto(MARGEN, y, comentario[:110], tamano=10.5, color=TINTA)
             y -= 20
@@ -246,7 +269,7 @@ def tarjetas_pdf(tarjetas: Sequence[TarjetaArticulo], *, negocio: str, comentari
 
 # --------------------------------------------------------------------------- PNG (tarjetas)
 
-def tarjeta_png(tarjeta: TarjetaArticulo, *, negocio: str, comentario: str = "") -> bytes:
+def tarjeta_png(tarjeta: TarjetaArticulo, *, negocio: str, comentario: str = "", logo_png: bytes | None = None) -> bytes:
     """PNG cuadrado (1080×1080) de una tarjeta: negocio, nombre, precio y unidad.
 
     Es la salida «Imagen/Tarjetas» de Android llevada al escritorio: se comparte por mensajería y no lleva costo ni
@@ -257,6 +280,9 @@ def tarjeta_png(tarjeta: TarjetaArticulo, *, negocio: str, comentario: str = "")
     # Banda superior de marca y banda inferior con el recordatorio de moneda.
     lienzo.rectangulo(0, 0, TARJETA_PX, 210, azul)
     lienzo.rectangulo(0, TARJETA_PX - 120, TARJETA_PX, 120, (243, 245, 250))
+    if logo_png:
+        logo_width, logo_height, logo_rgb = decodificar_png_rgb(logo_png)
+        lienzo.imagen_rgb(870, 30, 150, 150, logo_width, logo_height, logo_rgb)
     # El nombre del negocio se ajusta al ancho en vez de recortarse: dos líneas como máximo.
     for posicion, linea in enumerate(_partir(negocio.upper(), 22)[:2]):
         lienzo.texto(TARJETA_MARGEN, 56 + posicion * 56, linea, escala=4, color=(255, 255, 255))
@@ -280,13 +306,14 @@ def tarjeta_png(tarjeta: TarjetaArticulo, *, negocio: str, comentario: str = "")
     return lienzo.png()
 
 
-def tarjetas_png(tarjetas: Iterable[TarjetaArticulo], *, negocio: str, comentario: str = "") -> list[tuple[str, bytes]]:
+def tarjetas_png(tarjetas: Iterable[TarjetaArticulo], *, negocio: str, comentario: str = "",
+                 logo_png: bytes | None = None) -> list[tuple[str, bytes]]:
     """Una imagen por tarjeta, con un nombre de fichero estable y sin caracteres problemáticos."""
     salida: list[tuple[str, bytes]] = []
     for posicion, tarjeta in enumerate(tarjetas, start=1):
         nombre = "".join(c if c.isalnum() or c in " -_" else "-" for c in tarjeta.nombre).strip() or "articulo"
         salida.append((f"{posicion:02d}-{nombre[:40].replace(' ', '_')}.png", tarjeta_png(
-            tarjeta, negocio=negocio, comentario=comentario)))
+            tarjeta, negocio=negocio, comentario=comentario, logo_png=logo_png)))
     return salida
 
 

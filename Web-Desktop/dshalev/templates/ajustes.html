@@ -1,0 +1,8 @@
+{% extends 'base.html' %}{% block title %}Ajustes{% endblock %}{% block content %}
+<div class="page-heading"><div><p class="eyebrow">CONFIGURACIÓN DEL NEGOCIO</p><h1>Ajustes</h1><p class="muted">Configuración, herramientas y gestión del negocio, agrupadas en un solo lugar.</p></div></div>
+<section class="content-grid settings-grid" aria-label="Secciones de ajustes">
+  <article class="panel"><p class="eyebrow">SISTEMA</p><h2>Configuración</h2><ul class="settings-links"><li><a href="/perfil">Perfil del negocio</a></li><li><a href="/modulos">Módulos del negocio</a></li><li><a href="/red">Acceso y red</a></li><li><a href="/licencia">Licencia</a></li>{% if user.role == 'admin' %}<li><a href="/respaldo">Respaldo</a></li>{% endif %}<li><a href="/ayuda">Ayuda y manual</a></li></ul></article>
+  <article class="panel"><p class="eyebrow">OPERACIÓN</p><h2>Gestión</h2><ul class="settings-links"><li><a href="/equipo">Equipo y secundarias</a></li><li><a href="/distribucion">Distribución de catálogo y APK</a></li></ul></article>
+  <article class="panel"><p class="eyebrow">CATÁLOGO Y CÁLCULOS</p><h2>Herramientas</h2><ul class="settings-links"><li><a href="/herramientas">Conversor y cálculos</a></li><li><a href="/herramientas/precios">Preajustes de precios</a></li></ul></article>
+</section>
+{% endblock %}

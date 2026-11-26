@@ -8,6 +8,7 @@
     <p class="muted">Gestiona artículos, precios y existencias.</p>
   </div>
   <nav class="inventory-heading-actions" aria-label="Acciones de inventario" id="inventario-exportar">
+    {% if nav.punto_de_venta %}<a class="quiet-button" href="/recetas">Recetas e insumos</a>{% endif %}
     {% if user and user.role == 'admin' %}
     <a class="quiet-button" href="/inventario/movimientos">Movimientos</a>
     <a class="quiet-button" href="/inventario/movimientos.csv">Historial CSV</a>

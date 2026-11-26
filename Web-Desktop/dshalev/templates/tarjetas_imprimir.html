@@ -15,7 +15,8 @@
     .tarjeta-articulo .nombre { font-size: 1.15rem; font-weight: 600; margin: 6px 0 10px; }
     .tarjeta-articulo .precio { color: var(--accent); font-size: 1.35rem; font-weight: 700; }
     .tarjeta-comentario { max-width: 720px; margin: 0 auto 18px; color: var(--accent); font-weight: 600; }
-    .tarjeta-negocio { max-width: 720px; margin: 0 auto 18px; color: var(--teal); font-weight: 700; }
+    .tarjeta-negocio { max-width: 720px; margin: 0 auto 18px; color: var(--teal); font-weight: 700; display: flex; align-items: center; gap: 12px; }
+    .tarjeta-negocio img { width: 42px; height: 42px; object-fit: contain; }
     @media print {
       .no-print { display: none !important; }
       .tarjetas-hoja { background: #fff; padding: 0; }
@@ -32,7 +33,7 @@
     {% for pagina in paginas %}
     <section class="tarjetas-grupo{% if pagina|length > 1 %} multiple{% endif %}" aria-label="Página {{ loop.index }}">
       {% if comentario %}<p class="tarjeta-comentario">{{ comentario }}</p>{% endif %}
-      <p class="tarjeta-negocio">{{ negocio }}</p>
+      <p class="tarjeta-negocio">{% if logo_data_url %}<img src="{{ logo_data_url }}" alt="Logo de {{ negocio }}">{% endif %}{{ negocio }}</p>
       {% for tarjeta in pagina %}
       <article class="tarjeta-articulo">
         <p class="categoria">{{ tarjeta.categoria }}</p>
