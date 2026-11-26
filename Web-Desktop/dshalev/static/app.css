@@ -19,6 +19,13 @@
   --danger-soft:#fcebea;
   --warning:#935d00;
   --warning-soft:#fff3d6;
+  /* Paleta de gráficos (Android: `ShalevTheme.colors.chart`), con los tonos que ya existían. El color nunca es el
+     único canal: la leyenda lleva etiqueta y la dona lleva nombre y porcentaje escritos. */
+  --chart-1:var(--accent);
+  --chart-2:var(--teal);
+  --chart-3:var(--orange);
+  --chart-4:var(--success);
+  --chart-5:var(--warning);
   /* Compatibilidad con los nombres históricos de app.css. */
   --ink:var(--text);
   --muted:var(--text-muted);
@@ -1247,6 +1254,11 @@ html[data-theme="oscuro"]{
   --danger-soft:#3a2424;
   --warning:#f4c76d;
   --warning-soft:#3a301d;
+  --chart-1:var(--accent);
+  --chart-2:var(--teal);
+  --chart-3:var(--orange);
+  --chart-4:var(--success);
+  --chart-5:var(--warning);
   --ink:var(--text);
   --muted:var(--text-muted);
   --line:var(--border);
@@ -1934,18 +1946,6 @@ button:disabled{
   font-variant-numeric:tabular-nums
 }
 
-/* Ganancia bruta: dos series en la misma fila. La de venta es el acento y la de costo un tono suave del mismo
-   acento, así que la diferencia se lee sin depender del color (cada barra lleva su aria-label). */
-.chart-row progress.chart-sale{
-  accent-color:var(--accent);
-  height:8px
-}
-
-.chart-row progress.chart-cost{
-  accent-color:var(--accent-soft);
-  height:8px
-}
-
 .ranking{
   margin:0;
   padding-left:24px
@@ -2036,8 +2036,103 @@ html[data-theme="oscuro"] .primary-button:hover{
   .recorrido-resaltado{ outline-offset:2px; }
 }
 
-/* Ganancia bruta: la barra de costo necesita contraste propio. Antes reutilizaba el tono suave del acento, que
-   sobre la superficie blanca queda prácticamente invisible: en pantalla parecía que solo había una serie. */
-.chart-row progress.chart-cost{
-  accent-color:var(--text-muted)
+
+/* ---- Gráficos de área y de dona (misma forma que `Charts.kt` de Android) ----
+   Se dibujan en el servidor como SVG: el ejecutable portable no incorpora ninguna librería de dibujo y así el
+   gráfico no depende de JavaScript. El color nunca es el único canal: la leyenda lleva el nombre escrito y la dona
+   lleva nombre, valor y porcentaje. */
+.grafico{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-2)
+}
+
+.grafico svg{
+  display:block;
+  width:100%;
+  height:auto
+}
+
+.grafico-area svg{
+  height:132px
+}
+
+/* Eje X: las etiquetas van fuera del SVG para que el estiramiento del trazado no deforme la letra. */
+.grafico-eje{
+  display:flex;
+  justify-content:space-between;
+  gap:var(--space-2);
+  margin-top:calc(-1 * var(--space-2));
+  color:var(--text-muted);
+  font-size:11px;
+  font-variant-numeric:tabular-nums
+}
+
+.grafico-centro{
+  fill:var(--text);
+  font-size:13px;
+  font-weight:600;
+  font-variant-numeric:tabular-nums
+}
+
+.grafico-leyenda{
+  display:flex;
+  flex-wrap:wrap;
+  gap:var(--space-4);
+  justify-content:center;
+  margin:0;
+  color:var(--text-muted);
+  font-size:12px
+}
+
+.grafico-leyenda-item{
+  display:inline-flex;
+  align-items:center;
+  gap:var(--space-1)
+}
+
+.grafico-punto{
+  display:inline-block;
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  flex:none
+}
+
+.grafico-dona{
+  align-items:center
+}
+
+.grafico-dona svg{
+  max-width:176px
+}
+
+.grafico-leyenda-lista{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-1);
+  width:100%;
+  margin:0;
+  padding:0;
+  list-style:none;
+  font-size:13px
+}
+
+.grafico-leyenda-lista li{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto auto;
+  gap:var(--space-2);
+  align-items:center
+}
+
+.grafico-leyenda-nombre{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+
+.grafico-leyenda-valor,
+.grafico-leyenda-pct{
+  font-variant-numeric:tabular-nums;
+  color:var(--text-muted)
 }

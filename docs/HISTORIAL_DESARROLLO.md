@@ -1,3 +1,27 @@
+## Gráficos de Inicio de DShalev con la misma forma que Android (2026-11-24)
+
+- **Objetivo:** el propietario pidió igualar el dibujo. Hasta aquí el escritorio usaba barras `<progress>` donde
+  Android e iOS usan área y dona; se había documentado como diferencia de forma y quedó a su decisión.
+- **Qué se hizo.** Nuevo `dshalev/graficos.py`: genera el **área** y la **dona** como SVG en el servidor. No se añade
+  ninguna librería de dibujo al ejecutable portable (sigue sin `Pillow` ni `reportlab`) y el gráfico no depende de
+  JavaScript, así que se ve aunque el navegador tenga los scripts bloqueados.
+- **La geometría es la de `Charts.kt`, no una parecida.** Series normalizadas contra el **mismo** máximo
+  (`normalizarJuntas`), curva suave por el punto medio (`cubicTo(mx, a.y, mx, b.y, b.x, b.y)`), relleno del área al
+  **18 %** con el trazo encima, eje X sin eje Y ni rejilla, etiquetas repartidas como `ChartMath.indicesEtiquetas`
+  (primero y último siempre), y dona con arcos desde las 12 en punto, sentido horario, **2°** de separación,
+  pista de fondo y leyenda con nombre, valor y porcentaje escritos para que el color no sea el único canal.
+- **Un defecto cazado al revisar el dibujo, no el HTML.** Las etiquetas del eje iban dentro del SVG, que se estira
+  con `preserveAspectRatio="none"` para llenar el ancho: la letra salía deformada. Se movieron al HTML, donde
+  `space-between` las alinea igual porque los índices repartidos caen en fracciones iguales (0, 1/3, 2/3, 1).
+- **Paleta.** Se estrena `--chart-1..5` en `:root` y en el tema oscuro, reutilizando los tonos que ya existían
+  (`accent`, `teal`, `orange`, `success`, `warning`): no se inventó ningún color y la prueba de diseño, que prohíbe
+  hex fuera de `:root`, sigue en verde.
+- **Verificado aquí:** `pytest` Web **378/378** (10 pruebas nuevas de `test_graficos_svg.py` y el panel reescrito),
+  `ramplint` (33 ficheros), la app real con el seed (0 `<progress>` en Inicio, 2 áreas y 1 dona, 17 SVG y **ninguno
+  mal formado** al parsearlos), y el dibujo revisado rasterizando los propios SVG con Pillow: el área con su curva y
+  el relleno, y la dona con sus seis porciones desde las 12 en punto. **No verificado:** un navegador de verdad (no
+  hay ninguno disponible en este entorno: la descarga de Chromium está bloqueada) ni el ejecutable de Windows.
+
 ## Auditoría de DShalev contra Android sobre la app en marcha (2026-11-24)
 
 - **Objetivo:** el propietario informó que en su PC el escritorio no tenía módulos, gráficos, iconos, listas ni

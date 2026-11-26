@@ -270,6 +270,11 @@ reglas que las apps nativas (al menos uno activo —vacío significa todos—, V
 INVENTARIO desmarca VENTAS) y ocultar una sección no borra sus datos: la prueba
 `test_hiding_a_module_does_not_delete_its_data` comprueba que las ventas siguen ahí al volver a activarlo.
 
+**Corregido el 2026-11-24 (auditoría sobre la app en marcha):** el efecto llegaba al rail, pero **no a Inicio**. Con
+Ventas e Inventario apagados, el panel seguía enseñando «Artículos activos» y «Stock por revisar». Android condiciona
+esas alertas a `permisos.verInventario` (`InicioScreen.kt:417`). Las dos tarjetas quedan ahora dentro de
+`ver_inventario` y `test_sin_inventario_ni_ventas_no_hay_alertas_de_existencias` lo fija.
+
 ### 5.2 Iconos
 
 | Aspecto | Android | iOS | DShalev | Estado |
@@ -351,9 +356,9 @@ campo (`TELEFONO`, `TARJETA`, `CARNE`, `ENTERO`, `DECIMAL`, `CANTIDAD`, `DINERO`
 
 | Gráfico de Android | Android | iOS | DShalev | Estado |
 |---|---|---|---|---|
-| Ventas por período | `ShalevBarChart` (`Charts.kt:139`) | `Chart { BarMark …}` (`HomeView.swift:397`) | `<progress>` por día (`dashboard.html`) y por día del período en Reportes (`reports.html`) | Igual en intención |
-| Ganancia (venta vs costo) | `ShalevAreaChart` con **dos series** (`InicioScreen.kt:858`) | **Corregido:** área de dos series con `AreaMark` en el acordeón de ganancia (`HomeView.swift`, «Área clara: ventas») | **Corregido:** panel «Ganancia bruta» con dos barras por día (venta y costo), `daily_cost` en el panel (`dashboard.html`, `app.py`) | Igual en intención (iOS pendiente de pasada visual en simulador) |
-| Inventario por categorías | `ShalevDonutChart` con centro y leyenda | **Corregido:** `ShalevDonutChart` de existencias por categoría, valor al costo (`HomeView.swift`, `categoriasInventario`) | **Corregido:** panel «Inventario por categoría» con barras de reparto y porcentaje, valorado al costo (`inventario_por_categoria`); el escritorio no usa SVG ni canvas, así que el reparto se dibuja con `<progress>` y `aria-label` | Igual en intención; diferencia de forma aceptada |
+| Ventas por período | `ShalevBarChart` (`Charts.kt:139`) | `Chart { BarMark …}` (`HomeView.swift:397`) | **Corregido en Inicio:** área SVG de una serie con eje X (`grafico_ventas`). En Reportes sigue con `<progress>` por día del período | Inicio igual en las tres; Reportes, barras |
+| Ganancia (venta vs costo) | `ShalevAreaChart` con **dos series** (`InicioScreen.kt:858`) | **Corregido:** área de dos series con `AreaMark` en el acordeón de ganancia (`HomeView.swift`, «Área clara: ventas») | **Corregido:** área SVG de dos series, normalizadas contra el mismo máximo, curva suave por el punto medio y relleno al 18 % (`dshalev/graficos.py`, `grafico_ganancia`) | Igual en las tres (iOS pendiente de pasada visual en simulador) |
+| Inventario por categorías | `ShalevDonutChart` con centro y leyenda | **Corregido:** `ShalevDonutChart` de existencias por categoría, valor al costo (`HomeView.swift`, `categoriasInventario`) | **Corregido:** dona SVG real con centro (total al costo) y leyenda con nombre, valor y porcentaje, arcos desde las 12 en punto y 2° de separación (`dshalev/graficos.py`) | Igual en las tres |
 | Métodos de pago | `ShalevDonutChart` | **Corregido:** donut en `paymentAccordion` (`HomeView.swift`) | **Corregido:** barras de reparto por forma de pago en Reportes (`share` en % sobre el total del período) | Igual en las tres |
 | Rankings (Top 3, servicios, empleados, clientes, locales) | 8 listas con medalla oro/plata/bronce (`InicioScreen.kt:905-968`), **orden por importe descendente y empate alfabético** (`Estadisticas.topPersonas`) | **8**: más vendido, lento movimiento, rentabilidad, servicios ×2, clientes, ventas por local y empleados (`empleadosDelPeriodo`) | **3**: más vendido, lento movimiento y rentabilidad (`top_items`, `slow_items`, `profit_items` en el panel) | **Parcial**: iOS completo; a DShalev le faltan locales (el escritorio no tiene tabla de locales: usa el `local_id` de `base.html`) y los de servicios, clientes y empleados |
 | Períodos | 5: `TURNO, HOY, SEMANA, MES, ANIO` (`Estadisticas.kt:19`) | 5 equivalentes (`HomePeriod`, `HomeView.swift:6`) | Fechas libres | Igual Android/iOS |
@@ -367,13 +372,14 @@ canvas), sin un solo color usado para transmitir información. Lo que DShalev si
 series** (ganancia) en Inicio: el escritorio no muestra la ganancia en el panel, y añadirla exige decidir si el panel
 enseña costo, cosa que hoy solo hacen las apps móviles.
 
-#### Forma de los gráficos en DShalev (verificado en la app real, 2026-11-24)
+#### Forma de los gráficos en DShalev (2026-11-24)
 
-El escritorio **no** dibuja área ni donut. Android e iOS usan `ShalevAreaChart` y `ShalevDonutChart`; DShalev usa
-barras `<progress>` con `aria-label` para las dos series, el reparto por categoría y los métodos de pago. La causa es
-la decisión de no meter SVG ni canvas en el ejecutable portable, no un olvido. Lo que sí se igualó es el **dato**:
-venta y costo del mismo día, y existencias por categoría valoradas al costo. Queda abierto si la forma debe
-igualarse.
+El escritorio dibuja **área y dona**, como Android e iOS. Se generan en el servidor como SVG (`dshalev/graficos.py`)
+y no con una librería de dibujo, porque el ejecutable portable no incorpora ninguna y así el gráfico tampoco depende de
+JavaScript. La geometría es la de `Charts.kt` y está fijada con pruebas: series normalizadas contra el mismo máximo,
+curva suave por el punto medio, relleno al 18 %, arcos desde las 12 en punto con 2° de separación y etiquetas del eje X
+repartidas como `ChartMath.indicesEtiquetas`. Las etiquetas del eje van en HTML, no dentro del SVG, porque el trazado
+se estira para llenar el ancho y con el texto dentro la letra saldría deformada.
 
 ### 5.7 Resumen de carencias por plataforma
 

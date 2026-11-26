@@ -32,6 +32,7 @@ from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
 from .inventory import format_milli, record_movement, record_retirement
 from . import catalogo_cliente, exportacion, modulos, orden, preajustes, recorridos
+from .graficos import Punto, Serie, area_svg, dona_svg
 from .licencia import motivo_activacion_deshabilitada
 from .licencia.config_licencia import configuracion
 from .security import csrf_token, hash_password, valid_csrf, verify_password
@@ -379,6 +380,37 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id LEFT JOIN items i ON i.id=sl.item_id
                 WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
                 GROUP BY sl.item_id ORDER BY profit DESC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
+            # Gráficos con la misma forma que Android (`Charts.kt`): área para ventas y ganancia, dona para el
+            # reparto de existencias. Se generan aquí, en el servidor, para no meter una librería de dibujo en el
+            # ejecutable ni depender de JavaScript.
+            etiquetas_dias = [Punto(dia["day"][5:], dia["total"]) for dia in daily]
+            grafico_ventas = area_svg(
+                etiquetas_dias,
+                [(Serie("Venta", "total", 1), [dia["total"] for dia in daily])],
+                descripcion="Ventas de los últimos 7 días: "
+                            + ", ".join(f'{dia["day"]} {format_cup(dia["total"])}' for dia in daily),
+            )
+            grafico_ganancia = area_svg(
+                etiquetas_dias,
+                [
+                    (Serie("Venta", "total", 1), [dia["total"] for dia in daily]),
+                    (Serie("Costo", "costo", 3), [dia["cost"] for dia in daily_cost]),
+                ],
+                descripcion="Venta y costo de los últimos 7 días: "
+                            + ", ".join(f'{dia["day"]} venta {format_cup(dia["total"])} y costo '
+                                        f'{format_cup(costo["cost"])}' for dia, costo in zip(daily, daily_cost)),
+            )
+            ganancia_periodo = sum(total["total"] - costo["cost"] for total, costo in zip(daily, daily_cost))
+            porciones_inventario = [
+                (fila["category"], fila["valor"] or 0, format_cup(fila["valor"] or 0))
+                for fila in inventario_por_categoria
+            ]
+            grafico_inventario = dona_svg(
+                porciones_inventario,
+                descripcion="Existencias por categoría, valoradas al costo: "
+                            + ", ".join(f'{nombre} {valor}' for nombre, _, valor in porciones_inventario),
+                centro=format_cup(total_inventario),
+            ) if porciones_inventario else ""
             expected_cash = 0
             cash_movements = []
             if shift:
@@ -397,6 +429,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             sales=[dict(r) for r in sales], network_label=mode_labels[mode], daily_sales=daily,
             chart_max=max(1, *(day["total"] for day in daily)),
             daily_cost=daily_cost,
+            grafico_ventas=grafico_ventas,
+            grafico_ganancia=grafico_ganancia,
+            grafico_inventario=grafico_inventario,
+            ganancia_periodo=ganancia_periodo,
             cost_max=max(1, *(row["cost"] for row in daily_cost)),
             inventario_por_categoria=inventario_por_categoria,
             total_inventario=total_inventario,
