@@ -1,3 +1,17 @@
+## La clave maestra de depuración se perdía al releer el almacén (2026-11-26)
+
+- **Objetivo:** dejar la app de depuración usable tras el seed; al reiniciarla aparecía «Shalev está bloqueado» /
+  «Prueba finalizada» aunque el seed hubiera activado la clave maestra.
+- **Causa:** `StoredLicense.maestra` (0.31.0, S5) se guardaba en memoria pero `DataStoreLicenseStore.Guardada` no lo
+  serializaba. Al releer el DataStore, la licencia volvía con `maestra = false`, `LicenseManager.evaluate()` la
+  descartaba y caía al periodo de prueba vencido. La app funcionaba en la misma sesión del seed y fallaba en el
+  siguiente arranque.
+- **Corrección:** `Guardada` incluye `maestra` (por defecto `false`, así el formato antiguo sin el campo se sigue
+  leyendo) y se copia en `codificar`/`decodificar`. Regresión en `LicenciaCodecsTest.licenciaMaestraConservaLaMarca`.
+- **Verificado aquí:** `:data:testDebugUnitTest --tests cu.shalev.data.licencia.LicenciaCodecsTest` y `shalevTests`;
+  APK debug reinstalado en el teléfono, seed ejecutado y la app abierta en Inicio con los tres locales. **No
+  verificado:** instrumentados (no se ejecutaron en esta máquina) ni build de release.
+
 ## Gráficos de Inicio de DShalev con la misma forma que Android (2026-11-24)
 
 - **Objetivo:** el propietario pidió igualar el dibujo. Hasta aquí el escritorio usaba barras `<progress>` donde
@@ -52,6 +66,7 @@
   rail de 12 enlaces con solo Servicios, alertas ausentes en ese estado, 27 barras en el panel con los tres módulos, y
   el CSS de la barra de costo comprobado por HTTP. **No verificado:** el `DShalev.exe` de Windows (no hay Windows
   aquí) y nada visual en un navegador de verdad: solo el HTML y el CSS servidos.
+
 
 ## Cierre de las tres decisiones aprobadas: transferencia, recorridos y gráficos de Inicio (2026-11-24)
 
