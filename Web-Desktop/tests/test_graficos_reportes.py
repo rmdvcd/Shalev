@@ -181,7 +181,7 @@ def test_dashboard_area_de_dos_series_y_donut_de_inventario(tmp_path) -> None:
     assert 'id="inicio-ganancia"' in panel
     cuerpo = panel.split('id="inicio-ganancia"', 1)[1].split("</article>", 1)[0]
     assert "chart-sale" in cuerpo and "chart-cost" in cuerpo
-    assert "Barra azul: venta. Barra clara: costo." in cuerpo
+    assert "Barra azul: venta. Barra gris: costo." in cuerpo
     # El costo del día es 3 × 40 = 120 CUP y la venta 360 CUP: ambos salen con su aria-label.
     assert "Costo del" in cuerpo and "120 CUP" in cuerpo
 
@@ -203,3 +203,15 @@ def test_el_costo_del_panel_no_se_cuela_en_las_salidas_del_cliente(tmp_path) -> 
         assert respuesta.status_code == 200 and respuesta.content.startswith(marcador), ruta
         # El costo del café sembrado es 40 CUP; en la lista de precios no puede aparecer.
         assert b"40.00" not in respuesta.content, ruta
+
+
+def test_la_barra_de_costo_tiene_color_propio_visible() -> None:
+    """La barra de costo reutilizaba `--accent-soft` (#e8efff): sobre la superficie blanca no se distinguía, así que
+    en pantalla parecía que el gráfico de ganancia solo tenía la serie de venta."""
+    from pathlib import Path
+
+    css = Path(__file__).resolve().parents[1] / "dshalev" / "static" / "app.css"
+    texto = css.read_text()
+    bloque = texto.rsplit("progress.chart-cost{", 1)[1].split("}", 1)[0]
+    assert "--accent-soft" not in bloque, "el costo no puede usar el tono suave del acento: no se ve"
+    assert "--text-muted" in bloque

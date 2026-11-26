@@ -2035,3 +2035,9 @@ html[data-theme="oscuro"] .primary-button:hover{
 @media (prefers-reduced-motion: reduce){
   .recorrido-resaltado{ outline-offset:2px; }
 }
+
+/* Ganancia bruta: la barra de costo necesita contraste propio. Antes reutilizaba el tono suave del acento, que
+   sobre la superficie blanca queda prácticamente invisible: en pantalla parecía que solo había una serie. */
+.chart-row progress.chart-cost{
+  accent-color:var(--text-muted)
+}

@@ -183,3 +183,25 @@ def test_modules_save_rejects_bad_csrf(tmp_path) -> None:
     login(client)
     response = client.post("/modulos", data={"csrf": "falso", "modulo_SERVICIOS": "1"})
     assert response.status_code == 403
+
+
+def test_sin_inventario_ni_ventas_no_hay_alertas_de_existencias(tmp_path) -> None:
+    """Android (`InicioScreen.kt:417`, `permisos.verInventario`) no enseña alertas de existencias si Ventas e
+    Inventario están apagados. El panel del escritorio las servía siempre: con solo Servicios activo seguía
+    diciendo cuántos artículos hay y cuántos están bajo de stock."""
+    client = make_client(tmp_path)
+    create_admin(client)
+    login(client)
+    page = client.get("/")
+    assert "Stock por revisar" in page.text and "Artículos activos" in page.text
+
+    client.post("/modulos", data={"csrf": token(page), "modulo_SERVICIOS": "1"}, follow_redirects=True)
+    solo_servicios = client.get("/")
+    assert solo_servicios.status_code == 200
+    assert "Stock por revisar" not in solo_servicios.text
+    assert "Artículos activos" not in solo_servicios.text
+    # Y el módulo no borra nada: al reactivarlo vuelven las tarjetas con sus datos.
+    client.post("/modulos", data={"csrf": token(solo_servicios), "modulo_VENTAS": "1",
+                                 "modulo_INVENTARIO": "1", "modulo_SERVICIOS": "1"}, follow_redirects=True)
+    reactivado = client.get("/")
+    assert "Stock por revisar" in reactivado.text

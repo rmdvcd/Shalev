@@ -322,7 +322,13 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         with db.connect() as conn:
             shift = conn.execute("SELECT * FROM shifts WHERE closed_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
             item_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1").fetchone()[0]
-            low_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1 AND category!='Servicio' AND stock_milli<=low_stock_milli").fetchone()[0]
+            # Android (InicioScreen.kt:417, `permisos.verInventario`): sin Ventas ni Inventario no hay alertas de
+            # existencias. Aquí se servían siempre, aunque el módulo estuviera apagado.
+            fila_modulos_inicio = conn.execute("SELECT value FROM app_meta WHERE key=?", (modulos.CLAVE,)).fetchone()
+            ver_inventario = modulos.secciones_visibles(
+                modulos.de_texto(fila_modulos_inicio["value"] if fila_modulos_inicio else None)
+            )["inventario"]
+            low_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1 AND category!='Servicio' AND stock_milli<=low_stock_milli").fetchone()[0] if ver_inventario else 0
             today_row = conn.execute("SELECT COUNT(*) count, COALESCE(SUM(total_cents),0) total FROM sales WHERE cancelled_at IS NULL AND date(created_at,'localtime')=?", (today,)).fetchone()
             native_today = conn.execute("SELECT COUNT(*) count, COALESCE(SUM(total_cents),0) total FROM sync_sales WHERE cancelled_at IS NULL AND date(sale_at_ms/1000,'unixepoch','localtime')=?", (today,)).fetchone()
             today_count = today_row["count"] + native_today["count"]
@@ -385,7 +391,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         notice = notice_text(request)
         return templates.TemplateResponse(request, "dashboard.html", context(
             request, user=user, section="inicio", notice=notice, notice_kind="success" if notice else None,
-            shift=dict(shift) if shift else None, item_count=item_count, low_count=low_count,
+            shift=dict(shift) if shift else None, item_count=item_count, low_count=low_count, ver_inventario=ver_inventario,
             expected_cash=format_cup(expected_cash), cash_movements=[dict(r) for r in cash_movements],
             today_total=format_cup(today_total), today_count=today_count,
             sales=[dict(r) for r in sales], network_label=mode_labels[mode], daily_sales=daily,

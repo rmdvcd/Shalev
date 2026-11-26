@@ -367,6 +367,14 @@ canvas), sin un solo color usado para transmitir información. Lo que DShalev si
 series** (ganancia) en Inicio: el escritorio no muestra la ganancia en el panel, y añadirla exige decidir si el panel
 enseña costo, cosa que hoy solo hacen las apps móviles.
 
+#### Forma de los gráficos en DShalev (verificado en la app real, 2026-11-24)
+
+El escritorio **no** dibuja área ni donut. Android e iOS usan `ShalevAreaChart` y `ShalevDonutChart`; DShalev usa
+barras `<progress>` con `aria-label` para las dos series, el reparto por categoría y los métodos de pago. La causa es
+la decisión de no meter SVG ni canvas en el ejecutable portable, no un olvido. Lo que sí se igualó es el **dato**:
+venta y costo del mismo día, y existencias por categoría valoradas al costo. Queda abierto si la forma debe
+igualarse.
+
 ### 5.7 Resumen de carencias por plataforma
 
 Estado tras el cierre del 2026-11-24 (lo corregido se marca con la evidencia; lo demás sigue abierto):
