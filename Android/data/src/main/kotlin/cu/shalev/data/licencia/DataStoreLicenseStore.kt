@@ -58,6 +58,8 @@ class DataStoreLicenseStore @Inject constructor(private val ds: SecureDataStore)
         val tipo: String? = null,
         val venceEn: String? = null,
         val deviceId: String? = null,
+        /** 0.31.0 (S5): sin este campo, la clave maestra se descartaba al releer el almacén. */
+        val maestra: Boolean = false,
     )
 
     internal companion object {
@@ -69,7 +71,7 @@ class DataStoreLicenseStore @Inject constructor(private val ds: SecureDataStore)
 
         fun codificar(l: StoredLicense): String = ShalevJson.encodeToString(
             Guardada.serializer(),
-            Guardada(l.envelopeJson, l.licenseId, l.emitidaEn, l.tipo?.name, l.venceEn, l.deviceId),
+            Guardada(l.envelopeJson, l.licenseId, l.emitidaEn, l.tipo?.name, l.venceEn, l.deviceId, l.maestra),
         )
 
         /** Ilegible = sin licencia (estado seguro: prueba o bloqueo). */
@@ -78,7 +80,7 @@ class DataStoreLicenseStore @Inject constructor(private val ds: SecureDataStore)
             StoredLicense(
                 envelopeJson = g.envelope, licenseId = g.id, emitidaEn = g.emitidaEn,
                 tipo = g.tipo?.let { t -> TipoLicencia.entries.firstOrNull { it.name == t } ?: return@runCatching null },
-                venceEn = g.venceEn, deviceId = g.deviceId,
+                venceEn = g.venceEn, deviceId = g.deviceId, maestra = g.maestra,
             )
         }.getOrNull()
     }

@@ -1,3 +1,17 @@
+## La clave maestra de depuración se perdía al releer el almacén (2026-11-26)
+
+- **Objetivo:** dejar la app de depuración usable tras el seed; al reiniciarla aparecía «Shalev está bloqueado» /
+  «Prueba finalizada» aunque el seed hubiera activado la clave maestra.
+- **Causa:** `StoredLicense.maestra` (0.31.0, S5) se guardaba en memoria pero `DataStoreLicenseStore.Guardada` no lo
+  serializaba. Al releer el DataStore, la licencia volvía con `maestra = false`, `LicenseManager.evaluate()` la
+  descartaba y caía al periodo de prueba vencido. La app funcionaba en la misma sesión del seed y fallaba en el
+  siguiente arranque.
+- **Corrección:** `Guardada` incluye `maestra` (por defecto `false`, así el formato antiguo sin el campo se sigue
+  leyendo) y se copia en `codificar`/`decodificar`. Regresión en `LicenciaCodecsTest.licenciaMaestraConservaLaMarca`.
+- **Verificado aquí:** `:data:testDebugUnitTest --tests cu.shalev.data.licencia.LicenciaCodecsTest` y `shalevTests`;
+  APK debug reinstalado en el teléfono, seed ejecutado y la app abierta en Inicio con los tres locales. **No
+  verificado:** instrumentados (no se ejecutaron en esta máquina) ni build de release.
+
 ## Cierre de las tres decisiones aprobadas: transferencia, recorridos y gráficos de Inicio (2026-11-24)
 
 - **Objetivo:** aplicar las tres decisiones que el usuario aprobó tras la auditoría de §5, sin declarar verificado
