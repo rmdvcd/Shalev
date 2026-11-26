@@ -12,6 +12,62 @@
   APK debug reinstalado en el teléfono, seed ejecutado y la app abierta en Inicio con los tres locales. **No
   verificado:** instrumentados (no se ejecutaron en esta máquina) ni build de release.
 
+## Gráficos de Inicio de DShalev con la misma forma que Android (2026-11-24)
+
+- **Objetivo:** el propietario pidió igualar el dibujo. Hasta aquí el escritorio usaba barras `<progress>` donde
+  Android e iOS usan área y dona; se había documentado como diferencia de forma y quedó a su decisión.
+- **Qué se hizo.** Nuevo `dshalev/graficos.py`: genera el **área** y la **dona** como SVG en el servidor. No se añade
+  ninguna librería de dibujo al ejecutable portable (sigue sin `Pillow` ni `reportlab`) y el gráfico no depende de
+  JavaScript, así que se ve aunque el navegador tenga los scripts bloqueados.
+- **La geometría es la de `Charts.kt`, no una parecida.** Series normalizadas contra el **mismo** máximo
+  (`normalizarJuntas`), curva suave por el punto medio (`cubicTo(mx, a.y, mx, b.y, b.x, b.y)`), relleno del área al
+  **18 %** con el trazo encima, eje X sin eje Y ni rejilla, etiquetas repartidas como `ChartMath.indicesEtiquetas`
+  (primero y último siempre), y dona con arcos desde las 12 en punto, sentido horario, **2°** de separación,
+  pista de fondo y leyenda con nombre, valor y porcentaje escritos para que el color no sea el único canal.
+- **Un defecto cazado al revisar el dibujo, no el HTML.** Las etiquetas del eje iban dentro del SVG, que se estira
+  con `preserveAspectRatio="none"` para llenar el ancho: la letra salía deformada. Se movieron al HTML, donde
+  `space-between` las alinea igual porque los índices repartidos caen en fracciones iguales (0, 1/3, 2/3, 1).
+- **Paleta.** Se estrena `--chart-1..5` en `:root` y en el tema oscuro, reutilizando los tonos que ya existían
+  (`accent`, `teal`, `orange`, `success`, `warning`): no se inventó ningún color y la prueba de diseño, que prohíbe
+  hex fuera de `:root`, sigue en verde.
+- **Verificado aquí:** `pytest` Web **378/378** (10 pruebas nuevas de `test_graficos_svg.py` y el panel reescrito),
+  `ramplint` (33 ficheros), la app real con el seed (0 `<progress>` en Inicio, 2 áreas y 1 dona, 17 SVG y **ninguno
+  mal formado** al parsearlos), y el dibujo revisado rasterizando los propios SVG con Pillow: el área con su curva y
+  el relleno, y la dona con sus seis porciones desde las 12 en punto. **No verificado:** un navegador de verdad (no
+  hay ninguno disponible en este entorno: la descarga de Chromium está bloqueada) ni el ejecutable de Windows.
+
+## Auditoría de DShalev contra Android sobre la app en marcha (2026-11-24)
+
+- **Objetivo:** el propietario informó que en su PC el escritorio no tenía módulos, gráficos, iconos, listas ni
+  tablas «del mismo tipo» que Android. Se levantó DShalev real (`0.0.0.0:47812`) con una copia del seed de
+  depuración y se recorrieron los cinco ejes sobre lo que sirve el servidor, no sobre el código.
+- **Lo que sí coincide.** Módulos: los tres de `Modulo.kt` con sus textos y las tres reglas (VENTAS arrastra
+  INVENTARIO, desmarcar INVENTARIO desmarca VENTAS, nunca cero), persistidos en `app_meta`; el rail pasó de 14 a 12
+  enlaces con solo Servicios activo. Iconos: los mismos símbolos Material del rail y del panel. Listas y tablas:
+  rankings en `<ol>` y tablas de inventario, ventas y reportes, con el mismo orden y desempate que Android.
+  Gráficos: existen los cinco del panel (ventas por día, ganancia, inventario por categoría, métodos y rankings) y
+  el dato coincide con Android.
+- **Defecto propio encontrado y corregido (color).** La barra de costo de «Ganancia bruta» usaba el tono suave del
+  acento sobre superficie blanca: quedaba casi invisible, así que en pantalla parecía que solo había una serie. Ahora
+  usa el tono de texto atenuado y la leyenda dice «Barra gris», con prueba que impide volver al tono invisible.
+- **Divergencia real encontrada y corregida (módulos).** Con Ventas e Inventario apagados el panel seguía mostrando
+  «Artículos activos» y «Stock por revisar». Android no: `InicioScreen.kt:417` condiciona las alertas a
+  `permisos.verInventario`. Las dos tarjetas quedan ahora dentro de `ver_inventario`, y una prueba comprueba que al
+  reactivar el módulo vuelven los datos (nada se borra).
+- **Diferencia de forma, no corregida.** El escritorio dibuja barras `<progress>` donde Android e iOS dibujan área y
+  donut. Viene de no meter SVG ni canvas en el ejecutable portable; se documenta en §5.6 y queda a decisión del
+  propietario.
+- **La causa más probable de lo que ve el propietario en su PC:** las releases `v1.0` y `v1.0.1` publican **solo el
+  APK**; no hay `DShalev.exe` adjunto en ninguna. El ejecutable se construye en cada push a `main` pero queda como
+  artefacto del workflow (`DShalev-Windows-x64`, 20 MB, caduca a los 14 días) y, si se descargó antes de este cierre,
+  no incluye los gráficos nuevos. `MANUAL_USUARIO.pdf` sí se actualiza en el repositorio, y eso puede dar la
+  impresión de que el ejecutable también.
+- **Verificado aquí:** `pytest` Web **370/370**, `ramplint` (33 ficheros) y la app real servida en local con el seed:
+  rail de 12 enlaces con solo Servicios, alertas ausentes en ese estado, 27 barras en el panel con los tres módulos, y
+  el CSS de la barra de costo comprobado por HTTP. **No verificado:** el `DShalev.exe` de Windows (no hay Windows
+  aquí) y nada visual en un navegador de verdad: solo el HTML y el CSS servidos.
+
+
 ## Cierre de las tres decisiones aprobadas: transferencia, recorridos y gráficos de Inicio (2026-11-24)
 
 - **Objetivo:** aplicar las tres decisiones que el usuario aprobó tras la auditoría de §5, sin declarar verificado

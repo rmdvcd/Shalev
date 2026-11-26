@@ -32,6 +32,7 @@ from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
 from .inventory import format_milli, record_movement, record_retirement
 from . import catalogo_cliente, exportacion, modulos, orden, preajustes, recorridos
+from .graficos import Punto, Serie, area_svg, dona_svg
 from .licencia import motivo_activacion_deshabilitada
 from .licencia.config_licencia import configuracion
 from .security import csrf_token, hash_password, valid_csrf, verify_password
@@ -322,7 +323,13 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         with db.connect() as conn:
             shift = conn.execute("SELECT * FROM shifts WHERE closed_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
             item_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1").fetchone()[0]
-            low_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1 AND category!='Servicio' AND stock_milli<=low_stock_milli").fetchone()[0]
+            # Android (InicioScreen.kt:417, `permisos.verInventario`): sin Ventas ni Inventario no hay alertas de
+            # existencias. Aquí se servían siempre, aunque el módulo estuviera apagado.
+            fila_modulos_inicio = conn.execute("SELECT value FROM app_meta WHERE key=?", (modulos.CLAVE,)).fetchone()
+            ver_inventario = modulos.secciones_visibles(
+                modulos.de_texto(fila_modulos_inicio["value"] if fila_modulos_inicio else None)
+            )["inventario"]
+            low_count = conn.execute("SELECT COUNT(*) FROM items WHERE active=1 AND category!='Servicio' AND stock_milli<=low_stock_milli").fetchone()[0] if ver_inventario else 0
             today_row = conn.execute("SELECT COUNT(*) count, COALESCE(SUM(total_cents),0) total FROM sales WHERE cancelled_at IS NULL AND date(created_at,'localtime')=?", (today,)).fetchone()
             native_today = conn.execute("SELECT COUNT(*) count, COALESCE(SUM(total_cents),0) total FROM sync_sales WHERE cancelled_at IS NULL AND date(sale_at_ms/1000,'unixepoch','localtime')=?", (today,)).fetchone()
             today_count = today_row["count"] + native_today["count"]
@@ -373,6 +380,37 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id LEFT JOIN items i ON i.id=sl.item_id
                 WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
                 GROUP BY sl.item_id ORDER BY profit DESC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
+            # Gráficos con la misma forma que Android (`Charts.kt`): área para ventas y ganancia, dona para el
+            # reparto de existencias. Se generan aquí, en el servidor, para no meter una librería de dibujo en el
+            # ejecutable ni depender de JavaScript.
+            etiquetas_dias = [Punto(dia["day"][5:], dia["total"]) for dia in daily]
+            grafico_ventas = area_svg(
+                etiquetas_dias,
+                [(Serie("Venta", "total", 1), [dia["total"] for dia in daily])],
+                descripcion="Ventas de los últimos 7 días: "
+                            + ", ".join(f'{dia["day"]} {format_cup(dia["total"])}' for dia in daily),
+            )
+            grafico_ganancia = area_svg(
+                etiquetas_dias,
+                [
+                    (Serie("Venta", "total", 1), [dia["total"] for dia in daily]),
+                    (Serie("Costo", "costo", 3), [dia["cost"] for dia in daily_cost]),
+                ],
+                descripcion="Venta y costo de los últimos 7 días: "
+                            + ", ".join(f'{dia["day"]} venta {format_cup(dia["total"])} y costo '
+                                        f'{format_cup(costo["cost"])}' for dia, costo in zip(daily, daily_cost)),
+            )
+            ganancia_periodo = sum(total["total"] - costo["cost"] for total, costo in zip(daily, daily_cost))
+            porciones_inventario = [
+                (fila["category"], fila["valor"] or 0, format_cup(fila["valor"] or 0))
+                for fila in inventario_por_categoria
+            ]
+            grafico_inventario = dona_svg(
+                porciones_inventario,
+                descripcion="Existencias por categoría, valoradas al costo: "
+                            + ", ".join(f'{nombre} {valor}' for nombre, _, valor in porciones_inventario),
+                centro=format_cup(total_inventario),
+            ) if porciones_inventario else ""
             expected_cash = 0
             cash_movements = []
             if shift:
@@ -385,12 +423,16 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         notice = notice_text(request)
         return templates.TemplateResponse(request, "dashboard.html", context(
             request, user=user, section="inicio", notice=notice, notice_kind="success" if notice else None,
-            shift=dict(shift) if shift else None, item_count=item_count, low_count=low_count,
+            shift=dict(shift) if shift else None, item_count=item_count, low_count=low_count, ver_inventario=ver_inventario,
             expected_cash=format_cup(expected_cash), cash_movements=[dict(r) for r in cash_movements],
             today_total=format_cup(today_total), today_count=today_count,
             sales=[dict(r) for r in sales], network_label=mode_labels[mode], daily_sales=daily,
             chart_max=max(1, *(day["total"] for day in daily)),
             daily_cost=daily_cost,
+            grafico_ventas=grafico_ventas,
+            grafico_ganancia=grafico_ganancia,
+            grafico_inventario=grafico_inventario,
+            ganancia_periodo=ganancia_periodo,
             cost_max=max(1, *(row["cost"] for row in daily_cost)),
             inventario_por_categoria=inventario_por_categoria,
             total_inventario=total_inventario,

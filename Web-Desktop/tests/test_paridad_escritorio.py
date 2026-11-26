@@ -56,9 +56,11 @@ def test_estadisticas_reales_de_escritorio_y_limites(tmp_path):
     assert '3 unidades · 6 CUP' in page and '1 unidades · 5 CUP' in page
     assert '40 unidades' not in page
     assert 'No incluye ventas móviles' in page
-    # Siete días en «Ventas por día», siete ventas y siete costos en «Ganancia bruta» y una barra por categoría
-    # con existencia en el reparto del inventario (aquí, una: el café insumo).
-    assert page.count('<progress ') == 7 + 7 + 7 + 1
+    # Los tres gráficos del panel son ahora SVG (área de ventas, área de venta y costo, dona de existencias), como
+    # Android; ya no hay barras `<progress>` en Inicio.
+    assert page.count('<progress ') == 0
+    assert page.count('class="grafico ') == 3
+    assert 'aria-label="Ventas de los últimos 7 días' in page
     assert '13.50 CUP' in page and '113.50 CUP' not in page
 
 
