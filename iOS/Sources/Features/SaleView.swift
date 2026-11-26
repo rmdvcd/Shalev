@@ -13,6 +13,8 @@ struct SaleComposerView: View {
     let onOpenHome: () -> Void
     let onOpenSettings: () -> Void
     var canOpenSettings = true
+    /// Recorridos guiados: publica los objetivos del carrito y abre el suyo la primera vez.
+    var recorridos: RecorridosModelo? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -82,6 +84,7 @@ struct SaleComposerView: View {
                 }
             }
             .background(Color.shalevBackground)
+            .recorridoAlAparecer(.venta, modelo: recorridos)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -206,6 +209,7 @@ struct SaleComposerView: View {
         .padding(.top, 4)
         .padding(.bottom, 8)
         .accessibilityElement(children: .combine)
+        .recorridoObjetivo("venta_total")
     }
 
     private var totalLabel: String {
@@ -245,7 +249,9 @@ struct SaleComposerView: View {
                                  actionTitle: "Elegir artículos") { showCatalog = true }
             } else {
                 ForEach(drafts) { draft in cartLine(draft) }
+                    .recorridoObjetivo("venta_carrito")
                 paymentSelector
+                    .recorridoObjetivo("venta_metodo")
                 if let warnings = preview?.warnings, !warnings.isEmpty {
                     Label("Revisa el precio de \(warnings.joined(separator: ", ")): queda al costo o por debajo después de los ajustes.",
                           systemImage: "exclamationmark.triangle.fill")
@@ -536,6 +542,7 @@ struct SaleComposerView: View {
                 switch step {
                 case .cart:
                     roundAction("cart.badge.plus", label: "Agregar artículos", filled: false) { showCatalog = true }
+                        .recorridoObjetivo("venta_agregar")
                     Button(action: continueFromCart) {
                         Label("Continuar", systemImage: "arrow.right")
                             .font(.shalev(15, weight: .semibold))
@@ -546,6 +553,7 @@ struct SaleComposerView: View {
                     .buttonStyle(.plain)
                     .disabled(cart.isEmpty)
                     .opacity(cart.isEmpty ? 0.45 : 1)
+                    .recorridoObjetivo("venta_cobrar")
                 case .receipt:
                     roundAction("xmark", label: "Cancelar la venta", filled: false) { requestDiscard() }
                     Spacer(minLength: 0)

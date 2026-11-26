@@ -282,8 +282,32 @@ def sembrar_datos(conn):
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PRODUCTO')
                 """, (v_id, p_id, p_nom, p_cat, cant, p_vent, p_vent, p_cost))
 
+    # ---- Funciones de la 1.0.9: preferencias del negocio (módulos) y preajustes de precio ----
+    # `ConfiguracionNegocioEntity` guarda un JSON de `PreferenciasDto`; con la lista de módulos vacía la app
+    # principal enseña los tres. El seed los deja explícitos para que el volcado se vea completo.
+    preferencias = {
+        "productoBajo": 10, "productoCritico": 3,
+        "insumoBajoMil": 5000, "insumoCriticoMil": 2000,
+        "modulos": ["VENTAS", "INVENTARIO", "SERVICIOS"],
+        "empleadosPrevistos": 4,
+    }
+    c.execute("INSERT OR REPLACE INTO configuracion_negocio (id, preferenciasJson) VALUES (1, ?)",
+              (json.dumps(preferencias, ensure_ascii=False),))
+
+    # Dos preajustes: uno por volumen sobre cocteles y otro por tipo de cliente para empresas.
+    cocteles = [r[0] for r in c.execute("SELECT id FROM producto WHERE nombre LIKE '%Coctel%' LIMIT 3")]
+    c.execute("""INSERT INTO preajuste (id, nombre, puntosBasicos, metodoPago, importeMinimoCent, activo,
+                    condicion, volumenMinimo, tipoCliente)
+                VALUES (1, 'Coctelería por volumen (6 o más)', -1000, 'EFECTIVO', NULL, 1, 'VOLUMEN_VENTA', 6, NULL)""")
+    c.execute("""INSERT INTO preajuste (id, nombre, puntosBasicos, metodoPago, importeMinimoCent, activo,
+                    condicion, volumenMinimo, tipoCliente)
+                VALUES (2, 'Empresas por transferencia', 500, 'TRANSFERENCIA', NULL, 1, 'CLIENTE', NULL, 'EMPRESA')""")
+    for producto_id in cocteles:
+        c.execute("INSERT OR IGNORE INTO preajuste_producto (preajusteId, productoId) VALUES (1, ?)", (producto_id,))
+
     conn.commit()
-    print(f"Base de datos Android generada exitosamente: {turno_id} turnos, {total_ventas} ventas.")
+    print(f"Base de datos Android generada exitosamente: {turno_id} turnos, {total_ventas} ventas, "
+          f"{len(cocteles)} productos con preajuste.")
 
 def main():
     if OUTPUT_DB.exists():

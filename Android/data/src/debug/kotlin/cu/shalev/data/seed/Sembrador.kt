@@ -7,6 +7,7 @@ import cu.shalev.core.validation.Validators
 import cu.shalev.data.db.ShalevDatabase
 import cu.shalev.data.db.entity.AlmacenLocalEntity
 import cu.shalev.data.db.entity.ClienteFijoEntity
+import cu.shalev.data.db.entity.ConfiguracionNegocioEntity
 import cu.shalev.data.db.entity.DetalleVentaEntity
 import cu.shalev.data.db.entity.EmpleadoEntity
 import cu.shalev.data.db.entity.InsumoEntity
@@ -25,6 +26,8 @@ import cu.shalev.data.db.entity.TelefonoEntity
 import cu.shalev.data.db.entity.TransaccionEntity
 import cu.shalev.data.db.entity.TurnoEntity
 import cu.shalev.data.db.entity.VentaEntity
+import cu.shalev.data.dto.PreferenciasDto
+import cu.shalev.data.local.ShalevJson
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -736,6 +739,24 @@ class Sembrador(
                     // v20: datos comerciales del negocio que salen en PDF, Excel y en los textos compartidos.
                     nombreNegocio = "Bodega La Esquina",
                     logoUri = logoNegocio(),
+                ),
+            )
+            // --- Preferencias del negocio (módulos activos y umbrales) ----------------------------
+            // Sin esta fila la app arranca con `PreferenciasDto()` por defecto: umbrales 5/1 y los tres módulos.
+            // Se escribe explícita para que el seed enseñe el negocio tal y como lo deja el onboarding.
+            db.gestionDao().guardarConfiguracion(
+                ConfiguracionNegocioEntity(
+                    preferenciasJson = ShalevJson.encodeToString(
+                        PreferenciasDto.serializer(),
+                        PreferenciasDto(
+                            productoBajo = 10,
+                            productoCritico = 3,
+                            insumoBajoMil = 5000,
+                            insumoCriticoMil = 2000,
+                            modulos = listOf("VENTAS", "INVENTARIO", "SERVICIOS"),
+                            empleadosPrevistos = 4,
+                        ),
+                    ),
                 ),
             )
             db.clienteFijoDao().insertarTodos(

@@ -142,8 +142,8 @@
       </label>
 
       <label for="campo-tx">N.º de transferencia (opcional)
-        <input id="campo-tx" name="tx" type="text" pattern="[A-Za-z0-9-]{4,30}" maxlength="30" value="{{ form_data.tx if form_data else '' }}" placeholder="Ej. BR601ADLM8997" aria-describedby="ayuda-tx">
-        <small id="ayuda-tx" class="muted">Si ya pagaste, escribe el número de la transferencia para que te activen más rápido.</small>
+        <input id="campo-tx" name="tx" type="text" pattern="[A-Za-z0-9-]{6,30}" maxlength="30" value="{{ form_data.tx if form_data else '' }}" placeholder="Ej. BR601ADLM8997" aria-describedby="ayuda-tx">
+        <small id="ayuda-tx" class="muted">Si ya pagaste, escribe el número de la transferencia (6 a 30 letras, números o guiones) para que te activen más rápido.</small>
       </label>
 
       {% if not recupera %}

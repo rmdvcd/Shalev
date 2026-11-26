@@ -27,7 +27,12 @@ object Validadores {
     const val MAX_CATEGORIA = 40
     /** 0.24.0: descripción resumida que distingue artículos del mismo nombre (una línea). Antes, 500. */
     const val MAX_DESCRIPCION = 40
-    private val NUM_TRANSACCION = Regex("^[A-Za-z0-9]{6,30}$")
+    /**
+     * 1.0.9: la MISMA regla en las tres plataformas. Se admiten guiones porque los números de Transfermóvil
+     * copiados del SMS llegan con ellos y rechazarlos obligaría a reescribir el número a mano; el rango 6–30 y el
+     * juego de caracteres son los de `validTransactionNumber` de iOS y `_RE_TX` de DShalev.
+     */
+    private val NUM_TRANSACCION = Regex("^[A-Za-z0-9-]{6,30}$")
     private val CUENTA = Regex("^[0-9]{12,20}$")
     const val MIN_CONTRASENA = 8
     val RANGO_AJUSTE = -9_000..10_000 // -90 % … +100 %

@@ -225,7 +225,7 @@ class LicenseManager(
         ) { "La ampliación debe incrementar las apps secundarias actuales (máx. ${GlContract.SECUNDARIAS_MAX})" }
 
         val txLimpio = input.tx?.trim()?.takeIf { it.isNotBlank() }
-        require(txLimpio == null || txLimpio.matches(Regex("^[A-Za-z0-9-]{4,30}$"))) { "Número de transferencia inválido" }
+        require(txLimpio == null || txLimpio.matches(Regex("^[A-Za-z0-9-]{6,30}$"))) { "Número de transferencia inválido" }
 
         val nonce = B64.urlNoPad(ByteArray(16).also(random::nextBytes))
         val payload = RequestPayload(

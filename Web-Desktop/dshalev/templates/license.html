@@ -6,7 +6,7 @@
     <p class="muted">Gestión, solicitud y activación de la licencia de DShalev.</p>
   </div>
   <div class="heading-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-    <a href="/licencia/solicitar" class="primary-button">Solicitar</a>
+    <a href="/licencia/solicitar" class="primary-button" id="licencia-solicitar">Solicitar</a>
     <a href="/licencia/activar" class="secondary-button">Activar</a>
     {% if licencia_info and licencia_info.instalada and licencia_info.id %}
       {% if licencia_info.tipo != 'PERPETUA' %}
@@ -25,7 +25,7 @@
 {% endif %}
 
 <div class="content-grid">
-  <section class="panel">
+  <section class="panel" id="licencia-estado">
     <div class="panel-heading">
       <div>
         <p class="eyebrow">LICENCIA COMERCIAL</p>
@@ -68,7 +68,7 @@
     {% endif %}
   </section>
 
-  <section class="panel">
+  <section class="panel" id="licencia-identidad">
     <div class="panel-heading">
       <div>
         <p class="eyebrow">DATOS DEL EQUIPO</p>

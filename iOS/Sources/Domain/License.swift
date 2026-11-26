@@ -523,7 +523,8 @@ final class GLLicenseManager: ObservableObject {
 
         var cleanTx: String? = nil
         if let rawTx = tx?.trimmingCharacters(in: .whitespacesAndNewlines), !rawTx.isEmpty {
-            guard rawTx.range(of: "^[A-Za-z0-9-]{4,30}$", options: .regularExpression) != nil else {
+            // 6–30: la misma regla que `validTransactionNumber` y que Android/DShalev.
+            guard rawTx.range(of: "^[A-Za-z0-9-]{6,30}$", options: .regularExpression) != nil else {
                 throw GLLicenseError.invalidRequest
             }
             cleanTx = rawTx

@@ -385,9 +385,12 @@ def test_t3_campo_transferencia_validaciones_y_mensaje(tmp_path: Path, monkeypat
     assert validar_transferencia("   ") is None
     assert validar_transferencia("BR601ADLM8997") == "BR601ADLM8997"
     assert validar_transferencia("  PAG-123456  ") == "PAG-123456"
+    # 1.0.9: en mayúsculas, como Android e iOS; si no, el mismo número parece otro en el respaldo y en el texto.
+    assert validar_transferencia("br601adlm8997") == "BR601ADLM8997"
+    assert validar_transferencia("  pag-123456 ") == "PAG-123456"
 
     with pytest.raises(SolicitudError, match="El número de transferencia"):
-        validar_transferencia("A12")  # Menos de 4
+        validar_transferencia("A1234")  # 5 caracteres: menos del mínimo de 6
     with pytest.raises(SolicitudError, match="El número de transferencia"):
         validar_transferencia("A" * 31)  # Más de 30
     with pytest.raises(SolicitudError, match="El número de transferencia"):
@@ -441,7 +444,7 @@ def test_t3_campo_transferencia_validaciones_y_mensaje(tmp_path: Path, monkeypat
         "Banco BPA: Nro. Transaccion: BR601ADLM8997. Monto: 6000.00 CUP. Fecha: 21/11/2026",
         "PAGOxMOVIL: Pago exitoso No. Transaccion: PAG-987654-ABC por 6000 CUP",
     ]
-    patron_extraccion = re.compile(r"transacci[oó]n\s*(?:no\.?|nro\.?|n[º°]|#)?\s*[:.]?\s*([A-Za-z0-9-]{4,30})\b", re.IGNORECASE)
+    patron_extraccion = re.compile(r"transacci[oó]n\s*(?:no\.?|nro\.?|n[º°]|#)?\s*[:.]?\s*([A-Za-z0-9-]{6,30})\b", re.IGNORECASE)
     for sms in sms_ejemplos:
         m = patron_extraccion.search(sms)
         assert m is not None

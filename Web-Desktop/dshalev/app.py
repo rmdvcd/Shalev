@@ -31,7 +31,7 @@ from .cost_export import export_sheet as export_cost_to_catalog
 from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
 from .inventory import format_milli, record_movement, record_retirement
-from . import catalogo_cliente, modulos, preajustes, recorridos
+from . import catalogo_cliente, exportacion, modulos, orden, preajustes, recorridos
 from .licencia import motivo_activacion_deshabilitada
 from .licencia.config_licencia import configuracion
 from .security import csrf_token, hash_password, valid_csrf, verify_password
@@ -341,10 +341,38 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 daily_map[row["day"]] = daily_map.get(row["day"], 0) + row["total"]
             days = [(today_date - timedelta(days=offset)).isoformat() for offset in range(6, -1, -1)]
             daily = [{"day": day, "total": daily_map.get(day, 0)} for day in days]
+            # Área de dos series (paridad con Inicio de Android e iOS): la venta y su costo del mismo día. El costo
+            # sale de `items.cost_cents` congelado en el momento de la consulta; si el artículo ya no existe, cuenta 0.
+            cost_rows = conn.execute("""SELECT date(s.created_at,'localtime') day,
+                    SUM(sl.quantity * COALESCE(i.cost_cents,0)) cost
+                FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id LEFT JOIN items i ON i.id=sl.item_id
+                WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
+                GROUP BY day""", (start, today)).fetchall()
+            cost_map = {row["day"]: row["cost"] for row in cost_rows}
+            daily_cost = [{"day": day, "cost": cost_map.get(day, 0)} for day in days]
+            # Donut de existencias por categoría, valoradas al costo (como `Estadisticas.inventarioPorCategoria`).
+            # Los servicios no tienen existencias y se excluyen; las categorías vacías tampoco entran.
+            categoria_rows = conn.execute("""SELECT category, COUNT(*) items,
+                    SUM(stock_milli * COALESCE(cost_cents,0) / 1000) valor
+                FROM items WHERE active=1 AND category!='Servicio' AND stock_milli > 0
+                GROUP BY category ORDER BY valor DESC, category COLLATE NOCASE""").fetchall()
+            inventario_por_categoria = [dict(row) for row in categoria_rows]
+            total_inventario = sum(row["valor"] or 0 for row in categoria_rows)
             top_items = conn.execute("""SELECT sl.item_id, MAX(sl.item_name) name, SUM(sl.quantity) quantity,
                 SUM(sl.quantity * sl.unit_price_cents) total FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id
                 WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
                 GROUP BY sl.item_id ORDER BY quantity DESC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
+            # Rankings del panel: los mismos tres de Android que faltaban (lento movimiento y rentabilidad), con el
+            # mismo desempate (importe, luego nombre) para que el orden sea reproducible.
+            slow_items = conn.execute("""SELECT sl.item_id, MAX(sl.item_name) name, SUM(sl.quantity) quantity,
+                SUM(sl.quantity * sl.unit_price_cents) total FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id
+                WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
+                GROUP BY sl.item_id ORDER BY quantity ASC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
+            profit_items = conn.execute("""SELECT sl.item_id, MAX(sl.item_name) name, SUM(sl.quantity) quantity,
+                SUM(sl.quantity * (sl.unit_price_cents - COALESCE(i.cost_cents,0))) profit
+                FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id LEFT JOIN items i ON i.id=sl.item_id
+                WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
+                GROUP BY sl.item_id ORDER BY profit DESC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
             expected_cash = 0
             cash_movements = []
             if shift:
@@ -361,7 +389,14 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             expected_cash=format_cup(expected_cash), cash_movements=[dict(r) for r in cash_movements],
             today_total=format_cup(today_total), today_count=today_count,
             sales=[dict(r) for r in sales], network_label=mode_labels[mode], daily_sales=daily,
-            chart_max=max(1, *(day["total"] for day in daily)), top_items=[dict(row) for row in top_items],
+            chart_max=max(1, *(day["total"] for day in daily)),
+            daily_cost=daily_cost,
+            cost_max=max(1, *(row["cost"] for row in daily_cost)),
+            inventario_por_categoria=inventario_por_categoria,
+            total_inventario=total_inventario,
+            top_items=[dict(row) for row in top_items],
+            slow_items=[dict(row) for row in slow_items],
+            profit_items=[dict(row) for row in profit_items],
         ))
 
     @app.get("/configurar", response_class=HTMLResponse)
@@ -455,9 +490,14 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             return redirect("/entrar")
         query = request.query_params.get("q", "").strip()[:80]
         pattern = "%" + query.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%"
+        modo = orden.modo_de(request.query_params.get("orden"))
         with db.connect() as conn:
-            items = conn.execute("SELECT * FROM items WHERE active=1 AND category='Servicio' AND name LIKE ? ESCAPE '!' ORDER BY name LIMIT 200", (pattern,)).fetchall()
-        return templates.TemplateResponse(request, "services.html", context(request, user=user, section="servicios", items=[dict(row) for row in items], query=query, notice=notice_text(request)))
+            rows = conn.execute("SELECT * FROM items WHERE active=1 AND category='Servicio' AND name LIKE ? ESCAPE '!' ORDER BY id DESC LIMIT 200", (pattern,)).fetchall()
+        items = modo.aplicar([dict(row) for row in rows], nombre=lambda fila: fila["name"], importe=lambda fila: fila["sale_price_cents"])
+        return templates.TemplateResponse(request, "services.html", context(
+            request, user=user, section="servicios", items=items, query=query, modo=modo,
+            enlace_orden=orden.enlace("/servicios", {"q": query, "orden": modo.siguiente}),
+            notice=notice_text(request)))
 
     @app.api_route("/herramientas", methods=["GET", "POST"], response_class=HTMLResponse)
     async def tools_page(request: Request):
@@ -977,7 +1017,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         user = current_user(request)
         if not user:
             return redirect("/entrar")
-        return templates.TemplateResponse(request, "ayuda.html", context(request, user=user, section="ayuda"))
+        # El índice de recorridos se genera desde el modelo, para que la lista no se quede corta al añadir uno.
+        return templates.TemplateResponse(request, "ayuda.html", context(
+            request, user=user, section="ayuda", recorridos=recorridos.RECORRIDOS,
+        ))
 
     @app.get("/inventario", response_class=HTMLResponse)
     async def inventory(request: Request):
@@ -985,12 +1028,18 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         if not user:
             return redirect("/entrar")
         query = request.query_params.get("q", "").strip()[:80]
+        modo = orden.modo_de(request.query_params.get("orden"))
         with db.connect() as conn:
             if query:
-                items = conn.execute("SELECT * FROM items WHERE active=1 AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT 200", ("%" + query.replace("%", "\\%").replace("_", "\\_") + "%",)).fetchall()
+                rows = conn.execute("SELECT * FROM items WHERE active=1 AND name LIKE ? ESCAPE '\\' ORDER BY id DESC LIMIT 200", ("%" + query.replace("%", "\\%").replace("_", "\\_") + "%",)).fetchall()
             else:
-                items = conn.execute("SELECT * FROM items WHERE active=1 ORDER BY name LIMIT 200").fetchall()
-        return templates.TemplateResponse(request, "inventory.html", context(request, user=user, section="inventario", items=[dict(r) for r in items], query=query, notice=notice_text(request), notice_kind="success"))
+                rows = conn.execute("SELECT * FROM items WHERE active=1 ORDER BY id DESC LIMIT 200").fetchall()
+        # `recientes` es el orden de la consulta (id descendente = último creado primero), como `creadoEn` en Android.
+        items = modo.aplicar([dict(r) for r in rows], nombre=lambda fila: fila["name"], importe=lambda fila: fila["sale_price_cents"])
+        return templates.TemplateResponse(request, "inventory.html", context(
+            request, user=user, section="inventario", items=items, query=query, modo=modo,
+            enlace_orden=orden.enlace("/inventario", {"q": query, "orden": modo.siguiente}),
+            notice=notice_text(request), notice_kind="success"))
 
     # ---- Recorridos guiados (paridad con Recorrido de Android) ----
 
@@ -1103,8 +1152,13 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             max_comentario=catalogo_cliente.COMENTARIO_MAX,
         ))
 
-    @app.get("/inventario/tarjetas.pdf", response_class=HTMLResponse)
+    @app.get("/inventario/tarjetas/imprimir", response_class=HTMLResponse)
     async def promo_cards_print(request: Request):
+        """Vista imprimible (HTML) de las tarjetas: el navegador la imprime o la guarda como PDF.
+
+        El fichero PDF generado por el servidor está en `/inventario/tarjetas.pdf`; esta vista sigue existiendo porque
+        imprime directamente desde el navegador, sin descargar nada.
+        """
         user = current_user(request)
         if not user:
             return redirect("/entrar")
@@ -1121,6 +1175,77 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             comentario=catalogo_cliente.comentario_limpio(request.query_params.get("comentario", "")),
             negocio=negocio["value"] if negocio else "DShalev",
         ))
+
+    def _cabecera_archivo(nombre: str) -> dict[str, str]:
+        """Cabecera de descarga con el nombre entre comillas: evita el `filename*` raro en navegadores viejos."""
+        return {"Content-Disposition": f'attachment; filename="{nombre}"'}
+
+    @app.get("/inventario/lista-precios.pdf")
+    async def price_list_pdf(request: Request):
+        """Lista de precios en PDF, generada en el servidor (Android: `FormatoSalida.PDF`). Sin costo ni existencias."""
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            articulos = _articulos_para_cliente(conn)
+            negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+        datos = exportacion.lista_precios_pdf(
+            catalogo_cliente.lista_precios(articulos),
+            negocio=negocio["value"] if negocio else "DShalev",
+        )
+        return Response(datos, media_type="application/pdf",
+                        headers=_cabecera_archivo("lista-de-precios.pdf"))
+
+    @app.get("/inventario/tarjetas.pdf")
+    async def promo_cards_pdf(request: Request):
+        """Tarjetas en PDF de seis en seis, con el comentario opcional y el mismo filtro que la vista imprimible."""
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            articulos = _articulos_para_cliente(conn)
+            negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+        por_nombre = {str(a["name"]): a for a in articulos}
+        elegidos = catalogo_cliente.texto_seleccion(
+            request.query_params.get("articulos"), list(por_nombre)) if request.query_params.get("articulos") else list(por_nombre)
+        seleccion = [por_nombre[n] for n in elegidos if n in por_nombre]
+        tarjetas = [t for pagina in catalogo_cliente.tarjetas(seleccion) for t in pagina]
+        datos = exportacion.tarjetas_pdf(
+            tarjetas,
+            negocio=negocio["value"] if negocio else "DShalev",
+            comentario=catalogo_cliente.comentario_limpio(request.query_params.get("comentario", "")),
+        )
+        return Response(datos, media_type="application/pdf",
+                        headers=_cabecera_archivo("tarjetas-promocionales.pdf"))
+
+    @app.get("/inventario/tarjetas.png")
+    async def promo_cards_png(request: Request):
+        """Un PNG por tarjeta, empaquetados en un ZIP para que sea una sola descarga (Android: `FormatoSalida.TARJETAS`)."""
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        with db.connect() as conn:
+            articulos = _articulos_para_cliente(conn)
+            negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+        por_nombre = {str(a["name"]): a for a in articulos}
+        elegidos = catalogo_cliente.texto_seleccion(
+            request.query_params.get("articulos"), list(por_nombre)) if request.query_params.get("articulos") else list(por_nombre)
+        seleccion = [por_nombre[n] for n in elegidos if n in por_nombre]
+        tarjetas = [t for pagina in catalogo_cliente.tarjetas(seleccion) for t in pagina]
+        imagenes = exportacion.tarjetas_png(
+            tarjetas,
+            negocio=negocio["value"] if negocio else "DShalev",
+            comentario=catalogo_cliente.comentario_limpio(request.query_params.get("comentario", "")),
+        )
+        memoria = io.BytesIO()
+        with zipfile.ZipFile(memoria, "w", zipfile.ZIP_DEFLATED) as paquete:
+            for nombre, datos in imagenes:
+                paquete.writestr(nombre, datos)
+            paquete.writestr("LEEME.txt", "Tarjetas promocionales de DShalev.\n"
+                                          "Cada PNG es una tarjeta de 1080x1080 lista para enviar.\n"
+                                          "No incluyen costo ni existencias.\n")
+        return Response(memoria.getvalue(), media_type="application/zip",
+                        headers=_cabecera_archivo("tarjetas-promocionales.zip"))
 
     @app.get("/inventario/movimientos", response_class=HTMLResponse)
     async def inventory_movements_page(request: Request):

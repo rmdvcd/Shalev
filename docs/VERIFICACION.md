@@ -1,3 +1,20 @@
+## Ordenación, exportación PDF/PNG, recorridos iOS y rankings de Inicio (2026-11-24)
+
+**Rama:** `arena/d16022e9-shalev`, basada en `c3a96441202b68e816fb3117263e9a2d63d6b607` (`main`).
+Detalle en `docs/HISTORIAL_DESARROLLO.md`; matriz en `docs/PARIDAD_ANDROID.md` §5.
+
+| Comprobación | Resultado observado |
+|---|---|
+| CI `CI` (commit `e363d67`) | **Verde**: los cinco jobs de Android en `success`. |
+| CI `DShalev Windows portable` (commit `adf5f71`) | **Verde**: pytest, accesibilidad, punto de venta, EXE y arranque del EXE. |
+| CI `Compilación iOS de IShalev` | **No conocido al escribir esto**: el run de `e363d67` seguía `in_progress`. Los dos commits anteriores fallaron por errores de compilación —`Recorridos.swift` fuera del target, `recorridos` antes de propiedades sin valor por defecto y `onExitCommand`, que no existe en iOS— ya corregidos; el resultado de la corrección **solo lo puede dar el CI**. |
+| Pruebas Web (`Web-Desktop`) | **Verde en local**: `pytest` **364/364**; `ramplint` 33 ficheros sin hallazgos. Las 9 nuevas son `test_semillas_debug.py`. |
+| Pruebas Web nuevas que encontraron fallos reales | `test_semillas_debug.py` cazó que el sembrador de Android escribía condiciones de preajuste inexistentes (`VOLUMEN`, `TIPO_CLIENTE` en vez de `VOLUMEN_VENTA`, `CLIENTE`). Antes, la revisión del seed de iOS destapó que su JSON no coincidía con `AppData` (`settings.businessName` en vez de `settings.profile.businessName`, `lines[].productID` en vez de `sourceID`, métodos `cash`/`transfer`, locales con `id` inventado): tal como estaba no habría cargado. |
+| Salidas PDF/PNG de DShalev | **Verificado aquí**: los PDF se abrieron con PyMuPDF (lista de precios en 2 páginas con acentos correctos, tarjetas en 1) y el PNG se revisó a ojo (1080×1080, RGB). |
+| Seed de escritorio | **Verificado aquí**: el volcado se migró a esquema 11 en una copia desechable y las 16 rutas principales respondieron 200 por HTTP. |
+| `MANUAL_USUARIO.pdf` | **Regenerado** con `tools/manual/generar_pdf.py` (33 páginas) y comprobado con PyMuPDF: el texto nuevo (recorridos de iOS y su gesto de cierre, rankings del panel y botones de descarga) está en el PDF. |
+| No verificado aquí | Nada visual en navegador real (recorridos, gráficos y salidas de DShalev); ninguna compilación ni ejecución de iOS (no hay Xcode ni `swiftc`); el seed de Android y el de iOS se validaron por la forma de sus datos, no ejecutándolos en un emulador o simulador; sigue abierta la confirmación del propietario sobre el nº de transferencia (6–30 unificado, DShalev admite guiones). |
+
 ## Módulos, recorridos, salidas para clientes y gráficos de Reportes (2026-11-24)
 
 **Rama:** `arena/62d7508c-shalev`, basada en `b063e0f0b649cba5d24503d46fc87c8fc27bd7fc` (PR #154 ya fusionado).

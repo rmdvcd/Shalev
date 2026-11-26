@@ -30,3 +30,17 @@ iniciar_debug.bat
 - `iniciar_debug.sh`: Script de un clic para Linux / macOS.
 - `DShalevData/dshalev.db`: Base de datos SQLite pre-sembrada con 730 días de turnos, arqueos, ventas, catálogo gastronómico, recetas, clientes y empleados.
 - `sembrar_web_debug.py`: Script generador de la base de datos de escritorio.
+
+## Qué incluye el seed de escritorio (1.0.9)
+
+Además del histórico, el volcado deja el negocio como lo dejaría un uso real, para que la app de debug no arranque
+a medias:
+
+- **Módulos** activos (`VENTAS`, `INVENTARIO`, `SERVICIOS`) en `app_meta.modulos`, que es lo que filtra el rail.
+- **Recorridos guiados** de las seis secciones marcados como vistos (`<clave>_tour_shown`), para que no salten al
+  abrir; se repiten desde `/ayuda` o `/recorrido/<clave>` cuando se quieren revisar.
+- **Dos preajustes de precio** con condición (`volume_minimum` y `customer_type`), uno de ellos sobre los cócteles.
+- **`schema_version` en 11**, de modo que abrir la app no tenga que migrar nada delante de quien mira la demo.
+
+`ejecutar_debug.py` volca este `dshalev.db` a la base cifrada la primera vez, y `create_app` la migra a la versión
+de esquema actual si el volcado es anterior.

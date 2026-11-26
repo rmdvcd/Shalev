@@ -55,10 +55,10 @@ final class LicenseContractTests: XCTestCase {
         // de leerlo desde una autoclosura nonisolated (eso no compila).
         let enviarTx = GLLicenseManager.ENVIAR_TX_EN_SOLICITUD
         XCTAssertFalse(enviarTx)
-        let pattern = "^[A-Za-z0-9-]{4,30}$"
+        let pattern = "^[A-Za-z0-9-]{6,30}$"
         XCTAssertNotNil("BR601ADLM8997".range(of: pattern, options: .regularExpression))
         XCTAssertNotNil("TX-123456".range(of: pattern, options: .regularExpression))
-        XCTAssertNil("123".range(of: pattern, options: .regularExpression))
+        XCTAssertNil("12345".range(of: pattern, options: .regularExpression))
         XCTAssertNil(String(repeating: "A", count: 31).range(of: pattern, options: .regularExpression))
         XCTAssertNil("TX@123".range(of: pattern, options: .regularExpression))
     }

@@ -40,7 +40,7 @@ Cómo cumple la app Android Shalev el contrato v1 del emisor offline **GL** (`CO
 | `devicePub` | **Punto comprimido** P-256 (33 B) de la clave del dispositivo, Base64url sin relleno. Nunca `null` |
 | `secundarias` | Apps secundarias, 0–10. Precio = base del tipo + `secundarias` × importe del tipo (1 000 / 5 000 / 9 000 / 17 000 CUP) |
 | `renueva` | Solo al renovar: `id` de la licencia instalada, auténtica y con vencimiento (`LicenseManager.licenciaRenovable`). Ausente en una primera licencia |
-| `tx` | N.º de transferencia bancaria opcional (`^[A-Za-z0-9-]{4,30}$`). Modelado en el payload v=2; por seguridad y compatibilidad, `ENVIAR_TX_EN_SOLICITUD = false` (se omite del JSON cifrado SPVIR1 y se incluye en el texto visible del mensaje como `Transferencia: <tx>`) |
+| `tx` | N.º de transferencia bancaria opcional (`^[A-Za-z0-9-]{6,30}$`, la misma regla en las tres plataformas desde 2026-11-25). Modelado en el payload v=2; por seguridad y compatibilidad, `ENVIAR_TX_EN_SOLICITUD = false` (se omite del JSON cifrado SPVIR1 y se incluye en el texto visible del mensaje como `Transferencia: <tx>`) |
 
 Si el Perfil está vacío, el panel pide los datos y los guarda en el Perfil al solicitar.
 

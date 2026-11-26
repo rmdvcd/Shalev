@@ -285,7 +285,7 @@ data class SmsPago(val numero: String, val importe: Cup?)
  */
 class ExtraerNumeroTransaccion @Inject constructor() {
     private val principal = Regex(
-        "transacci[oó]n\\s*(?:no\\.?|nro\\.?|n[º°]|#)?\\s*[:.]?\\s*([A-Z0-9]{6,30})\\b", RegexOption.IGNORE_CASE,
+        "transacci[oó]n\\s*(?:no\\.?|nro\\.?|n[º°]|#)?\\s*[:.]?\\s*([A-Z0-9-]{6,30})\\b", RegexOption.IGNORE_CASE,
     )
     private val alternativo = Regex("\\b(?:nro|no|n[º°])\\.?\\s*[:.]\\s*([A-Z0-9]{6,30})\\b", RegexOption.IGNORE_CASE)
     private val importe = Regex(

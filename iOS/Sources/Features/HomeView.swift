@@ -44,6 +44,7 @@ struct HomeView: View {
     var canChangePrices = true
     var isEmployeeSession = false
     var onSwitchToOwner: () -> Void = { }
+    var recorridos: RecorridosModelo? = nil
 
     @State private var period: HomePeriod = .shift
     @State private var expandedCards: Set<String> = []
@@ -126,13 +127,13 @@ struct HomeView: View {
                     if canViewInventory { inventoryAlerts }
                     if canManageBusinessSettings || canChangePrices { accessTiles }
                     if canViewRecords {
-                        salesAccordion
+                        salesAccordion.recorridoObjetivo("inicio_ventas")
                         profitAccordion
                     }
                     if canViewInventory { inventoryAccordion }
                     if canViewRecords {
-                        paymentAccordion
-                        topAccordions
+                        paymentAccordion.recorridoObjetivo("inicio_metodos")
+                        topAccordions.recorridoObjetivo("inicio_top")
                     }
                 }
                 .padding(.horizontal, 16)
@@ -140,11 +141,13 @@ struct HomeView: View {
             }
         }
         .background(Color.shalevBackground)
+        .recorridoAlAparecer(.inicio, modelo: recorridos)
         .overlay(alignment: .bottom) {
             if store.openShift != nil, canSellProducts || canManageCash {
                 HStack(spacing: 12) {
                     if canSellProducts {
                         ShalevFloatingButton(title: "Nueva venta", symbol: "cart.fill", action: startSale)
+                            .recorridoObjetivo("inicio_nueva_venta")
                     }
                     Spacer(minLength: 0)
                     if canManageCash {
@@ -296,6 +299,7 @@ struct HomeView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Período: \(period.rawValue)")
+        .recorridoObjetivo("inicio_periodo")
     }
 
     private func licenseBannerView(_ text: String) -> some View {
@@ -773,18 +777,27 @@ struct HomeView: View {
     private var localesDelPeriodo: [PersonRank] {
         // No se usa `periodSales`: ese arreglo se limita al local activo y el ranking compara TODOS los locales
         // (Android: `topPersonas(TipoTop.LOCAL, …)` recibe el resumen del negocio entero).
-        var porLocal: [String: (ops: Int, cents: Int64, profit: Int64)] = [:]
+        // Clave sin distinguir mayúsculas: «Vedado» y «vedado» son el mismo local y no deben salir en dos filas.
+        var porLocal: [String: (nombre: String, ops: Int, cents: Int64, profit: Int64)] = [:]
         for sale in ventasDeTodosLosLocales where !sale.isCancelled {
-            let nombre = sale.localName?.isEmpty == false ? sale.localName! : store.activeLocationName
-            var entrada = porLocal[nombre] ?? (ops: 0, cents: 0, profit: 0)
+            let crudo = sale.localName?.isEmpty == false ? sale.localName! : store.activeLocationName
+            let nombre = crudo.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !nombre.isEmpty else { continue }
+            let clave = nombre.lowercased()
+            var entrada = porLocal[clave] ?? (nombre: nombre, ops: 0, cents: 0, profit: 0)
             entrada.ops += 1
             entrada.cents += sale.totalCents
             entrada.profit += sale.profitCents
-            porLocal[nombre] = entrada
+            porLocal[clave] = entrada
         }
-        return porLocal.map { PersonRank(name: $0.key, operations: $0.value.ops, cents: $0.value.cents, profit: $0.value.profit) }
-            // `profit` es opcional en `PersonRank` (los clientes no lo usan): se compara con el valor por defecto 0.
-            .sorted { ($0.profit ?? 0) > ($1.profit ?? 0) }
+        // Android ordena TODOS los rankings de personas por **importe** descendente (`Estadisticas.topPersonas`),
+        // sin usar la ganancia para ordenar; la ganancia solo se muestra junto al número de ventas.
+        return porLocal.values
+            .map { PersonRank(name: $0.nombre, operations: $0.ops, cents: $0.cents, profit: $0.profit) }
+            .sorted {
+                if $0.cents != $1.cents { return $0.cents > $1.cents }
+                return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
     }
 
     /// Ventas de todos los locales en el período elegido (mismo filtro temporal que `periodSales`, sin el de local).
@@ -886,7 +899,8 @@ struct PersonRank: Identifiable {
     var operations: Int
     var cents: Int64
     var profit: Int64?
-    var id: String { name }
+    /// Clave estable para `ForEach`: el nombre tal cual, sin distinguir mayúsculas ni espacios sobrantes.
+    var id: String { name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
 }
 
 private struct RankedItem: Identifiable {

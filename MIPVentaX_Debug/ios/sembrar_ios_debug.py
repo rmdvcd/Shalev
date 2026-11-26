@@ -22,23 +22,13 @@ def main():
     ahora = datetime.now(timezone.utc)
     local_principal = "Bistro Principal (Plaza)"
 
+    # `BusinessLocation` (Domain.swift) no tiene un id propio: su identidad ES el nombre, y los dos flags de alcance
+    # existen con valor por defecto. Un `id` inventado aquí no lo lee nadie y una versión futura lo rechazaría.
     locations = [
-        {"id": str(uuid.uuid4()), "name": "Bistro Principal (Plaza)"},
-        {"id": str(uuid.uuid4()), "name": "Sucursal Malecón (Vedado)"},
-        {"id": str(uuid.uuid4()), "name": "Kiosco Gourmet (Miramar)"},
+        {"name": "Bistro Principal (Plaza)", "inventoryEnabled": True, "servicesEnabled": True},
+        {"name": "Sucursal Malecón (Vedado)", "inventoryEnabled": True, "servicesEnabled": True},
+        {"name": "Kiosco Gourmet (Miramar)", "inventoryEnabled": True, "servicesEnabled": True},
     ]
-
-    settings = {
-        "businessName": "Gourmet Habana Bistro & Café",
-        "ownerName": "Carlos Martínez",
-        "ownerIdentification": "84051212345",
-        "transferPhone": "+5352881122",
-        "transferCard": "9225123456789012",
-        "lowStockThreshold": 10,
-        "criticalStockThreshold": 3,
-        "backupPassword": "",
-        "selectedLocation": local_principal,
-    }
 
     # Insumos
     insumos_data = [
@@ -64,7 +54,7 @@ def main():
         products.append({
             "id": i_id,
             "name": nombre,
-            "category": "Insumos",
+            "category": "Otros",
             "kind": "ingredient",
             "description": "Insumo de cocina y bar",
             "stockMilli": cant_milli,
@@ -88,8 +78,8 @@ def main():
         ("Limonada Natural Frapé", "Bebidas", 2000, 6000),
         ("Jugo Natural de Guayaba 500ml", "Bebidas", 2200, 6500),
         ("Agua Mineral Natural 500ml", "Bebidas", 4000, 9000),
-        ("Cerveza Cristal 350ml", "Bebidas alcohólicas", 14000, 22000),
-        ("Cerveza Bucanero Fuerte 350ml", "Bebidas alcohólicas", 15000, 24000),
+        ("Cerveza Cristal 350ml", "Bebidas", 14000, 22000),
+        ("Cerveza Bucanero Fuerte 350ml", "Bebidas", 15000, 24000),
         ("Coctel Mojito Tradicional", "Coctelería", 8500, 22000),
         ("Coctel Daiquirí Clásico", "Coctelería", 8000, 20000),
         ("Coctel Cuba Libre Añejo", "Coctelería", 7500, 19000),
@@ -124,10 +114,21 @@ def main():
             "localName": local_principal,
         })
 
+    # `ServiceItem`: tipo y descripción (no categoría), sin costo, y el consumo de insumos va en `uses`.
+    # Preajustes de precio: descuento por volumen en los tres cócteles (referencias del catálogo).
+    coctel_ids = [prod_ids[i] for i, (nombre, *_resto) in enumerate(productos_data) if nombre.startswith("Coctel")]
+
     services = [
-        {"id": str(uuid.uuid4()), "name": "Reserva Salón VIP Climatizado (1 hora)", "category": "Eventos", "priceCents": 150000, "costCents": 0, "isActive": True, "localName": local_principal},
-        {"id": str(uuid.uuid4()), "name": "Paquete Coctelería Abierta (por persona)", "category": "Catering", "priceCents": 85000, "costCents": 30000, "isActive": True, "localName": local_principal},
-        {"id": str(uuid.uuid4()), "name": "Mesa Ejecutiva con Servicio Preferencial", "category": "Mesa", "priceCents": 40000, "costCents": 0, "isActive": True, "localName": local_principal},
+        {"id": str(uuid.uuid4()), "name": "Reserva Salón VIP Climatizado (1 hora)", "type": "Eventos",
+         "description": "Salón privado con proyector y climatización", "priceCents": 150000,
+         "uses": [], "isActive": True, "createdAt": iso(ahora), "localName": local_principal},
+        {"id": str(uuid.uuid4()), "name": "Paquete Coctelería Abierta (por persona)", "type": "Catering",
+         "description": "Barra abierta de cocteles clásicos", "priceCents": 85000,
+         "uses": [{"id": str(uuid.uuid4()), "ingredientID": insumo_ids[9], "milliUnits": 60}],
+         "isActive": True, "createdAt": iso(ahora), "localName": local_principal},
+        {"id": str(uuid.uuid4()), "name": "Mesa Ejecutiva con Servicio Preferencial", "type": "Mesa",
+         "description": "Atención dedicada para almuerzos de negocios", "priceCents": 40000,
+         "uses": [], "isActive": True, "createdAt": iso(ahora), "localName": local_principal},
     ]
 
     customers = [
@@ -169,7 +170,7 @@ def main():
             "id": str(uuid.uuid4()),
             "shiftID": shift_id,
             "date": iso(inicio),
-            "kind": "cashIn",
+            "kind": "Entrada",
             "amountCents": fondo,
             "reason": "Fondo de apertura de caja",
             "actorName": "Carlos Martínez",
@@ -180,7 +181,7 @@ def main():
         for _ in range(num_ventas):
             minuto = random.randint(15, 720)
             hora_v = inicio + timedelta(minutes=minuto)
-            metodo = "cash" if random.random() < 0.65 else "transfer"
+            metodo = "Efectivo" if random.random() < 0.65 else "Transferencia"
 
             lineas = []
             num_art = random.randint(1, 3)
@@ -197,13 +198,14 @@ def main():
                 unidades += cant
                 lineas.append({
                     "id": str(uuid.uuid4()),
-                    "productID": p_id,
-                    "productName": p_nom,
+                    "sourceID": p_id,
+                    "kind": "product",
+                    "name": p_nom,
                     "category": p_cat,
-                    "unitPriceCents": p_vent,
-                    "costCents": p_cost,
                     "quantity": cant,
-                    "unit": "u",
+                    "basePriceCents": p_vent,
+                    "unitPriceCents": p_vent,
+                    "unitCostCents": p_cost,
                 })
 
             sales.append({
@@ -244,6 +246,29 @@ def main():
             },
             "localName": local_principal,
         })
+
+    # `AppSettings`: perfil del negocio, umbrales de aviso en milésimas y preajustes de precio.
+    # OJO: la contraseña de respaldo NO se escribe en claro en el JSON (iOS guarda su PBKDF2); "" = sin contraseña.
+    settings = {
+        "profile": {
+            "businessName": "Gourmet Habana Bistro & Café",
+            "ownerName": "Carlos Martínez",
+            "identification": "84051212345",
+            "transferPhone": "+5352881122",
+            "transferCard": "9225123456789012",
+            "transferPhones": [{"id": str(uuid.uuid4()), "number": "+5352881122", "alias": "Cobros"}],
+            "transferCards": [{"id": str(uuid.uuid4()), "number": "9225123456789012", "alias": "Cuenta del bistró"}],
+        },
+        "priceAdjustments": [
+            {"id": str(uuid.uuid4()), "name": "Coctelería por volumen (6 o más)", "basisPoints": -1000,
+             "productIDs": coctel_ids, "paymentMethod": "Efectivo", "minimumAmountCents": None, "active": True},
+            {"id": str(uuid.uuid4()), "name": "Empresas por transferencia", "basisPoints": 500,
+             "productIDs": None, "paymentMethod": "Transferencia", "minimumAmountCents": None, "active": True},
+        ],
+        "inventoryAlertDefaults": {"productLowMilli": 10000, "productCriticalMilli": 3000,
+                                   "ingredientLowMilli": 5000, "ingredientCriticalMilli": 2000},
+        "plannedEmployees": 4,
+    }
 
     app_data = {
         "schemaVersion": 2,

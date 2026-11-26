@@ -109,8 +109,11 @@ class VentaLogicTest {
             .con(CampoCliente.TELEFONO, "5123 4567")
             .con(CampoCliente.NUMERO, "br601-adlm8997")
         assertEquals("85010112345", f.ci)
-        assertEquals("BR601ADLM8997", f.numero)
+        // La regla unificada acepta guiones: el campo los conserva y solo pasa a mayúsculas.
+        assertEquals("BR601-ADLM8997", f.numero)
         assertTrue(f.errores().isEmpty())
+        // Y el número sin guion sigue siendo válido y llega intacto.
+        assertEquals("BR601ADLM8997", FormCliente().con(CampoCliente.NUMERO, "br601adlm8997").numero)
         assertEquals("María Pérez", f.datos().nombreApellidos)
     }
 

@@ -24,6 +24,8 @@ struct ServicesView: View {
     let onSell: () -> Void
     var canEdit = true
     var canSell = true
+    /// Recorridos guiados: publica los objetivos de esta pantalla y abre el suyo.
+    var recorridos: RecorridosModelo? = nil
     @State private var search = ""
     @State private var typeFilter: String?
     @State private var sheet: ServiceSheet?
@@ -84,6 +86,7 @@ struct ServicesView: View {
             .padding(.horizontal, 12).padding(.top, 6).padding(.bottom, 8)
             ShalevSearchField(text: $search, placeholder: "Buscar servicios")
                 .padding(.horizontal, 16)
+                .recorridoObjetivo("servicios_buscar")
 
             HStack(spacing: 8) {
                 Text("\(services.count) \(services.count == 1 ? "servicio" : "servicios")")
@@ -141,12 +144,15 @@ struct ServicesView: View {
                     }
                     .padding(.horizontal, 16).padding(.bottom, 84).padding(.top, 4)
                 }
+                .recorridoObjetivo("servicios_lista")
             }
         }
         .background(Color.shalevBackground)
+        .recorridoAlAparecer(.servicios, modelo: recorridos)
         .overlay(alignment: .bottomTrailing) {
             if canEdit {
                 ShalevFloatingButton(title: "Agregar servicio") { sheet = .create }
+                    .recorridoObjetivo("servicios_agregar")
                     .padding(.trailing, 18).padding(.bottom, 15)
             }
         }
@@ -295,6 +301,7 @@ private struct ServiceEditorView: View {
                                 .foregroundStyle(Color.shalevSecondaryText)
                             input("Nombre *", text: $name, placeholder: "Corte de pelo",
                                   focus: .name, submit: .next) { focusedField = .description }
+                                .recorridoObjetivo("servicio_nombre")
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Importe (CUP) *")
                                     .font(.shalev(13, weight: .medium)).foregroundStyle(Color.shalevSecondaryText)
@@ -302,6 +309,7 @@ private struct ServiceEditorView: View {
                                     .keyboardType(.decimalPad)
                                     .shalevInputFilter(.money, text: $price)
                                     .textFieldStyle(ServiceInputStyle())
+                                    .recorridoObjetivo("servicio_precio")
                             }
                             input("Descripción (máximo 40)", text: $description, placeholder: "A domicilio, 30 minutos",
                                   focus: .description, submit: .next) { focusedField = .type }
@@ -347,7 +355,11 @@ private struct ServiceEditorView: View {
             .onChange(of: selectedPhoto) { _, _ in loadPhoto() }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Cancelar") { dismiss() }.foregroundStyle(Color.shalevSecondaryText) }
-                ToolbarItem(placement: .topBarTrailing) { Button("Guardar") { save() }.fontWeight(.semibold).foregroundStyle(Color.shalevPrimary).disabled(working) }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Guardar") { save() }
+                        .fontWeight(.semibold).foregroundStyle(Color.shalevPrimary).disabled(working)
+                        .recorridoObjetivo("servicio_guardar")
+                }
             }
             .alert("Revisa los datos", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("Entendido", role: .cancel) { errorMessage = nil }

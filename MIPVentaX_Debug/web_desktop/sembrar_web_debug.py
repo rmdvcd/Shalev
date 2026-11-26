@@ -5,8 +5,10 @@ con el mismo nivel de seed que Android pero valores y negocio distintos
 (Gourmet Habana Bistro & Café, 2 años de historial).
 """
 
+import json
 import os
 import random
+import secrets
 import sqlite3
 import sys
 import time
@@ -40,6 +42,18 @@ def main():
     c.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('business_name', 'Gourmet Habana Bistro & Café')")
     c.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '1')")
     c.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('local_id', 'principal')")
+    # Funciones de la 1.0.9: los tres módulos del negocio y los recorridos ya vistos (el seed enseña el negocio
+    # completo, así que los tres módulos están activos y los recorridos de pestaña constan como vistos).
+    c.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '11')")
+    c.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('secondary_limit', '5')")
+    c.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('business_id', ?)", (secrets.token_hex(12),))
+    c.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('trial_started_ms', ?)", (str(ahora_ms),))
+    sys.path.insert(0, str(REPO_ROOT / "Web-Desktop"))
+    from dshalev import modulos as modulos_negocio
+    c.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('modulos', ?)",
+              (modulos_negocio.a_texto(modulos_negocio.TODOS),))
+    for clave in ("inicio", "inventario", "servicios", "ventas", "reportes", "herramientas"):
+        c.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, '1')", (f"{clave}_tour_shown",))
 
     pwd_hash = hash_password("Administrador123*")
     c.execute("""
@@ -149,6 +163,17 @@ def main():
             INSERT INTO sync_services (service_id, name, service_type, price_cents, description, created_ms, updated_ms, deleted)
             VALUES (?, ?, ?, ?, ?, ?, ?, 0)
         """, (s_id, nombre, tipo, imp_cent, desc, ahora_ms, ahora_ms))
+
+    # 7-bis. Preajustes de precio (1.0.8): dos activos con condición, como los de Android.
+    ids_cocteles = [producto_ids[10], producto_ids[11], producto_ids[12]]
+    c.execute("""INSERT INTO presets (name, basis_points, product_ids_json, service_ids_json, payment_method,
+                    minimum_cents, active, volume_minimum, customer_type)
+                VALUES (?, ?, ?, '[]', 'EFECTIVO', NULL, 1, 6, NULL)""",
+              ("Coctelería por volumen (6 o más)", -1000, json.dumps(ids_cocteles)))
+    c.execute("""INSERT INTO presets (name, basis_points, product_ids_json, service_ids_json, payment_method,
+                    minimum_cents, active, volume_minimum, customer_type)
+                VALUES (?, ?, '[]', '[]', 'TRANSFERENCIA', NULL, 1, NULL, 'EMPRESA')""",
+              ("Empresas por transferencia", 500))
 
     # 8. Generar 2 años de turnos y ventas
     print("Generando 730 días de historial operativo para MIPVentaX Web-Desktop...")

@@ -49,10 +49,15 @@
   <section class="panel table-panel" id="inventario-lista">
     <div class="panel-heading">
       <div><p class="eyebrow">EXISTENCIAS</p><h2>{{ items|length }} artículos</h2></div>
-      <form method="get" action="/inventario" class="search-form" id="inventario-buscar">
-        <input name="q" value="{{ query }}" placeholder="Buscar artículo" aria-label="Buscar artículo">
-        <button class="quiet-button" type="submit">Buscar</button>
-      </form>
+      <div class="list-toolbar">
+        <form method="get" action="/inventario" class="search-form" id="inventario-buscar">
+          <input name="q" value="{{ query }}" placeholder="Buscar artículo" aria-label="Buscar artículo">
+          <input type="hidden" name="orden" value="{{ modo.clave }}">
+          <button class="quiet-button" type="submit">Buscar</button>
+        </form>
+        <a class="quiet-button orden-boton" href="{{ enlace_orden }}" id="inventario-ordenar"
+           aria-label="Ordenar por {{ modo.etiqueta_siguiente }}. Ahora ordenado por {{ modo.etiqueta }}">Orden: {{ modo.etiqueta }} ↻</a>
+      </div>
     </div>
     {% if items %}
     <div class="table-wrap inventory-table-wrap">

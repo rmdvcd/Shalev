@@ -128,7 +128,7 @@ def test_selection_keeps_catalog_order_and_drops_unknown_names() -> None:
 
 def test_client_outputs_require_login(tmp_path) -> None:
     client = make_client(tmp_path)
-    for ruta in ("/inventario/lista-precios", "/inventario/tarjetas", "/inventario/tarjetas.pdf"):
+    for ruta in ("/inventario/lista-precios", "/inventario/tarjetas", "/inventario/tarjetas/imprimir"):
         response = client.get(ruta, follow_redirects=False)
         assert response.status_code in (303, 307), ruta
         assert response.headers["location"].startswith("/entrar")
@@ -169,7 +169,7 @@ def test_cards_print_groups_and_escapes_content(tmp_path) -> None:
     assert formulario.status_code == 200
     assert "Tarjetas promocionales" in formulario.text
 
-    salida = client.get("/inventario/tarjetas.pdf", params={"comentario": "Oferta <b>semanal</b>"})
+    salida = client.get("/inventario/tarjetas/imprimir", params={"comentario": "Oferta <b>semanal</b>"})
     assert salida.status_code == 200
     assert "Café &lt;molido&gt;" in salida.text, "el nombre debe salir escapado"
     assert "<molido>" not in salida.text
@@ -184,12 +184,12 @@ def test_cards_print_only_selected_items(tmp_path) -> None:
     add_item(client, "Café molido", price="100", cost="10")
     add_item(client, "Pan de casa", price="45.50", cost="10")
 
-    salida = client.get("/inventario/tarjetas.pdf", params={"articulos": "Pan de casa"})
+    salida = client.get("/inventario/tarjetas/imprimir", params={"articulos": "Pan de casa"})
     assert salida.status_code == 200
     assert "Pan de casa" in salida.text
     assert "Café molido" not in salida.text
 
     # Un nombre que no existe no se cuela ni deja la página vacía de más.
-    inventado = client.get("/inventario/tarjetas.pdf", params={"articulos": "No existe"})
+    inventado = client.get("/inventario/tarjetas/imprimir", params={"articulos": "No existe"})
     assert inventado.status_code == 200
     assert "No hay artículos para las tarjetas" in inventado.text

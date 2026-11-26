@@ -713,6 +713,21 @@ tbody tr:last-child td{
   max-width:290px
 }
 
+/* Buscador + botón de orden: el modo activo va en texto, nunca solo en un icono. */
+.list-toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-end;
+  gap:var(--space-2);
+  min-width:0
+}
+
+.orden-boton{
+  white-space:nowrap;
+  min-height:var(--touch-target)
+}
+
 .search-form input{
   height:var(--touch-target)
 }
@@ -1917,6 +1932,18 @@ button:disabled{
 
 .chart-row strong{
   font-variant-numeric:tabular-nums
+}
+
+/* Ganancia bruta: dos series en la misma fila. La de venta es el acento y la de costo un tono suave del mismo
+   acento, así que la diferencia se lee sin depender del color (cada barra lleva su aria-label). */
+.chart-row progress.chart-sale{
+  accent-color:var(--accent);
+  height:8px
+}
+
+.chart-row progress.chart-cost{
+  accent-color:var(--accent-soft);
+  height:8px
 }
 
 .ranking{

@@ -8,6 +8,8 @@
   <nav class="inventory-heading-actions" aria-label="Acciones de las tarjetas">
     <a class="quiet-button" href="/inventario">Volver al inventario</a>
     <a class="quiet-button" href="/inventario/lista-precios">Lista de precios</a>
+    <a class="quiet-button" href="/inventario/tarjetas.pdf">Descargar PDF</a>
+    <a class="quiet-button" href="/inventario/tarjetas.png">Descargar imágenes (ZIP)</a>
   </nav>
 </div>
 
@@ -15,7 +17,7 @@
   <div class="panel-heading">
     <div><p class="eyebrow">ELIGE EL MATERIAL</p><h2>Artículos y comentario</h2></div>
   </div>
-  <form method="get" action="/inventario/tarjetas.pdf" target="_blank" rel="noopener" class="form-stack">
+  <form method="get" action="/inventario/tarjetas/imprimir" target="_blank" rel="noopener" class="form-stack">
     <label>Comentario que encabeza las tarjetas (opcional)
       <input name="comentario" maxlength="{{ max_comentario }}" value="{{ comentario }}" placeholder="Ej. Ofertas de esta semana">
       <small class="tiny">Hasta {{ max_comentario }} caracteres. Aparece en todas las páginas.</small>

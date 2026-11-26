@@ -326,7 +326,10 @@ data class FormCliente(
             CampoCliente.NOMBRE -> copy(nombre = valor.take(campo.max))
             CampoCliente.CI -> copy(ci = valor.filter(Char::isDigit).take(campo.max))
             CampoCliente.TELEFONO -> copy(telefono = valor.filter { it.isDigit() || it == '+' || it == ' ' }.take(campo.max))
-            CampoCliente.NUMERO -> copy(numero = valor.filter(Char::isLetterOrDigit).uppercase().take(campo.max))
+            // 1.0.9: el guion forma parte del número (los SMS de Transfermóvil lo traen), así que no se descarta.
+            CampoCliente.NUMERO -> copy(
+                numero = valor.filter { it.isLetterOrDigit() || it == '-' }.uppercase().take(campo.max),
+            )
         }
         return f.copy(tocados = tocados + campo)
     }
@@ -434,7 +437,7 @@ object TextosVenta {
             CampoCliente.NOMBRE -> "Usa solo letras y espacios."
             CampoCliente.CI -> "El carné tiene 11 dígitos y empieza por la fecha de nacimiento."
             CampoCliente.TELEFONO -> "Teléfono no válido. Ej.: 5123\u202F4567."
-            CampoCliente.NUMERO -> "Solo letras y números (6 a 30). Ej.: BR601ADLM8997."
+            CampoCliente.NUMERO -> "Solo letras, números y guiones (6 a 30). Ej.: BR601ADLM8997."
         }
     }
 }
