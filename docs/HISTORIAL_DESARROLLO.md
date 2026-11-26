@@ -1,3 +1,28 @@
+## Navegación de DShalev alineada a Android y perfil del negocio (2026-11-24)
+
+- **Objetivo:** acercar la estructura del escritorio a las cinco pestañas principales de Android, manteniendo las
+  funciones propias del escritorio accesibles dentro de las áreas correspondientes, en vez de mostrarlas como 14
+  destinos independientes.
+- **Estructura:** rail de cinco entradas: Inicio, Inventario, Servicios, Registros y Ajustes. Registros agrupa Ventas,
+  Turnos, Reportes y Clientes mediante pestañas internas; Inventario ofrece Recetas; Ajustes reúne Perfil, módulos,
+  red, licencia, respaldo, ayuda, equipo y herramientas de escritorio. Inventario y Servicios mantienen el filtrado
+  por módulos del negocio. Los pictogramas de los cinco destinos usan los paths Android; el logo de encabezado y el
+  favicon usan el launcher Android.
+- **Perfil:** se añade `dshalev/perfil.py` y `/perfil` para nombre, apellidos, CI, teléfono(s), nombre comercial y nombre
+  editable del local que atribuye las ventas web. También se puede cargar, previsualizar, reemplazar o quitar logo/foto;
+  el navegador la reduce a PNG y el servidor la conserva dentro de `app_meta`, en la base cifrada y su respaldo. Se usa
+  en PDF y PNG de lista de precios/tarjetas promocionales sin añadir dependencias al ejecutable. Solo administra el
+  usuario admin. Validaciones de nombre, CI cubano (fecha/centuria) y teléfono se alinean con `PerfilLogic` y
+  `Validators.kt`. No se añadieron tarjetas ni datos de cobro electrónico: el propietario aprobó explícitamente solo
+  esos elementos del perfil.
+- **Rankings:** se completan los ocho tipos de listas de Inicio con ventas locales y móviles. Se confirmó que `VentaDto`
+  ya trae el nombre del local y se reutiliza; no fue necesario cambiar el protocolo. En ventas web se usa el nombre
+  editable del local en Perfil para agregarlas con las móviles.
+- **Documentación:** manual Markdown actualizado y PDF regenerado con `tools/manual/generar_pdf.py` (34 páginas).
+- **Verificado aquí:** suite Web **381/381** y `npm test` **6/6**. **No verificado:** navegador visual/Windows; tampoco
+  se ha contrastado en dispositivo Android. La paridad de tarjetas bancarias y configuración de pago sigue fuera
+  del alcance aprobado.
+
 ## La clave maestra de depuración se perdía al releer el almacén (2026-11-26)
 
 - **Objetivo:** dejar la app de depuración usable tras el seed; al reiniciarla aparecía «Shalev está bloqueado» /

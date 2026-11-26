@@ -56,10 +56,10 @@ Estados utilizados:
 | **onboarding** | Asistente de bienvenida y elección Principal / Secundaria | `OnboardingScreen.kt` | `OnboardingView.swift` | `setup.html` (primer inicio) | Igual | `Android/app/src/main/kotlin/cu/shalev/app/onboarding/` y `iOS/Sources/Features/OnboardingView.swift` |
 | **onboarding** | Selección de módulos y empleados previstos | `OnboardingModulos.kt` | `OnboardingView.swift` | Configuración inicial de usuario y catálogo | Igual | `docs/COMPROBACION_PARIDAD_ISHALEV_2026-11-08.md` |
 | **pagos** | Métodos Efectivo y Transferencia bancaria | `PaymentMethod.kt` | `SaleView.swift` | `database.py: payment_method` | Igual | `Android/domain/src/main/kotlin/cu/shalev/domain/model/Venta.kt` y `Web-Desktop/tests/test_database.py` |
-| **pagos** | Generación de QR Transfermóvil / EnZona | `QrTransfermovil.kt` | `SaleView.swift` | `dashboard.html: qrcode.js` | Igual | `Android/core/src/main/kotlin/cu/shalev/core/payment/` |
-| **pagos** | Validación de tarjeta cubana con algoritmo Luhn | `Validators.luhn` | `Domain.swift: luhn` | `forms.py: validar_luhn` | Igual | `Android/core/src/main/kotlin/cu/shalev/core/validation/Validators.kt` y `docs/vectores/reglas-negocio.json` |
+| **pagos** | Generación de QR Transfermóvil / EnZona | `QrTransfermovil.kt` | `SaleView.swift` | No implementado para cobros; el QR existente en `/equipo/{id}/qr.svg` es solo de vinculación | **Falta en DShalev; fuera del alcance aprobado en esta tanda** | `Android/core/src/main/kotlin/cu/shalev/core/payment/` y `Web-Desktop/dshalev/app.py: pairing_qr` |
+| **pagos** | Validación de tarjeta cubana con algoritmo Luhn | `Validators.luhn` | `Domain.swift: luhn` | No disponible | **Falta en DShalev; ligado a pago electrónico no incluido en el alcance aprobado** | `Android/core/src/main/kotlin/cu/shalev/core/validation/Validators.kt` y `docs/vectores/reglas-negocio.json` |
 | **perfil** | Datos del negocio y titular (nombre, CI, teléfonos) | `PerfilScreen.kt` | `SettingsView.swift` | `database.py: settings` | Igual | `Android/app/src/main/kotlin/cu/shalev/app/perfil/` |
-| **perfil** | Tarjetas bancarias para cobro por transferencia | `TarjetaBancaria.kt` | `SettingsView.swift` | `database.py: bank_cards` | Igual | `Android/domain/src/main/kotlin/cu/shalev/domain/model/Perfil.kt` |
+| **perfil** | Tarjetas bancarias para cobro por transferencia | `TarjetaBancaria.kt` | `SettingsView.swift` | No almacenadas | **Diferencia aprobada por el propietario (esta tanda): perfil personal sí; tarjetas y cobro electrónico no** | `Android/domain/src/main/kotlin/cu/shalev/domain/model/Perfil.kt` |
 | **precios** | Ajuste masivo por porcentaje (puntos básicos) o importe fijo | `AjustesPreciosScreen.kt` | `ToolsView.swift: PriceAdjustments` | `tools.html: conversor / ajustes` | Igual | `Android/app/src/main/kotlin/cu/shalev/app/precios/` |
 | **precios** | Tarifas canónicas de licencias GL | `TipoLicencia` | `License.swift` | `config_licencia.py`, `docs/vectores/precios.json` | Igual | `docs/vectores/precios.json` |
 | **producto** | Formulario de producto con precio de venta y costo | `ProductoScreen.kt` | `InventoryView.swift: ItemEditor` | `inventory_edit.html` | Igual | `Web-Desktop/dshalev/templates/inventory_edit.html` |
@@ -275,6 +275,17 @@ Ventas e Inventario apagados, el panel seguía enseñando «Artículos activos»
 esas alertas a `permisos.verInventario` (`InicioScreen.kt:417`). Las dos tarjetas quedan ahora dentro de
 `ver_inventario` y `test_sin_inventario_ni_ventas_no_hay_alertas_de_existencias` lo fija.
 
+**Estructura de navegación (2026-11-24):** la barra lateral se reorganiza en los mismos destinos principales que
+`TopLevel` de Android: Inicio, Inventario, Servicios, Registros y Ajustes (Inventario/Servicios siguen filtrados por
+módulos). Registros agrupa Ventas, Turnos, Reportes y Clientes en pestañas internas; Recetas se enlaza desde
+Inventario; Ajustes centraliza Perfil y las herramientas/funciones de escritorio dentro de grupos, sin borrarlas.
+El Perfil web guarda nombre, apellidos, CI, teléfono(s), nombre comercial y nombre local en `app_meta`, dentro de la BD
+cifrada; también permite cargar, previsualizar, reemplazar y quitar el logo/foto del negocio, usado en PDF/PNG de la
+lista de precios y tarjetas promocionales. El respaldo cifra la base completa. CI/teléfono/nombre siguen las
+validaciones de Android. Para agregar las ventas web al ranking por local, Perfil permite indicar el nombre del local;
+ventas móviles reutilizan `VentaDto.local` o el del turno antiguo. Tarjetas bancarias y configuración de cobro
+electrónico no se implementaron por decisión expresa del propietario.
+
 ### 5.2 Iconos
 
 | Aspecto | Android | iOS | DShalev | Estado |
@@ -360,17 +371,14 @@ campo (`TELEFONO`, `TARJETA`, `CARNE`, `ENTERO`, `DECIMAL`, `CANTIDAD`, `DINERO`
 | Ganancia (venta vs costo) | `ShalevAreaChart` con **dos series** (`InicioScreen.kt:858`) | **Corregido:** área de dos series con `AreaMark` en el acordeón de ganancia (`HomeView.swift`, «Área clara: ventas») | **Corregido:** área SVG de dos series, normalizadas contra el mismo máximo, curva suave por el punto medio y relleno al 18 % (`dshalev/graficos.py`, `grafico_ganancia`) | Igual en las tres (iOS pendiente de pasada visual en simulador) |
 | Inventario por categorías | `ShalevDonutChart` con centro y leyenda | **Corregido:** `ShalevDonutChart` de existencias por categoría, valor al costo (`HomeView.swift`, `categoriasInventario`) | **Corregido:** dona SVG real con centro (total al costo) y leyenda con nombre, valor y porcentaje, arcos desde las 12 en punto y 2° de separación (`dshalev/graficos.py`) | Igual en las tres |
 | Métodos de pago | `ShalevDonutChart` | **Corregido:** donut en `paymentAccordion` (`HomeView.swift`) | **Corregido:** barras de reparto por forma de pago en Reportes (`share` en % sobre el total del período) | Igual en las tres |
-| Rankings (Top 3, servicios, empleados, clientes, locales) | 8 listas con medalla oro/plata/bronce (`InicioScreen.kt:905-968`), **orden por importe descendente y empate alfabético** (`Estadisticas.topPersonas`) | **8**: más vendido, lento movimiento, rentabilidad, servicios ×2, clientes, ventas por local y empleados (`empleadosDelPeriodo`) | **3**: más vendido, lento movimiento y rentabilidad (`top_items`, `slow_items`, `profit_items` en el panel) | **Parcial**: iOS completo; a DShalev le faltan locales (el escritorio no tiene tabla de locales: usa el `local_id` de `base.html`) y los de servicios, clientes y empleados |
+| Rankings (Top 3, servicios, empleados, clientes, locales) | 8 listas con medalla oro/plata/bronce (`InicioScreen.kt:905-968`), orden específico por unidades/importe y empate alfabético (`Estadisticas.kt`) | **8**: más vendido, lento movimiento, rentabilidad, servicios ×2, clientes, ventas por local y empleados (`empleadosDelPeriodo`) | **8 tipos de lista**: producto más vendido, lento movimiento y rentabilidad; servicios vendidos y lento movimiento; clientes, empleados y locales (`rankings.py`, `dashboard.html`). Locales usa `VentaDto.local` o el local del turno sincronizado; local de escritorio usa `local_id` | **Paridad de cobertura de listas**; el lenguaje visual y el origen de algunos nombres/IDs difieren entre apps |
 | Períodos | 5: `TURNO, HOY, SEMANA, MES, ANIO` (`Estadisticas.kt:19`) | 5 equivalentes (`HomePeriod`, `HomeView.swift:6`) | Fechas libres | Igual Android/iOS |
 | Accesibilidad del gráfico | Descripción textual por gráfico (`descripcionDona`, `description`) | `chartYAxis(.hidden)` + texto explicativo y `descripcion` en `ShalevDonutChart` (VoiceOver lee una sola frase) | `aria-label` en cada barra, con día, importe en CUP y porcentaje; nunca información solo por color | Igual |
 
-Los gráficos eran el segundo hueco. Tras el cierre de 2026-11-24, iOS tiene los tres gráficos de Android (barras,
-área de dos series y donuts) con la **misma paleta** de seis tonos (`Color.shalevChartPalette` copia `L_CHART`/`D_CHART`,
-incluido el gris reservado a «Otras»). DShalev también cerró el eje: Inicio tiene barras por día y Reportes añade
-barras por día del período y reparto por forma de pago, todo con `progress` y `aria-label` por barra (sin SVG ni
-canvas), sin un solo color usado para transmitir información. Lo que DShalev sigue sin tener es el **área de dos
-series** (ganancia) en Inicio: el escritorio no muestra la ganancia en el panel, y añadirla exige decidir si el panel
-enseña costo, cosa que hoy solo hacen las apps móviles.
+Los gráficos de Inicio de DShalev ya se igualaron antes (área de dos series y dona SVG, `graficos.py`); Reportes
+mantiene gráficas con barras y etiquetas accesibles. La matriz de gráficos sigue diferenciando sus implementaciones
+visuales por plataforma. En esta tanda se completó además la cobertura de rankings; aquí «paridad de listas» significa
+que DShalev ofrece las mismas familias analíticas, no que cada plataforma comparta el mismo layout.
 
 #### Forma de los gráficos en DShalev (2026-11-24)
 
@@ -394,15 +402,17 @@ Estado tras el cierre del 2026-11-24 (lo corregido se marca con la evidencia; lo
    `tools/verificacion/recorridos_ios.py`) y el **ranking de locales ordenado por importe** con el desempate
    alfabético de Android (`localesDelPeriodo`); este último además dejó de partir en dos filas las dos grafías del
    mismo local, que el `ForEach` colapsaba después perdiendo ventas.
-2. **DShalev, abierto:** 40 de los 51 recorridos de Android (11 ya están: las 6 de pestaña y turnos, clientes,
-   módulos, respaldo y licencia) y los rankings de servicios,
-   clientes, empleados y locales del panel (los locales no existen como tabla en el escritorio). **Corregido:**
-   exportación de inventario a **PDF y PNG generados por el servidor** (`dshalev/exportacion.py` + `dshalev/png.py`,
-   17 pruebas), **ordenación** de las cuatro listas (`dshalev/orden.py`), preajustes de precios editables
-   (`dshalev/preajustes.py`, `/herramientas/precios`, 16 pruebas), **módulos y su efecto en el rail**
-   (`dshalev/modulos.py`, 12 pruebas), **salidas para clientes** (`dshalev/catalogo_cliente.py`, 11 pruebas),
-   **recorridos guiados** (`dshalev/recorridos.py`, 11 recorridos, 14 pruebas), **gráficos de Reportes**
-   (`test_graficos_reportes.py`) y los **tres rankings de Inicio** (más vendido, lento movimiento y rentabilidad).
+2. **DShalev, abierto:** 40 de los 51 recorridos visuales de Android (11 recorridos de escritorio ya están; el
+   resto corresponde sobre todo a formularios y ventanas que se comportan distinto en navegador). **Corregido en
+   esta tanda:** navegación principal organizada como Android, enlace de Recetas desde Inventario, subsecciones de
+   Registros, Perfil (sin tarjetas ni pago electrónico, excluidos por decisión aprobada), y **ocho rankings de Inicio**
+   que agregan ventas de escritorio y secundarias sincronizadas; el ranking de locales usa `VentaDto.local` o el
+   local del turno sincronizado, sin cambiar el protocolo. También están corregidos: exportación de inventario a
+   **PDF y PNG generados por el servidor** (`dshalev/exportacion.py` + `dshalev/png.py`, 17 pruebas), **ordenación**
+   de las cuatro listas (`dshalev/orden.py`), preajustes de precios editables (`dshalev/preajustes.py`,
+   `/herramientas/precios`, 16 pruebas), **módulos y su efecto en la navegación** (`dshalev/modulos.py`, 12 pruebas),
+   **salidas para clientes** (`dshalev/catalogo_cliente.py`, 11 pruebas), **11 recorridos de escritorio**
+   (`dshalev/recorridos.py`, 14 pruebas) y **gráficos de Reportes** (`test_graficos_reportes.py`).
 3. **Nº de transferencia: cerrado el 2026-11-24.** Las tres plataformas usan la misma regla, `^[A-Za-z0-9-]{6,30}$`
    (letras, números y guiones; se guarda en mayúsculas). Antes iOS pedía 6–30 sin guion y Android/DShalev 4–30. Los
    mensajes y el `pattern` del formulario web dicen lo mismo; `test_licencia_spvi.py` cubre los bordes (5, 6, 30 y 31

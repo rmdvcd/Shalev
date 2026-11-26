@@ -31,7 +31,7 @@ from .cost_export import export_sheet as export_cost_to_catalog
 from .database import Database
 from .forms import form_data, format_cup, integer, money_to_cents
 from .inventory import format_milli, record_movement, record_retirement
-from . import catalogo_cliente, exportacion, modulos, orden, preajustes, recorridos
+from . import catalogo_cliente, exportacion, modulos, orden, preajustes, recorridos, perfil as perfil_negocio, rankings
 from .graficos import Punto, Serie, area_svg, dona_svg
 from .licencia import motivo_activacion_deshabilitada
 from .licencia.config_licencia import configuracion
@@ -365,21 +365,23 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 GROUP BY category ORDER BY valor DESC, category COLLATE NOCASE""").fetchall()
             inventario_por_categoria = [dict(row) for row in categoria_rows]
             total_inventario = sum(row["valor"] or 0 for row in categoria_rows)
-            top_items = conn.execute("""SELECT sl.item_id, MAX(sl.item_name) name, SUM(sl.quantity) quantity,
-                SUM(sl.quantity * sl.unit_price_cents) total FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id
-                WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
-                GROUP BY sl.item_id ORDER BY quantity DESC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
-            # Rankings del panel: los mismos tres de Android que faltaban (lento movimiento y rentabilidad), con el
-            # mismo desempate (importe, luego nombre) para que el orden sea reproducible.
-            slow_items = conn.execute("""SELECT sl.item_id, MAX(sl.item_name) name, SUM(sl.quantity) quantity,
-                SUM(sl.quantity * sl.unit_price_cents) total FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id
-                WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
-                GROUP BY sl.item_id ORDER BY quantity ASC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
-            profit_items = conn.execute("""SELECT sl.item_id, MAX(sl.item_name) name, SUM(sl.quantity) quantity,
-                SUM(sl.quantity * (sl.unit_price_cents - COALESCE(i.cost_cents,0))) profit
-                FROM sale_lines sl JOIN sales s ON s.id=sl.sale_id LEFT JOIN items i ON i.id=sl.item_id
-                WHERE s.cancelled_at IS NULL AND date(s.created_at,'localtime') BETWEEN ? AND ?
-                GROUP BY sl.item_id ORDER BY profit DESC, name COLLATE NOCASE, sl.item_id LIMIT 3""", (start, today)).fetchall()
+            # Ranking de productos e insumos: se suman ventas web y secundarias sincronizadas (Android `Estadisticas.top3`).
+            top_items = rankings.top_articulos(conn, start, today)
+            slow_items = rankings.articulos_lentos(conn, start, today)
+            profit_items = rankings.top_rentabilidad(conn, start, today)
+            # Los cuatro rankings transversales de Inicio de Android se construyen con las ventas locales y las ventas
+            # móviles recibidas. La localización de cada venta móvil ya viene en VentaDto.local (o en su TurnoSync
+            # histórico), por lo que no se cambia el protocolo.
+            servicios_ranking = rankings.top_servicios(conn, start, today)
+            local_row = conn.execute("SELECT value FROM app_meta WHERE key='local_name'").fetchone()
+            local_friendly_name = local_row["value"].strip() if local_row and local_row["value"].strip() else str(config.local_id or "original")
+            rankings_inicio = {
+                "services": servicios_ranking,
+                "services_slow": rankings.servicios_lento(conn, start, today, servicios_ranking),
+                "customers": rankings.top_clientes(conn, start, today),
+                "employees": rankings.top_empleados(conn, start, today),
+                "locations": rankings.top_locales(conn, start, today, local_friendly_name),
+            }
             # Gráficos con la misma forma que Android (`Charts.kt`): área para ventas y ganancia, dona para el
             # reparto de existencias. Se generan aquí, en el servidor, para no meter una librería de dibujo en el
             # ejecutable ni depender de JavaScript.
@@ -436,9 +438,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             cost_max=max(1, *(row["cost"] for row in daily_cost)),
             inventario_por_categoria=inventario_por_categoria,
             total_inventario=total_inventario,
-            top_items=[dict(row) for row in top_items],
-            slow_items=[dict(row) for row in slow_items],
-            profit_items=[dict(row) for row in profit_items],
+            top_items=top_items,
+            slow_items=slow_items,
+            profit_items=profit_items,
+            rankings_inicio=rankings_inicio,
         ))
 
     @app.get("/configurar", response_class=HTMLResponse)
@@ -1054,6 +1057,103 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
                 return flash_redirect(request, "/licencia", exc.mensaje, kind="error")
             return flash_redirect(request, "/licencia", "No se pudo consultar el estado de la licencia.", kind="error")
 
+    @app.get("/ajustes", response_class=HTMLResponse)
+    async def settings_page(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        return templates.TemplateResponse(request, "ajustes.html", context(
+            request, user=user, section="ajustes",
+        ))
+
+    @app.get("/perfil", response_class=HTMLResponse)
+    async def business_profile(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        if user["role"] != "admin":
+            return JSONResponse({"detail": "Solo la cuenta administradora puede editar el perfil."}, status_code=403)
+        with db.connect() as conn:
+            datos = perfil_negocio.cargar(conn)
+            logo = perfil_negocio.cargar_logo(conn)
+        logo_data_url = f"data:image/png;base64,{base64.b64encode(logo).decode('ascii')}" if logo else ""
+        return templates.TemplateResponse(request, "perfil.html", context(
+            request, user=user, section="ajustes", perfil=datos, logo_data_url=logo_data_url,
+        ))
+
+    @app.post("/perfil", response_class=HTMLResponse)
+    async def save_business_profile(request: Request):
+        user = current_user(request)
+        if not user:
+            return redirect("/entrar")
+        if user["role"] != "admin":
+            return JSONResponse({"detail": "Solo la cuenta administradora puede editar el perfil."}, status_code=403)
+        data = await require_csrf(request)
+        if data is None:
+            return JSONResponse({"detail": "Token CSRF no válido."}, status_code=403)
+        perfil_guardado, campo_error = perfil_negocio.validar(data)
+        if campo_error:
+            with db.connect() as conn:
+                anterior = perfil_negocio.cargar(conn)
+            # Mantener entrada enviada para que se pueda corregir sin repetir todo el formulario.
+            anterior.update({"nombre": data.get("nombre", ""), "apellidos": data.get("apellidos", ""),
+                             "ci": data.get("ci", ""), "nombre_negocio": data.get("nombre_negocio", ""),
+                             "nombre_local": data.get("nombre_local", ""), "telefonos_texto": data.get("telefonos", "")})
+            errores = {"nombre": "Escribe un nombre válido (2–80 caracteres).", "apellidos": "Escribe apellidos válidos (2–80 caracteres).",
+                       "ci": "El CI debe tener 11 dígitos y comenzar con una fecha de nacimiento válida.",
+                       "telefonos": "Revisa los teléfonos: admite hasta 10, uno por línea, de 8 dígitos cubanos o con prefijo internacional válido.",
+                       "nombre_negocio": "El nombre comercial admite hasta 80 caracteres.",
+                       "nombre_local": "El nombre del local admite hasta 80 caracteres."}
+            return templates.TemplateResponse(request, "perfil.html", context(
+                request, user=user, section="ajustes", perfil=anterior, error=errores[campo_error],
+            ), status_code=422)
+        with db.connect() as conn:
+            perfil_negocio.guardar(conn, perfil_guardado)
+        return flash_redirect(request, "/perfil", "Perfil guardado correctamente.", kind="success")
+
+    @app.post("/perfil/logo")
+    async def save_business_logo(request: Request):
+        user = current_user(request)
+        if not user or user["role"] != "admin":
+            return JSONResponse({"detail": "No autorizado."}, status_code=403)
+        body = await request.body()
+        if len(body) > 3 * 1024 * 1024:
+            return JSONResponse({"detail": "La imagen supera el tamaño permitido."}, status_code=413)
+        try:
+            data = json.loads(body)
+        except (ValueError, UnicodeDecodeError):
+            return JSONResponse({"detail": "Solicitud de imagen no válida."}, status_code=400)
+        if not valid_csrf(request.session.get("csrf"), str(data.get("csrf", ""))):
+            return JSONResponse({"detail": "Token CSRF no válido."}, status_code=403)
+        data_url = str(data.get("image", ""))
+        if not data_url.startswith("data:image/png;base64,"):
+            return JSONResponse({"detail": "La imagen debe ser PNG."}, status_code=415)
+        try:
+            raw = base64.b64decode(data_url.partition(",")[2], validate=True)
+            from .png import decodificar_png_rgb
+            decodificar_png_rgb(raw)
+        except (ValueError, TypeError):
+            return JSONResponse({"detail": "PNG inválido o mayor que 2 MiB; selecciona otra imagen."}, status_code=422)
+        with db.transaction() as conn:
+            perfil_negocio.guardar_logo(conn, raw)
+        return JSONResponse({"ok": True, "image": data_url})
+
+    @app.post("/perfil/logo/eliminar")
+    async def delete_business_logo(request: Request):
+        user = current_user(request)
+        if not user or user["role"] != "admin":
+            return JSONResponse({"detail": "No autorizado."}, status_code=403)
+        body = await request.body()
+        try:
+            data = json.loads(body)
+        except (ValueError, UnicodeDecodeError):
+            return JSONResponse({"detail": "Solicitud no válida."}, status_code=400)
+        if not valid_csrf(request.session.get("csrf"), str(data.get("csrf", ""))):
+            return JSONResponse({"detail": "Token CSRF no válido."}, status_code=403)
+        with db.transaction() as conn:
+            perfil_negocio.eliminar_logo(conn)
+        return JSONResponse({"ok": True})
+
     @app.get("/ayuda", response_class=HTMLResponse)
     async def help_page(request: Request):
         user = current_user(request)
@@ -1173,11 +1273,13 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         with db.connect() as conn:
             articulos = _articulos_para_cliente(conn)
             negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+            logo = perfil_negocio.cargar_logo(conn)
+        logo_data_url = f"data:image/png;base64,{base64.b64encode(logo).decode('ascii')}" if logo else ""
         filas = catalogo_cliente.lista_precios(articulos)
         return templates.TemplateResponse(request, "lista_precios.html", context(
             request, user=user, section="inventario", filas=filas,
             negocio=negocio["value"] if negocio else "DShalev",
-            generado=datetime.now().strftime("%d/%m/%Y %H:%M"),
+            generado=datetime.now().strftime("%d/%m/%Y %H:%M"), logo_data_url=logo_data_url,
         ))
 
     @app.get("/inventario/tarjetas", response_class=HTMLResponse)
@@ -1207,6 +1309,8 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         with db.connect() as conn:
             articulos = _articulos_para_cliente(conn)
             negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+            logo = perfil_negocio.cargar_logo(conn)
+        logo_data_url = f"data:image/png;base64,{base64.b64encode(logo).decode('ascii')}" if logo else ""
         nombres_disponibles = [str(a["name"]) for a in articulos]
         elegidos = catalogo_cliente.texto_seleccion(
             request.query_params.get("articulos"), nombres_disponibles) if request.query_params.get("articulos") else nombres_disponibles
@@ -1215,7 +1319,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         return templates.TemplateResponse(request, "tarjetas_imprimir.html", context(
             request, user=user, section="inventario", paginas=paginas,
             comentario=catalogo_cliente.comentario_limpio(request.query_params.get("comentario", "")),
-            negocio=negocio["value"] if negocio else "DShalev",
+            negocio=negocio["value"] if negocio else "DShalev", logo_data_url=logo_data_url,
         ))
 
     def _cabecera_archivo(nombre: str) -> dict[str, str]:
@@ -1231,9 +1335,10 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         with db.connect() as conn:
             articulos = _articulos_para_cliente(conn)
             negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+            logo = perfil_negocio.cargar_logo(conn)
         datos = exportacion.lista_precios_pdf(
             catalogo_cliente.lista_precios(articulos),
-            negocio=negocio["value"] if negocio else "DShalev",
+            negocio=negocio["value"] if negocio else "DShalev", logo_png=logo,
         )
         return Response(datos, media_type="application/pdf",
                         headers=_cabecera_archivo("lista-de-precios.pdf"))
@@ -1247,6 +1352,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         with db.connect() as conn:
             articulos = _articulos_para_cliente(conn)
             negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+            logo = perfil_negocio.cargar_logo(conn)
         por_nombre = {str(a["name"]): a for a in articulos}
         elegidos = catalogo_cliente.texto_seleccion(
             request.query_params.get("articulos"), list(por_nombre)) if request.query_params.get("articulos") else list(por_nombre)
@@ -1256,6 +1362,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             tarjetas,
             negocio=negocio["value"] if negocio else "DShalev",
             comentario=catalogo_cliente.comentario_limpio(request.query_params.get("comentario", "")),
+            logo_png=logo,
         )
         return Response(datos, media_type="application/pdf",
                         headers=_cabecera_archivo("tarjetas-promocionales.pdf"))
@@ -1269,6 +1376,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
         with db.connect() as conn:
             articulos = _articulos_para_cliente(conn)
             negocio = conn.execute("SELECT value FROM app_meta WHERE key='business_name'").fetchone()
+            logo = perfil_negocio.cargar_logo(conn)
         por_nombre = {str(a["name"]): a for a in articulos}
         elegidos = catalogo_cliente.texto_seleccion(
             request.query_params.get("articulos"), list(por_nombre)) if request.query_params.get("articulos") else list(por_nombre)
@@ -1278,6 +1386,7 @@ def create_app(config: AppConfig, database: Database | None = None, *, port: int
             tarjetas,
             negocio=negocio["value"] if negocio else "DShalev",
             comentario=catalogo_cliente.comentario_limpio(request.query_params.get("comentario", "")),
+            logo_png=logo,
         )
         memoria = io.BytesIO()
         with zipfile.ZipFile(memoria, "w", zipfile.ZIP_DEFLATED) as paquete:

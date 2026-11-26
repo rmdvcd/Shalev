@@ -123,10 +123,15 @@ def test_choosing_only_services_hides_sales_and_inventory_from_the_rail(tmp_path
 
     rail = rail_links(client.get("/"))
     assert 'href="/servicios"' in rail
-    assert 'href="/ventas"' not in rail
+    # Registros es un destino principal estable de Android; las acciones de venta se filtran por módulo.
+    assert 'href="/ventas"' in rail
     assert 'href="/inventario"' not in rail
-    # El resto de la barra (herramientas del negocio) sigue ahí.
-    assert 'href="/reportes"' in rail and 'href="/clientes"' in rail
+    # La navegación principal contiene los cinco destinos de Android; las herramientas permanecen en Ajustes.
+    assert 'href="/ajustes"' in rail and 'href="/reportes"' not in rail
+    ajustes = client.get('/ajustes')
+    assert 'href="/equipo"' in ajustes.text
+    registros = client.get('/ventas')
+    assert 'href="/reportes"' in registros.text and 'href="/clientes"' in registros.text
 
 
 def test_marking_sales_marks_inventory_without_the_client_sending_it(tmp_path) -> None:

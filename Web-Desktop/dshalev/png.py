@@ -54,6 +54,74 @@ ALTO_GLIFO = 7
 SEPARACION = 1
 
 
+def decodificar_png_rgb(datos: bytes) -> tuple[int, int, bytes]:
+    """Decodifica PNG RGB/RGBA de 8 bits sin entrelazado (salida de canvas.toDataURL), alfa sobre blanco."""
+    if not datos.startswith(b"\x89PNG\r\n\x1a\n") or len(datos) > 2 * 1024 * 1024:
+        raise ValueError("Logo PNG inválido o demasiado grande")
+    posicion, ancho, alto, profundidad, tipo, entrelazado = 8, 0, 0, 0, 0, 0
+    comprimido = bytearray()
+    while posicion + 12 <= len(datos):
+        largo = struct.unpack_from(">I", datos, posicion)[0]
+        tipo_bloque = datos[posicion + 4:posicion + 8]
+        inicio = posicion + 8
+        fin = inicio + largo
+        if fin + 4 > len(datos):
+            raise ValueError("PNG truncado")
+        bloque = datos[inicio:fin]
+        if tipo_bloque == b"IHDR":
+            ancho, alto, profundidad, tipo, compresion, filtro, entrelazado = struct.unpack(">IIBBBBB", bloque)
+            if not 1 <= ancho <= 2048 or not 1 <= alto <= 2048 or profundidad != 8 or tipo not in (2, 6) or entrelazado != 0 or compresion != 0 or filtro != 0:
+                raise ValueError("El PNG debe ser RGB/RGBA de 8 bits y hasta 2048 por 2048")
+        elif tipo_bloque == b"IDAT":
+            comprimido.extend(bloque)
+        elif tipo_bloque == b"IEND":
+            break
+        posicion = fin + 4
+    canales = 3 if tipo == 2 else 4
+    fila_bytes = ancho * canales
+    bruto = zlib.decompress(bytes(comprimido))
+    if len(bruto) != alto * (fila_bytes + 1):
+        raise ValueError("Dimensiones PNG inconsistentes")
+    filas: list[bytearray] = []
+    cursor = 0
+    anterior = bytearray(fila_bytes)
+    for _ in range(alto):
+        filtro = bruto[cursor]
+        fila = bytearray(bruto[cursor + 1:cursor + 1 + fila_bytes])
+        cursor += fila_bytes + 1
+        for i in range(fila_bytes):
+            izquierda = fila[i - canales] if i >= canales else 0
+            arriba = anterior[i]
+            arriba_izquierda = anterior[i - canales] if i >= canales else 0
+            if filtro == 1:
+                fila[i] = (fila[i] + izquierda) & 255
+            elif filtro == 2:
+                fila[i] = (fila[i] + arriba) & 255
+            elif filtro == 3:
+                fila[i] = (fila[i] + ((izquierda + arriba) // 2)) & 255
+            elif filtro == 4:
+                p = izquierda + arriba - arriba_izquierda
+                pa, pb, pc = abs(p - izquierda), abs(p - arriba), abs(p - arriba_izquierda)
+                predictor = izquierda if pa <= pb and pa <= pc else arriba if pb <= pc else arriba_izquierda
+                fila[i] = (fila[i] + predictor) & 255
+            elif filtro != 0:
+                raise ValueError("Filtro PNG no válido")
+        filas.append(fila)
+        anterior = fila
+    if canales == 3:
+        return ancho, alto, b"".join(bytes(f) for f in filas)
+    rgb = bytearray(ancho * alto * 3)
+    dst = 0
+    for fila in filas:
+        for x in range(ancho):
+            r, g, b, a = fila[x * 4:x * 4 + 4]
+            rgb[dst:dst + 3] = bytes(((r * a + 255 * (255 - a)) // 255,
+                                      (g * a + 255 * (255 - a)) // 255,
+                                      (b * a + 255 * (255 - a)) // 255))
+            dst += 3
+    return ancho, alto, bytes(rgb)
+
+
 class Lienzo:
     """Imagen RGB que se construye por píxeles y se exporta a PNG."""
 
@@ -70,6 +138,17 @@ class Lienzo:
         if 0 <= x < self.ancho and 0 <= y < self.alto:
             posicion = (y * self.ancho + x) * 3
             self.pixeles[posicion:posicion + 3] = bytes(color)
+
+    def imagen_rgb(self, x: int, y: int, ancho: int, alto: int, origen_ancho: int, origen_alto: int, origen: bytes) -> None:
+        """Dibuja una imagen RGB escalada con vecino más cercano, sin dependencia de rasterizado."""
+        if min(ancho, alto, origen_ancho, origen_alto) <= 0 or len(origen) != origen_ancho * origen_alto * 3:
+            return
+        for yy in range(max(0, y), min(self.alto, y + alto)):
+            sy = (yy - y) * origen_alto // alto
+            for xx in range(max(0, x), min(self.ancho, x + ancho)):
+                sx = (xx - x) * origen_ancho // ancho
+                inicio = (sy * origen_ancho + sx) * 3
+                self.punto(xx, yy, tuple(origen[inicio:inicio + 3]))
 
     def rectangulo(self, x: int, y: int, ancho: int, alto: int, color: tuple[int, int, int]) -> None:
         x0, y0 = max(0, x), max(0, y)

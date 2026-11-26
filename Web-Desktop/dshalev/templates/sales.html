@@ -1,5 +1,6 @@
 {% extends 'base.html' %}{% block title %}Ventas{% endblock %}{% block content %}
-<div class="page-heading"><div><p class="eyebrow">PUNTO DE VENTA</p><h1>Ventas</h1><p class="muted">Registra ventas de varias líneas y consulta operaciones móviles.</p></div></div>
+<div class="page-heading"><div><p class="eyebrow">REGISTROS DEL NEGOCIO</p><h1>Ventas</h1><p class="muted">Registra ventas y consulta operaciones, turnos y clientes.</p></div></div>
+{% include '_records_nav.html' %}
 <div class="content-grid sales-grid"><section class="panel pos-panel">{% if shift %}<div class="panel-heading"><div><p class="eyebrow">NUEVA OPERACIÓN WEB</p><h2>Carrito de venta</h2></div><span class="icon-tile">＋</span></div>
 <div id="pos-app" class="pos-workspace" hidden data-shift="{{ shift.id }}" data-user="{{ user.id }}" data-sale-saved="{% if request.query_params.get('notice') == 'sale_saved' %}1{% else %}0{% endif %}" data-completed-sale-key="{{ completed_sale_key }}" data-pos-key-reset="{% if reset_pos_key %}1{% else %}0{% endif %}">
   <div class="pos-catalog">

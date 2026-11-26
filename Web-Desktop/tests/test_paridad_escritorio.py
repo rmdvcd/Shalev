@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
 from test_inventory_pos import client_for, setup_and_login, token
 
@@ -68,9 +69,104 @@ def test_navegacion_y_licencia_sin_falsa_activacion(tmp_path):
     client = client_for(tmp_path)
     setup_and_login(client)
     page = client.get('/').text
-    assert 'href="/servicios"' in page and 'href="/herramientas"' in page and 'href="/licencia"' in page
+    assert 'href="/servicios"' in page and 'href="/ajustes"' in page
+    assert 'href="/herramientas"' not in page and 'href="/licencia"' not in page
+    ajustes = client.get('/ajustes')
+    assert 'href="/herramientas"' in ajustes.text and 'href="/licencia"' in ajustes.text
+    assert 'href="/equipo"' in ajustes.text and 'href="/respaldo"' in ajustes.text
     assert 'Fotos / APK' not in page
     assert 'id="theme-select"' in page
     assert 'href="/distribucion"' in client.get('/equipo').text
     lic_page = client.get('/licencia').text
     assert 'Huella de la instalación' in lic_page
+
+
+def test_icono_de_marca_y_favicon_coinciden_con_launcher_android(tmp_path):
+    client = client_for(tmp_path)
+    setup_and_login(client)
+    page = client.get('/')
+    assert '<link rel="icon" type="image/png" href="/static/favicon.png">' in page.text
+    assert '<img class="brand-mark" src="/static/favicon.png" alt="">' in page.text
+    icon = client.get('/static/favicon.png')
+    assert icon.status_code == 200
+    assert icon.headers['content-type'].startswith('image/png')
+    assert icon.content == (Path(__file__).parents[1] / 'dshalev' / 'static' / 'favicon.png').read_bytes()
+
+
+def test_perfil_del_negocio_guarda_datos_y_valida_ci_y_telefonos(tmp_path):
+    client = client_for(tmp_path)
+    setup_and_login(client)
+    page = client.get('/perfil')
+    assert page.status_code == 200
+    assert 'href="/perfil"' in client.get('/ajustes').text
+    response = client.post('/perfil', data={
+        'csrf': token(page), 'nombre': 'María', 'apellidos': 'Pérez González',
+        'ci': '85010112345', 'telefonos': '52345678\n61234567', 'nombre_negocio': 'Mi tienda', 'nombre_local': 'Local Centro',
+    }, follow_redirects=True)
+    assert response.status_code == 200 and 'Perfil guardado correctamente' in response.text
+    with client.app.state.db.connect() as conn:
+        from dshalev.perfil import cargar
+        saved = cargar(conn)
+    assert saved['nombre'] == 'María' and saved['apellidos'] == 'Pérez González'
+    assert saved['ci'] == '85010112345' and saved['telefonos'] == ['+5352345678', '+5361234567']
+    assert saved['nombre_negocio'] == 'Mi tienda' and saved['nombre_local'] == 'Local Centro'
+    bad = client.get('/perfil')
+    rejected = client.post('/perfil', data={
+        'csrf': token(bad), 'nombre': 'María', 'apellidos': 'Pérez',
+        'ci': '85133212345', 'telefonos': '12345678', 'nombre_negocio': 'Mi tienda',
+    })
+    assert rejected.status_code == 422 and 'fecha de nacimiento válida' in rejected.text
+    assert client.get('/').text.find('Mi tienda') >= 0
+
+
+def test_inicio_rankings_agregan_servicios_clientes_empleados_y_locales(tmp_path):
+    import json
+    client = client_for(tmp_path)
+    setup_and_login(client)
+    with client.app.state.db.transaction() as conn:
+        conn.execute("INSERT INTO app_meta(key,value) VALUES('local_name','Sucursal Norte')")
+        conn.execute("INSERT INTO items(name,category,stock,sale_price_cents,cost_cents) VALUES('Corte','Servicio',0,1000,200)")
+        conn.execute("INSERT INTO shifts(opening_cash_cents) VALUES(0)")
+        conn.execute("INSERT INTO customers(name) VALUES('Cliente web')")
+        conn.execute("INSERT INTO employees(slot,name) VALUES(1,'Vendedor web')")
+        conn.execute("INSERT INTO sales(shift_id,total_cents,payment_method,employee_id,customer_id) VALUES(1,1000,'TRANSFERENCIA',1,1)")
+        conn.execute("INSERT INTO sale_lines(sale_id,item_id,item_name,quantity,unit_price_cents) VALUES(1,1,'Corte',1,1000)")
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        payload = {'venta': {'local': 'Sucursal Norte', 'detalles': [{'clase': 'SERVICIO', 'nombre': 'Corte móvil', 'cantidad': 2, 'precioUnitarioCent': 500}], 'transaccion': {'clienteNombre': 'Cliente móvil', 'clienteCi': '85010112345', 'importeCent': 1000}}}
+        conn.execute("INSERT INTO sync_sales(uuid,employee_id,employee_name,shift_uuid,sale_at_ms,payment_method,total_cents,payload_json) VALUES('rank-test',7,'Ana Móvil','shift-mobile',?,'TRANSFERENCIA',1000,?)", (now_ms,json.dumps(payload)))
+    page = client.get('/').text
+    assert 'Corte' in page and 'Corte móvil' in page
+    assert 'Cliente web' in page and 'Cliente móvil' in page
+    assert 'Vendedor web' in page and 'Ana Móvil' in page
+    assert page.count('<li><strong>Sucursal Norte</strong>') == 1
+
+
+def test_logo_de_perfil_se_guarda_y_aparece_en_salidas_publicas(tmp_path):
+    import base64
+    from dshalev.png import Lienzo, decodificar_png_rgb
+    client = client_for(tmp_path)
+    setup_and_login(client)
+    with client.app.state.db.transaction() as conn:
+        conn.execute("INSERT INTO items(name,category,stock,sale_price_cents,cost_cents) VALUES('Producto logo','Producto',4,100,20)")
+    page = client.get('/perfil')
+    logo = Lienzo(8, 8, (40, 90, 160)).png()
+    upload = client.post('/perfil/logo', json={'csrf': token(page), 'image': 'data:image/png;base64,' + base64.b64encode(logo).decode()})
+    assert upload.status_code == 200 and upload.json()['ok']
+    response = client.get('/perfil')
+    assert 'data:image/png;base64,' in response.text and 'perfil-logo-preview' in response.text
+    assert client.get('/inventario/lista-precios').text.count('data:image/png;base64,') == 1
+    printed = client.get('/inventario/tarjetas/imprimir')
+    assert 'data:image/png;base64,' in printed.text
+    pdf = client.get('/inventario/lista-precios.pdf')
+    assert pdf.status_code == 200 and b'/Subtype /Image' in pdf.content and b'/Im1 Do' in pdf.content
+    import io, zipfile
+    package = zipfile.ZipFile(io.BytesIO(client.get('/inventario/tarjetas.png').content))
+    card_png = package.read(next(name for name in package.namelist() if name.endswith('.png')))
+    width, height, pixels = decodificar_png_rgb(card_png)
+    assert (width, height) == (1080, 1080) and pixels[(50 * width + 900) * 3:(50 * width + 900) * 3 + 3] == bytes((40, 90, 160))
+    with client.app.state.db.connect() as conn:
+        from dshalev.perfil import cargar_logo
+        loaded = cargar_logo(conn)
+    assert loaded == logo and decodificar_png_rgb(loaded)[0:2] == (8, 8)
+    deleted = client.post('/perfil/logo/eliminar', json={'csrf': token(response)})
+    assert deleted.status_code == 200 and deleted.json()['ok']
